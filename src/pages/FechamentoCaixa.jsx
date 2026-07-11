@@ -12,11 +12,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const [confDataFim, setConfDataFim] = useState('');
     const [confProduto, setConfProduto] = useState('TODOS');
     const [confVendedor, setConfVendedor] = useState('TODOS');
-    
+    const [confUnidade, setConfUnidade] = useState('TODOS'); // NOVO FILTRO DE UNIDADE
+
     // Estados da Aba 2: Comissões
     const [dataInicialInput, setDataInicialInput] = useState('2026-07-01');
     const [dataFinalInput, setDataFinalInput] = useState('2026-07-31');
-    const [filtroAtivo, setFiltroAtivo] = useState({ inicio: '2026-07-01', fim: '2026-07-31' });
+    const [filtroUnidadeComissao, setFiltroUnidadeComissao] = useState('TODOS'); // NOVO FILTRO DE COMISSÃO
+    const [filtroAtivo, setFiltroAtivo] = useState({ inicio: '2026-07-01', fim: '2026-07-31', unidade: 'TODOS' });
+
+    // Verifica se o usuário logado possui permissão corporativa global
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     // -----------------------------------------------------
     // 2. FUNÇÕES AUXILIARES
@@ -31,16 +36,20 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [subAba, vendas, confProduto, confVendedor, filtroAtivo, usuarioLogado]);
+    }, [subAba, vendas, confProduto, confVendedor, confUnidade, filtroAtivo, usuarioLogado]);
 
     // -----------------------------------------------------
-    // 3. LÓGICA DA ABA: CONFERÊNCIA (CONECTADA AO SUPABASE)
+    // 3. LÓGICA DA ABA: CONFERÊNCIA
     // -----------------------------------------------------
     const produtosUnicos = ['TODOS', ...new Set(vendas.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(vendas.map(v => v.vendedor))].filter(Boolean);
+    const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean); // LISTA DE UNIDADES
 
     // Filtragem Master da Auditoria
     const vendasParaConferencia = vendas.filter(v => {
+        // Filtro de Unidade (Ativo apenas se for Admin/Mentor)
+        if (temVisaoGlobal && confUnidade !== 'TODOS' && v.unidade !== confUnidade) return false;
+
         const passProduto = confProduto === 'TODOS' || v.produto === confProduto;
         const passVendedor = confVendedor === 'TODOS' || v.vendedor === confVendedor;
         
@@ -54,14 +63,10 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         return passProduto && passVendedor && passData;
     });
 
-    // Calcula o valor em tempo real de tudo que está filtrado na tela
     const valorTotalAConferir = vendasParaConferencia.reduce((acc, v) => acc + parseCurrency(v.valor), 0);
 
-    // Altera o status de conferência direto no Supabase usando o ID único
     const toggleConferido = async (id, statusAtual) => {
         const novoStatus = !statusAtual;
-        
-        // Atualização Otimista local
         setVendas(vendas.map(v => v.id === id ? { ...v, conferiu: novoStatus } : v));
 
         const { error } = await supabase
@@ -76,12 +81,10 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         }
     };
 
-    // Atualiza o texto localmente enquanto digita para não travar a tela
     const handleObsLocalChange = (id, novaObs) => {
         setVendas(vendas.map(v => v.id === id ? { ...v, observacao: novaObs } : v));
     };
 
-    // Grava na nuvem apenas quando o usuário sai do campo de texto (onBlur)
     const handleObsSaveDb = async (id, textoFinal) => {
         await supabase
             .from('vendas')
@@ -89,17 +92,14 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
             .eq('id', id);
     };
 
-    // Aprovação em Lote Inteligente para o Administrador
     const marcarTodosConferidos = async () => {
         const idsFiltrados = vendasParaConferencia.map(v => v.id);
         if (idsFiltrados.length === 0) return;
 
         if (!window.confirm(`Tem certeza que deseja marcar os ${vendasParaConferencia.length} itens listados como CONFERIDOS?`)) return;
         
-        // Atualização Otimista
         setVendas(vendas.map(v => idsFiltrados.includes(v.id) ? { ...v, conferiu: true } : v));
 
-        // Comando em lote no Supabase (.in envia uma lista de IDs de uma vez só)
         const { error } = await supabase
             .from('vendas')
             .update({ conferiu: true })
@@ -116,12 +116,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     // -----------------------------------------------------
     const handleFiltrarComissao = (e) => {
         e.preventDefault();
-        setFiltroAtivo({ inicio: dataInicialInput, fim: dataFinalInput });
+        setFiltroAtivo({ inicio: dataInicialInput, fim: dataFinalInput, unidade: filtroUnidadeComissao });
     };
 
-    // REGRA DE OURO OPERANDO: Só entra no cálculo se conferiu for true
+    // REGRA DE OURO OPERANDO: Só entra se conferiu for true e bater com os filtros ativos
     const vendasComissionadas = vendas.filter(v => {
         if (!v.conferiu) return false; 
+        
+        // Filtro de unidade na comissão para visão global
+        if (temVisaoGlobal && filtroAtivo.unidade !== 'TODOS' && v.unidade !== filtroAtivo.unidade) return false;
+
         const isoDataVenda = parseDateToISO(v.data);
         return isoDataVenda >= filtroAtivo.inicio && isoDataVenda <= filtroAtivo.fim;
     });
@@ -153,12 +157,12 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
             {/* CABEÇALHO E SELETOR DE SUB-ABAS */}
             <div className="bg-white rounded-[24px] shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-4">
-                    <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl shadow-inner">
+                    <div className="p-4 bg-indigo-50 text-indigo-600 rounded-2xl shadow-inner border border-indigo-100">
                         <i data-lucide="wallet" className="w-6 h-6"></i>
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800 tracking-tight">Fechamento / Caixa</h2>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Auditoria e Comissões</p>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-1">Unidade {usuarioLogado?.unidade}</p>
                     </div>
                 </div>
 
@@ -180,7 +184,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                         <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
                             
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto flex-1">
+                            <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 w-full xl:w-auto flex-1 ${temVisaoGlobal ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 mb-1">Data Início</label>
                                     <input type="date" value={confDataInicio} onChange={(e) => setConfDataInicio(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer" />
@@ -201,6 +205,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                         {produtosUnicos.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
+
+                                {/* FILTRO EXTRA DE UNIDADE PARA ADMIN/MENTOR */}
+                                {temVisaoGlobal && (
+                                    <div className="animate-[fadeIn_0.3s_ease-out]">
+                                        <label className="block text-xs font-bold text-rose-500 mb-1">Unidade Ref.</label>
+                                        <select value={confUnidade} onChange={(e) => setConfUnidade(e.target.value)} className="w-full bg-rose-50/20 border border-rose-200 text-rose-800 rounded-lg px-3 py-2 text-sm font-black focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
+                                            {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS 10' : u}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="flex flex-col items-end gap-3 w-full xl:w-auto">
@@ -222,10 +236,11 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                     {/* Tabela de Conferência */}
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full text-left border-collapse min-w-max">
                                 <thead>
                                     <tr>
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50">Data</th>
+                                        {temVisaoGlobal && <th className="px-5 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200 bg-rose-50/20">Unidade</th>}
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50">Matrícula</th>
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50">Aluno</th>
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50">Produto</th>
@@ -240,14 +255,21 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                     {vendasParaConferencia.length > 0 ? vendasParaConferencia.map((v) => (
                                         <tr key={v.id} className={`transition-colors ${v.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
                                             <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap">{v.data}</td>
+                                            
+                                            {/* COLUNA DE UNIDADE EXCLUSIVA DO ADMIN/MENTOR */}
+                                            {temVisaoGlobal && (
+                                                <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/5 whitespace-nowrap uppercase">
+                                                    {v.unidade || 'MATRIZ'}
+                                                </td>
+                                            )}
+
                                             <td className="px-5 py-4 text-xs font-bold text-slate-700">{v.matricula || '-'}</td>
                                             <td className="px-5 py-4 text-xs text-slate-800 font-black uppercase">{v.nome_aluno || v.nome}</td>
                                             <td className="px-5 py-4 text-xs font-bold text-indigo-600 uppercase">{v.produto}</td>
                                             <td className="px-5 py-4 text-xs font-bold text-slate-600 uppercase">{v.vendedor}</td>
-                                            <td className="px-5 py-4 text-xs font-black text-slate-800 text-center">{v.quantidade}</td>
+                                            <td className="px-5 py-4 text-xs font-black text-slate-700 text-center">{v.quantidade}</td>
                                             <td className="px-5 py-4 text-xs font-black text-slate-800 text-right whitespace-nowrap">{v.valor}</td>
                                             
-                                            {/* Input de Observação Inteligente */}
                                             <td className="px-5 py-2">
                                                 <input 
                                                     type="text"
@@ -273,7 +295,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                             </td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan="9" className="text-center py-16 text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhuma venda encontrada no filtro.</td></tr>
+                                        <tr><td colSpan={temVisaoGlobal ? "10" : "9"} className="text-center py-16 text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhuma venda encontrada no filtro.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -296,6 +318,17 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                 <label className="block text-xs font-bold text-slate-500 mb-1">Data Final</label>
                                 <input type="date" value={dataFinalInput} onChange={(e) => setDataFinalInput(e.target.value)} className="w-full sm:w-36 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-sm" />
                             </div>
+
+                            {/* FILTRO EXTRA DE UNIDADE NAS COMISSÕES PARA ADMIN/MENTOR */}
+                            {temVisaoGlobal && (
+                                <div className="animate-[fadeIn_0.3s_ease-out]">
+                                    <label className="block text-xs font-black text-rose-500 mb-1">Isolar Unidade</label>
+                                    <select value={filtroUnidadeComissao} onChange={(e) => setFiltroUnidadeComissao(e.target.value)} className="w-full sm:w-44 bg-white border border-rose-200 text-rose-700 rounded-lg px-3 py-2 text-xs font-black focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase shadow-sm">
+                                        {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS UNIDADES' : u}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
                             <button type="submit" className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-black px-6 py-2 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 h-[38px] text-xs uppercase tracking-widest">
                                 <i data-lucide="search" className="w-4 h-4"></i> Filtrar
                             </button>
@@ -325,7 +358,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                 <thead>
                                     <tr>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-white w-64">Vendedor</th>
-                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-white w-48 text-right">Comissão Total</th>
+                                        <th className="px-8 py-5 text-[10px] font-black text-slate-400 tracking-widest border-b border-slate-100 bg-white w-48 text-right">Comissão Total</th>
                                         <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-white">Itens Validados (Resumo)</th>
                                     </tr>
                                 </thead>

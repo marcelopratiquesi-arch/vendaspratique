@@ -20,17 +20,17 @@ export default function Login({ onLogin }) {
         try {
             // 1. Tenta autenticar a senha criptografada no Supabase
             const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-                email: email.trim(),
+                email: email.toLowerCase().trim(),
                 password: password
             });
 
             if (authError) throw new Error('E-mail ou senha incorretos.');
 
-            // 2. Se a senha está certa, busca qual é o cargo da pessoa na nossa lista VIP
+            // 2. Busca qual é o cargo e a UNIDADE da pessoa na nossa lista VIP
             const { data: perfilData, error: perfilError } = await supabase
                 .from('usuarios_sistema')
-                .select('*')
-                .eq('email', email.trim())
+                .select('nome, role, unidade') // Garantindo que puxa a unidade
+                .eq('email', email.toLowerCase().trim())
                 .single();
 
             if (perfilError || !perfilData) {
@@ -43,7 +43,7 @@ export default function Login({ onLogin }) {
             onLogin({
                 nome: perfilData.nome,
                 role: perfilData.role,
-                unidade: perfilData.unidade
+                unidade: perfilData.unidade || 'MATRIZ' // Fallback de segurança
             });
 
         } catch (error) {

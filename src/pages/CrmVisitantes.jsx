@@ -11,12 +11,13 @@ const DashCard = ({ title, value, icon, gradient, subtitle }) => (
     </div>
 );
 
-const CrmVisitantes = ({ visitantes = [], setVisitantes, colaboradores = [] }) => {
+// ATENÇÃO: Recebendo a prop usuarioLogado aqui!
+const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colaboradores = [] }) => {
     // ==========================================
     // 1. ESTADOS DO COMPONENTE
     // ==========================================
     const [formData, setFormData] = useState({ 
-        nome: '', telefone: '', vendedor: colaboradores.length > 0 ? colaboradores[0].nome : '', observacao: '' 
+        nome: '', telefone: '', vendedor: '', observacao: '' 
     });
     const [visaoAtiva, setVisaoAtiva] = useState('kanban'); // 'kanban' ou 'dashboard'
     const [sucesso, setSucesso] = useState(false);
@@ -45,9 +46,17 @@ const CrmVisitantes = ({ visitantes = [], setVisitantes, colaboradores = [] }) =
     // Criar novo Lead
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (!formData.vendedor) {
+            alert('Por favor, selecione um vendedor.');
+            return;
+        }
+
         setIsSubmitting(true);
         
+        // EMPACOTANDO COM A UNIDADE DO USUÁRIO LOGADO
         const novoLead = { 
+            unidade: usuarioLogado?.unidade || 'MATRIZ', // O CARIMBO DE MULTITENÂNCIA AQUI
             nome: formData.nome.toUpperCase(), 
             telefone: formData.telefone, 
             vendedor: formData.vendedor, 
@@ -65,7 +74,7 @@ const CrmVisitantes = ({ visitantes = [], setVisitantes, colaboradores = [] }) =
             setVisitantes([data[0], ...visitantes]);
             setSucesso(true);
             setTimeout(() => setSucesso(false), 3000);
-            setFormData({ nome: '', telefone: '', vendedor: colaboradores.length > 0 ? colaboradores[0].nome : '', observacao: '' });
+            setFormData({ nome: '', telefone: '', vendedor: '', observacao: '' });
         }
         
         setIsSubmitting(false);
@@ -140,7 +149,7 @@ const CrmVisitantes = ({ visitantes = [], setVisitantes, colaboradores = [] }) =
                     </div>
                     <div>
                         <h2 className="text-xl font-black text-slate-800 tracking-tight">Captura de Leads</h2>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Alimente o funil de vendas</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Unidade {usuarioLogado?.unidade}</p>
                     </div>
                 </div>
 
@@ -152,7 +161,8 @@ const CrmVisitantes = ({ visitantes = [], setVisitantes, colaboradores = [] }) =
                         <input type="text" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder="WhatsApp" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm" />
                     </div>
                     <div className="w-full sm:w-36">
-                        <select name="vendedor" value={formData.vendedor} onChange={handleChange} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm uppercase">
+                        <select name="vendedor" value={formData.vendedor} onChange={handleChange} required className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer shadow-sm uppercase">
+                            <option value="">Consultor...</option>
                             {colaboradores.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                         </select>
                     </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js'; // 🔥 Conexão com o Banco!
 
-const AssinaturasPratique = ({ data = [], setData }) => {
+// ATENÇÃO: Recebendo a prop usuarioLogado aqui!
+const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     // ==========================================
     // 1. ESTADOS DOS FILTROS
     // ==========================================
@@ -18,21 +19,23 @@ const AssinaturasPratique = ({ data = [], setData }) => {
     // Filtro por Entidades
     const [filtroProduto, setFiltroProduto] = useState('TODOS');
     const [filtroVendedor, setFiltroVendedor] = useState('TODOS');
+    const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); // NOVO FILTRO DE UNIDADE
+
+    // Verifica se o usuário atual possui cargo de gestão corporativa
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     // Atualiza ícones do Lucide
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [data, tipoFiltroData, filtroMes, filtroAno, filtroProduto, filtroVendedor]);
+    }, [data, tipoFiltroData, filtroMes, filtroAno, filtroProduto, filtroVendedor, filtroUnidade]);
 
     // ==========================================
     // 2. FUNÇÕES DE BANCO DE DADOS (SUPABASE)
     // ==========================================
-    
-    // Agora usamos o ID real do banco em vez do index da tabela
     const toggleConferiu = async (id, statusAtual) => {
         const novoStatus = !statusAtual;
         
-        // 1. Atualização Otimista (Atualiza a tela na hora pra ser rápido)
+        // 1. Atualização Otimista
         setData(data.map(v => v.id === id ? { ...v, conferiu: novoStatus } : v));
 
         // 2. Manda para a nuvem em segundo plano
@@ -44,7 +47,6 @@ const AssinaturasPratique = ({ data = [], setData }) => {
         if (error) {
             console.error("Erro ao atualizar status:", error);
             alert("Erro de conexão. O status voltará ao que era.");
-            // Reverte se der erro na internet
             setData(data.map(v => v.id === id ? { ...v, conferiu: statusAtual } : v));
         }
     };
@@ -64,15 +66,9 @@ const AssinaturasPratique = ({ data = [], setData }) => {
             if (error) {
                 console.error("Erro ao deletar:", error);
                 alert("Erro ao excluir do banco de dados.");
-                setData(backupDados); // Reverte se falhar
+                setData(backupDados);
             }
         }
-    };
-
-    const parseDateToISO = (ptBRDate) => {
-        if (!ptBRDate) return '';
-        const [d, m, y] = ptBRDate.split('/');
-        return `${y}-${m}-${d}`;
     };
 
     // ==========================================
@@ -80,6 +76,7 @@ const AssinaturasPratique = ({ data = [], setData }) => {
     // ==========================================
     const produtosUnicos = ['TODOS', ...new Set(data.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(data.map(v => v.vendedor))].filter(Boolean);
+    const unidadesUnicas = ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean); // LISTA DE UNIDADES
     const anosUnicos = [...new Set(data.map(v => v.data?.split('/')[2]))].filter(Boolean).sort((a,b) => b-a);
     if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
 
@@ -95,6 +92,9 @@ const AssinaturasPratique = ({ data = [], setData }) => {
     // 4. MOTOR DE FILTRAGEM DE DADOS
     // ==========================================
     const vendasFiltradas = data.filter(venda => {
+        // Filtro de Unidade (Apenas se o Admin/Mentor estiver logado)
+        if (temVisaoGlobal && filtroUnidade !== 'TODOS' && venda.unidade !== filtroUnidade) return false;
+
         // Filtro de Produto e Vendedor
         if (filtroProduto !== 'TODOS' && venda.produto !== filtroProduto) return false;
         if (filtroVendedor !== 'TODOS' && venda.vendedor !== filtroVendedor) return false;
@@ -118,18 +118,16 @@ const AssinaturasPratique = ({ data = [], setData }) => {
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto">
             
-            {/* ========================================== */}
             {/* PAINEL DE FILTROS INTELIGENTE */}
-            {/* ========================================== */}
-            <div className="bg-white rounded-[24px] border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.02)] p-6 md:p-8">
+            <div className="bg-white rounded-[24px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.01)] p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-inner">
                             <i data-lucide="filter" className="w-5 h-5"></i>
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 tracking-tight">Filtros de Histórico</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Sincronizado com a nuvem</p>
+                            <h2 className="text-xl font-black text-slate-800 tracking-tight">Filtros de Histórico</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Sincronizado em tempo real</p>
                         </div>
                     </div>
                     
@@ -150,9 +148,9 @@ const AssinaturasPratique = ({ data = [], setData }) => {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
                     
-                    {/* Condicional de Filtro de Data */}
+                    {/* Filtros de Data */}
                     {tipoFiltroData === 'mes' ? (
                         <>
                             <div>
@@ -195,15 +193,22 @@ const AssinaturasPratique = ({ data = [], setData }) => {
                             {produtosUnicos.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                     </div>
+
+                    {/* FILTRO DE UNIDADE DINÂMICO SÓ PARA ADMIN/MENTOR */}
+                    {temVisaoGlobal && (
+                        <div className="animate-[fadeIn_0.3s_ease-out]">
+                            <label className="block text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1.5 ml-1">Isolar Unidade</label>
+                            <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2.5 text-xs font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
+                                {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS 10 UNIDADES' : u}</option>)}
+                            </select>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {/* ========================================== */}
             {/* TABELA DE HISTÓRICO */}
-            {/* ========================================== */}
             <div className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden flex flex-col">
                 
-                {/* Cabeçalho da Tabela */}
                 <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-black text-slate-800 flex items-center gap-2.5">
@@ -215,12 +220,12 @@ const AssinaturasPratique = ({ data = [], setData }) => {
                     </div>
                 </div>
                 
-                {/* Corpo da Tabela */}
                 <div className="overflow-x-auto custom-scrollbar" style={{ maxHeight: '65vh' }}>
                     <table className="w-full text-left border-collapse min-w-max">
                         <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm">
                             <tr>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data</th>
+                                {temVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200">Unidade</th>}
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Matrícula</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Plano/Produto</th>
@@ -234,6 +239,14 @@ const AssinaturasPratique = ({ data = [], setData }) => {
                             {vendasFiltradas.map((row) => (
                                 <tr key={row.id} className={`group transition-colors ${row.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
                                     <td className="px-6 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap">{row.data}</td>
+                                    
+                                    {/* COLUNA DE UNIDADE DINÂMICA */}
+                                    {temVisaoGlobal && (
+                                        <td className="px-6 py-4 text-xs font-black text-rose-600 bg-rose-50/10 whitespace-nowrap uppercase">
+                                            {row.unidade || 'MATRIZ'}
+                                        </td>
+                                    )}
+
                                     <td className="px-6 py-4 text-xs text-slate-700 font-bold whitespace-nowrap">{row.matricula || '-'}</td>
                                     <td className="px-6 py-4 text-xs text-slate-800 font-black uppercase max-w-[200px] truncate" title={row.nome_aluno || row.nome}>{row.nome_aluno || row.nome}</td>
                                     <td className="px-6 py-4 text-xs whitespace-nowrap">{row.produto}</td>
@@ -242,8 +255,6 @@ const AssinaturasPratique = ({ data = [], setData }) => {
                                     <td className="px-6 py-4 text-xs font-black text-slate-800 whitespace-nowrap text-right">{row.valor}</td>
                                     <td className="px-6 py-4 text-center">
                                         <div className="flex items-center justify-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                            
-                                            {/* Agora chamamos a função passando o ID REAL do Banco (row.id) */}
                                             <button 
                                                 onClick={() => toggleConferiu(row.id, row.conferiu)} 
                                                 title={row.conferiu ? "Desmarcar conferência" : "Marcar como OK"} 
@@ -264,7 +275,7 @@ const AssinaturasPratique = ({ data = [], setData }) => {
                             ))}
                             {vendasFiltradas.length === 0 && (
                                 <tr>
-                                    <td colSpan="8" className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                    <td colSpan={temVisaoGlobal ? "9" : "8"} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
                                         <i data-lucide="filter-x" className="w-10 h-10 mx-auto text-slate-300 mb-4 opacity-50"></i>
                                         Nenhuma venda encontrada para estes filtros.
                                     </td>

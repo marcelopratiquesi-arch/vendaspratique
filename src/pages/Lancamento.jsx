@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
+// ATENÇÃO: Recebendo a prop usuarioLogado aqui!
+const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
     const [formData, setFormData] = useState({ 
         data: new Date().toISOString().split('T')[0], 
         matricula: '', 
         nome: '', 
-        vendedor: colaboradores[0]?.nome || '', 
+        vendedor: '', 
         observacao: '' 
     });
 
-    // Função que cria um item VAZIO por padrão, forçando o vendedor a escolher
     const getInitialItem = () => ({ 
         id: Date.now(), 
-        tipo: '', // Começa vazio
-        nomeItem: '', // Começa vazio
+        tipo: '', 
+        nomeItem: '', 
         quantidade: 1, 
         valor: 'R$ 0,00', 
         valorUnitario: 0 
@@ -24,7 +24,7 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
     
     const [itensForm, setItensForm] = useState([getInitialItem()]);
     const [sucesso, setSucesso] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false); // Trava o botão durante o envio
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
@@ -37,21 +37,18 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
             if (item.id === id) {
                 const updatedItem = { ...item, [field]: value };
                 
-                // Se mudou a categoria (Plano/Produto), limpa o item selecionado e zera valores
                 if (field === 'tipo') {
                     updatedItem.nomeItem = '';
                     updatedItem.valorUnitario = 0;
                     updatedItem.quantidade = 1;
                     updatedItem.valor = 'R$ 0,00';
                 } 
-                // Se escolheu um item específico
                 else if (field === 'nomeItem') {
                     const listaRef = item.tipo === 'plano' ? planos : produtos;
                     const selecionado = listaRef.find(x => x.nome === value) || { valor: 0 };
                     updatedItem.valorUnitario = selecionado.valor;
                     updatedItem.valor = formatMoney(selecionado.valor * updatedItem.quantidade);
                 } 
-                // Se mudou a quantidade
                 else if (field === 'quantidade') {
                     const qtd = parseInt(value) || 1;
                     updatedItem.quantidade = qtd;
@@ -68,13 +65,9 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
 
     const totalVenda = itensForm.reduce((acc, curr) => acc + (curr.valorUnitario * curr.quantidade), 0);
 
-    // ==========================================
-    // ENVIO PARA O SUPABASE (Passo 2 Concluído)
-    // ==========================================
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Filtra para garantir que não vai lançar itens vazios
         const itensValidos = itensForm.filter(item => item.nomeItem !== '' && item.tipo !== '');
         
         if (itensValidos.length === 0) {
@@ -91,10 +84,11 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
         setIsSubmitting(true);
 
         try {
-            // Empacota os itens para o formato do Supabase
+            // EMPACOTANDO COM A UNIDADE DO USUÁRIO LOGADO
             const novosLancamentos = itensValidos.map(item => {
-                const percComissao = item.tipo === 'plano' ? 1.00 : 0.10; // Exemplo de comissão
+                const percComissao = item.tipo === 'plano' ? 1.00 : 0.10; 
                 return {
+                    unidade: usuarioLogado?.unidade || 'MATRIZ', // O CARIMBO DE MULTITENÂNCIA AQUI
                     data: dataFormatada, 
                     matricula: formData.matricula, 
                     nome_aluno: formData.nome,
@@ -108,18 +102,16 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
                 };
             });
 
-            // Manda tudo para o Supabase de uma vez
             const { data, error } = await supabase.from('vendas').insert(novosLancamentos).select();
 
             if (error) throw error;
 
             if (data) {
-                onAddMultiple(data.reverse()); // Manda para o histórico local
+                onAddMultiple(data.reverse()); 
                 setSucesso(true);
                 setTimeout(() => setSucesso(false), 3000);
                 
-                // Limpa o formulário
-                setFormData({ ...formData, matricula: '', nome: '', observacao: '' });
+                setFormData({ ...formData, matricula: '', nome: '', observacao: '', vendedor: '' });
                 setItensForm([getInitialItem()]);
             }
 
@@ -134,7 +126,6 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
     return (
         <div className="bg-white rounded-3xl shadow-lg border border-slate-100 max-w-5xl mx-auto animate-[fadeIn_0.4s_ease-out] overflow-hidden relative">
             
-            {/* ALERTA DE SUCESSO FLUTUANTE */}
             {sucesso && (
                 <div className="absolute top-6 right-6 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-[0_8px_20px_rgba(16,185,129,0.4)] flex items-center gap-3 font-black uppercase tracking-wider text-xs z-50">
                     <i data-lucide="check-circle-2" className="w-5 h-5"></i>
@@ -142,20 +133,18 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
                 </div>
             )}
 
-            {/* CABEÇALHO VERDE */}
             <div className="bg-[#ecfdf5] px-8 py-6 flex items-center gap-5 border-b border-[#d1fae5]">
                 <div className="w-14 h-14 bg-[#d1fae5] text-[#059669] rounded-2xl flex items-center justify-center shadow-sm flex-shrink-0">
                     <i data-lucide="shopping-cart" className="w-7 h-7"></i>
                 </div>
                 <div>
                     <h2 className="text-2xl font-black text-[#064e3b] tracking-tight">Nova Venda / Matrícula</h2>
-                    <p className="text-[11px] font-bold text-[#059669] uppercase tracking-widest mt-1">Registre os produtos e planos do aluno</p>
+                    <p className="text-[11px] font-bold text-[#059669] uppercase tracking-widest mt-1">Registre os produtos e planos da unidade {usuarioLogado?.unidade}</p>
                 </div>
             </div>
 
             <form onSubmit={handleSubmit} className="p-8 space-y-10">
                 
-                {/* BLOCO 1: INFORMAÇÃO DO CLIENTE */}
                 <div className="bg-slate-50 p-6 md:p-8 rounded-2xl border border-slate-200">
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5 mb-5">
                         <div className="md:col-span-3">
@@ -175,7 +164,7 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
                         <div className="md:col-span-4">
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Vendedor</label>
-                            <select name="vendedor" value={formData.vendedor} onChange={handleMainChange} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer uppercase">
+                            <select name="vendedor" value={formData.vendedor} onChange={handleMainChange} required className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer uppercase">
                                 <option value="">Selecione...</option>
                                 {colaboradores.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                             </select>
@@ -183,7 +172,6 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
                     </div>
                 </div>
 
-                {/* BLOCO 2: CARRINHO DE ITENS */}
                 <div>
                     <div className="flex justify-between items-center mb-4 px-1">
                         <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
@@ -249,7 +237,6 @@ const LancamentoVendas = ({ onAddMultiple, planos = [], produtos = [], colaborad
                     </div>
                 </div>
 
-                {/* BLOCO 3: FINALIZAÇÃO DA VENDA */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-4">
                     <div>
                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Observação (Opcional)</label>

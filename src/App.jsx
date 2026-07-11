@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient.js'; // 🔥 O CORAÇÃO DA NUVEM AQUI
+import { supabase } from './supabaseClient.js';
 
 // Importação Segura das Páginas
 import LancamentoVendas from './pages/Lancamento.jsx';
@@ -8,6 +8,7 @@ import FechamentoCaixa from './pages/FechamentoCaixa.jsx';
 import AnaliseDashboard from './pages/Analise.jsx';
 import CrmVisitantes from './pages/CrmVisitantes.jsx'; 
 import CadastroGeral from './pages/CadastroGeral.jsx';
+import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
 
 export default function App() {
@@ -18,40 +19,53 @@ export default function App() {
     const [activeTab, setActiveTab] = useState('lancamento');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     
-    // ATENÇÃO: Os estados agora começam 100% VAZIOS, aguardando a nuvem!
+    // Estados vazios aguardando a nuvem
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
     const [planos, setPlanos] = useState([]);
     const [produtos, setProdutos] = useState([]);
     const [colaboradores, setColaboradores] = useState([]);
+    const [unidades, setUnidades] = useState([]);
 
     // ==========================================
-    // 2. SINCRONIZAÇÃO COM SUPABASE (Magia acontece aqui)
+    // 2. SINCRONIZAÇÃO COM SUPABASE (FILTRADA POR UNIDADE)
     // ==========================================
     useEffect(() => {
-        // Só busca os dados SE tiver alguém logado
         if (!usuarioLogado) return;
 
         const carregarBancoDeDados = async () => {
             try {
-                // 1. Puxar Equipe (Colaboradores)
-                const { data: colabs } = await supabase.from('colaboradores').select('*');
+                // A MÁGICA DA MULTITENÂNCIA: Verifica se tem visão global
+                const temVisaoGlobal = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
+
+                // 1. Puxar Equipe (Filtra por unidade se não for global)
+                let queryColabs = supabase.from('colaboradores').select('*');
+                if (!temVisaoGlobal) queryColabs = queryColabs.eq('unidade', usuarioLogado.unidade);
+                const { data: colabs } = await queryColabs;
                 if (colabs) setColaboradores(colabs);
 
-                // 2. Puxar Catálogo (Planos e Produtos)
+                // 2. Puxar Catálogo (Sempre global, catálogo é o mesmo para todos)
                 const { data: cat } = await supabase.from('catalogo').select('*');
                 if (cat) {
                     setPlanos(cat.filter(item => item.tipo === 'plano'));
                     setProdutos(cat.filter(item => item.tipo === 'produto'));
                 }
 
-                // 3. Puxar Histórico de Vendas (Do mais recente pro mais antigo)
-                const { data: vends } = await supabase.from('vendas').select('*').order('id', { ascending: false });
+                // 3. Puxar Histórico de Vendas (Filtra por unidade se não for global)
+                let queryVendas = supabase.from('vendas').select('*').order('id', { ascending: false });
+                if (!temVisaoGlobal) queryVendas = queryVendas.eq('unidade', usuarioLogado.unidade);
+                const { data: vends } = await queryVendas;
                 if (vends) setDadosAssinaturas(vends);
 
-                // 4. Puxar CRM de Leads
-                const { data: leds } = await supabase.from('leads').select('*').order('id', { ascending: false });
+                // 4. Puxar CRM de Leads (Filtra por unidade se não for global)
+                let queryLeads = supabase.from('leads').select('*').order('id', { ascending: false });
+                if (!temVisaoGlobal) queryLeads = queryLeads.eq('unidade', usuarioLogado.unidade);
+                const { data: leds } = await queryLeads;
                 if (leds) setDadosVisitantes(leds);
+
+                // 5. Puxar Unidades cadastradas
+                const { data: unids } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
+                if (unids) setUnidades(unids);
                 
             } catch (error) {
                 console.error("Erro ao puxar dados da nuvem:", error);
@@ -59,7 +73,7 @@ export default function App() {
         };
 
         carregarBancoDeDados();
-    }, [usuarioLogado]); // Esse gatilho roda toda vez que alguém faz login
+    }, [usuarioLogado]);
 
     // ==========================================
     // 3. FUNÇÕES E EFEITOS DE INTERFACE
@@ -72,22 +86,24 @@ export default function App() {
     }, [activeTab, usuarioLogado, isMobileMenuOpen, dadosAssinaturas, dadosVisitantes]);
 
     // ==========================================
-    // 4. TRAVA DE AUTENTICAÇÃO (Login)
+    // 4. TRAVA DE AUTENTICAÇÃO
     // ==========================================
     if (!usuarioLogado) {
         return <Login onLogin={setUsuarioLogado} />;
     }
 
     // ==========================================
-    // 5. CONTROLE DE ACESSO (RBAC)
+    // 5. CONTROLE DE ACESSO (ORDEM ATUALIZADA)
     // ==========================================
+    // Ordem: Nova Venda -> Histórico -> Dashboard -> Fechamento -> CRM -> Cadastros -> Configuração
     const todasAbas = [
         { id: 'lancamento', label: 'Nova Venda', icon: 'shopping-cart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'assinaturas', label: 'Histórico', icon: 'history', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'crm', label: 'CRM Leads', icon: 'users', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'analise', label: 'Dashboard', icon: 'pie-chart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'fechamento', label: 'Fechamento', icon: 'wallet', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        { id: 'cadastros', label: 'Cadastros', icon: 'database', permissoes: ['ADMIN', 'MENTOR'] }
+        { id: 'crm', label: 'CRM', icon: 'users', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'cadastros', label: 'Cadastros', icon: 'database', permissoes: ['ADMIN', 'MENTOR'] },
+        { id: 'config', label: 'Configurações', icon: 'settings', permissoes: ['ADMIN'] }
     ];
 
     const abasPermitidas = todasAbas.filter(aba => aba.permissoes.includes(usuarioLogado.role));
@@ -95,7 +111,7 @@ export default function App() {
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-slate-600">
             
-            {/* CABEÇALHO DESIGN MINIMALISTA SAAS */}
+            {/* CABEÇALHO */}
             <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-sm border-b border-blue-500/20 sticky top-0 z-50 transition-all">
                 <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
                     
@@ -105,7 +121,8 @@ export default function App() {
                             <i data-lucide="zap" className="text-white w-5 h-5"></i>
                         </div>
                         <div>
-                            <h1 className="text-lg font-black text-white tracking-wider leading-none">PRATIQUE OS</h1>
+                            {/* NOME ATUALIZADO AQUI */}
+                            <h1 className="text-lg font-black text-white tracking-wider leading-none">PRATIQUE VENDAS</h1>
                             <p className="text-[9px] font-bold text-blue-200 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
                                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> {usuarioLogado.unidade}
                             </p>
@@ -212,6 +229,7 @@ export default function App() {
             <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
                 {activeTab === 'lancamento' && (
                     <LancamentoVendas 
+                        usuarioLogado={usuarioLogado}
                         onAddMultiple={handleAddLancamentos} 
                         planos={planos} 
                         produtos={produtos} 
@@ -221,28 +239,31 @@ export default function App() {
                 
                 {activeTab === 'assinaturas' && (
                     <AssinaturasPratique 
+                        usuarioLogado={usuarioLogado}
                         data={dadosAssinaturas} 
                         setData={setDadosAssinaturas} 
                     />
                 )}
 
-                {activeTab === 'fechamento' && (
-                    <FechamentoCaixa 
-                        vendas={dadosAssinaturas} 
-                        setVendas={setDadosAssinaturas} 
-                        usuarioLogado={usuarioLogado} 
-                    />
-                )}
-                
                 {activeTab === 'analise' && (
                     <AnaliseDashboard 
+                        usuarioLogado={usuarioLogado}
                         vendas={dadosAssinaturas} 
                         planos={planos} 
+                    />
+                )}
+
+                {activeTab === 'fechamento' && (
+                    <FechamentoCaixa 
+                        usuarioLogado={usuarioLogado}
+                        vendas={dadosAssinaturas} 
+                        setVendas={setDadosAssinaturas} 
                     />
                 )}
                 
                 {activeTab === 'crm' && (
                     <CrmVisitantes 
+                        usuarioLogado={usuarioLogado}
                         visitantes={dadosVisitantes} 
                         setVisitantes={setDadosVisitantes} 
                         colaboradores={colaboradores} 
@@ -251,12 +272,20 @@ export default function App() {
 
                 {activeTab === 'cadastros' && (
                     <CadastroGeral 
+                        usuarioLogado={usuarioLogado}
                         planos={planos} 
                         setPlanos={setPlanos} 
                         produtos={produtos} 
                         setProdutos={setProdutos} 
                         colaboradores={colaboradores} 
                         setColaboradores={setColaboradores} 
+                    />
+                )}
+
+                {activeTab === 'config' && (
+                    <Configuracoes 
+                        unidades={unidades} 
+                        setUnidades={setUnidades} 
                     />
                 )}
             </main>
