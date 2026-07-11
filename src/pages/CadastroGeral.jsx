@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores, setColaboradores }) => {
+const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produtos, setProdutos, colaboradores, setColaboradores }) => {
     // ==========================================
     // ESTADOS GLOBAIS
     // ==========================================
@@ -14,13 +14,17 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
     const [listaSetores, setListaSetores] = useState([]);
     const [nomeSetor, setNomeSetor] = useState('');
 
-    // Estados dos outros formulários
+    // Estados dos formulários (Adicionado unidadeColaborador)
     const [nomeColaborador, setNomeColaborador] = useState('');
     const [cargoColaborador, setCargoColaborador] = useState('');
+    const [unidadeColaborador, setUnidadeColaborador] = useState('');
     const [nomePlano, setNomePlano] = useState('');
     const [valorPlano, setValorPlano] = useState('');
     const [nomeProduto, setNomeProduto] = useState('');
     const [valorProduto, setValorProduto] = useState('');
+
+    // Verifica se o usuário atual possui visão corporativa total
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     // Carregar setores assim que a página abre
     useEffect(() => {
@@ -33,7 +37,7 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [abaAtiva, planos, produtos, colaboradores, listaSetores, sucesso, erroBando, editandoId]);
+    }, [abaAtiva, planos, produtos, colaboradores, listaSetores, sucesso, erroBando, editandoId, unidades]);
 
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
@@ -44,7 +48,7 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
 
     const cancelarEdicao = () => {
         setEditandoId(null);
-        setNomeColaborador(''); setCargoColaborador('');
+        setNomeColaborador(''); setCargoColaborador(''); setUnidadeColaborador('');
         setNomeSetor('');
         setNomePlano(''); setValorPlano('');
         setNomeProduto(''); setValorProduto('');
@@ -57,7 +61,7 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
     };
 
     // ==========================================
-    // FUNÇÕES DE CRUD (AGORA COM TRATAMENTO DE ERRO)
+    // FUNÇÕES DE CRUD
     // ==========================================
     
     // --- SETORES ---
@@ -87,12 +91,24 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
         }
     };
 
-    // --- COLABORADORES ---
+    // --- COLABORADORES (ATUALIZADO COM SEPARAÇÃO DE UNIDADES) ---
     const handleSalvarColaborador = async (e) => {
         e.preventDefault();
         if (!nomeColaborador.trim() || !cargoColaborador.trim()) return;
+
+        // Se o admin/mentor estiver cadastrando, usa o estado. Se for líder, pega a unidade dele própria.
+        const unidadeFinal = temVisaoGlobal ? unidadeColaborador : usuarioLogado?.unidade;
+
+        if (!unidadeFinal) {
+            alert("Por favor, selecione uma unidade válida.");
+            return;
+        }
         
-        const payload = { nome: nomeColaborador.toUpperCase(), role: cargoColaborador.toUpperCase() };
+        const payload = { 
+            nome: nomeColaborador.toUpperCase(), 
+            role: cargoColaborador.toUpperCase(),
+            unidade: unidadeFinal.toUpperCase()
+        };
 
         if (editandoId) {
             const { data, error } = await supabase.from('colaboradores').update(payload).eq('id', editandoId).select();
@@ -166,13 +182,9 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
         }
     };
 
-    // ==========================================
-    // RENDERIZAÇÃO
-    // ==========================================
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1200px] mx-auto relative">
             
-            {/* ALERTA DE SUCESSO OU ERRO NO BANCO */}
             {sucesso && (
                 <div className="absolute top-0 right-0 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-[0_8px_20px_rgba(16,185,129,0.4)] flex items-center gap-3 font-black uppercase tracking-wider text-xs z-50">
                     <i data-lucide="check-circle-2" className="w-5 h-5"></i> Cadastrado no Banco!
@@ -192,7 +204,7 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
                     </div>
                     <div>
                         <h2 className="text-2xl font-black text-slate-800 tracking-tight">Gestão de Cadastros</h2>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuração do Sistema</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuração Geral do Sistema</p>
                     </div>
                 </div>
 
@@ -231,12 +243,23 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Setor / Cargo</label>
-                                {/* AGORA PUXA DA TABELA DE SETORES */}
                                 <select value={cargoColaborador} onChange={(e) => setCargoColaborador(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase">
                                     <option value="">Selecione um setor...</option>
                                     {listaSetores.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                 </select>
                             </div>
+
+                            {/* NOVO CAMPO: SELEÇÃO DE UNIDADE EXCLUSIVO PARA ADMIN/MENTOR */}
+                            {temVisaoGlobal && (
+                                <div className="animate-[fadeIn_0.2s_ease-out]">
+                                    <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2 ml-1">Vincular a qual Unidade?</label>
+                                    <select value={unidadeColaborador} onChange={(e) => setUnidadeColaborador(e.target.value)} required className="w-full bg-rose-50/10 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
+                                        <option value="">Selecione a academia...</option>
+                                        {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                                    </select>
+                                </div>
+                            )}
+
                             <div className="pt-2 flex gap-2">
                                 {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
                                 <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
@@ -246,7 +269,7 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
                         </form>
                     )}
 
-                    {/* FORM: SETORES (NOVO) */}
+                    {/* FORM: SETORES */}
                     {abaAtiva === 'setores' && (
                         <form onSubmit={handleSalvarSetor} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
@@ -317,7 +340,7 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
                 </div>
 
                 {/* LADO DIREITO: LISTAS */}
-                <div className="lg:col-span-2 bg-white rounded-[24px] shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[500px]">
+                <div className="lg:col-span-2 bg-white rounded-[24px] shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[550px]">
                     <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                             <i data-lucide="list" className="w-4 h-4 text-slate-400"></i> Registros Salvos
@@ -338,12 +361,17 @@ const CadastroGeral = ({ planos, setPlanos, produtos, setProdutos, colaboradores
                                                     <div>
                                                         <p className="text-sm font-black text-slate-800 uppercase">{c.nome}</p>
                                                         <p className="text-[10px] font-black text-slate-400 uppercase mt-0.5">{c.role}</p>
+                                                        {temVisaoGlobal && (
+                                                            <p className="text-[9px] font-bold text-rose-500 uppercase tracking-wider mt-1 flex items-center gap-1">
+                                                                <i data-lucide="map-pin" className="w-3 h-3"></i> {c.unidade || 'MATRIZ'}
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100">
-                                                    <button onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); }} className="text-slate-400 hover:text-amber-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
+                                                    <button onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); setUnidadeColaborador(c.unidade || ''); }} className="text-slate-400 hover:text-amber-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
                                                     <button onClick={() => handleDeleteColaborador(c.id)} className="text-slate-400 hover:text-rose-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
                                                 </div>
                                             </td>

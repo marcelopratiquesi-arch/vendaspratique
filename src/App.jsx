@@ -93,9 +93,8 @@ export default function App() {
     }
 
     // ==========================================
-    // 5. CONTROLE DE ACESSO (ORDEM ATUALIZADA)
+    // 5. CONTROLE DE ACESSO
     // ==========================================
-    // Ordem: Nova Venda -> Histórico -> Dashboard -> Fechamento -> CRM -> Cadastros -> Configuração
     const todasAbas = [
         { id: 'lancamento', label: 'Nova Venda', icon: 'shopping-cart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'assinaturas', label: 'Histórico', icon: 'history', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
@@ -121,15 +120,15 @@ export default function App() {
                             <i data-lucide="zap" className="text-white w-5 h-5"></i>
                         </div>
                         <div>
-                            {/* NOME ATUALIZADO AQUI */}
                             <h1 className="text-lg font-black text-white tracking-wider leading-none">PRATIQUE VENDAS</h1>
                             <p className="text-[9px] font-bold text-blue-200 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> {usuarioLogado.unidade}
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                                {/* LÓGICA DE NOME GLOBAL AQUI */}
+                                {usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR' ? 'VISÃO GLOBAL' : usuarioLogado.unidade}
                             </p>
                         </div>
                     </div>
                     
-                    {/* Botão Hamburger (Mobile) */}
                     <button 
                         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         className="md:hidden p-2 text-blue-100 hover:text-white hover:bg-white/10 rounded-xl transition-all"
@@ -137,7 +136,6 @@ export default function App() {
                         <i data-lucide={isMobileMenuOpen ? "x" : "menu"} className="w-6 h-6"></i>
                     </button>
                     
-                    {/* Navegação Desktop */}
                     <div className="hidden md:flex items-center gap-6">
                         <nav className="flex items-center gap-1 bg-black/10 p-1 rounded-xl border border-white/5">
                             {abasPermitidas.map(tab => {
@@ -158,7 +156,6 @@ export default function App() {
                             })}
                         </nav>
 
-                        {/* Perfil e Logout */}
                         <div className="flex items-center gap-4 pl-4 border-l border-white/10">
                             <div className="text-right">
                                 <p className="text-xs font-black text-white tracking-tight">{usuarioLogado.nome}</p>
@@ -201,7 +198,6 @@ export default function App() {
                             
                             <div className="h-px bg-white/10 my-3"></div>
                             
-                            {/* Perfil Mobile */}
                             <div className="flex items-center justify-between px-3 py-2 bg-black/10 rounded-xl border border-white/5">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center font-black text-white text-xs border border-white/10">
@@ -279,6 +275,7 @@ export default function App() {
                         setProdutos={setProdutos} 
                         colaboradores={colaboradores} 
                         setColaboradores={setColaboradores} 
+                        unidades={unidades} // ENVIANDO A LISTA DE UNIDADES PARA O CADASTRO!
                     />
                 )}
 
