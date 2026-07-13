@@ -134,7 +134,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const relatorioVendedores = {};
 
     vendasComissionadas.forEach(venda => {
-        const valorComissao = parseCurrency(venda.comissao);
+        // AJUSTE REALIZADO AQUI: Fallback para ler 100% do valor caso a comissão seja idêntica ao total
+        const valorComissao = parseCurrency(venda.comissao || venda.valor);
         comissaoTotalGeral += valorComissao;
 
         if (!relatorioVendedores[venda.vendedor]) {
@@ -319,7 +320,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                 <input type="date" value={dataFinalInput} onChange={(e) => setDataFinalInput(e.target.value)} className="w-full sm:w-36 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-sm" />
                             </div>
 
-                            {/* FILTRO EXTRA DE UNIDADE NAS COMISSÕES PARA ADMIN/MENTOR */}
+                            {/* FILTRAS EXTRA DE UNIDADE NAS COMISSÕES PARA ADMIN/MENTOR */}
                             {temVisaoGlobal && (
                                 <div className="animate-[fadeIn_0.3s_ease-out]">
                                     <label className="block text-xs font-black text-rose-500 mb-1">Isolar Unidade</label>
