@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-// ATENÇÃO: Recebendo a prop usuarioLogado aqui!
-const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
+// ATENÇÃO: Recebendo a prop unidades aqui!
+const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
+    // Verifica se é a chefia logada
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+
     const [formData, setFormData] = useState({ 
+        unidade: temVisaoGlobal ? '' : (usuarioLogado?.unidade || ''), // Chefia começa vazio para obrigar a escolha
         data: new Date().toISOString().split('T')[0], 
         matricula: '', 
         nome: '', 
@@ -28,9 +32,18 @@ const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos 
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [itensForm.length, sucesso, isSubmitting]);
+    }, [itensForm.length, sucesso, isSubmitting, formData.unidade]);
 
-    const handleMainChange = (e) => setFormData({...formData, [e.target.name]: e.target.value});
+    const handleMainChange = (e) => {
+        const { name, value } = e.target;
+        
+        // Se mudar a unidade, zera o vendedor para não enviar da unidade errada
+        if (name === 'unidade') {
+            setFormData({ ...formData, unidade: value, vendedor: '' });
+        } else {
+            setFormData({ ...formData, [name]: value });
+        }
+    };
 
     const handleItemChange = (id, field, value) => {
         setItensForm(itensForm.map(item => {
@@ -65,9 +78,20 @@ const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos 
 
     const totalVenda = itensForm.reduce((acc, curr) => acc + (curr.valorUnitario * curr.quantidade), 0);
 
+    // Filtra os vendedores baseados na unidade selecionada!
+    const vendedoresDaUnidade = colaboradores.filter(c => 
+        temVisaoGlobal ? c.unidade === formData.unidade : c.unidade === usuarioLogado?.unidade
+    );
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Trava para garantir que a chefia escolheu a unidade
+        if (temVisaoGlobal && !formData.unidade) {
+            alert('Atenção: Selecione a Unidade da venda antes de confirmar.');
+            return;
+        }
+
         const itensValidos = itensForm.filter(item => item.nomeItem !== '' && item.tipo !== '');
         
         if (itensValidos.length === 0) {
@@ -84,11 +108,10 @@ const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos 
         setIsSubmitting(true);
 
         try {
-            // EMPACOTANDO COM A UNIDADE DO USUÁRIO LOGADO
             const novosLancamentos = itensValidos.map(item => {
                 const percComissao = item.tipo === 'plano' ? 1.00 : 0.10; 
                 return {
-                    unidade: usuarioLogado?.unidade || 'MATRIZ', // O CARIMBO DE MULTITENÂNCIA AQUI
+                    unidade: formData.unidade, // Usa a unidade do formulário
                     data: dataFormatada, 
                     matricula: formData.matricula, 
                     nome_aluno: formData.nome,
@@ -111,6 +134,7 @@ const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos 
                 setSucesso(true);
                 setTimeout(() => setSucesso(false), 3000);
                 
+                // Mantém a unidade selecionada caso você queira lançar várias seguidas
                 setFormData({ ...formData, matricula: '', nome: '', observacao: '', vendedor: '' });
                 setItensForm([getInitialItem()]);
             }
@@ -139,7 +163,9 @@ const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos 
                 </div>
                 <div>
                     <h2 className="text-2xl font-black text-[#064e3b] tracking-tight">Nova Venda / Matrícula</h2>
-                    <p className="text-[11px] font-bold text-[#059669] uppercase tracking-widest mt-1">Registre os produtos e planos da unidade {usuarioLogado?.unidade}</p>
+                    <p className="text-[11px] font-bold text-[#059669] uppercase tracking-widest mt-1">
+                        Registre vendas {temVisaoGlobal ? 'escolhendo a unidade destino' : `da unidade ${usuarioLogado?.unidade}`}
+                    </p>
                 </div>
             </div>
 
@@ -162,11 +188,30 @@ const LancamentoVendas = ({ usuarioLogado, onAddMultiple, planos = [], produtos 
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+                        
+                        {/* SE FOR ADMIN/MENTOR, MOSTRA O CAMPO DE UNIDADE */}
+                        {temVisaoGlobal && (
+                            <div className="md:col-span-4 animate-[fadeIn_0.3s_ease-out]">
+                                <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2 ml-1">Unidade da Venda</label>
+                                <select name="unidade" value={formData.unidade} onChange={handleMainChange} required className="w-full bg-rose-50/10 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
+                                    <option value="">Selecione a Unidade...</option>
+                                    {unidades.map(u => <option key={u.id || u.nome} value={u.nome}>{u.nome}</option>)}
+                                </select>
+                            </div>
+                        )}
+
                         <div className="md:col-span-4">
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Vendedor</label>
-                            <select name="vendedor" value={formData.vendedor} onChange={handleMainChange} required className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer uppercase">
-                                <option value="">Selecione...</option>
-                                {colaboradores.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                            <select 
+                                name="vendedor" 
+                                value={formData.vendedor} 
+                                onChange={handleMainChange} 
+                                required 
+                                disabled={temVisaoGlobal && !formData.unidade}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer uppercase disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                            >
+                                <option value="">{(temVisaoGlobal && !formData.unidade) ? 'Escolha a unidade antes...' : 'Selecione...'}</option>
+                                {vendedoresDaUnidade.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                             </select>
                         </div>
                     </div>

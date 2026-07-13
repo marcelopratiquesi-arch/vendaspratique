@@ -226,6 +226,7 @@ export default function App() {
                 {activeTab === 'lancamento' && (
                     <LancamentoVendas 
                         usuarioLogado={usuarioLogado}
+                        unidades={unidades} /* INJETANDO UNIDADES AQUI */
                         onAddMultiple={handleAddLancamentos} 
                         planos={planos} 
                         produtos={produtos} 
@@ -275,7 +276,7 @@ export default function App() {
                         setProdutos={setProdutos} 
                         colaboradores={colaboradores} 
                         setColaboradores={setColaboradores} 
-                        unidades={unidades} // ENVIANDO A LISTA DE UNIDADES PARA O CADASTRO!
+                        unidades={unidades} 
                     />
                 )}
 
