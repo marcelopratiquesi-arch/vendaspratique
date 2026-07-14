@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js'; // 🔥 Conexão com o Banco!
+import { supabase } from '../supabaseClient.js'; 
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     // -----------------------------------------------------
@@ -12,12 +12,12 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const [confDataFim, setConfDataFim] = useState('');
     const [confProduto, setConfProduto] = useState('TODOS');
     const [confVendedor, setConfVendedor] = useState('TODOS');
-    const [confUnidade, setConfUnidade] = useState('TODOS'); // FILTRO DE UNIDADE
+    const [confUnidade, setConfUnidade] = useState('TODOS'); 
 
     // Estados da Aba 2: Comissões
     const [dataInicialInput, setDataInicialInput] = useState('2026-07-01');
     const [dataFinalInput, setDataFinalInput] = useState('2026-07-31');
-    const [filtroUnidadeComissao, setFiltroUnidadeComissao] = useState('TODOS'); // FILTRO DE COMISSÃO
+    const [filtroUnidadeComissao, setFiltroUnidadeComissao] = useState('TODOS'); 
     const [filtroAtivo, setFiltroAtivo] = useState({ inicio: '2026-07-01', fim: '2026-07-31', unidade: 'TODOS' });
 
     // Verifica se o usuário logado possui permissão corporativa global
@@ -32,6 +32,13 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         if (!ptBRDate) return '';
         const [d, m, y] = ptBRDate.split('/');
         return `${y}-${m}-${d}`;
+    };
+
+    // Função para formatar a data da auditoria visualmente
+    const formatarDataHora = (isoString) => {
+        if (!isoString) return '';
+        const data = new Date(isoString);
+        return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' às ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
 
     useEffect(() => {
@@ -66,11 +73,21 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
 
     const toggleConferido = async (id, statusAtual) => {
         const novoStatus = !statusAtual;
-        setVendas(vendas.map(v => v.id === id ? { ...v, conferiu: novoStatus } : v));
+        
+        // Dados do Validador
+        const validadorNome = novoStatus ? usuarioLogado.nome : null;
+        const validadorData = novoStatus ? new Date().toISOString() : null;
+
+        // Atualização Otimista
+        setVendas(vendas.map(v => v.id === id ? { ...v, conferiu: novoStatus, conferido_por: validadorNome, conferido_em: validadorData } : v));
 
         const { error } = await supabase
             .from('vendas')
-            .update({ conferiu: novoStatus })
+            .update({ 
+                conferiu: novoStatus,
+                conferido_por: validadorNome,
+                conferido_em: validadorData
+            })
             .eq('id', id);
 
         if (error) {
@@ -97,11 +114,18 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
 
         if (!window.confirm(`Tem certeza que deseja marcar os ${vendasParaConferencia.length} itens listados como CONFERIDOS?`)) return;
         
-        setVendas(vendas.map(v => idsFiltrados.includes(v.id) ? { ...v, conferiu: true } : v));
+        const validadorNome = usuarioLogado.nome;
+        const validadorData = new Date().toISOString();
+
+        setVendas(vendas.map(v => idsFiltrados.includes(v.id) ? { ...v, conferiu: true, conferido_por: validadorNome, conferido_em: validadorData } : v));
 
         const { error } = await supabase
             .from('vendas')
-            .update({ conferiu: true })
+            .update({ 
+                conferiu: true,
+                conferido_por: validadorNome,
+                conferido_em: validadorData 
+            })
             .in('id', idsFiltrados);
 
         if (error) {
@@ -130,7 +154,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const relatorioVendedores = {};
 
     vendasComissionadas.forEach(venda => {
-        // SOLUÇÃO DEFINITIVA: Lendo direto do valor bruto da venda (100% para os dois!)
         const valorComissao = parseCurrency(venda.valor);
         comissaoTotalGeral += valorComissao;
 
@@ -243,27 +266,30 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 text-right">Valor</th>
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 w-48">Observação de Caixa</th>
                                         <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 text-center">Status</th>
+                                        
+                                        {/* NOVA COLUNA DE AUDITORIA */}
+                                        <th className="px-5 py-4 text-[10px] font-black text-indigo-500 uppercase tracking-widest border-b border-slate-200 bg-indigo-50/30 text-center">Auditoria</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 bg-white">
                                     {vendasParaConferencia.length > 0 ? vendasParaConferencia.map((v) => (
                                         <tr key={v.id} className={`transition-colors ${v.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
-                                            <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap">{v.data}</td>
+                                            <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">{v.data}</td>
                                             
                                             {temVisaoGlobal && (
-                                                <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/5 whitespace-nowrap uppercase">
+                                                <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/5 whitespace-nowrap uppercase align-middle">
                                                     {v.unidade || 'MATRIZ'}
                                                 </td>
                                             )}
 
-                                            <td className="px-5 py-4 text-xs font-bold text-slate-700">{v.matricula || '-'}</td>
-                                            <td className="px-5 py-4 text-xs text-slate-800 font-black uppercase">{v.nome_aluno || v.nome}</td>
-                                            <td className="px-5 py-4 text-xs font-bold text-indigo-600 uppercase">{v.produto}</td>
-                                            <td className="px-5 py-4 text-xs font-bold text-slate-600 uppercase">{v.vendedor}</td>
-                                            <td className="px-5 py-4 text-xs font-black text-slate-700 text-center">{v.quantidade}</td>
-                                            <td className="px-5 py-4 text-xs font-black text-slate-800 text-right whitespace-nowrap">{v.valor}</td>
+                                            <td className="px-5 py-4 text-xs font-bold text-slate-700 align-middle">{v.matricula || '-'}</td>
+                                            <td className="px-5 py-4 text-xs text-slate-800 font-black uppercase align-middle">{v.nome_aluno || v.nome}</td>
+                                            <td className="px-5 py-4 text-xs font-bold text-indigo-600 uppercase align-middle">{v.produto}</td>
+                                            <td className="px-5 py-4 text-xs font-bold text-slate-600 uppercase align-middle">{v.vendedor}</td>
+                                            <td className="px-5 py-4 text-xs font-black text-slate-700 text-center align-middle">{v.quantidade}</td>
+                                            <td className="px-5 py-4 text-xs font-black text-slate-800 text-right whitespace-nowrap align-middle">{v.valor}</td>
                                             
-                                            <td className="px-5 py-2">
+                                            <td className="px-5 py-2 align-middle">
                                                 <input 
                                                     type="text"
                                                     value={v.observacao || ''}
@@ -274,21 +300,38 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                                 />
                                             </td>
                                             
-                                            <td className="px-5 py-4 text-center">
+                                            <td className="px-5 py-4 text-center align-middle">
                                                 <button 
                                                     onClick={() => toggleConferido(v.id, v.conferiu)}
-                                                    className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center gap-1.5 mx-auto ${
+                                                    className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 w-24 mx-auto ${
                                                         v.conferiu 
                                                         ? 'bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600' 
                                                         : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100 hover:text-slate-600'
                                                     }`}
                                                 >
-                                                    {v.conferiu ? <><i data-lucide="check" className="w-3.5 h-3.5"></i> Conferido</> : <><i data-lucide="clock" className="w-3.5 h-3.5"></i> Pendente</>}
+                                                    {v.conferiu ? <><i data-lucide="check" className="w-3 h-3"></i> OK</> : <><i data-lucide="clock" className="w-3 h-3"></i> Pendente</>}
                                                 </button>
                                             </td>
+
+                                            {/* CÉLULA DO VALIDADOR (QUEM E QUANDO) */}
+                                            <td className="px-5 py-4 text-center align-middle">
+                                                {v.conferiu && v.conferido_por ? (
+                                                    <div className="flex flex-col items-center justify-center bg-white border border-indigo-100 px-2 py-1.5 rounded-lg shadow-sm">
+                                                        <span className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1">
+                                                            <i data-lucide="shield-check" className="w-3 h-3"></i> {v.conferido_por.split(' ')[0]}
+                                                        </span>
+                                                        <span className="text-[9px] font-bold text-slate-400 mt-0.5">
+                                                            {formatarDataHora(v.conferido_em)}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-slate-300">-</span>
+                                                )}
+                                            </td>
+
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={temVisaoGlobal ? "10" : "9"} className="text-center py-16 text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhuma venda encontrada no filtro.</td></tr>
+                                        <tr><td colSpan={temVisaoGlobal ? "11" : "10"} className="text-center py-16 text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhuma venda encontrada no filtro.</td></tr>
                                     )}
                                 </tbody>
                             </table>
