@@ -6,17 +6,15 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     // 1. ESTADOS DOS FILTROS
     // ==========================================
     const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
-    
     const [filtroMes, setFiltroMes] = useState('TODOS');
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
-    
     const [dataInicio, setDataInicio] = useState('');
     const [dataFim, setDataFim] = useState('');
-    
     const [filtroProduto, setFiltroProduto] = useState('TODOS');
     const [filtroVendedor, setFiltroVendedor] = useState('TODOS');
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); 
 
+    // Estados para carregar o Catálogo e Edição
     const [catalogoGeral, setCatalogoGeral] = useState([]);
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
@@ -25,12 +23,16 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     // CONTROLE DE ACESSO
     // ==========================================
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
-    
-    // Quem pode ver a coluna de Ações (Editar/Excluir)
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
 
-    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    const parseCurrency = (str) => parseFloat(String(str).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+    // Utilitários de Formatação Visual (P1)
+    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
+    const formatDataBR = (dataIso) => {
+        if (!dataIso) return '';
+        const partes = dataIso.split('-');
+        if (partes.length !== 3) return dataIso;
+        return `${partes[2]}/${partes[1]}/${partes[0]}`; // Transforma YYYY-MM-DD em DD/MM/YYYY na tela
+    };
 
     useEffect(() => {
         const fetchCatalogo = async () => {
@@ -52,9 +54,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
             const backupDados = [...data];
             setData(data.filter(v => v.id !== id));
-
             const { error } = await supabase.from('vendas').delete().eq('id', id);
-
             if (error) {
                 console.error("Erro ao deletar:", error);
                 alert("Erro ao excluir do banco de dados.");
@@ -64,24 +64,28 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     };
 
     const iniciarEdicao = (venda) => {
+        // Agora o valor vem limpo como número, direto do banco
+        const valorNumericoBanco = Number(venda.valor) || 0;
+        const qtd = parseInt(venda.quantidade) || 1;
+
         let unitario = 0;
         const itemCatalogo = catalogoGeral.find(c => c.nome.toUpperCase() === venda.produto?.toUpperCase());
         if (itemCatalogo) {
-            unitario = parseFloat(itemCatalogo.valor);
+            unitario = Number(itemCatalogo.valor) || 0;
         } else {
-            unitario = parseCurrency(venda.valor) / (parseInt(venda.quantidade) || 1);
+            unitario = valorNumericoBanco / qtd;
         }
 
         setEditandoId(venda.id);
         setDadosEdicao({
-            data: venda.data || '',
+            data: venda.data || '', // Data já está em YYYY-MM-DD
             matricula: venda.matricula || '',
             nome_aluno: venda.nome_aluno || venda.nome || '',
             produto: venda.produto || '',
             vendedor: venda.vendedor || '',
-            quantidade: venda.quantidade || 1,
+            quantidade: qtd,
             valorUnitario: unitario,
-            valor: venda.valor || ''
+            valorCalculado: valorNumericoBanco
         });
     };
 
@@ -91,16 +95,16 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         if (field === 'produto') {
             const item = catalogoGeral.find(c => c.nome === value);
             if (item) {
-                const novoUnitario = parseFloat(item.valor);
+                const novoUnitario = Number(item.valor) || 0;
                 novosDados.valorUnitario = novoUnitario;
-                novosDados.valor = formatMoney(novoUnitario * novosDados.quantidade);
+                novosDados.valorCalculado = novoUnitario * novosDados.quantidade;
             }
         }
 
         if (field === 'quantidade') {
             const qtd = parseInt(value) || 1;
             novosDados.quantidade = qtd;
-            novosDados.valor = formatMoney(novosDados.valorUnitario * qtd);
+            novosDados.valorCalculado = novosDados.valorUnitario * qtd;
         }
 
         setDadosEdicao(novosDados);
@@ -112,15 +116,17 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     };
 
     const salvarEdicao = async (id) => {
+        const valorPuro = Number(dadosEdicao.valorCalculado) || 0;
+        
         const payload = {
-            data: dadosEdicao.data,
+            data: dadosEdicao.data, // YYYY-MM-DD puro
             matricula: dadosEdicao.matricula,
             nome_aluno: dadosEdicao.nome_aluno.toUpperCase(),
             produto: dadosEdicao.produto.toUpperCase(),
             vendedor: dadosEdicao.vendedor.toUpperCase(),
             quantidade: parseInt(dadosEdicao.quantidade) || 1,
-            valor: dadosEdicao.valor,
-            comissao: dadosEdicao.valor 
+            valor: valorPuro, // Número puro para o banco
+            comissao: valorPuro 
         };
 
         setData(data.map(v => v.id === id ? { ...v, ...payload } : v));
@@ -140,7 +146,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     const produtosUnicos = ['TODOS', ...new Set(data.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(data.map(v => v.vendedor))].filter(Boolean);
     const unidadesUnicas = ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean); 
-    const anosUnicos = [...new Set(data.map(v => v.data?.split('/')[2]))].filter(Boolean).sort((a,b) => b-a);
+    const anosUnicos = [...new Set(data.map(v => v.data?.split('-')[0]))].filter(Boolean).sort((a,b) => b-a); // Lê do YYYY-MM-DD
     if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
 
     const meses = [
@@ -152,7 +158,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     ];
 
     // ==========================================
-    // 4. MOTOR DE FILTRAGEM
+    // 4. MOTOR DE FILTRAGEM CORRIGIDO PARA DATAS NATIVAS
     // ==========================================
     const vendasFiltradas = data.filter(venda => {
         if (temVisaoGlobal && filtroUnidade !== 'TODOS' && venda.unidade !== filtroUnidade) return false;
@@ -160,24 +166,22 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         if (filtroVendedor !== 'TODOS' && venda.vendedor !== filtroVendedor) return false;
 
         if (!venda.data) return false;
-        const [d, m, y] = venda.data.split('/');
-        const isoDate = `${y}-${m}-${d}`;
+        
+        // P1: Agora a data vem como YYYY-MM-DD do banco
+        const partes = venda.data.split('-');
+        if (partes.length !== 3) return false;
+        const [y, m, d] = partes;
 
         if (tipoFiltroData === 'mes') {
             if (filtroMes !== 'TODOS' && m !== filtroMes) return false;
             if (filtroAno !== 'TODOS' && y !== filtroAno) return false;
         } else {
-            if (dataInicio && isoDate < dataInicio) return false;
-            if (dataFim && isoDate > dataFim) return false;
+            if (dataInicio && venda.data < dataInicio) return false;
+            if (dataFim && venda.data > dataFim) return false;
         }
 
         return true;
     });
-
-    // Calcula quantidade de colunas base para o colspan do "Não encontrado"
-    let colunasVisiveis = 6; // Data, Aluno/Mat, Prod, Vend, Qtd, Valor
-    if (temVisaoGlobal) colunasVisiveis++;
-    if (podeEditar) colunasVisiveis++;
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto">
@@ -285,16 +289,11 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                             <tr>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data</th>
                                 {temVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200">Unidade</th>}
-                                
-                                {/* COLUNA UNIFICADA */}
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno / Matrícula</th>
-                                
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Plano/Produto</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Vendedor</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Qtd</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right">Valor Total</th>
-                                
-                                {/* AÇÕES SÓ APARECEM SE TIVER PERMISSÃO */}
                                 {podeEditar && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Gestão</th>}
                             </tr>
                         </thead>
@@ -305,23 +304,21 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                 return (
                                     <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                                         
-                                        {/* DATA */}
+                                        {/* DATA VISUAL P1 */}
                                         <td className="px-6 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">
                                             {isEditing ? (
-                                                <input type="text" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-24 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                                <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
                                             ) : (
-                                                row.data
+                                                formatDataBR(row.data)
                                             )}
                                         </td>
                                         
-                                        {/* UNIDADE (Protegida) */}
                                         {temVisaoGlobal && (
                                             <td className="px-6 py-4 text-xs font-black text-rose-600 bg-rose-50/10 whitespace-nowrap uppercase align-middle">
                                                 {row.unidade || 'MATRIZ'}
                                             </td>
                                         )}
 
-                                        {/* ALUNO E MATRÍCULA JUNTOS */}
                                         <td className="px-6 py-4 align-middle">
                                             {isEditing ? (
                                                 <div className="flex flex-col gap-2">
@@ -336,7 +333,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                             )}
                                         </td>
 
-                                        {/* PRODUTO */}
                                         <td className="px-6 py-4 text-xs whitespace-nowrap uppercase font-bold text-indigo-600 align-middle">
                                             {isEditing ? (
                                                 <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-xs">
@@ -348,7 +344,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                             )}
                                         </td>
 
-                                        {/* VENDEDOR */}
                                         <td className="px-6 py-4 text-xs whitespace-nowrap font-bold text-slate-600 uppercase align-middle">
                                             {isEditing ? (
                                                 <input type="text" value={dadosEdicao.vendedor} onChange={e => handleEdicaoChange('vendedor', e.target.value)} className="w-28 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-xs" />
@@ -357,7 +352,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                             )}
                                         </td>
 
-                                        {/* QUANTIDADE */}
                                         <td className="px-6 py-4 text-xs text-center font-black text-slate-700 align-middle">
                                             {isEditing ? (
                                                 <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-14 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-1 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
@@ -366,16 +360,14 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                             )}
                                         </td>
 
-                                        {/* VALOR (TRAVADO E RESPONSIVO) */}
                                         <td className="px-6 py-4 text-xs font-black text-slate-800 whitespace-nowrap text-right align-middle">
                                             {isEditing ? (
-                                                <input type="text" value={dadosEdicao.valor} readOnly className="w-24 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-2 py-1.5 cursor-not-allowed font-black text-xs" title="O valor calcula sozinho baseado no catálogo" />
+                                                <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-24 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-2 py-1.5 cursor-not-allowed font-black text-xs" title="O valor calcula sozinho" />
                                             ) : (
-                                                row.valor
+                                                formatMoney(row.valor) // Exibição Visual (P1)
                                             )}
                                         </td>
 
-                                        {/* COLUNA DE AÇÕES - APENAS LÍDER / MENTOR / ADMIN */}
                                         {podeEditar && (
                                             <td className="px-6 py-4 text-center align-middle w-32">
                                                 {isEditing ? (
@@ -411,7 +403,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                             
                             {vendasFiltradas.length === 0 && (
                                 <tr>
-                                    <td colSpan={colunasVisiveis} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                    <td colSpan={temVisaoGlobal ? "8" : "7"} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
                                         <i data-lucide="filter-x" className="w-10 h-10 mx-auto text-slate-300 mb-4 opacity-50"></i>
                                         Nenhuma venda encontrada para estes filtros.
                                     </td>

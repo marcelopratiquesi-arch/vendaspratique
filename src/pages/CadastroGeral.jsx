@@ -3,18 +3,22 @@ import { supabase } from '../supabaseClient.js';
 
 const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produtos, setProdutos, colaboradores, setColaboradores }) => {
     // ==========================================
-    // ESTADOS GLOBAIS
+    // 1. ESTADOS GLOBAIS E DE UI
     // ==========================================
     const [abaAtiva, setAbaAtiva] = useState('equipe'); // 'equipe', 'setores', 'planos', 'produtos'
     const [sucesso, setSucesso] = useState(false);
-    const [erroBando, setErroBanco] = useState('');
+    const [erroBanco, setErroBanco] = useState('');
     const [editandoId, setEditandoId] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false); // P3: Trava de duplo submit
 
-    // Estados de Setores
+    // P4: Estado do Modal Customizado (Substitui window.confirm e alert)
+    const [modal, setModal] = useState({ isOpen: false, tipo: 'alert', titulo: '', mensagem: '', onConfirm: null });
+
+    // ==========================================
+    // 2. ESTADOS DOS FORMULÁRIOS
+    // ==========================================
     const [listaSetores, setListaSetores] = useState([]);
     const [nomeSetor, setNomeSetor] = useState('');
-
-    // Estados dos formulários
     const [nomeColaborador, setNomeColaborador] = useState('');
     const [cargoColaborador, setCargoColaborador] = useState('');
     const [unidadeColaborador, setUnidadeColaborador] = useState('');
@@ -26,14 +30,16 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const [filtroUnidadeLista, setFiltroUnidadeLista] = useState('TODOS');
 
     // ==========================================
-    // CONTROLE DE ACESSO AVANÇADO
+    // 3. CONTROLE DE ACESSO AVANÇADO
     // ==========================================
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const ehAdmin = usuarioLogado?.role === 'ADMIN';
     const podeEditarEquipe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR' || usuarioLogado?.role === 'LIDER';
-
     const mostraFormulario = (abaAtiva === 'equipe' && podeEditarEquipe) || (abaAtiva !== 'equipe' && ehAdmin);
 
+    // ==========================================
+    // 4. EFFECTS & HELPERS
+    // ==========================================
     useEffect(() => {
         const fetchSetores = async () => {
             const { data } = await supabase.from('setores').select('*');
@@ -44,7 +50,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [abaAtiva, planos, produtos, colaboradores, listaSetores, sucesso, erroBando, editandoId, unidades, filtroUnidadeLista, mostraFormulario]);
+    }, [abaAtiva, planos, produtos, colaboradores, listaSetores, sucesso, erroBanco, editandoId, unidades, filtroUnidadeLista, mostraFormulario, modal]);
 
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
@@ -56,9 +62,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const cancelarEdicao = () => {
         setEditandoId(null);
         setNomeColaborador(''); setCargoColaborador(''); setUnidadeColaborador('');
-        setNomeSetor('');
-        setNomePlano(''); setValorPlano('');
-        setNomeProduto(''); setValorProduto('');
+        setNomeSetor(''); setNomePlano(''); setValorPlano(''); setNomeProduto(''); setValorProduto('');
     };
 
     const changeTab = (tab) => {
@@ -67,149 +71,94 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
         setErroBanco('');
     };
 
-    // ==========================================
-    // FUNÇÕES DE CRUD
-    // ==========================================
-    
-    // --- SETORES ---
-    const handleSalvarSetor = async (e) => {
-        e.preventDefault();
-        const nomeFormatado = nomeSetor.trim().toUpperCase();
-        if (!nomeFormatado || !ehAdmin) return;
-        
-        const payload = { nome: nomeFormatado };
+    // --- FUNÇÕES DE MODAL CUSTOMIZADO (P4) ---
+    const showAlert = (titulo, mensagem) => setModal({ isOpen: true, tipo: 'alert', titulo, mensagem, onConfirm: null });
+    const showConfirm = (titulo, mensagem, onConfirm) => setModal({ isOpen: true, tipo: 'confirm', titulo, mensagem, onConfirm });
+    const closeModal = () => setModal({ ...modal, isOpen: false });
 
-        if (editandoId) {
-            const { data, error } = await supabase.from('setores').update(payload).eq('id', editandoId).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setListaSetores(listaSetores.map(s => s.id === editandoId ? data[0] : s));
-        } else {
-            const { data, error } = await supabase.from('setores').insert([payload]).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setListaSetores([...listaSetores, data[0]]);
-        }
-        cancelarEdicao(); mostrarSucesso();
-    };
-
-    const handleDeleteSetor = async (id) => {
-        if(!ehAdmin) return;
-        if(window.confirm('Tem certeza que deseja excluir este setor?')) {
-            const { error } = await supabase.from('setores').delete().eq('id', id);
-            if (error) return setErroBanco(error.message);
-            setListaSetores(listaSetores.filter(s => s.id !== id));
+    // ==========================================
+    // 5. MOTORES GENÉRICOS DE CRUD (P3)
+    // ==========================================
+    const handleSalvarGenerico = async (tabela, payload, listaAtual, setLista) => {
+        setIsSubmitting(true);
+        try {
+            if (editandoId) {
+                const { data, error } = await supabase.from(tabela).update(payload).eq('id', editandoId).select();
+                if (error) throw error;
+                if (data) setLista(listaAtual.map(item => item.id === editandoId ? data[0] : item));
+            } else {
+                const { data, error } = await supabase.from(tabela).insert([payload]).select();
+                if (error) throw error;
+                if (data) setLista([...listaAtual, data[0]]);
+            }
+            cancelarEdicao();
+            mostrarSucesso();
+        } catch (error) {
+            setErroBanco(error.message);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
-    // --- COLABORADORES ---
-    const handleSalvarColaborador = async (e) => {
+    const executarDelecao = async (tabela, id, listaAtual, setLista) => {
+        setIsSubmitting(true);
+        try {
+            const { error } = await supabase.from(tabela).delete().eq('id', id);
+            if (error) throw error;
+            setLista(listaAtual.filter(item => item.id !== id));
+        } catch (error) {
+            setErroBanco(error.message);
+        } finally {
+            setIsSubmitting(false);
+            closeModal();
+        }
+    };
+
+    const handleDeleteGenerico = (tabela, id, listaAtual, setLista, msgConfirm) => {
+        showConfirm('Confirmar Exclusão', msgConfirm, () => executarDelecao(tabela, id, listaAtual, setLista));
+    };
+
+    // ==========================================
+    // 6. WRAPPERS DOS FORMULÁRIOS
+    // ==========================================
+    const wrapperSalvarColaborador = (e) => {
         e.preventDefault();
         const nomeFormatado = nomeColaborador.trim().toUpperCase();
         if (!nomeFormatado || !cargoColaborador.trim() || !podeEditarEquipe) return;
 
         const unidadeFinal = temVisaoGlobal ? unidadeColaborador : usuarioLogado?.unidade;
+        if (!unidadeFinal) return showAlert("Atenção", "Por favor, selecione uma unidade válida.");
 
-        if (!unidadeFinal) {
-            alert("Por favor, selecione uma unidade válida.");
-            return;
-        }
-        
-        const payload = { 
-            nome: nomeFormatado, 
-            role: cargoColaborador.toUpperCase(),
-            unidade: unidadeFinal.toUpperCase()
-        };
-
-        if (editandoId) {
-            const { data, error } = await supabase.from('colaboradores').update(payload).eq('id', editandoId).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setColaboradores(colaboradores.map(c => c.id === editandoId ? data[0] : c));
-        } else {
-            const { data, error } = await supabase.from('colaboradores').insert([payload]).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setColaboradores([...colaboradores, data[0]]);
-        }
-        cancelarEdicao(); mostrarSucesso();
+        handleSalvarGenerico('colaboradores', { nome: nomeFormatado, role: cargoColaborador.toUpperCase(), unidade: unidadeFinal.toUpperCase() }, colaboradores, setColaboradores);
     };
 
-    const handleDeleteColaborador = async (id) => {
-        if(!podeEditarEquipe) return;
-        if(window.confirm('Excluir este colaborador da equipe?')) {
-            const { error } = await supabase.from('colaboradores').delete().eq('id', id);
-            if (error) return setErroBanco(error.message);
-            setColaboradores(colaboradores.filter(c => c.id !== id));
-        }
+    const wrapperSalvarSetor = (e) => {
+        e.preventDefault();
+        const nomeFormatado = nomeSetor.trim().toUpperCase();
+        if (!nomeFormatado || !ehAdmin) return;
+        handleSalvarGenerico('setores', { nome: nomeFormatado }, listaSetores, setListaSetores);
     };
 
-    // --- PLANOS ---
-    const handleSalvarPlano = async (e) => {
+    const wrapperSalvarPlano = (e) => {
         e.preventDefault();
         const nomeFormatado = nomePlano.trim().toUpperCase();
         if (!nomeFormatado || !valorPlano || !ehAdmin) return;
 
-        // TRAVA DE ANTI-DUPLICIDADE
         const jaExiste = planos.find(p => p.nome === nomeFormatado && p.id !== editandoId);
-        if (jaExiste) {
-            alert(`ATENÇÃO: O plano "${nomeFormatado}" já está cadastrado no sistema! Por favor, utilize um nome diferente.`);
-            return;
-        }
+        if (jaExiste) return showAlert("Plano Duplicado", `O plano "${nomeFormatado}" já está cadastrado.`);
 
-        const payload = { tipo: 'plano', nome: nomeFormatado, valor: parseFloat(valorPlano) };
-
-        if (editandoId) {
-            const { data, error } = await supabase.from('catalogo').update(payload).eq('id', editandoId).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setPlanos(planos.map(p => p.id === editandoId ? data[0] : p));
-        } else {
-            const { data, error } = await supabase.from('catalogo').insert([payload]).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setPlanos([...planos, data[0]]);
-        }
-        cancelarEdicao(); mostrarSucesso();
+        handleSalvarGenerico('catalogo', { tipo: 'plano', nome: nomeFormatado, valor: parseFloat(valorPlano) }, planos, setPlanos);
     };
 
-    const handleDeletePlano = async (id) => {
-        if(!ehAdmin) return;
-        if(window.confirm('Excluir este plano do catálogo?')) {
-            const { error } = await supabase.from('catalogo').delete().eq('id', id);
-            if (error) return setErroBanco(error.message);
-            setPlanos(planos.filter(p => p.id !== id));
-        }
-    };
-
-    // --- PRODUTOS ---
-    const handleSalvarProduto = async (e) => {
+    const wrapperSalvarProduto = (e) => {
         e.preventDefault();
         const nomeFormatado = nomeProduto.trim().toUpperCase();
         if (!nomeFormatado || !valorProduto || !ehAdmin) return;
 
-        // TRAVA DE ANTI-DUPLICIDADE
         const jaExiste = produtos.find(p => p.nome === nomeFormatado && p.id !== editandoId);
-        if (jaExiste) {
-            alert(`ATENÇÃO: O produto "${nomeFormatado}" já está cadastrado no sistema! Por favor, utilize um nome diferente ou edite o existente.`);
-            return;
-        }
+        if (jaExiste) return showAlert("Produto Duplicado", `O produto "${nomeFormatado}" já está cadastrado.`);
 
-        const payload = { tipo: 'produto', nome: nomeFormatado, valor: parseFloat(valorProduto) };
-
-        if (editandoId) {
-            const { data, error } = await supabase.from('catalogo').update(payload).eq('id', editandoId).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setProdutos(produtos.map(p => p.id === editandoId ? data[0] : p));
-        } else {
-            const { data, error } = await supabase.from('catalogo').insert([payload]).select();
-            if (error) return setErroBanco(error.message);
-            if (data) setProdutos([...produtos, data[0]]);
-        }
-        cancelarEdicao(); mostrarSucesso();
-    };
-
-    const handleDeleteProduto = async (id) => {
-        if(!ehAdmin) return;
-        if(window.confirm('Excluir este produto do catálogo?')) {
-            const { error } = await supabase.from('catalogo').delete().eq('id', id);
-            if (error) return setErroBanco(error.message);
-            setProdutos(produtos.filter(p => p.id !== id));
-        }
+        handleSalvarGenerico('catalogo', { tipo: 'produto', nome: nomeFormatado, valor: parseFloat(valorProduto) }, produtos, setProdutos);
     };
 
     const colaboradoresFiltrados = colaboradores.filter(c => {
@@ -220,14 +169,46 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative">
             
-            {sucesso && (
-                <div className="absolute top-0 right-0 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-[0_8px_20px_rgba(16,185,129,0.4)] flex items-center gap-3 font-black uppercase tracking-wider text-xs z-50">
-                    <i data-lucide="check-circle-2" className="w-5 h-5"></i> Cadastrado no Banco!
+            {/* COMPONENTE MODAL CUSTOMIZADO (P4) */}
+            {modal.isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-[slideUp_0.2s_ease-out]">
+                        <div className={`p-6 border-b ${modal.tipo === 'alert' ? 'bg-amber-50 border-amber-100' : 'bg-rose-50 border-rose-100'}`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center shadow-inner ${modal.tipo === 'alert' ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'}`}>
+                                    <i data-lucide={modal.tipo === 'alert' ? "alert-triangle" : "trash-2"} className="w-5 h-5"></i>
+                                </div>
+                                <h3 className="text-lg font-black text-slate-800 tracking-tight">{modal.titulo}</h3>
+                            </div>
+                        </div>
+                        <div className="p-6 text-sm font-bold text-slate-600 leading-relaxed">
+                            {modal.mensagem}
+                        </div>
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+                            {modal.tipo === 'confirm' && (
+                                <button onClick={closeModal} disabled={isSubmitting} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-200 transition-colors disabled:opacity-50">Cancelar</button>
+                            )}
+                            <button 
+                                onClick={() => { modal.onConfirm ? modal.onConfirm() : closeModal(); if(modal.tipo === 'alert') closeModal(); }} 
+                                disabled={isSubmitting}
+                                className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-md transition-all disabled:opacity-50 flex items-center gap-2 ${modal.tipo === 'alert' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-rose-500 hover:bg-rose-600'}`}
+                            >
+                                {isSubmitting ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : null}
+                                {modal.tipo === 'confirm' ? 'Excluir' : 'Entendi'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
-            {erroBando && (
+
+            {sucesso && (
+                <div className="absolute top-0 right-0 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-[0_8px_20px_rgba(16,185,129,0.4)] flex items-center gap-3 font-black uppercase tracking-wider text-xs z-50">
+                    <i data-lucide="check-circle-2" className="w-5 h-5"></i> Cadastrado com sucesso!
+                </div>
+            )}
+            {erroBanco && (
                 <div className="absolute top-0 right-0 bg-rose-500 text-white px-6 py-3 rounded-2xl shadow-lg flex items-center gap-3 font-black uppercase tracking-wider text-xs z-50">
-                    <i data-lucide="alert-triangle" className="w-5 h-5"></i> Erro Supabase: {erroBando}
+                    <i data-lucide="alert-triangle" className="w-5 h-5"></i> Erro: {erroBanco}
                 </div>
             )}
 
@@ -243,17 +224,17 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                     </div>
                 </div>
 
-                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto">
-                    <button onClick={() => changeTab('equipe')} className={`flex-1 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
+                    <button onClick={() => changeTab('equipe')} className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
                         <i data-lucide="users" className="w-4 h-4"></i> Equipe
                     </button>
-                    <button onClick={() => changeTab('setores')} className={`flex-1 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'setores' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <button onClick={() => changeTab('setores')} className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'setores' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
                         <i data-lucide="layout-grid" className="w-4 h-4"></i> Setores
                     </button>
-                    <button onClick={() => changeTab('planos')} className={`flex-1 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'planos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <button onClick={() => changeTab('planos')} className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'planos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
                         <i data-lucide="clipboard-check" className="w-4 h-4"></i> Planos
                     </button>
-                    <button onClick={() => changeTab('produtos')} className={`flex-1 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'produtos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <button onClick={() => changeTab('produtos')} className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'produtos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
                         <i data-lucide="package" className="w-4 h-4"></i> Produtos
                     </button>
                 </div>
@@ -268,7 +249,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
                         {/* FORM: EQUIPE */}
                         {abaAtiva === 'equipe' && podeEditarEquipe && (
-                            <form onSubmit={handleSalvarColaborador} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                            <form onSubmit={wrapperSalvarColaborador} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
                                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
                                     <i data-lucide={editandoId ? "edit-3" : "user-plus"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
                                     {editandoId ? 'Editar Colaborador' : 'Novo Colaborador'}
@@ -296,9 +277,10 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                 )}
 
                                 <div className="pt-2 flex gap-2">
-                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar'}
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} disabled={isSubmitting} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs disabled:opacity-50">Cancelar</button>}
+                                    <button type="submit" disabled={isSubmitting} className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50 ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        {isSubmitting ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : <i data-lucide="check" className="w-4 h-4"></i>} 
+                                        {editandoId ? 'Atualizar' : 'Salvar'}
                                     </button>
                                 </div>
                             </form>
@@ -306,7 +288,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
                         {/* FORM: SETORES */}
                         {abaAtiva === 'setores' && ehAdmin && (
-                            <form onSubmit={handleSalvarSetor} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                            <form onSubmit={wrapperSalvarSetor} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
                                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
                                     <i data-lucide={editandoId ? "edit-3" : "layout-grid"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
                                     {editandoId ? 'Editar Setor' : 'Criar Setor/Cargo'}
@@ -316,9 +298,10 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                     <input type="text" value={nomeSetor} onChange={(e) => setNomeSetor(e.target.value)} required placeholder="Ex: ATENDIMENTO ONLINE" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
                                 </div>
                                 <div className="pt-2 flex gap-2">
-                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Setor'}
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} disabled={isSubmitting} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs disabled:opacity-50">Cancelar</button>}
+                                    <button type="submit" disabled={isSubmitting} className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50 ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        {isSubmitting ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : <i data-lucide="check" className="w-4 h-4"></i>} 
+                                        {editandoId ? 'Atualizar' : 'Salvar Setor'}
                                     </button>
                                 </div>
                             </form>
@@ -326,7 +309,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
                         {/* FORM: PLANOS */}
                         {abaAtiva === 'planos' && ehAdmin && (
-                            <form onSubmit={handleSalvarPlano} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                            <form onSubmit={wrapperSalvarPlano} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
                                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
                                     <i data-lucide={editandoId ? "edit-3" : "folder-plus"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
                                     {editandoId ? 'Editar Plano' : 'Novo Plano'}
@@ -336,13 +319,14 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                     <input type="text" value={nomePlano} onChange={(e) => setNomePlano(e.target.value)} required placeholder="Ex: PLANO VIP ANUAL" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor (R$)</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor Numérico Limpo (R$)</label>
                                     <input type="number" step="0.01" min="0" value={valorPlano} onChange={(e) => setValorPlano(e.target.value)} required placeholder="Ex: 119.90" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />
                                 </div>
                                 <div className="pt-2 flex gap-2">
-                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Plano'}
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} disabled={isSubmitting} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs disabled:opacity-50">Cancelar</button>}
+                                    <button type="submit" disabled={isSubmitting} className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50 ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        {isSubmitting ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : <i data-lucide="check" className="w-4 h-4"></i>} 
+                                        {editandoId ? 'Atualizar' : 'Salvar Plano'}
                                     </button>
                                 </div>
                             </form>
@@ -350,7 +334,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
                         {/* FORM: PRODUTOS */}
                         {abaAtiva === 'produtos' && ehAdmin && (
-                            <form onSubmit={handleSalvarProduto} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                            <form onSubmit={wrapperSalvarProduto} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
                                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
                                     <i data-lucide={editandoId ? "edit-3" : "box"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
                                     {editandoId ? 'Editar Produto' : 'Novo Produto'}
@@ -360,13 +344,14 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                     <input type="text" value={nomeProduto} onChange={(e) => setNomeProduto(e.target.value)} required placeholder="Ex: WHEY PROTEIN" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor Unitário (R$)</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor Numérico Limpo (R$)</label>
                                     <input type="number" step="0.01" min="0" value={valorProduto} onChange={(e) => setValorProduto(e.target.value)} required placeholder="Ex: 89.90" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />
                                 </div>
                                 <div className="pt-2 flex gap-2">
-                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
-                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Produto'}
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} disabled={isSubmitting} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs disabled:opacity-50">Cancelar</button>}
+                                    <button type="submit" disabled={isSubmitting} className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50 ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+                                        {isSubmitting ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : <i data-lucide="check" className="w-4 h-4"></i>} 
+                                        {editandoId ? 'Atualizar' : 'Salvar Produto'}
                                     </button>
                                 </div>
                             </form>
@@ -397,7 +382,6 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
                     <div className="overflow-y-auto custom-scrollbar flex-1 p-2">
                         <table className="w-full text-left border-collapse">
-                            
                             {/* TABELA EQUIPE */}
                             {abaAtiva === 'equipe' && (
                                 <tbody className="divide-y divide-slate-50">
@@ -418,21 +402,22 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             
-                                            {/* BOTÕES SEMPRE VISÍVEIS: EQUIPE */}
                                             {podeEditarEquipe && (
                                                 <td className="px-6 py-4 text-right align-middle">
                                                     <div className="flex justify-end gap-3">
                                                         <button 
                                                             type="button" 
+                                                            disabled={isSubmitting}
                                                             onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); setUnidadeColaborador(c.unidade || ''); }} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                                                         >
                                                             <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
                                                         </button>
                                                         <button 
                                                             type="button" 
-                                                            onClick={() => handleDeleteColaborador(c.id)} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                            disabled={isSubmitting}
+                                                            onClick={() => handleDeleteGenerico('colaboradores', c.id, colaboradores, setColaboradores, `Excluir definitivamente o colaborador ${c.nome}?`)} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50"
                                                         >
                                                             <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
                                                         </button>
@@ -462,23 +447,13 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                     <span className="text-sm font-black text-slate-800 uppercase">{s.nome}</span>
                                                 </div>
                                             </td>
-                                            
-                                            {/* BOTÕES SEMPRE VISÍVEIS: SETORES */}
                                             {ehAdmin && (
                                                 <td className="px-6 py-4 text-right align-middle">
                                                     <div className="flex justify-end gap-3">
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => { setEditandoId(s.id); setNomeSetor(s.nome); }} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
+                                                        <button type="button" disabled={isSubmitting} onClick={() => { setEditandoId(s.id); setNomeSetor(s.nome); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                                             <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
                                                         </button>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => handleDeleteSetor(s.id)} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
+                                                        <button type="button" disabled={isSubmitting} onClick={() => handleDeleteGenerico('setores', s.id, listaSetores, setListaSetores, `Excluir o setor ${s.nome}?`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                                             <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
                                                         </button>
                                                     </div>
@@ -489,7 +464,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                 </tbody>
                             )}
 
-                            {/* TABELA PLANOS */}
+                            {/* TABELA PLANOS E PRODUTOS COM SUPORTE NUMÉRICO P1 */}
                             {abaAtiva === 'planos' && (
                                 <tbody className="divide-y divide-slate-50">
                                     {planos.map(p => (
@@ -501,23 +476,13 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-emerald-600 text-right">{formatMoney(p.valor)}</td>
-                                            
-                                            {/* BOTÕES SEMPRE VISÍVEIS: PLANOS */}
                                             {ehAdmin && (
                                                 <td className="px-6 py-4 text-right align-middle">
                                                     <div className="flex justify-end gap-3">
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => { setEditandoId(p.id); setNomePlano(p.nome); setValorPlano(p.valor); }} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
+                                                        <button type="button" disabled={isSubmitting} onClick={() => { setEditandoId(p.id); setNomePlano(p.nome); setValorPlano(p.valor); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                                             <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
                                                         </button>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => handleDeletePlano(p.id)} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
+                                                        <button type="button" disabled={isSubmitting} onClick={() => handleDeleteGenerico('catalogo', p.id, planos, setPlanos, `Excluir o plano ${p.nome}?`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                                             <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
                                                         </button>
                                                     </div>
@@ -528,7 +493,6 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                 </tbody>
                             )}
 
-                            {/* TABELA PRODUTOS */}
                             {abaAtiva === 'produtos' && (
                                 <tbody className="divide-y divide-slate-50">
                                     {produtos.map(p => (
@@ -540,23 +504,13 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-emerald-600 text-right">{formatMoney(p.valor)}</td>
-                                            
-                                            {/* BOTÕES SEMPRE VISÍVEIS: PRODUTOS */}
                                             {ehAdmin && (
                                                 <td className="px-6 py-4 text-right align-middle">
                                                     <div className="flex justify-end gap-3">
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => { setEditandoId(p.id); setNomeProduto(p.nome); setValorProduto(p.valor); }} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
+                                                        <button type="button" disabled={isSubmitting} onClick={() => { setEditandoId(p.id); setNomeProduto(p.nome); setValorProduto(p.valor); }} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                                             <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
                                                         </button>
-                                                        <button 
-                                                            type="button" 
-                                                            onClick={() => handleDeleteProduto(p.id)} 
-                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
-                                                        >
+                                                        <button type="button" disabled={isSubmitting} onClick={() => handleDeleteGenerico('catalogo', p.id, produtos, setProdutos, `Excluir o produto ${p.nome}?`)} className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all disabled:opacity-50">
                                                             <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
                                                         </button>
                                                     </div>

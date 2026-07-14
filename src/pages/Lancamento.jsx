@@ -2,9 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
 const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
-    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    // Utilitários de conversão visual e numérica (BLINDAGEM)
+    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
     
-    // Verifica se é a chefia logada
+    // Essa função arranca o "R$", os pontos e converte a vírgula para ponto matemático
+    const parseCurrency = (str) => {
+        if (typeof str === 'number') return str;
+        if (!str) return 0;
+        return parseFloat(String(str).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+    };
+    
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     const [formData, setFormData] = useState({ 
@@ -21,8 +28,9 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
         tipo: '', 
         nomeItem: '', 
         quantidade: 1, 
-        valor: 'R$ 0,00', 
-        valorUnitario: 0 
+        valor: 'R$ 0,00', // Apenas Visual
+        valorUnitario: 0,
+        valorCalculado: 0 // Numérico Puro
     });
     
     const [itensForm, setItensForm] = useState([getInitialItem()]);
@@ -51,19 +59,25 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                     updatedItem.nomeItem = '';
                     updatedItem.valorUnitario = 0;
                     updatedItem.quantidade = 1;
+                    updatedItem.valorCalculado = 0;
                     updatedItem.valor = 'R$ 0,00';
                 } 
                 else if (field === 'nomeItem') {
-                    // Busca dinâmica baseada na categoria selecionada
                     const listaRef = updatedItem.tipo === 'plano' ? planos : produtos;
                     const selecionado = listaRef.find(x => x.nome === value) || { valor: 0 };
-                    updatedItem.valorUnitario = selecionado.valor;
-                    updatedItem.valor = formatMoney(selecionado.valor * updatedItem.quantidade);
+                    
+                    // BLINDAGEM: Garante que o valor do catálogo vire número puro
+                    const precoLimpo = parseCurrency(selecionado.valor);
+                    
+                    updatedItem.valorUnitario = precoLimpo;
+                    updatedItem.valorCalculado = precoLimpo * updatedItem.quantidade;
+                    updatedItem.valor = formatMoney(updatedItem.valorCalculado);
                 } 
                 else if (field === 'quantidade') {
                     const qtd = parseInt(value) || 1;
                     updatedItem.quantidade = qtd;
-                    updatedItem.valor = formatMoney(updatedItem.valorUnitario * qtd);
+                    updatedItem.valorCalculado = updatedItem.valorUnitario * qtd;
+                    updatedItem.valor = formatMoney(updatedItem.valorCalculado);
                 }
                 return updatedItem;
             }
@@ -74,11 +88,12 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
     const handleRemoveItem = (id) => itensForm.length > 1 && setItensForm(itensForm.filter(item => item.id !== id));
     const handleAddItem = () => setItensForm([...itensForm, getInitialItem()]);
 
-    const totalVenda = itensForm.reduce((acc, curr) => acc + (acc = curr.valorUnitario * curr.quantidade), 0);
+    const totalVenda = itensForm.reduce((acc, curr) => acc + curr.valorCalculado, 0);
 
-    // Filtra os vendedores baseados na unidade selecionada na tela
     const vendedoresDaUnidade = colaboradores.filter(c => 
-        temVisaoGlobal ? c.unidade === formData.unidade : c.unidade === usuarioLogado?.unidade
+        temVisaoGlobal 
+            ? c.unidade?.toUpperCase() === formData.unidade?.toUpperCase() 
+            : c.unidade?.toUpperCase() === usuarioLogado?.unidade?.toUpperCase()
     );
 
     const handleSubmit = async (e) => {
@@ -96,30 +111,30 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
             return;
         }
 
-        let dataFormatada = formData.data;
-        if(dataFormatada.includes('-')) {
-            const [ano, mes, dia] = dataFormatada.split('-');
-            dataFormatada = `${dia}/${mes}/${ano}`;
-        }
-
         setIsSubmitting(true);
 
         try {
             const novosLancamentos = itensValidos.map(item => {
-                // Comissão padrão unificada de 100% como definido para o fechamento global
                 const percComissao = 1.00; 
+                
+                // BLINDAGEM FINAL: Força a extração do número antes de enviar ao Supabase
+                let valorPuro = Number(item.valorCalculado);
+                if (!valorPuro || isNaN(valorPuro)) {
+                    valorPuro = parseCurrency(item.valor);
+                }
+
                 return {
-                    unidade: formData.unidade, 
-                    data: dataFormatada, 
+                    unidade: formData.unidade.toUpperCase(), 
+                    data: formData.data, // Data nativa YYYY-MM-DD
                     matricula: formData.matricula, 
-                    nome_aluno: formData.nome,
+                    nome_aluno: formData.nome.toUpperCase(),
                     produto: item.nomeItem, 
-                    vendedor: formData.vendedor, 
-                    valor: item.valor,
+                    vendedor: formData.vendedor.toUpperCase(), 
+                    valor: valorPuro, // NUMERO PURO GARANTIDO
                     observacao: formData.observacao, 
                     conferiu: false, 
-                    quantidade: item.quantidade, 
-                    comissao: formatMoney(item.valorUnitario * item.quantidade * percComissao)
+                    quantidade: parseInt(item.quantidade) || 1, 
+                    comissao: valorPuro * percComissao // NUMERO PURO GARANTIDO
                 };
             });
 
@@ -137,7 +152,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
 
         } catch (error) {
             console.error("Erro ao salvar:", error);
-            alert("Erro ao conectar com o banco. Tente novamente.");
+            alert("Erro ao conectar com o banco. O sistema impediu o envio de dados corrompidos.");
         } finally {
             setIsSubmitting(false);
         }
@@ -160,7 +175,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                 <div>
                     <h2 className="text-2xl font-black text-[#064e3b] tracking-tight">Nova Venda / Matrícula</h2>
                     <p className="text-[11px] font-bold text-[#059669] uppercase tracking-widest mt-1">
-                        Registre os produtos e planos vinculados ao banco de dados
+                        Lançamento protegido e sincronizado
                     </p>
                 </div>
             </div>
@@ -264,7 +279,6 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                                     <input type="text" value={item.valor} readOnly className="w-full bg-transparent border-none text-sm font-black text-[#059669] text-left md:text-right pr-2 cursor-default py-3" title="Subtotal" />
                                 </div>
 
-                                {/* BOTAO DE REMOVER TOTALMENTE VISÍVEL E COM COLUNA DEDICADA */}
                                 <div className="md:col-span-1 flex justify-center items-center pt-2">
                                     {itensForm.length > 1 && (
                                         <button 
