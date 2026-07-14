@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-// ATENÇÃO: Recebendo a prop unidades aqui!
 const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
@@ -9,7 +8,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     const [formData, setFormData] = useState({ 
-        unidade: temVisaoGlobal ? '' : (usuarioLogado?.unidade || ''), // Chefia começa vazio para obrigar a escolha
+        unidade: temVisaoGlobal ? '' : (usuarioLogado?.unidade || ''), 
         data: new Date().toISOString().split('T')[0], 
         matricula: '', 
         nome: '', 
@@ -36,8 +35,6 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
 
     const handleMainChange = (e) => {
         const { name, value } = e.target;
-        
-        // Se mudar a unidade, zera o vendedor para não enviar da unidade errada
         if (name === 'unidade') {
             setFormData({ ...formData, unidade: value, vendedor: '' });
         } else {
@@ -57,7 +54,8 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                     updatedItem.valor = 'R$ 0,00';
                 } 
                 else if (field === 'nomeItem') {
-                    const listaRef = item.tipo === 'plano' ? planos : produtos;
+                    // Busca dinâmica baseada na categoria selecionada
+                    const listaRef = updatedItem.tipo === 'plano' ? planos : produtos;
                     const selecionado = listaRef.find(x => x.nome === value) || { valor: 0 };
                     updatedItem.valorUnitario = selecionado.valor;
                     updatedItem.valor = formatMoney(selecionado.valor * updatedItem.quantidade);
@@ -76,9 +74,9 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
     const handleRemoveItem = (id) => itensForm.length > 1 && setItensForm(itensForm.filter(item => item.id !== id));
     const handleAddItem = () => setItensForm([...itensForm, getInitialItem()]);
 
-    const totalVenda = itensForm.reduce((acc, curr) => acc + (curr.valorUnitario * curr.quantidade), 0);
+    const totalVenda = itensForm.reduce((acc, curr) => acc + (acc = curr.valorUnitario * curr.quantidade), 0);
 
-    // Filtra os vendedores baseados na unidade selecionada NA TELA (ou do usuário logado)
+    // Filtra os vendedores baseados na unidade selecionada na tela
     const vendedoresDaUnidade = colaboradores.filter(c => 
         temVisaoGlobal ? c.unidade === formData.unidade : c.unidade === usuarioLogado?.unidade
     );
@@ -86,7 +84,6 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Trava para garantir que a chefia escolheu a unidade
         if (temVisaoGlobal && !formData.unidade) {
             alert('Atenção: Selecione a Unidade da venda antes de confirmar.');
             return;
@@ -109,9 +106,10 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
 
         try {
             const novosLancamentos = itensValidos.map(item => {
-                const percComissao = item.tipo === 'plano' ? 1.00 : 0.10; 
+                // Comissão padrão unificada de 100% como definido para o fechamento global
+                const percComissao = 1.00; 
                 return {
-                    unidade: formData.unidade, // Usa a unidade do formulário
+                    unidade: formData.unidade, 
                     data: dataFormatada, 
                     matricula: formData.matricula, 
                     nome_aluno: formData.nome,
@@ -133,8 +131,6 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                 onAddMultiple(data.reverse()); 
                 setSucesso(true);
                 setTimeout(() => setSucesso(false), 3000);
-                
-                // Mantém a unidade selecionada caso você queira lançar várias seguidas
                 setFormData({ ...formData, matricula: '', nome: '', observacao: '', vendedor: '' });
                 setItensForm([getInitialItem()]);
             }
@@ -164,7 +160,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                 <div>
                     <h2 className="text-2xl font-black text-[#064e3b] tracking-tight">Nova Venda / Matrícula</h2>
                     <p className="text-[11px] font-bold text-[#059669] uppercase tracking-widest mt-1">
-                        Registre vendas {temVisaoGlobal ? 'escolhendo a unidade destino' : `da unidade ${usuarioLogado?.unidade}`}
+                        Registre os produtos e planos vinculados ao banco de dados
                     </p>
                 </div>
             </div>
@@ -178,7 +174,6 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                             <input type="date" name="data" value={formData.data} onChange={handleMainChange} required className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer" />
                         </div>
                         <div className="md:col-span-3">
-                            {/* CAMPO DE MATRÍCULA AGORA É OBRIGATÓRIO (REQUIRED) */}
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Matrícula</label>
                             <input type="text" name="matricula" value={formData.matricula} onChange={handleMainChange} required placeholder="Nº da Matrícula" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none" />
                         </div>
@@ -189,8 +184,6 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-                        
-                        {/* SE FOR ADMIN/MENTOR, MOSTRA O CAMPO DE UNIDADE */}
                         {temVisaoGlobal && (
                             <div className="md:col-span-4 animate-[fadeIn_0.3s_ease-out]">
                                 <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2 ml-1">Unidade da Venda</label>
@@ -228,8 +221,9 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                     
                     <div className="space-y-4">
                         {itensForm.map((item, index) => (
-                            <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm relative group">
-                                <div className="col-span-3">
+                            <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-white p-4 md:p-5 rounded-2xl border border-slate-200 shadow-sm relative animate-[fadeIn_0.2s_ease-out]">
+                                
+                                <div className="md:col-span-3">
                                     {index === 0 && <label className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Categoria</label>}
                                     <div className="relative">
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -237,7 +231,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                                             {item.tipo === 'produto' && <i data-lucide="box" className="w-4 h-4 text-amber-500"></i>}
                                             {item.tipo === '' && <i data-lucide="layout-grid" className="w-4 h-4 text-slate-400"></i>}
                                         </div>
-                                        <select value={item.tipo} onChange={(e) => handleItemChange(item.id, 'tipo', e.target.value)} className={`w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer ${item.tipo === '' ? 'text-slate-400' : 'text-slate-800'}`}>
+                                        <select value={item.tipo} onChange={(e) => handleItemChange(item.id, 'tipo', e.target.value)} required className={`w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer ${item.tipo === '' ? 'text-slate-400' : 'text-slate-800'}`}>
                                             <option value="" disabled hidden>Selecione...</option>
                                             <option value="plano">Plano</option>
                                             <option value="produto">Produto</option>
@@ -245,11 +239,12 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                                     </div>
                                 </div>
                                 
-                                <div className="col-span-5">
+                                <div className="md:col-span-4">
                                     {index === 0 && <label className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Item Selecionado</label>}
                                     <select 
                                         value={item.nomeItem} 
                                         onChange={(e) => handleItemChange(item.id, 'nomeItem', e.target.value)} 
+                                        required
                                         disabled={!item.tipo}
                                         className={`w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer uppercase ${!item.tipo ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : item.nomeItem === '' ? 'text-slate-400' : 'text-slate-800'}`}
                                     >
@@ -259,21 +254,30 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                                     </select>
                                 </div>
                                 
-                                <div className="col-span-2">
+                                <div className="md:col-span-2">
                                     {index === 0 && <label className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Qtd.</label>}
                                     <input type="number" min="1" disabled={!item.nomeItem} value={item.quantidade} onChange={(e) => handleItemChange(item.id, 'quantidade', e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-3 text-sm font-black text-center text-slate-800 focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-slate-50 disabled:text-slate-400" title="Quantidade" />
                                 </div>
                                 
-                                <div className="col-span-2 relative">
-                                    {index === 0 && <label className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Subtotal</label>}
-                                    <input type="text" value={item.valor} readOnly className="w-full bg-transparent border-none text-sm font-black text-[#059669] text-left md:text-right pr-2 cursor-default" title="Subtotal" />
-                                    
+                                <div className="md:col-span-2">
+                                    {index === 0 && <label className="hidden md:block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1 text-right">Subtotal</label>}
+                                    <input type="text" value={item.valor} readOnly className="w-full bg-transparent border-none text-sm font-black text-[#059669] text-left md:text-right pr-2 cursor-default py-3" title="Subtotal" />
+                                </div>
+
+                                {/* BOTAO DE REMOVER TOTALMENTE VISÍVEL E COM COLUNA DEDICADA */}
+                                <div className="md:col-span-1 flex justify-center items-center pt-2">
                                     {itensForm.length > 1 && (
-                                        <button type="button" onClick={() => handleRemoveItem(item.id)} className="absolute -right-3 top-1/2 transform -translate-y-1/2 bg-white border border-slate-200 text-slate-300 hover:bg-rose-500 hover:text-white hover:border-rose-500 rounded-full p-1.5 shadow-sm transition-all md:opacity-0 md:group-hover:opacity-100" title="Remover item">
-                                            <i data-lucide="x" className="w-4 h-4"></i>
+                                        <button 
+                                            type="button" 
+                                            onClick={() => handleRemoveItem(item.id)} 
+                                            className="bg-rose-50 hover:bg-rose-500 text-rose-500 hover:text-white border border-rose-100 hover:border-transparent rounded-xl p-3 shadow-sm transition-all flex items-center justify-center w-full md:w-auto" 
+                                            title="Remover este item"
+                                        >
+                                            <i data-lucide="trash-2" className="w-4 h-4"></i>
                                         </button>
                                     )}
                                 </div>
+
                             </div>
                         ))}
 

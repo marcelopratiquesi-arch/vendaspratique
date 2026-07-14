@@ -23,7 +23,6 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const [nomeProduto, setNomeProduto] = useState('');
     const [valorProduto, setValorProduto] = useState('');
 
-    // NOVO: Estado para filtrar a listagem de registros salvos da equipe
     const [filtroUnidadeLista, setFiltroUnidadeLista] = useState('TODOS');
 
     // ==========================================
@@ -33,10 +32,8 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const ehAdmin = usuarioLogado?.role === 'ADMIN';
     const podeEditarEquipe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR' || usuarioLogado?.role === 'LIDER';
 
-    // Se o usuário pode ver o formulário na aba atual
     const mostraFormulario = (abaAtiva === 'equipe' && podeEditarEquipe) || (abaAtiva !== 'equipe' && ehAdmin);
 
-    // Carregar setores assim que a página abre
     useEffect(() => {
         const fetchSetores = async () => {
             const { data } = await supabase.from('setores').select('*');
@@ -77,9 +74,10 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- SETORES ---
     const handleSalvarSetor = async (e) => {
         e.preventDefault();
-        if (!nomeSetor.trim() || !ehAdmin) return;
+        const nomeFormatado = nomeSetor.trim().toUpperCase();
+        if (!nomeFormatado || !ehAdmin) return;
         
-        const payload = { nome: nomeSetor.toUpperCase() };
+        const payload = { nome: nomeFormatado };
 
         if (editandoId) {
             const { data, error } = await supabase.from('setores').update(payload).eq('id', editandoId).select();
@@ -105,7 +103,8 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- COLABORADORES ---
     const handleSalvarColaborador = async (e) => {
         e.preventDefault();
-        if (!nomeColaborador.trim() || !cargoColaborador.trim() || !podeEditarEquipe) return;
+        const nomeFormatado = nomeColaborador.trim().toUpperCase();
+        if (!nomeFormatado || !cargoColaborador.trim() || !podeEditarEquipe) return;
 
         const unidadeFinal = temVisaoGlobal ? unidadeColaborador : usuarioLogado?.unidade;
 
@@ -115,7 +114,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
         }
         
         const payload = { 
-            nome: nomeColaborador.toUpperCase(), 
+            nome: nomeFormatado, 
             role: cargoColaborador.toUpperCase(),
             unidade: unidadeFinal.toUpperCase()
         };
@@ -144,8 +143,17 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- PLANOS ---
     const handleSalvarPlano = async (e) => {
         e.preventDefault();
-        if (!nomePlano.trim() || !valorPlano || !ehAdmin) return;
-        const payload = { tipo: 'plano', nome: nomePlano.toUpperCase(), valor: parseFloat(valorPlano) };
+        const nomeFormatado = nomePlano.trim().toUpperCase();
+        if (!nomeFormatado || !valorPlano || !ehAdmin) return;
+
+        // TRAVA DE ANTI-DUPLICIDADE
+        const jaExiste = planos.find(p => p.nome === nomeFormatado && p.id !== editandoId);
+        if (jaExiste) {
+            alert(`ATENÇÃO: O plano "${nomeFormatado}" já está cadastrado no sistema! Por favor, utilize um nome diferente.`);
+            return;
+        }
+
+        const payload = { tipo: 'plano', nome: nomeFormatado, valor: parseFloat(valorPlano) };
 
         if (editandoId) {
             const { data, error } = await supabase.from('catalogo').update(payload).eq('id', editandoId).select();
@@ -171,8 +179,17 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- PRODUTOS ---
     const handleSalvarProduto = async (e) => {
         e.preventDefault();
-        if (!nomeProduto.trim() || !valorProduto || !ehAdmin) return;
-        const payload = { tipo: 'produto', nome: nomeProduto.toUpperCase(), valor: parseFloat(valorProduto) };
+        const nomeFormatado = nomeProduto.trim().toUpperCase();
+        if (!nomeFormatado || !valorProduto || !ehAdmin) return;
+
+        // TRAVA DE ANTI-DUPLICIDADE
+        const jaExiste = produtos.find(p => p.nome === nomeFormatado && p.id !== editandoId);
+        if (jaExiste) {
+            alert(`ATENÇÃO: O produto "${nomeFormatado}" já está cadastrado no sistema! Por favor, utilize um nome diferente ou edite o existente.`);
+            return;
+        }
+
+        const payload = { tipo: 'produto', nome: nomeFormatado, valor: parseFloat(valorProduto) };
 
         if (editandoId) {
             const { data, error } = await supabase.from('catalogo').update(payload).eq('id', editandoId).select();
@@ -385,7 +402,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                             {abaAtiva === 'equipe' && (
                                 <tbody className="divide-y divide-slate-50">
                                     {colaboradoresFiltrados.map(c => (
-                                        <tr key={c.id} className="hover:bg-slate-50 group transition-colors">
+                                        <tr key={c.id} className="hover:bg-slate-50 group transition-colors border-b border-slate-50">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-10 h-10 rounded-full bg-slate-900 text-white flex items-center justify-center text-sm font-black">{c.nome.charAt(0)}</div>
@@ -401,12 +418,24 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             
-                                            {/* BOTÕES LIMPOS SÓ COM ÍCONES */}
+                                            {/* BOTÕES SEMPRE VISÍVEIS: EQUIPE */}
                                             {podeEditarEquipe && (
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                        <button type="button" onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); setUnidadeColaborador(c.unidade || ''); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
-                                                        <button type="button" onClick={() => handleDeleteColaborador(c.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                <td className="px-6 py-4 text-right align-middle">
+                                                    <div className="flex justify-end gap-3">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); setUnidadeColaborador(c.unidade || ''); }} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleDeleteColaborador(c.id)} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                        </button>
                                                     </div>
                                                 </td>
                                             )}
@@ -426,18 +455,32 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                             {abaAtiva === 'setores' && (
                                 <tbody className="divide-y divide-slate-50">
                                     {listaSetores.map(s => (
-                                        <tr key={s.id} className="hover:bg-slate-50 group transition-colors">
+                                        <tr key={s.id} className="hover:bg-slate-50 group transition-colors border-b border-slate-50">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <i data-lucide="layout-grid" className="w-5 h-5 text-indigo-400"></i>
                                                     <span className="text-sm font-black text-slate-800 uppercase">{s.nome}</span>
                                                 </div>
                                             </td>
+                                            
+                                            {/* BOTÕES SEMPRE VISÍVEIS: SETORES */}
                                             {ehAdmin && (
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                        <button type="button" onClick={() => { setEditandoId(s.id); setNomeSetor(s.nome); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
-                                                        <button type="button" onClick={() => handleDeleteSetor(s.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                <td className="px-6 py-4 text-right align-middle">
+                                                    <div className="flex justify-end gap-3">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { setEditandoId(s.id); setNomeSetor(s.nome); }} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleDeleteSetor(s.id)} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                        </button>
                                                     </div>
                                                 </td>
                                             )}
@@ -450,7 +493,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                             {abaAtiva === 'planos' && (
                                 <tbody className="divide-y divide-slate-50">
                                     {planos.map(p => (
-                                        <tr key={p.id} className="hover:bg-slate-50 group transition-colors">
+                                        <tr key={p.id} className="hover:bg-slate-50 group transition-colors border-b border-slate-50">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <i data-lucide="bookmark" className="w-5 h-5 text-blue-400"></i>
@@ -458,11 +501,25 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-emerald-600 text-right">{formatMoney(p.valor)}</td>
+                                            
+                                            {/* BOTÕES SEMPRE VISÍVEIS: PLANOS */}
                                             {ehAdmin && (
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                        <button type="button" onClick={() => { setEditandoId(p.id); setNomePlano(p.nome); setValorPlano(p.valor); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
-                                                        <button type="button" onClick={() => handleDeletePlano(p.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                <td className="px-6 py-4 text-right align-middle">
+                                                    <div className="flex justify-end gap-3">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { setEditandoId(p.id); setNomePlano(p.nome); setValorPlano(p.valor); }} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleDeletePlano(p.id)} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                        </button>
                                                     </div>
                                                 </td>
                                             )}
@@ -475,7 +532,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                             {abaAtiva === 'produtos' && (
                                 <tbody className="divide-y divide-slate-50">
                                     {produtos.map(p => (
-                                        <tr key={p.id} className="hover:bg-slate-50 group transition-colors">
+                                        <tr key={p.id} className="hover:bg-slate-50 group transition-colors border-b border-slate-50">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
                                                     <i data-lucide="package" className="w-5 h-5 text-emerald-500"></i>
@@ -483,11 +540,25 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-emerald-600 text-right">{formatMoney(p.valor)}</td>
+                                            
+                                            {/* BOTÕES SEMPRE VISÍVEIS: PRODUTOS */}
                                             {ehAdmin && (
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                        <button type="button" onClick={() => { setEditandoId(p.id); setNomeProduto(p.nome); setValorProduto(p.valor); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
-                                                        <button type="button" onClick={() => handleDeleteProduto(p.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                <td className="px-6 py-4 text-right align-middle">
+                                                    <div className="flex justify-end gap-3">
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => { setEditandoId(p.id); setNomeProduto(p.nome); setValorProduto(p.valor); }} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
+                                                        </button>
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={() => handleDeleteProduto(p.id)} 
+                                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                        </button>
                                                     </div>
                                                 </td>
                                             )}

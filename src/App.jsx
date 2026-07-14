@@ -36,31 +36,34 @@ export default function App() {
     }, [usuarioLogado]);
 
     // ==========================================
-    // 2. SINCRONIZAÇÃO COM SUPABASE (SUPER FILTRO GLOBAL)
+    // 2. SINCRONIZAÇÃO COM SUPABASE (SUPER FILTRO GLOBAL + REALTIME)
     // ==========================================
     useEffect(() => {
         if (!usuarioLogado) return;
 
-        const carregarBancoDeDados = async () => {
-            try {
-                // A MÁGICA: Se o Admin escolheu uma unidade no topo, nós já filtramos TUDO aqui!
-                const ehChefe = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
-                const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
-                const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado.unidade;
+        let isMounted = true; // Previne vazamento de memória
 
-                // 1. Puxar Unidades cadastradas (Sempre Global para popular o Menu)
+        // A MÁGICA: Se o Admin escolheu uma unidade no topo, nós já filtramos TUDO aqui!
+        const ehChefe = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
+        const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
+        const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado.unidade;
+
+        // Função empacotada para podermos chamar toda vez que o banco "gritar"
+        const carregarTudo = async () => {
+            try {
+                // 1. Puxar Unidades cadastradas
                 const { data: unids } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
-                if (unids) setUnidades(unids);
+                if (isMounted && unids) setUnidades(unids);
 
                 // 2. Puxar Equipe
                 let queryColabs = supabase.from('colaboradores').select('*');
                 if (deveFiltrar) queryColabs = queryColabs.eq('unidade', unidadeFiltro);
                 const { data: colabs } = await queryColabs;
-                if (colabs) setColaboradores(colabs);
+                if (isMounted && colabs) setColaboradores(colabs);
 
                 // 3. Puxar Catálogo (Sempre global)
                 const { data: cat } = await supabase.from('catalogo').select('*');
-                if (cat) {
+                if (isMounted && cat) {
                     setPlanos(cat.filter(item => item.tipo === 'plano'));
                     setProdutos(cat.filter(item => item.tipo === 'produto'));
                 }
@@ -69,20 +72,37 @@ export default function App() {
                 let queryVendas = supabase.from('vendas').select('*').order('id', { ascending: false });
                 if (deveFiltrar) queryVendas = queryVendas.eq('unidade', unidadeFiltro);
                 const { data: vends } = await queryVendas;
-                if (vends) setDadosAssinaturas(vends);
+                if (isMounted && vends) setDadosAssinaturas(vends);
 
                 // 5. Puxar CRM de Leads
                 let queryLeads = supabase.from('leads').select('*').order('id', { ascending: false });
                 if (deveFiltrar) queryLeads = queryLeads.eq('unidade', unidadeFiltro);
                 const { data: leds } = await queryLeads;
-                if (leds) setDadosVisitantes(leds);
+                if (isMounted && leds) setDadosVisitantes(leds);
                 
             } catch (error) {
                 console.error("Erro ao puxar dados da nuvem:", error);
             }
         };
 
-        carregarBancoDeDados();
+        // Carrega a primeira vez quando a tela abre
+        carregarTudo();
+
+        // 🚀 O MOTOR REALTIME: Fica de antena ligada no Supabase 24h
+        const realtimeChannel = supabase.channel('schema-db-changes')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => { carregarTudo(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => { carregarTudo(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, () => { carregarTudo(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, () => { carregarTudo(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => { carregarTudo(); })
+            .subscribe();
+
+        // Limpa a antena se o usuário deslogar ou fechar a aba
+        return () => {
+            isMounted = false;
+            supabase.removeChannel(realtimeChannel);
+        };
+        
     }, [usuarioLogado, unidadeGlobal]); // Recarrega o banco instantaneamente ao trocar de unidade!
 
     // ==========================================
@@ -124,7 +144,6 @@ export default function App() {
         { id: 'analise', label: 'Dashboard', icon: 'pie-chart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'fechamento', label: 'Fechamento', icon: 'wallet', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'crm', label: 'CRM', icon: 'users', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        // AQUI ESTÁ O AJUSTE: LIDER adicionado às permissões de Cadastros
         { id: 'cadastros', label: 'Cadastros', icon: 'database', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'config', label: 'Configurações', icon: 'settings', permissoes: ['ADMIN'] }
     ];

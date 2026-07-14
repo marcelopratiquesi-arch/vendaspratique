@@ -1,67 +1,59 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js'; // 🔥 Conexão com o Banco!
+import { supabase } from '../supabaseClient.js'; 
 
-// ATENÇÃO: Recebendo a prop usuarioLogado aqui!
 const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     // ==========================================
     // 1. ESTADOS DOS FILTROS
     // ==========================================
-    const [tipoFiltroData, setTipoFiltroData] = useState('mes'); // 'mes' ou 'periodo'
+    const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
     
-    // Filtro por Mês/Ano
     const [filtroMes, setFiltroMes] = useState('TODOS');
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
     
-    // Filtro por Período Personalizado
     const [dataInicio, setDataInicio] = useState('');
     const [dataFim, setDataFim] = useState('');
     
-    // Filtro por Entidades
     const [filtroProduto, setFiltroProduto] = useState('TODOS');
     const [filtroVendedor, setFiltroVendedor] = useState('TODOS');
-    const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); // NOVO FILTRO DE UNIDADE
+    const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); 
 
-    // Verifica se o usuário atual possui cargo de gestão corporativa
+    const [catalogoGeral, setCatalogoGeral] = useState([]);
+    const [editandoId, setEditandoId] = useState(null);
+    const [dadosEdicao, setDadosEdicao] = useState({});
+
+    // ==========================================
+    // CONTROLE DE ACESSO
+    // ==========================================
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    
+    // Quem pode ver a coluna de Ações (Editar/Excluir)
+    const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
 
-    // Atualiza ícones do Lucide
+    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    const parseCurrency = (str) => parseFloat(String(str).replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+
+    useEffect(() => {
+        const fetchCatalogo = async () => {
+            const { data } = await supabase.from('catalogo').select('*');
+            if (data) setCatalogoGeral(data);
+        };
+        fetchCatalogo();
+    }, []);
+
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [data, tipoFiltroData, filtroMes, filtroAno, filtroProduto, filtroVendedor, filtroUnidade]);
+    }, [data, tipoFiltroData, filtroMes, filtroAno, filtroProduto, filtroVendedor, filtroUnidade, editandoId, catalogoGeral]);
 
     // ==========================================
-    // 2. FUNÇÕES DE BANCO DE DADOS (SUPABASE)
+    // 2. FUNÇÕES DE BANCO DE DADOS E EDIÇÃO
     // ==========================================
-    const toggleConferiu = async (id, statusAtual) => {
-        const novoStatus = !statusAtual;
-        
-        // 1. Atualização Otimista
-        setData(data.map(v => v.id === id ? { ...v, conferiu: novoStatus } : v));
-
-        // 2. Manda para a nuvem em segundo plano
-        const { error } = await supabase
-            .from('vendas')
-            .update({ conferiu: novoStatus })
-            .eq('id', id);
-
-        if (error) {
-            console.error("Erro ao atualizar status:", error);
-            alert("Erro de conexão. O status voltará ao que era.");
-            setData(data.map(v => v.id === id ? { ...v, conferiu: statusAtual } : v));
-        }
-    };
-
     const removerLancamento = async (id) => {
+        if(!podeEditar) return;
         if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
-            // 1. Atualização Otimista
             const backupDados = [...data];
             setData(data.filter(v => v.id !== id));
 
-            // 2. Apaga do Banco de Dados
-            const { error } = await supabase
-                .from('vendas')
-                .delete()
-                .eq('id', id);
+            const { error } = await supabase.from('vendas').delete().eq('id', id);
 
             if (error) {
                 console.error("Erro ao deletar:", error);
@@ -71,12 +63,83 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         }
     };
 
+    const iniciarEdicao = (venda) => {
+        let unitario = 0;
+        const itemCatalogo = catalogoGeral.find(c => c.nome.toUpperCase() === venda.produto?.toUpperCase());
+        if (itemCatalogo) {
+            unitario = parseFloat(itemCatalogo.valor);
+        } else {
+            unitario = parseCurrency(venda.valor) / (parseInt(venda.quantidade) || 1);
+        }
+
+        setEditandoId(venda.id);
+        setDadosEdicao({
+            data: venda.data || '',
+            matricula: venda.matricula || '',
+            nome_aluno: venda.nome_aluno || venda.nome || '',
+            produto: venda.produto || '',
+            vendedor: venda.vendedor || '',
+            quantidade: venda.quantidade || 1,
+            valorUnitario: unitario,
+            valor: venda.valor || ''
+        });
+    };
+
+    const handleEdicaoChange = (field, value) => {
+        let novosDados = { ...dadosEdicao, [field]: value };
+
+        if (field === 'produto') {
+            const item = catalogoGeral.find(c => c.nome === value);
+            if (item) {
+                const novoUnitario = parseFloat(item.valor);
+                novosDados.valorUnitario = novoUnitario;
+                novosDados.valor = formatMoney(novoUnitario * novosDados.quantidade);
+            }
+        }
+
+        if (field === 'quantidade') {
+            const qtd = parseInt(value) || 1;
+            novosDados.quantidade = qtd;
+            novosDados.valor = formatMoney(novosDados.valorUnitario * qtd);
+        }
+
+        setDadosEdicao(novosDados);
+    };
+
+    const cancelarEdicao = () => {
+        setEditandoId(null);
+        setDadosEdicao({});
+    };
+
+    const salvarEdicao = async (id) => {
+        const payload = {
+            data: dadosEdicao.data,
+            matricula: dadosEdicao.matricula,
+            nome_aluno: dadosEdicao.nome_aluno.toUpperCase(),
+            produto: dadosEdicao.produto.toUpperCase(),
+            vendedor: dadosEdicao.vendedor.toUpperCase(),
+            quantidade: parseInt(dadosEdicao.quantidade) || 1,
+            valor: dadosEdicao.valor,
+            comissao: dadosEdicao.valor 
+        };
+
+        setData(data.map(v => v.id === id ? { ...v, ...payload } : v));
+        setEditandoId(null);
+
+        const { error } = await supabase.from('vendas').update(payload).eq('id', id);
+        
+        if (error) {
+            console.error("Erro ao editar venda:", error);
+            alert("Erro de conexão ao tentar atualizar os dados da venda.");
+        }
+    };
+
     // ==========================================
     // 3. LISTAS DINÂMICAS PARA OS FILTROS
     // ==========================================
     const produtosUnicos = ['TODOS', ...new Set(data.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(data.map(v => v.vendedor))].filter(Boolean);
-    const unidadesUnicas = ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean); // LISTA DE UNIDADES
+    const unidadesUnicas = ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean); 
     const anosUnicos = [...new Set(data.map(v => v.data?.split('/')[2]))].filter(Boolean).sort((a,b) => b-a);
     if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
 
@@ -89,17 +152,13 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     ];
 
     // ==========================================
-    // 4. MOTOR DE FILTRAGEM DE DADOS
+    // 4. MOTOR DE FILTRAGEM
     // ==========================================
     const vendasFiltradas = data.filter(venda => {
-        // Filtro de Unidade (Apenas se o Admin/Mentor estiver logado)
         if (temVisaoGlobal && filtroUnidade !== 'TODOS' && venda.unidade !== filtroUnidade) return false;
-
-        // Filtro de Produto e Vendedor
         if (filtroProduto !== 'TODOS' && venda.produto !== filtroProduto) return false;
         if (filtroVendedor !== 'TODOS' && venda.vendedor !== filtroVendedor) return false;
 
-        // Filtro de Datas
         if (!venda.data) return false;
         const [d, m, y] = venda.data.split('/');
         const isoDate = `${y}-${m}-${d}`;
@@ -115,10 +174,15 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         return true;
     });
 
+    // Calcula quantidade de colunas base para o colspan do "Não encontrado"
+    let colunasVisiveis = 6; // Data, Aluno/Mat, Prod, Vend, Qtd, Valor
+    if (temVisaoGlobal) colunasVisiveis++;
+    if (podeEditar) colunasVisiveis++;
+
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto">
             
-            {/* PAINEL DE FILTROS INTELIGENTE */}
+            {/* PAINEL DE FILTROS */}
             <div className="bg-white rounded-[24px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.01)] p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
@@ -131,7 +195,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         </div>
                     </div>
                     
-                    {/* Chave de Troca do Tipo de Data */}
                     <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner w-full md:w-auto">
                         <button 
                             onClick={() => setTipoFiltroData('mes')} 
@@ -149,8 +212,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    
-                    {/* Filtros de Data */}
                     {tipoFiltroData === 'mes' ? (
                         <>
                             <div>
@@ -180,7 +241,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         </>
                     )}
 
-                    {/* Filtros de Vendedor e Produto */}
                     <div>
                         <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">SDR / Vendedor</label>
                         <select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase">
@@ -194,7 +254,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         </select>
                     </div>
 
-                    {/* FILTRO DE UNIDADE DINÂMICO SÓ PARA ADMIN/MENTOR */}
                     {temVisaoGlobal && (
                         <div className="animate-[fadeIn_0.3s_ease-out]">
                             <label className="block text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1.5 ml-1">Isolar Unidade</label>
@@ -206,13 +265,13 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 </div>
             </div>
 
-            {/* TABELA DE HISTÓRICO */}
+            {/* TABELA DE HISTÓRICO COM COLUNA UNIFICADA E AÇÕES RESTRITAS */}
             <div className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden flex flex-col">
                 
                 <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-black text-slate-800 flex items-center gap-2.5">
-                            <i data-lucide="history" className="w-5 h-5 text-blue-500"></i> Histórico de Registros
+                            <i data-lucide="history" className="w-5 h-5 text-blue-500"></i> Registros de Vendas
                         </h2>
                     </div>
                     <div className="bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200 shadow-sm">
@@ -226,56 +285,133 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                             <tr>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data</th>
                                 {temVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200">Unidade</th>}
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Matrícula</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno</th>
+                                
+                                {/* COLUNA UNIFICADA */}
+                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno / Matrícula</th>
+                                
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Plano/Produto</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Vendedor</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Qtd</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right">Valor Total</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Ações</th>
+                                
+                                {/* AÇÕES SÓ APARECEM SE TIVER PERMISSÃO */}
+                                {podeEditar && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Gestão</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
-                            {vendasFiltradas.map((row) => (
-                                <tr key={row.id} className={`group transition-colors ${row.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
-                                    <td className="px-6 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap">{row.data}</td>
-                                    
-                                    {/* COLUNA DE UNIDADE DINÂMICA */}
-                                    {temVisaoGlobal && (
-                                        <td className="px-6 py-4 text-xs font-black text-rose-600 bg-rose-50/10 whitespace-nowrap uppercase">
-                                            {row.unidade || 'MATRIZ'}
-                                        </td>
-                                    )}
+                            {vendasFiltradas.map((row) => {
+                                const isEditing = editandoId === row.id;
 
-                                    <td className="px-6 py-4 text-xs text-slate-700 font-bold whitespace-nowrap">{row.matricula || '-'}</td>
-                                    <td className="px-6 py-4 text-xs text-slate-800 font-black uppercase max-w-[200px] truncate" title={row.nome_aluno || row.nome}>{row.nome_aluno || row.nome}</td>
-                                    <td className="px-6 py-4 text-xs whitespace-nowrap">{row.produto}</td>
-                                    <td className="px-6 py-4 text-xs whitespace-nowrap font-bold text-slate-600 uppercase">{row.vendedor}</td>
-                                    <td className="px-6 py-4 text-xs text-center font-black text-slate-700">{row.quantidade || '1'}</td>
-                                    <td className="px-6 py-4 text-xs font-black text-slate-800 whitespace-nowrap text-right">{row.valor}</td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="flex items-center justify-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                            <button 
-                                                onClick={() => toggleConferiu(row.id, row.conferiu)} 
-                                                title={row.conferiu ? "Desmarcar conferência" : "Marcar como OK"} 
-                                                className={`p-2 rounded-lg transition-all flex items-center justify-center shadow-sm ${row.conferiu ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-white text-slate-400 hover:text-blue-600 border border-slate-200 hover:bg-slate-50'}`}
-                                            >
-                                                {row.conferiu ? <i data-lucide="check" className="w-3.5 h-3.5"></i> : <i data-lucide="circle" className="w-3.5 h-3.5"></i>}
-                                            </button>
-                                            <button 
-                                                onClick={() => removerLancamento(row.id)} 
-                                                title="Excluir Venda" 
-                                                className="p-2 text-slate-400 bg-white border border-slate-200 hover:bg-rose-500 hover:text-white hover:border-rose-500 rounded-lg shadow-sm transition-all"
-                                            >
-                                                <i data-lucide="trash-2" className="w-3.5 h-3.5"></i>
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                return (
+                                    <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
+                                        
+                                        {/* DATA */}
+                                        <td className="px-6 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">
+                                            {isEditing ? (
+                                                <input type="text" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-24 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                            ) : (
+                                                row.data
+                                            )}
+                                        </td>
+                                        
+                                        {/* UNIDADE (Protegida) */}
+                                        {temVisaoGlobal && (
+                                            <td className="px-6 py-4 text-xs font-black text-rose-600 bg-rose-50/10 whitespace-nowrap uppercase align-middle">
+                                                {row.unidade || 'MATRIZ'}
+                                            </td>
+                                        )}
+
+                                        {/* ALUNO E MATRÍCULA JUNTOS */}
+                                        <td className="px-6 py-4 align-middle">
+                                            {isEditing ? (
+                                                <div className="flex flex-col gap-2">
+                                                    <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-xs" />
+                                                    <input type="text" placeholder="Matrícula" value={dadosEdicao.matricula} onChange={e => handleEdicaoChange('matricula', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-800 uppercase max-w-[200px] truncate" title={row.nome_aluno || row.nome}>{row.nome_aluno || row.nome}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">MAT: {row.matricula || '-'}</p>
+                                                </div>
+                                            )}
+                                        </td>
+
+                                        {/* PRODUTO */}
+                                        <td className="px-6 py-4 text-xs whitespace-nowrap uppercase font-bold text-indigo-600 align-middle">
+                                            {isEditing ? (
+                                                <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-xs">
+                                                    <option value="" disabled>Selecione no Catálogo...</option>
+                                                    {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                                                </select>
+                                            ) : (
+                                                row.produto
+                                            )}
+                                        </td>
+
+                                        {/* VENDEDOR */}
+                                        <td className="px-6 py-4 text-xs whitespace-nowrap font-bold text-slate-600 uppercase align-middle">
+                                            {isEditing ? (
+                                                <input type="text" value={dadosEdicao.vendedor} onChange={e => handleEdicaoChange('vendedor', e.target.value)} className="w-28 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-xs" />
+                                            ) : (
+                                                row.vendedor
+                                            )}
+                                        </td>
+
+                                        {/* QUANTIDADE */}
+                                        <td className="px-6 py-4 text-xs text-center font-black text-slate-700 align-middle">
+                                            {isEditing ? (
+                                                <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-14 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-1 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                            ) : (
+                                                row.quantidade || '1'
+                                            )}
+                                        </td>
+
+                                        {/* VALOR (TRAVADO E RESPONSIVO) */}
+                                        <td className="px-6 py-4 text-xs font-black text-slate-800 whitespace-nowrap text-right align-middle">
+                                            {isEditing ? (
+                                                <input type="text" value={dadosEdicao.valor} readOnly className="w-24 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-2 py-1.5 cursor-not-allowed font-black text-xs" title="O valor calcula sozinho baseado no catálogo" />
+                                            ) : (
+                                                row.valor
+                                            )}
+                                        </td>
+
+                                        {/* COLUNA DE AÇÕES - APENAS LÍDER / MENTOR / ADMIN */}
+                                        {podeEditar && (
+                                            <td className="px-6 py-4 text-center align-middle w-32">
+                                                {isEditing ? (
+                                                    <div className="flex flex-col gap-2 items-center justify-center">
+                                                        <button onClick={() => salvarEdicao(row.id)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                                            <i data-lucide="check" className="w-3.5 h-3.5"></i> Salvar
+                                                        </button>
+                                                        <button onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 bg-slate-200 text-slate-600 hover:bg-slate-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                                            <i data-lucide="x" className="w-3.5 h-3.5"></i> Cancelar
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                        <button 
+                                                            onClick={() => iniciarEdicao(row)} 
+                                                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 w-24 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                                        >
+                                                            <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => removerLancamento(row.id)} 
+                                                            className="flex items-center justify-center gap-1.5 px-3 py-1.5 w-24 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm"
+                                                        >
+                                                            <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </td>
+                                        )}
+                                    </tr>
+                                );
+                            })}
+                            
                             {vendasFiltradas.length === 0 && (
                                 <tr>
-                                    <td colSpan={temVisaoGlobal ? "9" : "8"} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                    <td colSpan={colunasVisiveis} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
                                         <i data-lucide="filter-x" className="w-10 h-10 mx-auto text-slate-300 mb-4 opacity-50"></i>
                                         Nenhuma venda encontrada para estes filtros.
                                     </td>
