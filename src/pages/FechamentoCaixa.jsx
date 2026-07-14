@@ -12,12 +12,12 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const [confDataFim, setConfDataFim] = useState('');
     const [confProduto, setConfProduto] = useState('TODOS');
     const [confVendedor, setConfVendedor] = useState('TODOS');
-    const [confUnidade, setConfUnidade] = useState('TODOS'); // NOVO FILTRO DE UNIDADE
+    const [confUnidade, setConfUnidade] = useState('TODOS'); // FILTRO DE UNIDADE
 
     // Estados da Aba 2: Comissões
     const [dataInicialInput, setDataInicialInput] = useState('2026-07-01');
     const [dataFinalInput, setDataFinalInput] = useState('2026-07-31');
-    const [filtroUnidadeComissao, setFiltroUnidadeComissao] = useState('TODOS'); // NOVO FILTRO DE COMISSÃO
+    const [filtroUnidadeComissao, setFiltroUnidadeComissao] = useState('TODOS'); // FILTRO DE COMISSÃO
     const [filtroAtivo, setFiltroAtivo] = useState({ inicio: '2026-07-01', fim: '2026-07-31', unidade: 'TODOS' });
 
     // Verifica se o usuário logado possui permissão corporativa global
@@ -43,11 +43,10 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     // -----------------------------------------------------
     const produtosUnicos = ['TODOS', ...new Set(vendas.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(vendas.map(v => v.vendedor))].filter(Boolean);
-    const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean); // LISTA DE UNIDADES
+    const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean); 
 
     // Filtragem Master da Auditoria
     const vendasParaConferencia = vendas.filter(v => {
-        // Filtro de Unidade (Ativo apenas se for Admin/Mentor)
         if (temVisaoGlobal && confUnidade !== 'TODOS' && v.unidade !== confUnidade) return false;
 
         const passProduto = confProduto === 'TODOS' || v.produto === confProduto;
@@ -119,11 +118,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         setFiltroAtivo({ inicio: dataInicialInput, fim: dataFinalInput, unidade: filtroUnidadeComissao });
     };
 
-    // REGRA DE OURO OPERANDO: Só entra se conferiu for true e bater com os filtros ativos
     const vendasComissionadas = vendas.filter(v => {
         if (!v.conferiu) return false; 
-        
-        // Filtro de unidade na comissão para visão global
         if (temVisaoGlobal && filtroAtivo.unidade !== 'TODOS' && v.unidade !== filtroAtivo.unidade) return false;
 
         const isoDataVenda = parseDateToISO(v.data);
@@ -134,8 +130,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const relatorioVendedores = {};
 
     vendasComissionadas.forEach(venda => {
-        // AJUSTE REALIZADO AQUI: Fallback para ler 100% do valor caso a comissão seja idêntica ao total
-        const valorComissao = parseCurrency(venda.comissao || venda.valor);
+        // SOLUÇÃO DEFINITIVA: Lendo direto do valor bruto da venda (100% para os dois!)
+        const valorComissao = parseCurrency(venda.valor);
         comissaoTotalGeral += valorComissao;
 
         if (!relatorioVendedores[venda.vendedor]) {
@@ -181,7 +177,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
             {subAba === 'conferencia' && (
                 <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
                     
-                    {/* PAINEL DE FILTROS E VALOR A CONFERIR */}
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                         <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
                             
@@ -207,7 +202,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                     </select>
                                 </div>
 
-                                {/* FILTRO EXTRA DE UNIDADE PARA ADMIN/MENTOR */}
                                 {temVisaoGlobal && (
                                     <div className="animate-[fadeIn_0.3s_ease-out]">
                                         <label className="block text-xs font-bold text-rose-500 mb-1">Unidade Ref.</label>
@@ -234,7 +228,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                         </div>
                     </div>
                     
-                    {/* Tabela de Conferência */}
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left border-collapse min-w-max">
@@ -257,7 +250,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                         <tr key={v.id} className={`transition-colors ${v.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
                                             <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap">{v.data}</td>
                                             
-                                            {/* COLUNA DE UNIDADE EXCLUSIVA DO ADMIN/MENTOR */}
                                             {temVisaoGlobal && (
                                                 <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/5 whitespace-nowrap uppercase">
                                                     {v.unidade || 'MATRIZ'}
@@ -320,7 +312,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                 <input type="date" value={dataFinalInput} onChange={(e) => setDataFinalInput(e.target.value)} className="w-full sm:w-36 bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer shadow-sm" />
                             </div>
 
-                            {/* FILTRAS EXTRA DE UNIDADE NAS COMISSÕES PARA ADMIN/MENTOR */}
                             {temVisaoGlobal && (
                                 <div className="animate-[fadeIn_0.3s_ease-out]">
                                     <label className="block text-xs font-black text-rose-500 mb-1">Isolar Unidade</label>

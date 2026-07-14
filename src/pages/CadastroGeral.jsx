@@ -10,11 +10,11 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const [erroBando, setErroBanco] = useState('');
     const [editandoId, setEditandoId] = useState(null);
 
-    // Estados de Setores (Puxados do banco de dados na hora)
+    // Estados de Setores
     const [listaSetores, setListaSetores] = useState([]);
     const [nomeSetor, setNomeSetor] = useState('');
 
-    // Estados dos formulários (Adicionado unidadeColaborador)
+    // Estados dos formulários
     const [nomeColaborador, setNomeColaborador] = useState('');
     const [cargoColaborador, setCargoColaborador] = useState('');
     const [unidadeColaborador, setUnidadeColaborador] = useState('');
@@ -23,8 +23,18 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const [nomeProduto, setNomeProduto] = useState('');
     const [valorProduto, setValorProduto] = useState('');
 
-    // Verifica se o usuário atual possui visão corporativa total
+    // NOVO: Estado para filtrar a listagem de registros salvos da equipe
+    const [filtroUnidadeLista, setFiltroUnidadeLista] = useState('TODOS');
+
+    // ==========================================
+    // CONTROLE DE ACESSO AVANÇADO
+    // ==========================================
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    const ehAdmin = usuarioLogado?.role === 'ADMIN';
+    const podeEditarEquipe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR' || usuarioLogado?.role === 'LIDER';
+
+    // Se o usuário pode ver o formulário na aba atual
+    const mostraFormulario = (abaAtiva === 'equipe' && podeEditarEquipe) || (abaAtiva !== 'equipe' && ehAdmin);
 
     // Carregar setores assim que a página abre
     useEffect(() => {
@@ -37,7 +47,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [abaAtiva, planos, produtos, colaboradores, listaSetores, sucesso, erroBando, editandoId, unidades]);
+    }, [abaAtiva, planos, produtos, colaboradores, listaSetores, sucesso, erroBando, editandoId, unidades, filtroUnidadeLista, mostraFormulario]);
 
     const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
     
@@ -67,7 +77,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- SETORES ---
     const handleSalvarSetor = async (e) => {
         e.preventDefault();
-        if (!nomeSetor.trim()) return;
+        if (!nomeSetor.trim() || !ehAdmin) return;
         
         const payload = { nome: nomeSetor.toUpperCase() };
 
@@ -84,6 +94,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     };
 
     const handleDeleteSetor = async (id) => {
+        if(!ehAdmin) return;
         if(window.confirm('Tem certeza que deseja excluir este setor?')) {
             const { error } = await supabase.from('setores').delete().eq('id', id);
             if (error) return setErroBanco(error.message);
@@ -91,12 +102,11 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
         }
     };
 
-    // --- COLABORADORES (ATUALIZADO COM SEPARAÇÃO DE UNIDADES) ---
+    // --- COLABORADORES ---
     const handleSalvarColaborador = async (e) => {
         e.preventDefault();
-        if (!nomeColaborador.trim() || !cargoColaborador.trim()) return;
+        if (!nomeColaborador.trim() || !cargoColaborador.trim() || !podeEditarEquipe) return;
 
-        // Se o admin/mentor estiver cadastrando, usa o estado. Se for líder, pega a unidade dele própria.
         const unidadeFinal = temVisaoGlobal ? unidadeColaborador : usuarioLogado?.unidade;
 
         if (!unidadeFinal) {
@@ -123,6 +133,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     };
 
     const handleDeleteColaborador = async (id) => {
+        if(!podeEditarEquipe) return;
         if(window.confirm('Excluir este colaborador da equipe?')) {
             const { error } = await supabase.from('colaboradores').delete().eq('id', id);
             if (error) return setErroBanco(error.message);
@@ -133,7 +144,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- PLANOS ---
     const handleSalvarPlano = async (e) => {
         e.preventDefault();
-        if (!nomePlano.trim() || !valorPlano) return;
+        if (!nomePlano.trim() || !valorPlano || !ehAdmin) return;
         const payload = { tipo: 'plano', nome: nomePlano.toUpperCase(), valor: parseFloat(valorPlano) };
 
         if (editandoId) {
@@ -149,6 +160,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     };
 
     const handleDeletePlano = async (id) => {
+        if(!ehAdmin) return;
         if(window.confirm('Excluir este plano do catálogo?')) {
             const { error } = await supabase.from('catalogo').delete().eq('id', id);
             if (error) return setErroBanco(error.message);
@@ -159,7 +171,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     // --- PRODUTOS ---
     const handleSalvarProduto = async (e) => {
         e.preventDefault();
-        if (!nomeProduto.trim() || !valorProduto) return;
+        if (!nomeProduto.trim() || !valorProduto || !ehAdmin) return;
         const payload = { tipo: 'produto', nome: nomeProduto.toUpperCase(), valor: parseFloat(valorProduto) };
 
         if (editandoId) {
@@ -175,6 +187,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     };
 
     const handleDeleteProduto = async (id) => {
+        if(!ehAdmin) return;
         if(window.confirm('Excluir este produto do catálogo?')) {
             const { error } = await supabase.from('catalogo').delete().eq('id', id);
             if (error) return setErroBanco(error.message);
@@ -182,8 +195,13 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
         }
     };
 
+    const colaboradoresFiltrados = colaboradores.filter(c => {
+        if (filtroUnidadeLista === 'TODOS') return true;
+        return c.unidade?.toUpperCase() === filtroUnidadeLista.toUpperCase();
+    });
+
     return (
-        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1200px] mx-auto relative">
+        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative">
             
             {sucesso && (
                 <div className="absolute top-0 right-0 bg-emerald-500 text-white px-6 py-3 rounded-2xl shadow-[0_8px_20px_rgba(16,185,129,0.4)] flex items-center gap-3 font-black uppercase tracking-wider text-xs z-50">
@@ -224,127 +242,140 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            <div className={`grid grid-cols-1 ${mostraFormulario ? 'lg:grid-cols-3' : 'lg:grid-cols-1'} gap-6 items-start transition-all`}>
                 
-                {/* LADO ESQUERDO: FORMULÁRIOS */}
-                <div className="lg:col-span-1 bg-white rounded-[24px] shadow-sm border border-slate-200 p-6 md:p-8 relative overflow-hidden">
-                    {editandoId && <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-400"></div>}
+                {/* LADO ESQUERDO: FORMULÁRIOS (SÓ APARECE SE TIVER PERMISSÃO) */}
+                {mostraFormulario && (
+                    <div className="lg:col-span-1 bg-white rounded-[24px] shadow-sm border border-slate-200 p-6 md:p-8 relative overflow-hidden animate-[fadeIn_0.3s_ease-out]">
+                        {editandoId && <div className="absolute top-0 left-0 w-full h-1.5 bg-amber-400"></div>}
 
-                    {/* FORM: EQUIPE */}
-                    {abaAtiva === 'equipe' && (
-                        <form onSubmit={handleSalvarColaborador} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
-                                <i data-lucide={editandoId ? "edit-3" : "user-plus"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
-                                {editandoId ? 'Editar Colaborador' : 'Novo Colaborador'}
-                            </h3>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome Completo</label>
-                                <input type="text" value={nomeColaborador} onChange={(e) => setNomeColaborador(e.target.value)} required placeholder="Ex: Lucas Mendes" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Setor / Cargo</label>
-                                <select value={cargoColaborador} onChange={(e) => setCargoColaborador(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase">
-                                    <option value="">Selecione um setor...</option>
-                                    {listaSetores.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
-                                </select>
-                            </div>
-
-                            {/* NOVO CAMPO: SELEÇÃO DE UNIDADE EXCLUSIVO PARA ADMIN/MENTOR */}
-                            {temVisaoGlobal && (
-                                <div className="animate-[fadeIn_0.2s_ease-out]">
-                                    <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2 ml-1">Vincular a qual Unidade?</label>
-                                    <select value={unidadeColaborador} onChange={(e) => setUnidadeColaborador(e.target.value)} required className="w-full bg-rose-50/10 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
-                                        <option value="">Selecione a academia...</option>
-                                        {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                        {/* FORM: EQUIPE */}
+                        {abaAtiva === 'equipe' && podeEditarEquipe && (
+                            <form onSubmit={handleSalvarColaborador} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                                    <i data-lucide={editandoId ? "edit-3" : "user-plus"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
+                                    {editandoId ? 'Editar Colaborador' : 'Novo Colaborador'}
+                                </h3>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome Completo</label>
+                                    <input type="text" value={nomeColaborador} onChange={(e) => setNomeColaborador(e.target.value)} required placeholder="Ex: Lucas Mendes" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Setor / Cargo</label>
+                                    <select value={cargoColaborador} onChange={(e) => setCargoColaborador(e.target.value)} required className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase">
+                                        <option value="">Selecione um setor...</option>
+                                        {listaSetores.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                     </select>
                                 </div>
-                            )}
 
-                            <div className="pt-2 flex gap-2">
-                                {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                    <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                                {temVisaoGlobal && (
+                                    <div className="animate-[fadeIn_0.2s_ease-out]">
+                                        <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-2 ml-1">Vincular a qual Unidade?</label>
+                                        <select value={unidadeColaborador} onChange={(e) => setUnidadeColaborador(e.target.value)} required className="w-full bg-rose-50/10 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
+                                            <option value="">Selecione a academia...</option>
+                                            {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                                        </select>
+                                    </div>
+                                )}
 
-                    {/* FORM: SETORES */}
-                    {abaAtiva === 'setores' && (
-                        <form onSubmit={handleSalvarSetor} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
-                                <i data-lucide={editandoId ? "edit-3" : "layout-grid"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
-                                {editandoId ? 'Editar Setor' : 'Criar Setor/Cargo'}
-                            </h3>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome do Setor</label>
-                                <input type="text" value={nomeSetor} onChange={(e) => setNomeSetor(e.target.value)} required placeholder="Ex: ATENDIMENTO ONLINE" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
-                            </div>
-                            <div className="pt-2 flex gap-2">
-                                {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                    <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Setor'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                                <div className="pt-2 flex gap-2">
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
+                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
 
-                    {/* FORM: PLANOS */}
-                    {abaAtiva === 'planos' && (
-                        <form onSubmit={handleSalvarPlano} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
-                                <i data-lucide={editandoId ? "edit-3" : "folder-plus"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
-                                {editandoId ? 'Editar Plano' : 'Novo Plano'}
-                            </h3>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome do Plano</label>
-                                <input type="text" value={nomePlano} onChange={(e) => setNomePlano(e.target.value)} required placeholder="Ex: PLANO VIP ANUAL" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor (R$)</label>
-                                <input type="number" step="0.01" min="0" value={valorPlano} onChange={(e) => setValorPlano(e.target.value)} required placeholder="Ex: 119.90" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />
-                            </div>
-                            <div className="pt-2 flex gap-2">
-                                {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                                    <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Plano'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                        {/* FORM: SETORES */}
+                        {abaAtiva === 'setores' && ehAdmin && (
+                            <form onSubmit={handleSalvarSetor} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                                    <i data-lucide={editandoId ? "edit-3" : "layout-grid"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
+                                    {editandoId ? 'Editar Setor' : 'Criar Setor/Cargo'}
+                                </h3>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome do Setor</label>
+                                    <input type="text" value={nomeSetor} onChange={(e) => setNomeSetor(e.target.value)} required placeholder="Ex: ATENDIMENTO ONLINE" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+                                </div>
+                                <div className="pt-2 flex gap-2">
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
+                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Setor'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
 
-                    {/* FORM: PRODUTOS */}
-                    {abaAtiva === 'produtos' && (
-                        <form onSubmit={handleSalvarProduto} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
-                                <i data-lucide={editandoId ? "edit-3" : "box"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
-                                {editandoId ? 'Editar Produto' : 'Novo Produto'}
-                            </h3>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome do Produto</label>
-                                <input type="text" value={nomeProduto} onChange={(e) => setNomeProduto(e.target.value)} required placeholder="Ex: WHEY PROTEIN" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor Unitário (R$)</label>
-                                <input type="number" step="0.01" min="0" value={valorProduto} onChange={(e) => setValorProduto(e.target.value)} required placeholder="Ex: 89.90" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />
-                            </div>
-                            <div className="pt-2 flex gap-2">
-                                {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
-                                <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
-                                    <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Produto'}
-                                </button>
-                            </div>
-                        </form>
-                    )}
+                        {/* FORM: PLANOS */}
+                        {abaAtiva === 'planos' && ehAdmin && (
+                            <form onSubmit={handleSalvarPlano} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                                    <i data-lucide={editandoId ? "edit-3" : "folder-plus"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
+                                    {editandoId ? 'Editar Plano' : 'Novo Plano'}
+                                </h3>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome do Plano</label>
+                                    <input type="text" value={nomePlano} onChange={(e) => setNomePlano(e.target.value)} required placeholder="Ex: PLANO VIP ANUAL" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor (R$)</label>
+                                    <input type="number" step="0.01" min="0" value={valorPlano} onChange={(e) => setValorPlano(e.target.value)} required placeholder="Ex: 119.90" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+                                </div>
+                                <div className="pt-2 flex gap-2">
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
+                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Plano'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
 
-                </div>
+                        {/* FORM: PRODUTOS */}
+                        {abaAtiva === 'produtos' && ehAdmin && (
+                            <form onSubmit={handleSalvarProduto} className="space-y-5 animate-[fadeIn_0.3s_ease-out]">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
+                                    <i data-lucide={editandoId ? "edit-3" : "box"} className={`w-5 h-5 ${editandoId ? 'text-amber-500' : 'text-blue-500'}`}></i> 
+                                    {editandoId ? 'Editar Produto' : 'Novo Produto'}
+                                </h3>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome do Produto</label>
+                                    <input type="text" value={nomeProduto} onChange={(e) => setNomeProduto(e.target.value)} required placeholder="Ex: WHEY PROTEIN" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase" />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Valor Unitário (R$)</label>
+                                    <input type="number" step="0.01" min="0" value={valorProduto} onChange={(e) => setValorProduto(e.target.value)} required placeholder="Ex: 89.90" className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+                                </div>
+                                <div className="pt-2 flex gap-2">
+                                    {editandoId && <button type="button" onClick={cancelarEdicao} className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-black uppercase tracking-widest py-3.5 px-4 rounded-xl transition-all text-xs">Cancelar</button>}
+                                    <button type="submit" className={`flex-[2] text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs ${editandoId ? 'bg-amber-500 hover:bg-amber-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}>
+                                        <i data-lucide="check" className="w-4 h-4"></i> {editandoId ? 'Atualizar' : 'Salvar Produto'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+                )}
 
-                {/* LADO DIREITO: LISTAS */}
-                <div className="lg:col-span-2 bg-white rounded-[24px] shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[550px]">
-                    <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                {/* LADO DIREITO: LISTAS (Estica para 100% se não houver formulário) */}
+                <div className={`${mostraFormulario ? 'lg:col-span-2' : 'lg:col-span-1'} bg-white rounded-[24px] shadow-sm border border-slate-200 overflow-hidden flex flex-col h-[550px] transition-all`}>
+                    <div className="p-6 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                             <i data-lucide="list" className="w-4 h-4 text-slate-400"></i> Registros Salvos
                         </h3>
+
+                        {abaAtiva === 'equipe' && temVisaoGlobal && (
+                            <div className="w-full sm:w-48 animate-[fadeIn_0.2s_ease-out]">
+                                <select 
+                                    value={filtroUnidadeLista} 
+                                    onChange={(e) => setFiltroUnidadeLista(e.target.value)} 
+                                    className="w-full bg-white border border-rose-200 text-rose-700 rounded-xl px-3 py-1.5 text-xs font-black uppercase tracking-wider outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer shadow-sm"
+                                >
+                                    <option value="TODOS">Filtrar: TODAS</option>
+                                    {unidades.map(u => <option key={u.id || u.nome} value={u.nome}>{u.nome}</option>)}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     <div className="overflow-y-auto custom-scrollbar flex-1 p-2">
@@ -353,7 +384,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                             {/* TABELA EQUIPE */}
                             {abaAtiva === 'equipe' && (
                                 <tbody className="divide-y divide-slate-50">
-                                    {colaboradores.map(c => (
+                                    {colaboradoresFiltrados.map(c => (
                                         <tr key={c.id} className="hover:bg-slate-50 group transition-colors">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-4">
@@ -369,14 +400,25 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100">
-                                                    <button onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); setUnidadeColaborador(c.unidade || ''); }} className="text-slate-400 hover:text-amber-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
-                                                    <button onClick={() => handleDeleteColaborador(c.id)} className="text-slate-400 hover:text-rose-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                </div>
-                                            </td>
+                                            
+                                            {/* BOTÕES LIMPOS SÓ COM ÍCONES */}
+                                            {podeEditarEquipe && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                        <button type="button" onClick={() => { setEditandoId(c.id); setNomeColaborador(c.nome); setCargoColaborador(c.role); setUnidadeColaborador(c.unidade || ''); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                        <button type="button" onClick={() => handleDeleteColaborador(c.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
+                                    {colaboradoresFiltrados.length === 0 && (
+                                        <tr>
+                                            <td colSpan="2" className="text-center py-16 text-slate-400 uppercase tracking-widest text-[10px] font-bold opacity-60">
+                                                Nenhum colaborador alocado nesta unidade.
+                                            </td>
+                                        </tr>
+                                    )}
                                 </tbody>
                             )}
 
@@ -391,12 +433,14 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                     <span className="text-sm font-black text-slate-800 uppercase">{s.nome}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100">
-                                                    <button onClick={() => { setEditandoId(s.id); setNomeSetor(s.nome); }} className="text-slate-400 hover:text-amber-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
-                                                    <button onClick={() => handleDeleteSetor(s.id)} className="text-slate-400 hover:text-rose-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                </div>
-                                            </td>
+                                            {ehAdmin && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                        <button type="button" onClick={() => { setEditandoId(s.id); setNomeSetor(s.nome); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                        <button type="button" onClick={() => handleDeleteSetor(s.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -414,12 +458,14 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-emerald-600 text-right">{formatMoney(p.valor)}</td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100">
-                                                    <button onClick={() => { setEditandoId(p.id); setNomePlano(p.nome); setValorPlano(p.valor); }} className="text-slate-400 hover:text-amber-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
-                                                    <button onClick={() => handleDeletePlano(p.id)} className="text-slate-400 hover:text-rose-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                </div>
-                                            </td>
+                                            {ehAdmin && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                        <button type="button" onClick={() => { setEditandoId(p.id); setNomePlano(p.nome); setValorPlano(p.valor); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                        <button type="button" onClick={() => handleDeletePlano(p.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>
@@ -437,12 +483,14 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-sm font-black text-emerald-600 text-right">{formatMoney(p.valor)}</td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2 md:opacity-0 md:group-hover:opacity-100">
-                                                    <button onClick={() => { setEditandoId(p.id); setNomeProduto(p.nome); setValorProduto(p.valor); }} className="text-slate-400 hover:text-amber-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="edit-2" className="w-4 h-4"></i></button>
-                                                    <button onClick={() => handleDeleteProduto(p.id)} className="text-slate-400 hover:text-rose-500 p-2 bg-white border border-slate-200 rounded-lg shadow-sm"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
-                                                </div>
-                                            </td>
+                                            {ehAdmin && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex justify-end gap-4 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                                                        <button type="button" onClick={() => { setEditandoId(p.id); setNomeProduto(p.nome); setValorProduto(p.valor); }} title="Editar" className="text-slate-400 hover:text-blue-500 transition-colors p-1"><i data-lucide="edit-3" className="w-4 h-4"></i></button>
+                                                        <button type="button" onClick={() => handleDeleteProduto(p.id)} title="Excluir" className="text-slate-400 hover:text-rose-500 transition-colors p-1"><i data-lucide="trash-2" className="w-4 h-4"></i></button>
+                                                    </div>
+                                                </td>
+                                            )}
                                         </tr>
                                     ))}
                                 </tbody>

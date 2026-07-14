@@ -19,6 +19,9 @@ export default function App() {
     const [activeTab, setActiveTab] = useState('lancamento');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     
+    // ESTADO DO SWITCHER GLOBAL DE UNIDADE NO CABEÇALHO
+    const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
+
     // Estados vazios aguardando a nuvem
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
@@ -27,45 +30,52 @@ export default function App() {
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
 
+    // Resetar unidade global ao logar
+    useEffect(() => {
+        if (usuarioLogado) setUnidadeGlobal('TODAS');
+    }, [usuarioLogado]);
+
     // ==========================================
-    // 2. SINCRONIZAÇÃO COM SUPABASE (FILTRADA POR UNIDADE)
+    // 2. SINCRONIZAÇÃO COM SUPABASE (SUPER FILTRO GLOBAL)
     // ==========================================
     useEffect(() => {
         if (!usuarioLogado) return;
 
         const carregarBancoDeDados = async () => {
             try {
-                // A MÁGICA DA MULTITENÂNCIA: Verifica se tem visão global
-                const temVisaoGlobal = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
+                // A MÁGICA: Se o Admin escolheu uma unidade no topo, nós já filtramos TUDO aqui!
+                const ehChefe = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
+                const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
+                const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado.unidade;
 
-                // 1. Puxar Equipe (Filtra por unidade se não for global)
+                // 1. Puxar Unidades cadastradas (Sempre Global para popular o Menu)
+                const { data: unids } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
+                if (unids) setUnidades(unids);
+
+                // 2. Puxar Equipe
                 let queryColabs = supabase.from('colaboradores').select('*');
-                if (!temVisaoGlobal) queryColabs = queryColabs.eq('unidade', usuarioLogado.unidade);
+                if (deveFiltrar) queryColabs = queryColabs.eq('unidade', unidadeFiltro);
                 const { data: colabs } = await queryColabs;
                 if (colabs) setColaboradores(colabs);
 
-                // 2. Puxar Catálogo (Sempre global, catálogo é o mesmo para todos)
+                // 3. Puxar Catálogo (Sempre global)
                 const { data: cat } = await supabase.from('catalogo').select('*');
                 if (cat) {
                     setPlanos(cat.filter(item => item.tipo === 'plano'));
                     setProdutos(cat.filter(item => item.tipo === 'produto'));
                 }
 
-                // 3. Puxar Histórico de Vendas (Filtra por unidade se não for global)
+                // 4. Puxar Histórico de Vendas
                 let queryVendas = supabase.from('vendas').select('*').order('id', { ascending: false });
-                if (!temVisaoGlobal) queryVendas = queryVendas.eq('unidade', usuarioLogado.unidade);
+                if (deveFiltrar) queryVendas = queryVendas.eq('unidade', unidadeFiltro);
                 const { data: vends } = await queryVendas;
                 if (vends) setDadosAssinaturas(vends);
 
-                // 4. Puxar CRM de Leads (Filtra por unidade se não for global)
+                // 5. Puxar CRM de Leads
                 let queryLeads = supabase.from('leads').select('*').order('id', { ascending: false });
-                if (!temVisaoGlobal) queryLeads = queryLeads.eq('unidade', usuarioLogado.unidade);
+                if (deveFiltrar) queryLeads = queryLeads.eq('unidade', unidadeFiltro);
                 const { data: leds } = await queryLeads;
                 if (leds) setDadosVisitantes(leds);
-
-                // 5. Puxar Unidades cadastradas
-                const { data: unids } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
-                if (unids) setUnidades(unids);
                 
             } catch (error) {
                 console.error("Erro ao puxar dados da nuvem:", error);
@@ -73,7 +83,7 @@ export default function App() {
         };
 
         carregarBancoDeDados();
-    }, [usuarioLogado]);
+    }, [usuarioLogado, unidadeGlobal]); // Recarrega o banco instantaneamente ao trocar de unidade!
 
     // ==========================================
     // 3. FUNÇÕES E EFEITOS DE INTERFACE
@@ -83,7 +93,7 @@ export default function App() {
 
     useEffect(() => { 
         if (window.lucide) window.lucide.createIcons(); 
-    }, [activeTab, usuarioLogado, isMobileMenuOpen, dadosAssinaturas, dadosVisitantes]);
+    }, [activeTab, usuarioLogado, isMobileMenuOpen, dadosAssinaturas, dadosVisitantes, unidadeGlobal]);
 
     // ==========================================
     // 4. TRAVA DE AUTENTICAÇÃO
@@ -93,7 +103,20 @@ export default function App() {
     }
 
     // ==========================================
-    // 5. CONTROLE DE ACESSO
+    // 5. CRIAÇÃO DO "AVATAR VIRTUAL" (IMPERSONATION)
+    // ==========================================
+    const ehChefe = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
+    
+    // Este é o usuário que as páginas vão enxergar!
+    const usuarioVirtual = {
+        ...usuarioLogado,
+        // Se a chefia isolou uma unidade no topo, ele finge ser Líder daquela unidade dentro das páginas
+        role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
+        unidade: (ehChefe && unidadeGlobal !== 'TODAS') ? unidadeGlobal : usuarioLogado.unidade
+    };
+
+    // ==========================================
+    // 6. CONTROLE DE ACESSO
     // ==========================================
     const todasAbas = [
         { id: 'lancamento', label: 'Nova Venda', icon: 'shopping-cart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
@@ -101,7 +124,8 @@ export default function App() {
         { id: 'analise', label: 'Dashboard', icon: 'pie-chart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'fechamento', label: 'Fechamento', icon: 'wallet', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'crm', label: 'CRM', icon: 'users', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'cadastros', label: 'Cadastros', icon: 'database', permissoes: ['ADMIN', 'MENTOR'] },
+        // AQUI ESTÁ O AJUSTE: LIDER adicionado às permissões de Cadastros
+        { id: 'cadastros', label: 'Cadastros', icon: 'database', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'config', label: 'Configurações', icon: 'settings', permissoes: ['ADMIN'] }
     ];
 
@@ -110,29 +134,43 @@ export default function App() {
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-slate-600">
             
-            {/* CABEÇALHO */}
+            {/* CABEÇALHO COM O MENU GLOBAL */}
             <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-sm border-b border-blue-500/20 sticky top-0 z-50 transition-all">
                 <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
                     
-                    {/* Logotipo e Unidade */}
                     <div className="flex items-center gap-3.5">
                         <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
                             <i data-lucide="zap" className="text-white w-5 h-5"></i>
                         </div>
                         <div>
                             <h1 className="text-lg font-black text-white tracking-wider leading-none">PRATIQUE VENDAS</h1>
-                            <p className="text-[9px] font-bold text-blue-200 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
-                                {/* LÓGICA DE NOME GLOBAL AQUI */}
-                                {usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR' ? 'VISÃO GLOBAL' : usuarioLogado.unidade}
-                            </p>
+                            
+                            {/* O GRANDE SELETOR GLOBAL DE UNIDADES */}
+                            {ehChefe ? (
+                                <div className="mt-1.5 relative flex items-center bg-black/20 rounded-lg border border-white/10 px-2 py-0.5 w-fit hover:bg-black/30 transition-colors">
+                                    <span className={`w-1.5 h-1.5 rounded-full mr-2 shadow-sm animate-pulse ${unidadeGlobal === 'TODAS' ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
+                                    <select 
+                                        value={unidadeGlobal} 
+                                        onChange={(e) => setUnidadeGlobal(e.target.value)}
+                                        className="bg-transparent text-[10px] font-bold text-blue-100 uppercase tracking-widest outline-none cursor-pointer appearance-none pr-5 z-10"
+                                    >
+                                        <option value="TODAS" className="bg-blue-900 text-white">VISÃO GLOBAL (TODAS)</option>
+                                        {unidades.map(u => (
+                                            <option key={u.id} value={u.nome} className="bg-blue-900 text-white">{u.nome}</option>
+                                        ))}
+                                    </select>
+                                    <i data-lucide="chevron-down" className="w-3 h-3 text-blue-300 absolute right-2 pointer-events-none"></i>
+                                </div>
+                            ) : (
+                                <p className="text-[9px] font-bold text-blue-200 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
+                                    {usuarioLogado.unidade}
+                                </p>
+                            )}
                         </div>
                     </div>
                     
-                    <button 
-                        onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                        className="md:hidden p-2 text-blue-100 hover:text-white hover:bg-white/10 rounded-xl transition-all"
-                    >
+                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-blue-100 hover:text-white hover:bg-white/10 rounded-xl transition-all">
                         <i data-lucide={isMobileMenuOpen ? "x" : "menu"} className="w-6 h-6"></i>
                     </button>
                     
@@ -221,12 +259,12 @@ export default function App() {
                 )}
             </header>
 
-            {/* ESPAÇO DE TRABALHO GERAL (ZONA DE CONTEÚDO) */}
-            <main className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
+            {/* ESPAÇO DE TRABALHO GERAL */}
+            <main key={unidadeGlobal} className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
                 {activeTab === 'lancamento' && (
                     <LancamentoVendas 
-                        usuarioLogado={usuarioLogado}
-                        unidades={unidades} /* INJETANDO UNIDADES AQUI */
+                        usuarioLogado={usuarioVirtual}
+                        unidades={unidades}
                         onAddMultiple={handleAddLancamentos} 
                         planos={planos} 
                         produtos={produtos} 
@@ -236,7 +274,7 @@ export default function App() {
                 
                 {activeTab === 'assinaturas' && (
                     <AssinaturasPratique 
-                        usuarioLogado={usuarioLogado}
+                        usuarioLogado={usuarioVirtual}
                         data={dadosAssinaturas} 
                         setData={setDadosAssinaturas} 
                     />
@@ -244,7 +282,7 @@ export default function App() {
 
                 {activeTab === 'analise' && (
                     <AnaliseDashboard 
-                        usuarioLogado={usuarioLogado}
+                        usuarioLogado={usuarioVirtual}
                         vendas={dadosAssinaturas} 
                         planos={planos} 
                     />
@@ -252,7 +290,7 @@ export default function App() {
 
                 {activeTab === 'fechamento' && (
                     <FechamentoCaixa 
-                        usuarioLogado={usuarioLogado}
+                        usuarioLogado={usuarioVirtual}
                         vendas={dadosAssinaturas} 
                         setVendas={setDadosAssinaturas} 
                     />
@@ -260,7 +298,7 @@ export default function App() {
                 
                 {activeTab === 'crm' && (
                     <CrmVisitantes 
-                        usuarioLogado={usuarioLogado}
+                        usuarioLogado={usuarioVirtual}
                         visitantes={dadosVisitantes} 
                         setVisitantes={setDadosVisitantes} 
                         colaboradores={colaboradores} 
@@ -269,7 +307,7 @@ export default function App() {
 
                 {activeTab === 'cadastros' && (
                     <CadastroGeral 
-                        usuarioLogado={usuarioLogado}
+                        usuarioLogado={usuarioVirtual}
                         planos={planos} 
                         setPlanos={setPlanos} 
                         produtos={produtos} 

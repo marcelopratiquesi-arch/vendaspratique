@@ -78,7 +78,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
 
     const totalVenda = itensForm.reduce((acc, curr) => acc + (curr.valorUnitario * curr.quantidade), 0);
 
-    // Filtra os vendedores baseados na unidade selecionada!
+    // Filtra os vendedores baseados na unidade selecionada NA TELA (ou do usuário logado)
     const vendedoresDaUnidade = colaboradores.filter(c => 
         temVisaoGlobal ? c.unidade === formData.unidade : c.unidade === usuarioLogado?.unidade
     );
@@ -178,8 +178,9 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                             <input type="date" name="data" value={formData.data} onChange={handleMainChange} required className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer" />
                         </div>
                         <div className="md:col-span-3">
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Matrícula (Opcional)</label>
-                            <input type="text" name="matricula" value={formData.matricula} onChange={handleMainChange} placeholder="Nº da Matrícula" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none" />
+                            {/* CAMPO DE MATRÍCULA AGORA É OBRIGATÓRIO (REQUIRED) */}
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Matrícula</label>
+                            <input type="text" name="matricula" value={formData.matricula} onChange={handleMainChange} required placeholder="Nº da Matrícula" className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500 outline-none" />
                         </div>
                         <div className="md:col-span-6">
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Nome Completo do Aluno</label>
