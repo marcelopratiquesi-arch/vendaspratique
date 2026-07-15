@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js'; 
 
 const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
-    // ==========================================
-    // 1. ESTADOS DOS FILTROS
-    // ==========================================
     const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
     const [filtroMes, setFiltroMes] = useState('TODOS');
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -14,24 +11,51 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     const [filtroVendedor, setFiltroVendedor] = useState('TODOS');
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); 
 
-    // Estados para carregar o Catálogo e Edição
     const [catalogoGeral, setCatalogoGeral] = useState([]);
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
 
-    // ==========================================
-    // CONTROLE DE ACESSO
-    // ==========================================
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
 
-    // Utilitários de Formatação Visual (P1)
-    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
-    const formatDataBR = (dataIso) => {
-        if (!dataIso) return '';
-        const partes = dataIso.split('-');
-        if (partes.length !== 3) return dataIso;
-        return `${partes[2]}/${partes[1]}/${partes[0]}`; // Transforma YYYY-MM-DD em DD/MM/YYYY na tela
+    // ==========================================
+    // TRADUTORES UNIVERSAIS E FORMATAÇÃO
+    // ==========================================
+    const safeNumber = (val) => {
+        if (typeof val === 'number') return val;
+        if (!val) return 0;
+        const str = String(val);
+        if (str.includes(',')) {
+            return parseFloat(str.replace(/[^0-9,-]+/g, '').replace(',', '.')) || 0;
+        }
+        return parseFloat(str.replace(/[^0-9.-]+/g, '')) || 0;
+    };
+
+    const safeIsoDate = (dStr) => {
+        if (!dStr) return '';
+        if (dStr.includes('-')) return dStr.split('T')[0]; 
+        if (dStr.includes('/')) {
+            const [d, m, y] = dStr.split('/');
+            return `${y}-${m}-${d}`; 
+        }
+        return dStr;
+    };
+
+    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safeNumber(val));
+    
+    const formatDataBR = (dStr) => {
+        if (!dStr) return '';
+        if (dStr.includes('/')) return dStr; 
+        const partes = dStr.split('-');
+        if (partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+        return dStr;
+    };
+
+    // NOVO: Extrator de Hora do Supabase (Para a Auditoria de Lançamento)
+    const extrairHoraCriacao = (isoString) => {
+        if (!isoString) return '';
+        const dataObj = new Date(isoString);
+        return dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     };
 
     useEffect(() => {
@@ -46,9 +70,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         if (window.lucide) window.lucide.createIcons();
     }, [data, tipoFiltroData, filtroMes, filtroAno, filtroProduto, filtroVendedor, filtroUnidade, editandoId, catalogoGeral]);
 
-    // ==========================================
-    // 2. FUNÇÕES DE BANCO DE DADOS E EDIÇÃO
-    // ==========================================
     const removerLancamento = async (id) => {
         if(!podeEditar) return;
         if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
@@ -64,21 +85,20 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     };
 
     const iniciarEdicao = (venda) => {
-        // Agora o valor vem limpo como número, direto do banco
-        const valorNumericoBanco = Number(venda.valor) || 0;
+        const valorNumericoBanco = safeNumber(venda.valor);
         const qtd = parseInt(venda.quantidade) || 1;
 
         let unitario = 0;
         const itemCatalogo = catalogoGeral.find(c => c.nome.toUpperCase() === venda.produto?.toUpperCase());
         if (itemCatalogo) {
-            unitario = Number(itemCatalogo.valor) || 0;
+            unitario = safeNumber(itemCatalogo.valor);
         } else {
             unitario = valorNumericoBanco / qtd;
         }
 
         setEditandoId(venda.id);
         setDadosEdicao({
-            data: venda.data || '', // Data já está em YYYY-MM-DD
+            data: safeIsoDate(venda.data),
             matricula: venda.matricula || '',
             nome_aluno: venda.nome_aluno || venda.nome || '',
             produto: venda.produto || '',
@@ -95,7 +115,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         if (field === 'produto') {
             const item = catalogoGeral.find(c => c.nome === value);
             if (item) {
-                const novoUnitario = Number(item.valor) || 0;
+                const novoUnitario = safeNumber(item.valor);
                 novosDados.valorUnitario = novoUnitario;
                 novosDados.valorCalculado = novoUnitario * novosDados.quantidade;
             }
@@ -116,16 +136,16 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     };
 
     const salvarEdicao = async (id) => {
-        const valorPuro = Number(dadosEdicao.valorCalculado) || 0;
+        const valorPuro = safeNumber(dadosEdicao.valorCalculado);
         
         const payload = {
-            data: dadosEdicao.data, // YYYY-MM-DD puro
+            data: dadosEdicao.data, 
             matricula: dadosEdicao.matricula,
             nome_aluno: dadosEdicao.nome_aluno.toUpperCase(),
             produto: dadosEdicao.produto.toUpperCase(),
             vendedor: dadosEdicao.vendedor.toUpperCase(),
             quantidade: parseInt(dadosEdicao.quantidade) || 1,
-            valor: valorPuro, // Número puro para o banco
+            valor: valorPuro, 
             comissao: valorPuro 
         };
 
@@ -140,13 +160,10 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         }
     };
 
-    // ==========================================
-    // 3. LISTAS DINÂMICAS PARA OS FILTROS
-    // ==========================================
     const produtosUnicos = ['TODOS', ...new Set(data.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(data.map(v => v.vendedor))].filter(Boolean);
     const unidadesUnicas = ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean); 
-    const anosUnicos = [...new Set(data.map(v => v.data?.split('-')[0]))].filter(Boolean).sort((a,b) => b-a); // Lê do YYYY-MM-DD
+    const anosUnicos = [...new Set(data.map(v => safeIsoDate(v.data).split('-')[0]))].filter(Boolean).sort((a,b) => b-a); 
     if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
 
     const meses = [
@@ -157,9 +174,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         { val: '12', label: '12 - Dezembro' }
     ];
 
-    // ==========================================
-    // 4. MOTOR DE FILTRAGEM CORRIGIDO PARA DATAS NATIVAS
-    // ==========================================
     const vendasFiltradas = data.filter(venda => {
         if (temVisaoGlobal && filtroUnidade !== 'TODOS' && venda.unidade !== filtroUnidade) return false;
         if (filtroProduto !== 'TODOS' && venda.produto !== filtroProduto) return false;
@@ -167,8 +181,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
 
         if (!venda.data) return false;
         
-        // P1: Agora a data vem como YYYY-MM-DD do banco
-        const partes = venda.data.split('-');
+        const isoDate = safeIsoDate(venda.data);
+        const partes = isoDate.split('-');
         if (partes.length !== 3) return false;
         const [y, m, d] = partes;
 
@@ -176,8 +190,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
             if (filtroMes !== 'TODOS' && m !== filtroMes) return false;
             if (filtroAno !== 'TODOS' && y !== filtroAno) return false;
         } else {
-            if (dataInicio && venda.data < dataInicio) return false;
-            if (dataFim && venda.data > dataFim) return false;
+            if (dataInicio && isoDate < dataInicio) return false;
+            if (dataFim && isoDate > dataFim) return false;
         }
 
         return true;
@@ -186,7 +200,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto">
             
-            {/* PAINEL DE FILTROS */}
             <div className="bg-white rounded-[24px] border border-slate-200 shadow-[0_8px_30px_rgb(0,0,0,0.01)] p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
@@ -269,9 +282,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 </div>
             </div>
 
-            {/* TABELA DE HISTÓRICO COM COLUNA UNIFICADA E AÇÕES RESTRITAS */}
             <div className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden flex flex-col">
-                
                 <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-black text-slate-800 flex items-center gap-2.5">
@@ -287,7 +298,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                     <table className="w-full text-left border-collapse min-w-max">
                         <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm">
                             <tr>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data</th>
+                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data / Lançamento</th>
                                 {temVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200">Unidade</th>}
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno / Matrícula</th>
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Plano/Produto</th>
@@ -304,12 +315,20 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                 return (
                                     <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                                         
-                                        {/* DATA VISUAL P1 */}
-                                        <td className="px-6 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">
+                                        {/* COLUNA DE DATA COM AUDITORIA DE HORA */}
+                                        <td className="px-6 py-4 align-middle">
                                             {isEditing ? (
                                                 <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
                                             ) : (
-                                                formatDataBR(row.data)
+                                                <div>
+                                                    <p className="text-xs font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data)}</p>
+                                                    {row.created_at && (
+                                                        <div className="flex items-center gap-1 mt-1 text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 w-max" title="Horário exato em que o registro foi criado no sistema">
+                                                            <i data-lucide="clock" className="w-2.5 h-2.5"></i>
+                                                            <span className="text-[9px] font-bold uppercase tracking-wider">{extrairHoraCriacao(row.created_at)}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             )}
                                         </td>
                                         
@@ -364,7 +383,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                             {isEditing ? (
                                                 <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-24 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-2 py-1.5 cursor-not-allowed font-black text-xs" title="O valor calcula sozinho" />
                                             ) : (
-                                                formatMoney(row.valor) // Exibição Visual (P1)
+                                                formatMoney(row.valor)
                                             )}
                                         </td>
 

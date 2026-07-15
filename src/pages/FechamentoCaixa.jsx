@@ -14,7 +14,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const [confVendedor, setConfVendedor] = useState('TODOS');
     const [confUnidade, setConfUnidade] = useState('TODOS'); 
 
-    // Estados da Aba 2 (Comissões) e Aba 4 (Auditoria) - Filtros de Data Compartilhados/Clonados
+    // Estados da Aba 2 (Comissões) e Aba 4 (Auditoria) - Filtros de Data Compartilhados
     const [tipoFiltroAvancado, setTipoFiltroAvancado] = useState('mes'); // 'mes', 'periodo', 'dia'
     const [filtroMes, setFiltroMes] = useState(new Date().getMonth() + 1 < 10 ? `0${new Date().getMonth() + 1}` : `${new Date().getMonth() + 1}`);
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -27,14 +27,15 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     // -----------------------------------------------------
-    // 2. FUNÇÕES AUXILIARES
+    // 2. FUNÇÕES AUXILIARES DE FORMATAÇÃO (P1)
     // -----------------------------------------------------
-    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-    const parseCurrency = (str) => parseFloat(str?.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
-    const parseDateToISO = (ptBRDate) => {
-        if (!ptBRDate) return '';
-        const [d, m, y] = ptBRDate.split('/');
-        return `${y}-${m}-${d}`;
+    const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
+    
+    const formatDataBR = (dataIso) => {
+        if (!dataIso) return '';
+        const partes = dataIso.split('-');
+        if (partes.length !== 3) return dataIso;
+        return `${partes[2]}/${partes[1]}/${partes[0]}`; // Formata YYYY-MM-DD para DD/MM/YYYY em tela
     };
 
     const formatarDataHora = (isoString) => {
@@ -47,11 +48,11 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         if (window.lucide) window.lucide.createIcons();
     }, [subAba, vendas, confProduto, confVendedor, confUnidade, tipoFiltroAvancado, usuarioLogado]);
 
-    // Listas Universais
+    // Listas Universais - Adaptadas para leitura do formato nativo YYYY-MM-DD (índice 0)
     const produtosUnicos = ['TODOS', ...new Set(vendas.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(vendas.map(v => v.vendedor))].filter(Boolean);
     const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean); 
-    const anosUnicos = [...new Set(vendas.map(v => v.data?.split('/')[2]))].filter(Boolean).sort((a,b) => b-a);
+    const anosUnicos = [...new Set(vendas.map(v => v.data?.split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
 
     const mesesLista = [
@@ -74,15 +75,14 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         
         let passData = true;
         if (confDataInicio || confDataFim) {
-            const isoData = parseDateToISO(v.data);
-            if (confDataInicio && isoData < confDataInicio) passData = false;
-            if (confDataFim && isoData > confDataFim) passData = false;
+            if (confDataInicio && v.data < confDataInicio) passData = false;
+            if (confDataFim && v.data > confDataFim) passData = false;
         }
 
         return passProduto && passVendedor && passData;
     });
 
-    const valorTotalAConferir = vendasParaConferencia.reduce((acc, v) => acc + parseCurrency(v.valor), 0);
+    const valorTotalAConferir = vendasParaConferencia.reduce((acc, v) => acc + (Number(v.valor) || 0), 0);
 
     const toggleConferido = async (id, statusAtual) => {
         const novoStatus = !statusAtual;
@@ -117,20 +117,19 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     };
 
     // -----------------------------------------------------
-    // 4. LÓGICA DA ABA 2: COMISSÕES E ABA 4: AUDITORIA (MOTOR DE DATA)
+    // 4. LÓGICA DA ABA 2: COMISSÕES E ABA 4: AUDITORIA (MOTOR DE DATA COMPATÍVEL P1)
     // -----------------------------------------------------
     const getVendasFiltradasDataAvancada = () => {
         return vendas.filter(v => {
             if (!v.data) return false;
-            const isoDataVenda = parseDateToISO(v.data);
 
             if (tipoFiltroAvancado === 'dia') {
-                return isoDataVenda === filtroDia;
+                return v.data === filtroDia;
             } else if (tipoFiltroAvancado === 'mes') {
-                return v.data.endsWith(`${filtroMes}/${filtroAno}`);
+                return v.data.startsWith(`${filtroAno}-${filtroMes}`);
             } else {
-                if (dataInicialInput && isoDataVenda < dataInicialInput) return false;
-                if (dataFinalInput && isoDataVenda > dataFinalInput) return false;
+                if (dataInicialInput && v.data < dataInicialInput) return false;
+                if (dataFinalInput && v.data > dataFinalInput) return false;
                 return true;
             }
         });
@@ -150,7 +149,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const relatorioVendedores = {};
 
     vendasComissionadas.forEach(venda => {
-        const valorComissao = parseCurrency(venda.valor);
+        const valorComissao = Number(venda.valor) || 0;
         comissaoTotalGeral += valorComissao;
 
         if (!relatorioVendedores[venda.vendedor]) {
@@ -176,7 +175,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
 
     vendasDataAvancada.forEach(v => {
         const unid = v.unidade || 'MATRIZ';
-        // Se houver filtro de unidade isolada, aplica. Caso contrário, mostra todas.
         if (filtroUnidadeIsolada !== 'TODOS' && unid !== filtroUnidadeIsolada) return;
 
         if (!relatorioAuditoria[unid]) {
@@ -195,12 +193,11 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         }
     });
 
-    // Ordena mostrando primeiro quem tem mais pendências
     const dadosTabelaAuditoria = Object.values(relatorioAuditoria).sort((a, b) => b.pendentes - a.pendentes);
 
 
     // -----------------------------------------------------
-    // 5. LÓGICA DA ABA 3: GERAL DE COMISSÕES (C-LEVEL DASHBOARD)
+    // 5. LÓGICA DA ABA 3: GERAL DE COMISSÕES (MENSAL SINCRO P1)
     // -----------------------------------------------------
     const getUltimos6Meses = () => {
         const mesesH = [];
@@ -224,8 +221,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         const vendasDaUnidade = vendas.filter(v => v.unidade === unidade && v.conferiu);
         const historico = ultimos6Meses.map(m => {
             const totalDoMes = vendasDaUnidade
-                .filter(v => v.data?.endsWith(m.label))
-                .reduce((acc, v) => acc + parseCurrency(v.valor), 0);
+                .filter(v => v.data?.startsWith(`${m.ano}-${m.mes}`)) // Mapeamento compatível YYYY-MM
+                .reduce((acc, v) => acc + (Number(v.valor) || 0), 0);
             return { label: m.label, total: totalDoMes };
         }).reverse(); 
 
@@ -235,14 +232,13 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
 
     const totalGeralRedeAtual = visaoGeralUnidades.reduce((acc, u) => acc + u.totalAtual, 0);
 
+    let colunasVisiveis = 10;
+    if (temVisaoGlobal) colunasVisiveis++;
 
-    // =========================================================================
-    // COMPONENTE VISUAL - RENDER
-    // =========================================================================
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto">
             
-            {/* CABEÇALHO E SELETOR DE SUB-ABAS */}
+            {/* SELETOR DE SUB-ABAS */}
             <div className="bg-white rounded-[24px] shadow-sm border border-slate-200 p-6 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="flex items-center gap-4">
                     <div className={`p-4 rounded-2xl shadow-inner border ${subAba === 'geral' ? 'bg-violet-50 text-violet-600 border-violet-100' : subAba === 'auditoria' ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'}`}>
@@ -264,7 +260,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                     <button onClick={() => setSubAba('geral')} className={`flex-1 md:w-36 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'geral' ? 'bg-white shadow-sm text-violet-600 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
                         <i data-lucide="bar-chart-2" className="w-3.5 h-3.5"></i> Visão Geral
                     </button>
-                    
                     {temVisaoGlobal && (
                         <button onClick={() => setSubAba('auditoria')} className={`flex-1 md:w-36 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'auditoria' ? 'bg-white shadow-sm text-rose-600 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
                             <i data-lucide="shield-alert" className="w-3.5 h-3.5"></i> Auditoria
@@ -273,15 +268,11 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             </div>
 
-            {/* ========================================================================= */}
             {/* SUB-ABA 1: CONFERÊNCIA DE VENDAS */}
-            {/* ========================================================================= */}
             {subAba === 'conferencia' && (
                 <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-                    
                     <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
                         <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
-                            
                             <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 w-full xl:w-auto flex-1 ${temVisaoGlobal ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Data Início</label>
@@ -303,7 +294,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                         {produtosUnicos.map(p => <option key={p} value={p}>{p}</option>)}
                                     </select>
                                 </div>
-
                                 {temVisaoGlobal && (
                                     <div className="animate-[fadeIn_0.3s_ease-out]">
                                         <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1.5 ml-1">Unidade Ref.</label>
@@ -319,14 +309,12 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                     <span className="text-[10px] font-black text-indigo-500 uppercase tracking-widest">Valor a ser conferido</span>
                                     <span className="text-3xl font-black text-indigo-700 tracking-tight leading-none mt-1">{formatMoney(valorTotalAConferir)}</span>
                                 </div>
-                                
                                 {usuarioLogado?.role === 'ADMIN' && (
                                     <button onClick={marcarTodosConferidos} disabled={vendasParaConferencia.length === 0} className="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest px-6 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2">
                                         <i data-lucide="check-square" className="w-4 h-4"></i> Conferir Tudo
                                     </button>
                                 )}
                             </div>
-
                         </div>
                     </div>
                     
@@ -351,14 +339,14 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                 <tbody className="divide-y divide-slate-100 bg-white">
                                     {vendasParaConferencia.length > 0 ? vendasParaConferencia.map((v) => (
                                         <tr key={v.id} className={`transition-colors ${v.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
-                                            <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">{v.data}</td>
+                                            <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">{formatDataBR(v.data)}</td>
                                             {temVisaoGlobal && <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/5 whitespace-nowrap uppercase align-middle">{v.unidade || 'MATRIZ'}</td>}
                                             <td className="px-5 py-4 text-xs font-bold text-slate-700 align-middle">{v.matricula || '-'}</td>
                                             <td className="px-5 py-4 text-xs text-slate-800 font-black uppercase align-middle max-w-[150px] truncate" title={v.nome_aluno || v.nome}>{v.nome_aluno || v.nome}</td>
                                             <td className="px-5 py-4 text-xs font-bold text-indigo-600 uppercase align-middle">{v.produto}</td>
                                             <td className="px-5 py-4 text-xs font-bold text-slate-600 uppercase align-middle">{v.vendedor}</td>
                                             <td className="px-5 py-4 text-xs font-black text-slate-700 text-center align-middle">{v.quantidade}</td>
-                                            <td className="px-5 py-4 text-xs font-black text-slate-800 text-right whitespace-nowrap align-middle">{v.valor}</td>
+                                            <td className="px-5 py-4 text-xs font-black text-slate-800 text-right whitespace-nowrap align-middle">{formatMoney(v.valor)}</td>
                                             <td className="px-5 py-2 align-middle">
                                                 <input 
                                                     type="text"
@@ -387,7 +375,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                             </td>
                                         </tr>
                                     )) : (
-                                        <tr><td colSpan={temVisaoGlobal ? "11" : "10"} className="text-center py-16 text-slate-400 text-[10px] font-bold uppercase tracking-widest">Nenhuma venda encontrada no filtro.</td></tr>
+                                        <tr><td colSpan={colunasVisiveis} className="text-center py-16 text-slate-400 text-[10px] font-bold uppercase tracking-widest">Nenhuma venda encontrada no filtro.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -396,14 +384,10 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             )}
 
-
-            {/* ========================================================================= */}
-            {/* COMPARTILHADO: FILTROS DE DATA AVANÇADOS (P/ COMISSÃO E AUDITORIA) */}
-            {/* ========================================================================= */}
+            {/* COMPARTILHADO: FILTROS DE DATA AVANÇADOS */}
             {(subAba === 'comissoes' || subAba === 'auditoria') && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 animate-[fadeIn_0.3s_ease-out]">
                     <div className="flex flex-col xl:flex-row justify-between items-start gap-8">
-                        
                         <div className="flex-1 w-full">
                             <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner w-fit mb-6">
                                 <button onClick={() => setTipoFiltroAvancado('mes')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 ${tipoFiltroAvancado === 'mes' ? 'bg-white shadow-sm text-slate-800 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}>
@@ -466,7 +450,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                             </div>
                         </div>
 
-                        {/* WIDGETS DINÂMICOS DEPENDENDO DA ABA */}
                         {subAba === 'comissoes' && (
                             <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-2xl flex flex-col items-end w-full xl:w-auto shadow-sm">
                                 <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest flex items-center gap-1.5"><i data-lucide="check-circle" className="w-3.5 h-3.5"></i> Pagamento Aprovado</span>
@@ -490,15 +473,11 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                 </div>
                             </div>
                         )}
-
                     </div>
                 </div>
             )}
 
-
-            {/* ========================================================================= */}
-            {/* SUB-ABA 2: COMISSÕES CONFERIDAS (TABELA) */}
-            {/* ========================================================================= */}
+            {/* SUB-ABA 2: COMISSÕES CONFERIDAS */}
             {subAba === 'comissoes' && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.3s_ease-out]">
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -549,10 +528,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             )}
 
-
-            {/* ========================================================================= */}
-            {/* SUB-ABA 4: AUDITORIA (C-LEVEL / MENTORES) */}
-            {/* ========================================================================= */}
+            {/* SUB-ABA 4: AUDITORIA */}
             {subAba === 'auditoria' && temVisaoGlobal && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.3s_ease-out]">
                     <div className="p-6 border-b border-slate-100 bg-rose-50/30 flex justify-between items-center">
@@ -587,15 +563,9 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                                                 </div>
                                                 {row.unidade}
                                             </td>
-                                            <td className="px-8 py-5 text-sm font-black text-slate-600 text-center">
-                                                {row.registrados}
-                                            </td>
-                                            <td className="px-8 py-5 text-sm font-black text-emerald-600 bg-emerald-50/10 text-center">
-                                                {row.conferidos}
-                                            </td>
-                                            <td className="px-8 py-5 text-sm font-black text-rose-600 bg-rose-50/10 text-center">
-                                                {row.pendentes}
-                                            </td>
+                                            <td className="px-8 py-5 text-sm font-black text-slate-600 text-center">{row.registrados}</td>
+                                            <td className="px-8 py-5 text-sm font-black text-emerald-600 bg-emerald-50/10 text-center">{row.conferidos}</td>
+                                            <td className="px-8 py-5 text-sm font-black text-rose-600 bg-rose-50/10 text-center">{row.pendentes}</td>
                                             <td className="px-8 py-5">
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-full bg-slate-100 rounded-full h-2.5 shadow-inner overflow-hidden flex">
@@ -619,13 +589,9 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             )}
 
-
-            {/* ========================================================================= */}
-            {/* SUB-ABA 3: GERAL DE COMISSÕES (C-LEVEL DASHBOARD) */}
-            {/* ========================================================================= */}
+            {/* SUB-ABA 3: GERAL DE COMISSÕES */}
             {subAba === 'geral' && (
                 <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-                    
                     <div className="bg-violet-600 rounded-[24px] shadow-lg p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
                         <div className="absolute bottom-0 right-32 w-40 h-40 bg-black opacity-10 rounded-full blur-2xl -mb-10 pointer-events-none"></div>
