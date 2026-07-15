@@ -19,7 +19,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
 
     // ==========================================
-    // TRADUTORES UNIVERSAIS E FORMATAÇÃO
+    // TRADUTORES UNIVERSAIS (BLINDAGEM CONTRA DADOS ANTIGOS)
     // ==========================================
     const safeNumber = (val) => {
         if (typeof val === 'number') return val;
@@ -51,7 +51,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         return dStr;
     };
 
-    // NOVO: Extrator de Hora do Supabase (Para a Auditoria de Lançamento)
+    // Extrai o horário exato da criação da venda no banco (Para a Auditoria)
     const extrairHoraCriacao = (isoString) => {
         if (!isoString) return '';
         const dataObj = new Date(isoString);
@@ -315,7 +315,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                 return (
                                     <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                                         
-                                        {/* COLUNA DE DATA COM AUDITORIA DE HORA */}
+                                        {/* COLUNA DE DATA COM O NOME DE QUEM LANÇOU! */}
                                         <td className="px-6 py-4 align-middle">
                                             {isEditing ? (
                                                 <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
@@ -323,9 +323,11 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                                 <div>
                                                     <p className="text-xs font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data)}</p>
                                                     {row.created_at && (
-                                                        <div className="flex items-center gap-1 mt-1 text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-100 w-max" title="Horário exato em que o registro foi criado no sistema">
-                                                            <i data-lucide="clock" className="w-2.5 h-2.5"></i>
-                                                            <span className="text-[9px] font-bold uppercase tracking-wider">{extrairHoraCriacao(row.created_at)}</span>
+                                                        <div className="flex items-center gap-1.5 mt-1 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 w-max" title="Quem lançou e horário">
+                                                            <i data-lucide="user-edit" className="w-3 h-3 text-blue-500"></i>
+                                                            <span className="text-[9px] font-black uppercase tracking-widest">
+                                                                {row.criado_por ? row.criado_por.split(' ')[0] : 'SISTEMA'} • {extrairHoraCriacao(row.created_at)}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
