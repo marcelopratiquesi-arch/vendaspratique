@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
 
-const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos = [], produtos = [], colaboradores = [] }) => {
+const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos = [], produtos = [], servicos = [], colaboradores = [] }) => {
     
     // ==========================================
     // TRADUTORES UNIVERSAIS (BLINDAGEM DE DADOS)
@@ -67,7 +67,8 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                     updatedItem.valor = 'R$ 0,00';
                 } 
                 else if (field === 'nomeItem') {
-                    const listaRef = updatedItem.tipo === 'plano' ? planos : produtos;
+                    // Direciona a busca para a lista correta (planos, produtos ou servicos)
+                    const listaRef = updatedItem.tipo === 'plano' ? planos : (updatedItem.tipo === 'produto' ? produtos : servicos);
                     const selecionado = listaRef.find(x => x.nome === value) || { valor: 0 };
                     
                     const precoNumericoLimpo = safeNumber(selecionado.valor); 
@@ -110,7 +111,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
 
         const itensValidos = itensForm.filter(item => item.nomeItem !== '' && item.tipo !== '');
         if (itensValidos.length === 0) {
-            alert('Por favor, adicione pelo menos um Plano ou Produto válido.');
+            alert('Por favor, adicione pelo menos um Plano, Produto ou Serviço válido.');
             return;
         }
 
@@ -248,12 +249,14 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                             {item.tipo === 'plano' && <i data-lucide="book-open" className="w-3.5 h-3.5 text-blue-500"></i>}
                                             {item.tipo === 'produto' && <i data-lucide="box" className="w-3.5 h-3.5 text-amber-500"></i>}
+                                            {item.tipo === 'servico' && <i data-lucide="briefcase" className="w-3.5 h-3.5 text-violet-500"></i>}
                                             {item.tipo === '' && <i data-lucide="layout-grid" className="w-3.5 h-3.5 text-slate-400"></i>}
                                         </div>
                                         <select value={item.tipo} onChange={(e) => handleItemChange(item.id, 'tipo', e.target.value)} required className={`w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none cursor-pointer ${item.tipo === '' ? 'text-slate-400' : 'text-slate-800'}`}>
                                             <option value="" disabled hidden>Selecione...</option>
                                             <option value="plano">Assinatura / Plano</option>
                                             <option value="produto">Produto / Complemento</option>
+                                            <option value="servico">Serviços (Diária, Reavaliação)</option>
                                         </select>
                                     </div>
                                 </div>
@@ -270,6 +273,7 @@ const LancamentoVendas = ({ usuarioLogado, unidades = [], onAddMultiple, planos 
                                         <option value="" disabled hidden>{!item.tipo ? 'Aguarde categoria...' : 'Selecione no catálogo...'}</option>
                                         {item.tipo === 'plano' && planos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                                         {item.tipo === 'produto' && produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                                        {item.tipo === 'servico' && servicos.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                     </select>
                                 </div>
                                 

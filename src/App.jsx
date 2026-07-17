@@ -27,6 +27,7 @@ export default function App() {
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
     const [planos, setPlanos] = useState([]);
     const [produtos, setProdutos] = useState([]);
+    const [servicos, setServicos] = useState([]); // <-- ADICIONADO: Gaveta de Serviços
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
 
@@ -66,6 +67,7 @@ export default function App() {
                 if (isMounted && cat) {
                     setPlanos(cat.filter(item => item.tipo === 'plano'));
                     setProdutos(cat.filter(item => item.tipo === 'produto'));
+                    setServicos(cat.filter(item => item.tipo === 'servico')); // <-- ADICIONADO: Separa os serviços
                 }
 
                 // 4. Puxar Histórico de Vendas
@@ -287,6 +289,7 @@ export default function App() {
                         onAddMultiple={handleAddLancamentos} 
                         planos={planos} 
                         produtos={produtos} 
+                        servicos={servicos} // <-- ADICIONADO AQUI! Passando para o componente!
                         colaboradores={colaboradores} 
                     />
                 )}
