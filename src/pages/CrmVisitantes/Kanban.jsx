@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { formatarDataHora, STATUS_TOKENS, COLUNAS } from './utils';
-import { PhoneCall, MessageCircle, CalendarClock, IdCard, Inbox, Archive } from 'lucide-react';
+import { PhoneCall, MessageCircle, CalendarClock, IdCard, Inbox, Archive, Send } from 'lucide-react';
 
 const Kanban = ({ 
     visitantes, 
@@ -11,6 +11,8 @@ const Kanban = ({
     carregarHistoricoLead,
     registrarHistorico
 }) => {
+    // Estado local para gerenciar as "Notas Rápidas" de cada Card
+    const [notasRapidas, setNotasRapidas] = useState({});
 
     // ==========================================
     // AÇÕES EXCLUSIVAS DO KANBAN
@@ -21,7 +23,6 @@ const Kanban = ({
     };
 
     const abrirModalWpp = (lead) => {
-        // Pega a mensagem baseada no status ATUAL da fase (utils)
         import('./utils').then(module => {
             const textoPadrao = module.gerarTextoWhatsApp(lead);
             setModalWpp({ show: true, lead: lead, texto: textoPadrao });
@@ -31,6 +32,17 @@ const Kanban = ({
     const abrirFichaLead = (lead) => {
         setModalDetalhe({ show: true, lead: lead });
         carregarHistoricoLead(lead.id);
+    };
+
+    // A MÁGICA 2: Função que salva a nota rápida e limpa a caixinha
+    const handleAddNotaRapida = async (lead) => {
+        const nota = notasRapidas[lead.id];
+        if (!nota?.trim()) return;
+        
+        await registrarHistorico(lead.id, 'Observação', nota);
+        
+        setNotasRapidas(prev => ({ ...prev, [lead.id]: '' }));
+        alert("Nota rápida salva no histórico com sucesso!");
     };
 
     // ==========================================
@@ -76,7 +88,7 @@ const Kanban = ({
                                             </span>
                                         </div>
                                         
-                                        {/* BOTÃO ARQUIVAR (Substituiu a Lixeira) */}
+                                        {/* BOTÃO ARQUIVAR */}
                                         <button 
                                             onClick={() => deletarLead(v.id)} 
                                             className="absolute top-0 right-0 p-1.5 text-slate-300 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
@@ -104,19 +116,45 @@ const Kanban = ({
                                         </div>
                                     </div>
 
-                                    {/* RODAPÉ: BOTÕES E MUDANÇA DE STATUS */}
-                                    <div className="flex items-center gap-2 pt-3 border-t border-slate-100 mt-auto flex-wrap relative z-10">
-                                        <button onClick={() => handleLigarMicroSip(v)} className="flex-1 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-blue-200 transition-colors text-[9px] font-black uppercase tracking-widest" title="Ligar via MicroSIP">
-                                            <PhoneCall className="w-3.5 h-3.5" /> Ligar
-                                        </button>
+                                    {/* RODAPÉ: BOTÕES, STATUS E OBSERVAÇÃO RÁPIDA */}
+                                    <div className="flex flex-col gap-2 pt-3 border-t border-slate-100 mt-auto relative z-10">
                                         
-                                        <button type="button" onClick={() => abrirModalWpp(v)} className="flex-1 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-emerald-200 transition-colors text-[9px] font-black uppercase tracking-widest">
-                                            <MessageCircle className="w-3.5 h-3.5" /> Whats
-                                        </button>
-                                        
-                                        <select value={v.status} onChange={(e) => alterarStatus(v.id, e.target.value)} className="w-full mt-2 text-[9px] font-black uppercase tracking-widest text-slate-600 border border-slate-200 rounded-lg h-8 px-1.5 bg-slate-50 hover:bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors outline-none">
+                                        {/* Botões de Ação */}
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleLigarMicroSip(v)} className="flex-1 py-2 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-blue-200 transition-colors text-[9px] font-black uppercase tracking-widest" title="Ligar via MicroSIP">
+                                                <PhoneCall className="w-3.5 h-3.5" /> Ligar
+                                            </button>
+                                            
+                                            <button type="button" onClick={() => abrirModalWpp(v)} className="flex-1 py-2 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-emerald-200 transition-colors text-[9px] font-black uppercase tracking-widest">
+                                                <MessageCircle className="w-3.5 h-3.5" /> Whats
+                                            </button>
+                                        </div>
+
+                                        {/* Dropdown de Status */}
+                                        <select value={v.status} onChange={(e) => alterarStatus(v.id, e.target.value)} className="w-full text-[9px] font-black uppercase tracking-widest text-slate-600 border border-slate-200 rounded-lg h-8 px-1.5 bg-slate-50 hover:bg-white focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors outline-none">
                                             {COLUNAS.map(c => <option key={c} value={c}>Mover: {c}</option>)}
                                         </select>
+
+                                        {/* Campo de Observação Rápida */}
+                                        <div className="w-full mt-1 flex items-center gap-1.5">
+                                            <input 
+                                                type="text" 
+                                                placeholder="Nota rápida..."
+                                                value={notasRapidas[v.id] || ''}
+                                                onChange={(e) => setNotasRapidas({...notasRapidas, [v.id]: e.target.value})}
+                                                onKeyDown={(e) => { if(e.key === 'Enter') handleAddNotaRapida(v) }}
+                                                className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[10px] font-medium text-slate-700 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none"
+                                            />
+                                            <button 
+                                                onClick={() => handleAddNotaRapida(v)}
+                                                disabled={!notasRapidas[v.id]?.trim()}
+                                                className="p-1.5 bg-slate-100 text-slate-500 hover:bg-blue-500 hover:text-white disabled:opacity-50 disabled:hover:bg-slate-100 disabled:hover:text-slate-500 rounded-lg transition-colors"
+                                                title="Salvar Nota Rápida"
+                                            >
+                                                <Send className="w-3 h-3" />
+                                            </button>
+                                        </div>
+
                                     </div>
                                 </div>
                             ))}

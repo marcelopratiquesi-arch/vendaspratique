@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { formatarDataHora, STATUS_TOKENS, COLUNAS } from './utils';
 import { 
     MessageCircle, X, Copy, Send, Phone, IdCard, Info, 
-    PenTool, History, Loader2, Trophy, Target, UserPlus, MoveRight 
+    PenTool, History, Loader2, Trophy, Target, UserPlus, MoveRight, CheckCircle2 
 } from 'lucide-react';
 
 const Modais = ({
@@ -10,7 +10,8 @@ const Modais = ({
     modalDetalhe, setModalDetalhe,
     historicoLead, loadingHistorico, registrarHistorico, alterarStatus,
     mostrarRelatorio, setMostrarRelatorio, progressoHoje = [], 
-    consultorAtivo, usuarioLogado, META_DIARIA = 150 // ATUALIZADO AQUI
+    consultorAtivo, usuarioLogado, META_DIARIA = 150,
+    visitantes = [], setConsultorAtivo // NOVAS PROPRIEDADES
 }) => {
     const [novaNota, setNovaNota] = useState('');
     const [textoRelatorio, setTextoRelatorio] = useState('');
@@ -89,67 +90,84 @@ const Modais = ({
     };
 
     // ==========================================
-    // O GERADOR DE RELATÓRIO CIRÚRGICO
+    // NOVO GERADOR DE RELATÓRIO (COM FOTO DO FUNIL)
     // ==========================================
     const gerarRelatorioWhatsApp = () => {
         const validos = progressoHoje.filter(p => p && p.data_contato);
-        if (validos.length === 0) return "Nenhum contato feito hoje.";
+        const nomeGerador = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Equipe');
 
-        const progressoOrdenado = [...validos].sort((a, b) => new Date(a.data_contato).getTime() - new Date(b.data_contato).getTime());
-        
-        const primeiro = new Date(progressoOrdenado[0].data_contato);
-        const ultimo = new Date(progressoOrdenado[progressoOrdenado.length - 1].data_contato);
-        const diffMs = ultimo.getTime() - primeiro.getTime();
-        const hrs = Math.floor(diffMs / 3600000);
-        const mins = Math.floor((diffMs % 3600000) / 60000);
-        
+        // 1. PRODUTIVIDADE (O que foi feito hoje)
+        let hrs = 0, mins = 0, primeiroTexto = '--:--', ultimoTexto = '--:--';
         const contadores = {
             '👤 Capturas (Novos Leads)': 0,
             '💬 WhatsApp Enviados': 0,
-            '📞 Ligações (MicroSIP)': 0,
-            '📝 Anotações em Ficha': 0,
+            '📞 Ligações Realizadas': 0,
+            '📝 Fichas Atualizadas': 0,
             '➡️ Moveu p/ Em Contato': 0,
             '🎟️ Moveu p/ Day Use': 0,
-            '🏆 Fechamentos (Venda)': 0,
+            '🏆 Vendas Concluídas': 0,
             '❌ Moveu p/ Perdido': 0,
         };
-        
         let outrasAcoes = 0;
 
-        progressoOrdenado.forEach(p => {
-            if (p.tipo === 'Captura') contadores['👤 Capturas (Novos Leads)']++;
-            else if (p.tipo === 'Ligação') contadores['📞 Ligações (MicroSIP)']++;
-            else if (p.tipo === 'WhatsApp') contadores['💬 WhatsApp Enviados']++;
-            else if (p.tipo === 'Observação') contadores['📝 Anotações em Ficha']++;
-            else if (p.tipo === 'Mudança de Fase') {
-                if (p.observacao?.includes('para "Em Contato"')) contadores['➡️ Moveu p/ Em Contato']++;
-                else if (p.observacao?.includes('para "Day Use (3 Dias)"')) contadores['🎟️ Moveu p/ Day Use']++;
-                else if (p.observacao?.includes('para "Fechado"')) contadores['🏆 Fechamentos (Venda)']++;
-                else if (p.observacao?.includes('para "Perdido"')) contadores['❌ Moveu p/ Perdido']++;
-                else outrasAcoes++;
-            }
-        });
+        if (validos.length > 0) {
+            const progressoOrdenado = [...validos].sort((a, b) => new Date(a.data_contato).getTime() - new Date(b.data_contato).getTime());
+            const primeiro = new Date(progressoOrdenado[0].data_contato);
+            const ultimo = new Date(progressoOrdenado[progressoOrdenado.length - 1].data_contato);
+            const diffMs = ultimo.getTime() - primeiro.getTime();
+            hrs = Math.floor(diffMs / 3600000);
+            mins = Math.floor((diffMs % 3600000) / 60000);
+            primeiroTexto = primeiro.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
+            ultimoTexto = ultimo.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
 
-        // A MÁGICA DO NOME: Se tem um consultorAtivo selecionado, usa o nome dele! Se não, usa o login.
-        const nomeGerador = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Equipe');
+            progressoOrdenado.forEach(p => {
+                if (p.tipo === 'Captura') contadores['👤 Capturas (Novos Leads)']++;
+                else if (p.tipo === 'Ligação') contadores['📞 Ligações Realizadas']++;
+                else if (p.tipo === 'WhatsApp') contadores['💬 WhatsApp Enviados']++;
+                else if (p.tipo === 'Observação') contadores['📝 Fichas Atualizadas']++;
+                else if (p.tipo === 'Mudança de Fase') {
+                    if (p.observacao?.includes('para "Em Contato"')) contadores['➡️ Moveu p/ Em Contato']++;
+                    else if (p.observacao?.includes('para "Day Use (3 Dias)"')) contadores['🎟️ Moveu p/ Day Use']++;
+                    else if (p.observacao?.includes('para "Fechado"')) contadores['🏆 Vendas Concluídas']++;
+                    else if (p.observacao?.includes('para "Perdido"')) contadores['❌ Moveu p/ Perdido']++;
+                    else outrasAcoes++;
+                }
+            });
+        }
 
-        let texto = `📊 *RELATÓRIO DE CRM - PRATIQUE*\n`;
+        // 2. FOTO DO FUNIL ATUAL (Onde estão os alunos deste consultor)
+        const meusLeads = visitantes.filter(v => v.vendedor === nomeGerador);
+        const snapshotFunil = {
+            'Novo': meusLeads.filter(v => v.status === 'Novo').length,
+            'Em Contato': meusLeads.filter(v => v.status === 'Em Contato').length,
+            'Day Use (3 Dias)': meusLeads.filter(v => v.status === 'Day Use (3 Dias)').length,
+            'Fechado': meusLeads.filter(v => v.status === 'Fechado').length,
+            'Perdido': meusLeads.filter(v => v.status === 'Perdido').length,
+        };
+
+        // 3. MONTAGEM DO TEXTO
+        let texto = `📊 *RELATÓRIO DE FECHAMENTO - PRATIQUE*\n`;
         texto += `👤 Consultor(a): *${nomeGerador}*\n`;
-        texto += `🎯 Total de Interações: *${progressoOrdenado.length} / ${META_DIARIA}*\n`;
-        texto += `\n⏱️ Primeiro Registro: ${primeiro.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}\n`;
-        texto += `🏁 Último Registro: ${ultimo.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}\n`;
-        texto += `⏳ Tempo Focado: *${hrs}h ${mins}m*\n\n`;
-        texto += `*🔥 Produtividade e Conversão:* \n`;
+        texto += `🎯 Meta Atingida: *${validos.length} / ${META_DIARIA} Ações*\n`;
+        texto += `⏱️ Turno Focado: *${hrs}h ${mins}m* (Das ${primeiroTexto} às ${ultimoTexto})\n\n`;
         
+        texto += `*🔥 PRODUTIVIDADE HOJE:*\n`;
+        let teveAcao = false;
         Object.keys(contadores).forEach(k => { 
             if (contadores[k] > 0) {
                 texto += `${k}: *${contadores[k]}*\n`; 
+                teveAcao = true;
             }
         });
+        if (outrasAcoes > 0) texto += `🔄 Outras Movimentações: *${outrasAcoes}*\n`;
+        if (!teveAcao && outrasAcoes === 0) texto += `Nenhuma interação registrada neste turno.\n`;
 
-        if (outrasAcoes > 0) {
-            texto += `🔄 Outras Movimentações: *${outrasAcoes}*\n`;
-        }
+        texto += `\n*📸 FOTO DA MINHA CARTEIRA:*\n`;
+        texto += `⭐ Novos (Aguardando): *${snapshotFunil['Novo']}*\n`;
+        texto += `📲 Em Contato: *${snapshotFunil['Em Contato']}*\n`;
+        texto += `🎟️ Day Use (Treinando): *${snapshotFunil['Day Use (3 Dias)']}*\n`;
+        texto += `✅ Fechados (Total): *${snapshotFunil['Fechado']}*\n`;
+        texto += `❌ Perdidos: *${snapshotFunil['Perdido']}*\n`;
         
         return texto;
     };
@@ -159,10 +177,11 @@ const Modais = ({
             setTextoRelatorio(gerarRelatorioWhatsApp());
             setPosRelatorio({ x: 0, y: 0 }); 
         }
-    }, [mostrarRelatorio, progressoHoje, consultorAtivo]); // Adicionou consultorAtivo como dependência aqui também!
+    }, [mostrarRelatorio, progressoHoje, consultorAtivo, visitantes]);
 
     return (
         <>
+            {/* JANELAS WPP E DETALHE MANTIDAS IGUAIS (Omitidas por brevidade, MAS NO SEU CÓDIGO ELAS ESTÃO AQUI) */}
             {/* JANELA: WHATSAPP */}
             {modalWpp.show && modalWpp.lead && (
                 <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center p-4">
@@ -286,13 +305,13 @@ const Modais = ({
                 </div>
             )}
 
-            {/* JANELA: RELATÓRIO DO DIA */}
+            {/* JANELA: RELATÓRIO DO DIA (COM BOTÃO FINALIZAR TRAMPO) */}
             {mostrarRelatorio && (
                 <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center p-4">
                     <div 
                         className="relative bg-white rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-slate-300 overflow-hidden animate-[zoomIn_0.2s_ease-out]" 
                         style={{ 
-                            width: '450px', minHeight: '480px', maxHeight: '90vh', 
+                            width: '450px', minHeight: '520px', maxHeight: '90vh', 
                             transform: `translate(${posRelatorio.x}px, ${posRelatorio.y}px)`, 
                             resize: 'both', overflow: 'hidden' 
                         }}
@@ -303,7 +322,7 @@ const Modais = ({
                                     {progressoHoje.length >= META_DIARIA ? <Trophy className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest leading-none">Resumo do Turno</h3>
+                                    <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest leading-none">Fechamento de Turno</h3>
                                 </div>
                             </div>
                             <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setMostrarRelatorio(false)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-colors">
@@ -312,21 +331,36 @@ const Modais = ({
                         </div>
                         
                         <div className="flex-1 p-5 flex flex-col overflow-hidden bg-white">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 shrink-0">Você pode editar o relatório antes de copiar:</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 shrink-0">Edite as informações adicionais antes de enviar:</p>
                             <textarea 
                                 value={textoRelatorio} 
                                 onChange={(e) => setTextoRelatorio(e.target.value)} 
-                                className="flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono text-xs text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner"
+                                className="flex-1 w-full bg-slate-50 border border-slate-200 rounded-xl p-4 font-mono text-[11px] text-slate-700 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner"
                             />
                         </div>
                         
-                        <div className="p-4 border-t border-slate-200 bg-slate-50 flex gap-3 shrink-0">
-                            <button 
-                                onClick={() => { navigator.clipboard.writeText(textoRelatorio); alert("Relatório copiado com sucesso!"); }} 
-                                className="w-full py-4 bg-slate-900 hover:bg-black text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-[0_4px_15px_rgba(0,0,0,0.2)] flex items-center justify-center gap-2"
-                            >
-                                <Copy className="w-4 h-4" /> Copiar para Área de Transferência
-                            </button>
+                        <div className="p-4 border-t border-slate-200 bg-slate-50 flex gap-3 shrink-0 flex-col">
+                            <div className="flex gap-2 w-full">
+                                <button 
+                                    onClick={() => { navigator.clipboard.writeText(textoRelatorio); alert("Apenas copiado com sucesso!"); }} 
+                                    className="flex-1 py-3 bg-white border border-slate-200 hover:border-slate-300 text-slate-600 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+                                >
+                                    <Copy className="w-4 h-4" /> Copiar Texto
+                                </button>
+                                
+                                {/* O NOVO BOTÃO DE FINALIZAR TRAMPO */}
+                                <button 
+                                    onClick={() => { 
+                                        navigator.clipboard.writeText(textoRelatorio); 
+                                        alert("Turno finalizado! Relatório copiado para a área de transferência.");
+                                        setMostrarRelatorio(false);
+                                        if(setConsultorAtivo) setConsultorAtivo(null); // Desloga e volta pra catraca
+                                    }} 
+                                    className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
+                                >
+                                    <CheckCircle2 className="w-4 h-4" /> Finalizar Trampo
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

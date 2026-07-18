@@ -23,26 +23,38 @@ export const formatarDataHora = (isoString) => {
     return `${data} às ${hora}`;
 };
 
+// ==========================================
+// GERADOR DE MENSAGENS INTELIGENTE
+// ==========================================
 export const gerarTextoWhatsApp = (lead) => {
     const nomeAluno = lead.nome ? lead.nome.trim().split(' ')[0] : 'Aluno';
-    let mensagem = `Olá ${nomeAluno}, tudo bem?`;
+    const isInativo = lead.tipo_lead === 'CANCELADO/INATIVO'; 
 
     if (lead.status === 'Novo') {
-        mensagem = `Olá ${nomeAluno}, tudo bem?`;
+        return isInativo 
+            ? `Olá ${nomeAluno}, sentimos sua falta aqui na Pratique! Tudo bem com você?`
+            : `Olá ${nomeAluno}, tudo bem? Vi que você tem interesse em treinar com a gente!`;
     } 
     else if (lead.status === 'Em Contato') {
-        mensagem = `${nomeAluno}, Vem pra PRATIQUE!\n\nVOCÊ GANHOU UM DAY USE DE 3 DIAS\n\n🏋️‍♂️ 3 dias grátis para TREINAR\n📊 01 Exame de Bioimpedância\n💪 01 Montagem de treino \n✅Frequência premiada\n\n🚫 Sem pegadinha, só vir treinar`;
+        return isInativo
+            ? `${nomeAluno}, a Pratique mudou e melhorou muito o atendimento! Queremos que você volte para conhecer nossa nova estrutura. 🚀\n\nLiberamos um DAY USE de 3 dias para você testar tudo na prática.\n\nE agora o nosso plano está super simples e fácil de voltar:\n✅ ZERO taxa de matrícula\n✅ SEM fidelidade\n✅ NÃO ocupa o limite do seu cartão\n\nBora treinar hoje?`
+            : `${nomeAluno}, Vem pra PRATIQUE!\n\nVOCÊ GANHOU UM DAY USE DE 3 DIAS\n\n🏋️‍♂️ 3 dias grátis para TREINAR\n📊 01 Exame de Bioimpedância\n💪 01 Montagem de treino \n✅ Frequência premiada\n\n🚫 Sem pegadinha, só vir treinar!`;
     } 
     else if (lead.status === 'Day Use (3 Dias)') {
-        mensagem = `E aí ${nomeAluno}, curtindo os treinos? ...`;
+        return isInativo
+            ? `E aí ${nomeAluno}, o que achou das melhorias na nossa estrutura e no atendimento? Bora oficializar esse retorno?`
+            : `E aí ${nomeAluno}, curtindo os treinos? O que está achando da nossa estrutura?`;
     } 
     else if (lead.status === 'Fechado') {
-        mensagem = `Parabéns ${nomeAluno}, seja muito bem-vindo(a) à família Pratique! Que bom ter você com a gente!`;
+        return isInativo
+            ? `Que bom ter você de volta, ${nomeAluno}! A família Pratique estava com saudades de ver você quebrando tudo nos treinos!`
+            : `Parabéns ${nomeAluno}, seja muito bem-vindo(a) à família Pratique! Que bom ter você com a gente!`;
     } 
     else if (lead.status === 'Perdido') {
-        mensagem = `Poxa ${nomeAluno}, que pena! Mas nossas portas estão sempre abertas para quando você quiser focar na sua saúde. Um abraço!`;
+        return `Poxa ${nomeAluno}, que pena! Mas nossas portas estão sempre abertas para quando você quiser focar na sua saúde. Um abraço de toda a equipe!`;
     }
-    return mensagem;
+    
+    return `Olá ${nomeAluno}, tudo bem?`;
 };
 
 // Configurações Globais do Funil
