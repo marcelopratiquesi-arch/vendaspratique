@@ -9,7 +9,8 @@ const Modais = ({
     modalWpp, setModalWpp,
     modalDetalhe, setModalDetalhe,
     historicoLead, loadingHistorico, registrarHistorico, alterarStatus,
-    mostrarRelatorio, setMostrarRelatorio, progressoHoje = [], usuarioLogado, META_DIARIA = 150
+    mostrarRelatorio, setMostrarRelatorio, progressoHoje = [], 
+    consultorAtivo, usuarioLogado, META_DIARIA = 150 // ATUALIZADO AQUI
 }) => {
     const [novaNota, setNovaNota] = useState('');
     const [textoRelatorio, setTextoRelatorio] = useState('');
@@ -19,7 +20,7 @@ const Modais = ({
     }, [modalWpp.show, modalDetalhe.show, historicoLead, mostrarRelatorio]);
 
     // ==========================================
-    // SISTEMA DE DRAG & DROP: WHATSAPP
+    // DRAG & DROP
     // ==========================================
     const [posWpp, setPosWpp] = useState({ x: 0, y: 0 });
     const [isDraggingWpp, setIsDraggingWpp] = useState(false);
@@ -37,9 +38,6 @@ const Modais = ({
 
     const handleMouseDownWpp = (e) => { setIsDraggingWpp(true); dragInfoWpp.current = { startX: e.clientX, startY: e.clientY, initialX: posWpp.x, initialY: posWpp.y }; };
 
-    // ==========================================
-    // SISTEMA DE DRAG & DROP: FICHA DO LEAD
-    // ==========================================
     const [posDetalhe, setPosDetalhe] = useState({ x: 0, y: 0 });
     const [isDraggingDetalhe, setIsDraggingDetalhe] = useState(false);
     const dragInfoDetalhe = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
@@ -56,9 +54,6 @@ const Modais = ({
 
     const handleMouseDownDetalhe = (e) => { setIsDraggingDetalhe(true); dragInfoDetalhe.current = { startX: e.clientX, startY: e.clientY, initialX: posDetalhe.x, initialY: posDetalhe.y }; };
 
-    // ==========================================
-    // SISTEMA DE DRAG & DROP: RELATÓRIO
-    // ==========================================
     const [posRelatorio, setPosRelatorio] = useState({ x: 0, y: 0 });
     const [isDraggingRelatorio, setIsDraggingRelatorio] = useState(false);
     const dragInfoRelatorio = useRef({ startX: 0, startY: 0, initialX: 0, initialY: 0 });
@@ -108,7 +103,6 @@ const Modais = ({
         const hrs = Math.floor(diffMs / 3600000);
         const mins = Math.floor((diffMs % 3600000) / 60000);
         
-        // Dicionário com Emojis Bonitos para a Liderança
         const contadores = {
             '👤 Capturas (Novos Leads)': 0,
             '💬 WhatsApp Enviados': 0,
@@ -128,7 +122,6 @@ const Modais = ({
             else if (p.tipo === 'WhatsApp') contadores['💬 WhatsApp Enviados']++;
             else if (p.tipo === 'Observação') contadores['📝 Anotações em Ficha']++;
             else if (p.tipo === 'Mudança de Fase') {
-                // Lendo a observação para descobrir o destino exato!
                 if (p.observacao?.includes('para "Em Contato"')) contadores['➡️ Moveu p/ Em Contato']++;
                 else if (p.observacao?.includes('para "Day Use (3 Dias)"')) contadores['🎟️ Moveu p/ Day Use']++;
                 else if (p.observacao?.includes('para "Fechado"')) contadores['🏆 Fechamentos (Venda)']++;
@@ -137,8 +130,11 @@ const Modais = ({
             }
         });
 
+        // A MÁGICA DO NOME: Se tem um consultorAtivo selecionado, usa o nome dele! Se não, usa o login.
+        const nomeGerador = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Equipe');
+
         let texto = `📊 *RELATÓRIO DE CRM - PRATIQUE*\n`;
-        texto += `👤 Consultor(a): *${usuarioLogado?.nome || 'Equipe'}*\n`;
+        texto += `👤 Consultor(a): *${nomeGerador}*\n`;
         texto += `🎯 Total de Interações: *${progressoOrdenado.length} / ${META_DIARIA}*\n`;
         texto += `\n⏱️ Primeiro Registro: ${primeiro.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}\n`;
         texto += `🏁 Último Registro: ${ultimo.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}\n`;
@@ -158,13 +154,12 @@ const Modais = ({
         return texto;
     };
 
-    // Atualiza o texto do relatório editável sempre que abrir o modal
     useEffect(() => {
         if (mostrarRelatorio) {
             setTextoRelatorio(gerarRelatorioWhatsApp());
-            setPosRelatorio({ x: 0, y: 0 }); // Centraliza ao abrir
+            setPosRelatorio({ x: 0, y: 0 }); 
         }
-    }, [mostrarRelatorio, progressoHoje]);
+    }, [mostrarRelatorio, progressoHoje, consultorAtivo]); // Adicionou consultorAtivo como dependência aqui também!
 
     return (
         <>
@@ -291,7 +286,7 @@ const Modais = ({
                 </div>
             )}
 
-            {/* JANELA: RELATÓRIO DO DIA (AGORA DETALHADO) */}
+            {/* JANELA: RELATÓRIO DO DIA */}
             {mostrarRelatorio && (
                 <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center p-4">
                     <div 

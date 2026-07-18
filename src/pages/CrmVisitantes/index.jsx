@@ -20,22 +20,36 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     const [loadingHistorico, setLoadingHistorico] = useState(false);
 
     // ==========================================
+    // IDENTIFICAÇÃO DO OPERADOR (RECEPÇÃO)
+    // ==========================================
+    const [consultorAtivo, setConsultorAtivo] = useState(null);
+
+    // ==========================================
     // GAMIFICAÇÃO & PRODUTIVIDADE (RELATÓRIO DIÁRIO)
     // ==========================================
     const META_DIARIA = 150; 
     const [progressoHoje, setProgressoHoje] = useState([]);
     const [mostrarRelatorio, setMostrarRelatorio] = useState(false);
 
+    // Carrega o progresso correto dependendo de quem está operando
     useEffect(() => {
+        if (usuarioLogado?.role === 'RECEPCAO' && !consultorAtivo) return;
+
         const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-        const chaveLocal = `crm_meta_${usuarioLogado?.nome}_${dataHoje}`;
+        const nomeOperador = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
+        const chaveLocal = `crm_meta_${nomeOperador}_${dataHoje}`;
+        
         const salvo = localStorage.getItem(chaveLocal);
-        if (salvo) setProgressoHoje(JSON.parse(salvo));
-    }, [usuarioLogado]);
+        if (salvo) {
+            setProgressoHoje(JSON.parse(salvo));
+        } else {
+            setProgressoHoje([]); 
+        }
+    }, [usuarioLogado, consultorAtivo]);
 
     useEffect(() => { 
         if (window.lucide) window.lucide.createIcons(); 
-    }, [visaoAtiva, visitantes, sucesso, isSubmitting, modalWpp.show, modalDetalhe.show, historicoLead, progressoHoje, mostrarRelatorio]);
+    }, [visaoAtiva, visitantes, sucesso, isSubmitting, modalWpp.show, modalDetalhe.show, historicoLead, progressoHoje, mostrarRelatorio, consultorAtivo]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -43,11 +57,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         else setFormData({ ...formData, [name]: value });
     };
 
-    // ==========================================
-    // O CÉREBRO ATUALIZADO (PASSO 3)
-    // ==========================================
     const registrarHistorico = async (leadId, tipoAcao, observacao) => {
-        const consultorAtual = usuarioLogado?.nome || 'Sistema';
+        const consultorAtual = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Sistema');
         
         const novoRegistro = {
             id: Date.now().toString(),
@@ -62,12 +73,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             setHistoricoLead(prev => [novoRegistro, ...prev]);
         }
 
-        // A MÁGICA ESTÁ AQUI: Agora a "observacao" é salva no LocalStorage 
-        // junto com a ação do dia para que o gerador de relatório consiga ler!
         setProgressoHoje(prev => {
             const novaLista = [...prev, { tipo: tipoAcao, observacao: observacao, data_contato: novoRegistro.data_registro }];
             const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-            localStorage.setItem(`crm_meta_${usuarioLogado?.nome}_${dataHoje}`, JSON.stringify(novaLista));
+            localStorage.setItem(`crm_meta_${consultorAtual}_${dataHoje}`, JSON.stringify(novaLista));
             return novaLista;
         });
 
@@ -155,14 +164,78 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         }
     };
 
+    // ==========================================
+    // SOFT-DELETE (ARQUIVAR AO INVÉS DE APAGAR)
+    // ==========================================
     const deletarLead = async (id) => {
-        if(window.confirm('Excluir este Lead do funil? Esta ação não pode ser desfeita.')) {
+        if(window.confirm('Mover este Lead para o Arquivo Morto? Ele não aparecerá mais no funil.')) {
             const backupVisitantes = [...visitantes];
-            setVisitantes(visitantes.filter(v => v.id !== id));
-            const { error } = await supabase.from('leads').delete().eq('id', id);
-            if (error) setVisitantes(backupVisitantes);
+            
+            // Otimista na tela
+            setVisitantes(visitantes.map(v => v.id === id ? { ...v, status: 'Arquivado' } : v));
+            
+            // Agora grava EXATAMENTE quem mandou pra lixeira
+            await registrarHistorico(id, 'Exclusão', 'Lead arquivado (Soft-Delete) pelo usuário.');
+
+            // Modifica apenas o status no banco de dados
+            const { error } = await supabase.from('leads').update({ status: 'Arquivado' }).eq('id', id);
+            
+            if (error) {
+                setVisitantes(backupVisitantes);
+                alert("Erro de conexão. A exclusão foi revertida.");
+            } else {
+                if (modalDetalhe.show && modalDetalhe.lead?.id === id) {
+                    setModalDetalhe({ show: false, lead: null });
+                }
+            }
         }
     };
+
+    // ==========================================
+    // RENDERIZAÇÃO DA CATRACA DE IDENTIFICAÇÃO
+    // ==========================================
+    if (usuarioLogado?.role === 'RECEPCAO' && !consultorAtivo) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[70vh] animate-[fadeIn_0.3s_ease-out] px-4">
+                <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-200">
+                    <i data-lucide="users" className="w-10 h-10"></i>
+                </div>
+                <h2 className="text-3xl font-black text-slate-800 mb-2 tracking-tight text-center">Quem está operando o CRM?</h2>
+                <p className="text-slate-500 mb-10 font-medium text-center">Selecione seu nome para iniciar o turno e contabilizar sua produtividade.</p>
+                
+                {colaboradores.length === 0 ? (
+                    <div className="bg-amber-50 border border-amber-200 p-6 rounded-2xl text-center max-w-md">
+                        <p className="text-amber-700 font-bold">Nenhum consultor cadastrado nesta unidade.</p>
+                        <p className="text-xs text-amber-600 mt-2">Peça ao Líder ou Admin para cadastrar a equipe na aba de Configurações.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 w-full max-w-4xl">
+                        {colaboradores.map(c => (
+                            <button 
+                                key={c.id} 
+                                onClick={() => setConsultorAtivo(c)} 
+                                className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all group flex flex-col items-center gap-4"
+                            >
+                                <div className="w-14 h-14 bg-slate-100 text-slate-500 group-hover:bg-blue-500 group-hover:text-white rounded-full flex items-center justify-center font-black text-xl transition-colors shadow-inner">
+                                    {c.nome.charAt(0)}
+                                </div>
+                                <div className="text-center">
+                                    <span className="font-black text-slate-700 group-hover:text-blue-700 block leading-tight">{c.nome.split(' ')[0]}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">{c.nome.split(' ').slice(1).join(' ')}</span>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ==========================================
+    // FILTRO DE SOFT-DELETE ANTES DE RENDERIZAR
+    // ==========================================
+    // Filtramos os 'Arquivados' para não aparecerem nas sub-telas
+    const leadsAtivos = visitantes.filter(v => v.status !== 'Arquivado');
 
     const pctMeta = Math.min(100, Math.round((progressoHoje.length / META_DIARIA) * 100));
     const metaBatida = progressoHoje.length >= META_DIARIA;
@@ -171,16 +244,18 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative">
 
             {/* BARRA DE PRODUTIVIDADE E RELATÓRIO */}
-            <div className="bg-white rounded-[24px] border border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
-                <div className="flex items-center gap-4 flex-1">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${metaBatida ? 'bg-emerald-100 text-emerald-600 shadow-inner' : 'bg-orange-100 text-orange-600 shadow-inner'}`}>
+            <div className="bg-white rounded-[24px] border border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm flex-wrap gap-4">
+                <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shrink-0 ${metaBatida ? 'bg-emerald-100 text-emerald-600 shadow-inner' : 'bg-orange-100 text-orange-600 shadow-inner'}`}>
                         {metaBatida ? <i data-lucide="trophy" className="w-6 h-6"></i> : <i data-lucide="target" className="w-6 h-6 animate-pulse"></i>}
                     </div>
                     <div className="flex-1 max-w-xl">
                         <div className="flex justify-between items-end mb-1.5">
-                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">Ações Realizadas Hoje</span>
+                            <span className="text-[10px] font-black uppercase text-slate-500 tracking-widest">
+                                Operador: <strong className="text-blue-600">{consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome}</strong>
+                            </span>
                             <span className={`text-xs font-black transition-colors ${metaBatida ? 'text-emerald-600' : 'text-orange-600'}`}>
-                                {progressoHoje.length} / {META_DIARIA}
+                                {progressoHoje.length} / {META_DIARIA} Ações
                             </span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner">
@@ -188,12 +263,25 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                         </div>
                     </div>
                 </div>
-                <button 
-                    onClick={() => setMostrarRelatorio(true)} 
-                    className={`ml-6 px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-[0_4px_15px_rgba(16,185,129,0.3)]' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'}`}
-                >
-                    <i data-lucide="file-text" className="w-4 h-4"></i> Gerar Relatório
-                </button>
+                
+                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    {consultorAtivo && (
+                        <button 
+                            onClick={() => setConsultorAtivo(null)} 
+                            className="px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200"
+                            title="Trocar Operador"
+                        >
+                            <i data-lucide="log-out" className="w-4 h-4"></i> Trocar
+                        </button>
+                    )}
+                    
+                    <button 
+                        onClick={() => setMostrarRelatorio(true)} 
+                        className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-[0_4px_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 text-white hover:bg-black border border-slate-700 shadow-md'}`}
+                    >
+                        <i data-lucide="file-text" className="w-4 h-4"></i> Gerar Relatório
+                    </button>
+                </div>
             </div>
 
             {/* ALERTA DE SUCESSO PADRÃO */}
@@ -266,12 +354,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </button>
             </div>
 
-            {/* AREA DINÂMICA (SUBCOMPONENTES) */}
-            {visaoAtiva === 'dashboard' && <Metricas visitantes={visitantes} colaboradores={colaboradores} />}
+            {/* SUBCOMPONENTES AGORA RECEBEM APENAS "leadsAtivos" (Esconde os Arquivados) */}
+            {visaoAtiva === 'dashboard' && <Metricas visitantes={leadsAtivos} colaboradores={colaboradores} />}
             
             {visaoAtiva === 'kanban' && (
                 <Kanban 
-                    visitantes={visitantes} 
+                    visitantes={leadsAtivos} 
                     alterarStatus={alterarStatus} 
                     deletarLead={deletarLead} 
                     setModalWpp={setModalWpp} 
@@ -284,7 +372,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             
             {visaoAtiva === 'lista' && (
                 <Lista 
-                    visitantes={visitantes} 
+                    visitantes={leadsAtivos} 
                     alterarStatus={alterarStatus} 
                     deletarLead={deletarLead} 
                     setModalWpp={setModalWpp} 
@@ -308,6 +396,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 mostrarRelatorio={mostrarRelatorio}
                 setMostrarRelatorio={setMostrarRelatorio}
                 progressoHoje={progressoHoje}
+                consultorAtivo={consultorAtivo}
                 usuarioLogado={usuarioLogado}
                 META_DIARIA={META_DIARIA}
             />

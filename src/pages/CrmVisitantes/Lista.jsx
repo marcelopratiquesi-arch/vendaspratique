@@ -1,5 +1,6 @@
 import React from 'react';
-import { formatarDataHora, gerarTextoWhatsApp, STATUS_TOKENS, COLUNAS } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS } from './utils';
+import { PhoneCall, MessageCircle, Archive, ListChecks } from 'lucide-react';
 
 const Lista = ({ 
     visitantes, 
@@ -20,7 +21,10 @@ const Lista = ({
     };
 
     const abrirModalWpp = (lead) => {
-        setModalWpp({ show: true, lead: lead, texto: gerarTextoWhatsApp(lead) });
+        import('./utils').then(module => {
+            const textoPadrao = module.gerarTextoWhatsApp(lead);
+            setModalWpp({ show: true, lead: lead, texto: textoPadrao });
+        });
     };
 
     const abrirFichaLead = (lead) => {
@@ -35,10 +39,10 @@ const Lista = ({
         <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.3s_ease-out]">
             <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                    <i data-lucide="list-checks" className="w-5 h-5 text-blue-500"></i> Relatório Geral de Leads
+                    <ListChecks className="w-5 h-5 text-blue-500" /> Relatório Geral de Leads
                 </h3>
                 <span className="text-[10px] font-black text-slate-500 bg-white border border-slate-200 px-3 py-1 rounded-full shadow-sm">
-                    {visitantes.length} Registros
+                    {visitantes.length} Registros Ativos
                 </span>
             </div>
 
@@ -67,7 +71,7 @@ const Lista = ({
                                     <td className="px-6 py-4 align-middle">
                                         <p 
                                             onClick={() => abrirFichaLead(v)}
-                                            className="text-xs font-black text-slate-800 uppercase cursor-pointer hover:text-blue-600 hover:underline transition-colors"
+                                            className="text-xs font-black text-slate-800 uppercase cursor-pointer hover:text-blue-600 hover:underline transition-colors pr-4"
                                             title="Ver Ficha e Histórico"
                                         >
                                             {v.nome}
@@ -103,7 +107,7 @@ const Lista = ({
                                                 className="px-3 py-1.5 bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-blue-200 transition-colors text-[10px] font-black uppercase tracking-widest"
                                                 title="Ligar via MicroSIP"
                                             >
-                                                <i data-lucide="phone-call" className="w-3.5 h-3.5"></i> Ligar
+                                                <PhoneCall className="w-3.5 h-3.5" /> Ligar
                                             </button>
                                             
                                             <button 
@@ -111,15 +115,15 @@ const Lista = ({
                                                 className="px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-emerald-200 transition-colors text-[10px] font-black uppercase tracking-widest"
                                                 title="Chamar no WhatsApp"
                                             >
-                                                <i data-lucide="message-circle" className="w-3.5 h-3.5"></i> Whats
+                                                <MessageCircle className="w-3.5 h-3.5" /> Whats
                                             </button>
                                             
                                             <button 
                                                 onClick={() => deletarLead(v.id)} 
-                                                className="px-3 py-1.5 bg-rose-50 text-rose-500 hover:bg-rose-600 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-rose-200 transition-colors text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100"
-                                                title="Excluir"
+                                                className="px-3 py-1.5 bg-slate-50 text-slate-500 hover:bg-slate-700 hover:text-white rounded-lg flex items-center justify-center gap-1.5 border border-slate-200 transition-colors text-[10px] font-black uppercase tracking-widest opacity-0 group-hover:opacity-100"
+                                                title="Arquivar (Esconder do Funil)"
                                             >
-                                                <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                <Archive className="w-3.5 h-3.5" /> Arquivar
                                             </button>
                                         </div>
                                     </td>
@@ -128,7 +132,7 @@ const Lista = ({
                         }) : (
                             <tr>
                                 <td colSpan="7" className="text-center py-16 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                                    Nenhum visitante ou lead encontrado.
+                                    Nenhum lead ativo encontrado.
                                 </td>
                             </tr>
                         )}
