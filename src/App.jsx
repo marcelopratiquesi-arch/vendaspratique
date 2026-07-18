@@ -6,7 +6,8 @@ import LancamentoVendas from './pages/Lancamento.jsx';
 import AssinaturasPratique from './pages/RegistroVendas.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa.jsx';
 import AnaliseDashboard from './pages/Analise.jsx';
-import CrmVisitantes from './pages/CrmVisitantes.jsx'; 
+// A MÁGICA AQUI: Apontando para o Maestro (index.jsx) da pasta CRM!
+import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
 import CadastroGeral from './pages/CadastroGeral.jsx';
 import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
@@ -27,7 +28,7 @@ export default function App() {
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
     const [planos, setPlanos] = useState([]);
     const [produtos, setProdutos] = useState([]);
-    const [servicos, setServicos] = useState([]); // <-- ADICIONADO: Gaveta de Serviços
+    const [servicos, setServicos] = useState([]); 
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
 
@@ -67,7 +68,7 @@ export default function App() {
                 if (isMounted && cat) {
                     setPlanos(cat.filter(item => item.tipo === 'plano'));
                     setProdutos(cat.filter(item => item.tipo === 'produto'));
-                    setServicos(cat.filter(item => item.tipo === 'servico')); // <-- ADICIONADO: Separa os serviços
+                    setServicos(cat.filter(item => item.tipo === 'servico')); 
                 }
 
                 // 4. Puxar Histórico de Vendas
@@ -132,7 +133,6 @@ export default function App() {
     // Este é o usuário que as páginas vão enxergar!
     const usuarioVirtual = {
         ...usuarioLogado,
-        // Se a chefia isolou uma unidade no topo, ele finge ser Líder daquela unidade dentro das páginas
         role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
         unidade: (ehChefe && unidadeGlobal !== 'TODAS') ? unidadeGlobal : usuarioLogado.unidade
     };
@@ -289,7 +289,7 @@ export default function App() {
                         onAddMultiple={handleAddLancamentos} 
                         planos={planos} 
                         produtos={produtos} 
-                        servicos={servicos} // <-- ADICIONADO AQUI! Passando para o componente!
+                        servicos={servicos}
                         colaboradores={colaboradores} 
                     />
                 )}
