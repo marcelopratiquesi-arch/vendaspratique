@@ -6,7 +6,7 @@ import Metricas from './Metricas';
 import Kanban from './Kanban';
 import Lista from './Lista';
 import Modais from './Modais';
-import { Database, Download, Users, ArrowRightCircle, ClipboardPaste, ListPlus, Trash2, CheckCircle2, Info, CheckSquare } from 'lucide-react';
+import { Database, Download, Users, ArrowRightCircle, ClipboardPaste, ListPlus, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw } from 'lucide-react';
 
 const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colaboradores = [] }) => {
     const [formData, setFormData] = useState({ nome: '', cpf: '', telefone: '', email: '', tipo_lead: '', vendedor: '', observacao: '' });
@@ -21,8 +21,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     const [previewLeads, setPreviewLeads] = useState([]);
     const [tipoLeadSmartPaste, setTipoLeadSmartPaste] = useState('CANCELADO/INATIVO');
     const [processandoPaste, setProcessandoPaste] = useState(false);
+    const [estatisticasPaste, setEstatisticasPaste] = useState({ novos: 0, duplicados: 0 }); 
     
-    // Novo estado para controlar quem foi selecionado na tabela da Base
     const [selecionadosBase, setSelecionadosBase] = useState([]);
 
     // MODAIS E HISTÓRICO
@@ -57,7 +57,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         else setFormData({ ...formData, [name]: value });
     };
 
-    // A MÁGICA 1: Adicionado o parâmetro "ignorarMeta" para não inflacionar o relatório
+    // 🤖 AUDITORIA EM TEMPO REAL: Verifica se o CPF digitado manualmente já existe no banco
+    const cpfDigitadoLimpo = formData.cpf.replace(/\D/g, '');
+    const leadDuplicadoManual = cpfDigitadoLimpo.length === 11 
+        ? visitantes.find(v => v.cpf && v.cpf.replace(/\D/g, '') === cpfDigitadoLimpo) 
+        : null;
+
     const registrarHistorico = async (leadId, tipoAcao, observacao, ignorarMeta = false) => {
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Sistema');
         
@@ -74,7 +79,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             setHistoricoLead(prev => [novoRegistro, ...prev]);
         }
 
-        // Se NÃO ignorar, soma na meta do dia
         if (!ignorarMeta) {
             setProgressoHoje(prev => {
                 const novaLista = [...prev, { tipo: tipoAcao, observacao: observacao, data_contato: novoRegistro.data_registro }];
@@ -100,13 +104,20 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     };
 
     // ==========================================
-    // CAPTURA MANUAL
+    // CAPTURA MANUAL BLINDADA
     // ==========================================
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        if (leadDuplicadoManual) {
+            alert(`🚨 BLOQUEADO: Este CPF já está registrado no sistema para o aluno ${leadDuplicadoManual.nome}.`);
+            return;
+        }
+
         if (!formData.nome.trim() || !cpfValido(formData.cpf) || !formData.telefone.trim() || !formData.tipo_lead || !formData.vendedor) { 
             alert('Preencha todos os campos corretamente.'); return; 
         }
+
         setIsSubmitting(true);
 
         const novoLead = {
@@ -126,15 +137,14 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             perdido_em: null
         };
 
-        const { data, error } = await supabase.from('leads').upsert([novoLead], { onConflict: 'cpf' }).select();
+        const { data, error } = await supabase.from('leads').insert([novoLead]).select();
 
         if (error) {
-            alert("Erro ao salvar. Verifique se este CPF já está cadastrado.");
+            alert("Erro do Banco de Dados: Este CPF já está registrado na nuvem de forma definitiva.");
         } else if (data && data[0]) {
-            setVisitantes(prev => [data[0], ...prev.filter(v => v.cpf !== formData.cpf)]);
+            setVisitantes(prev => [data[0], ...prev]);
             setSucesso(true);
             
-            // Inserir na base não soma meta (ignorarMeta = true)
             await registrarHistorico(data[0].id, 'Captura', `Lead inserido na Base como ${formData.tipo_lead}.`, true);
             if(formData.observacao) await registrarHistorico(data[0].id, 'Observação', formData.observacao, true);
 
@@ -145,14 +155,20 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     };
 
     // ==========================================
-    // SMART PASTE
+    // O MOTOR DO SMART PASTE 
     // ==========================================
     const processarColagem = (texto) => {
         setTextoSmartPaste(texto);
-        if (!texto.trim()) { setPreviewLeads([]); return; }
+        if (!texto.trim()) { 
+            setPreviewLeads([]); 
+            setEstatisticasPaste({ novos: 0, duplicados: 0 });
+            return; 
+        }
 
         const linhas = texto.split('\n');
         const mapeados = [];
+        let qtdNovos = 0;
+        let qtdDuplicados = 0;
 
         linhas.forEach(linha => {
             if (!linha.trim()) return;
@@ -172,21 +188,75 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             
             let cpfLimpo = cpf.replace(/\D/g, '');
             let cpfFormatado = cpfLimpo.length === 11 ? formatarCPF(cpfLimpo) : '';
+            let telLimpo = telefone.replace(/\D/g, '');
 
-            if (nome) { mapeados.push({ id_temp: Math.random().toString(), nome, telefone: telefone || 'S/N', cpf: cpfFormatado }); }
+            if (nome) {
+                let motivoDuplicidade = null;
+
+                const jaExisteBanco = visitantes.some(v => {
+                    const vCpfLimpo = v.cpf ? v.cpf.replace(/\D/g, '') : '';
+                    const vTelLimpo = v.telefone ? v.telefone.replace(/\D/g, '') : '';
+
+                    if (cpfLimpo && vCpfLimpo && cpfLimpo === vCpfLimpo) {
+                        motivoDuplicidade = 'CPF CADASTRADO';
+                        return true;
+                    }
+                    if (telLimpo && vTelLimpo && telLimpo === vTelLimpo && telLimpo.length >= 10) {
+                        motivoDuplicidade = 'TELEFONE CADASTRADO';
+                        return true;
+                    }
+                    return false;
+                });
+
+                const jaExisteLista = mapeados.some(m => {
+                    const mTelLimpo = m.telefone.replace(/\D/g, '');
+                    if (cpfLimpo && m.cpf.replace(/\D/g, '') === cpfLimpo) {
+                         motivoDuplicidade = 'CPF DUPLICADO NA LISTA';
+                         return true;
+                    }
+                    if (telLimpo && mTelLimpo === telLimpo && telLimpo.length >= 10) {
+                         motivoDuplicidade = 'TELEFONE DUPLICADO NA LISTA';
+                         return true;
+                    }
+                    return false;
+                });
+
+                const isDuplicado = jaExisteBanco || jaExisteLista;
+
+                if (isDuplicado) qtdDuplicados++; else qtdNovos++;
+
+                mapeados.push({ 
+                    id_temp: Math.random().toString(), 
+                    nome, 
+                    telefone: telefone || 'S/N', 
+                    cpf: cpfFormatado,
+                    isDuplicado,
+                    motivo: motivoDuplicidade
+                });
+            }
         });
 
+        setEstatisticasPaste({ novos: qtdNovos, duplicados: qtdDuplicados });
         setPreviewLeads(mapeados);
     };
 
     const confirmarSmartPaste = async () => {
-        if (previewLeads.length === 0) return;
+        const leadsValidos = previewLeads.filter(l => !l.isDuplicado);
+        
+        if (leadsValidos.length === 0) {
+            alert("Nenhum lead novo para salvar. Todos os registros colados já existem na base.");
+            setTextoSmartPaste('');
+            setPreviewLeads([]);
+            setEstatisticasPaste({ novos: 0, duplicados: 0 });
+            return;
+        }
+
         setProcessandoPaste(true);
 
         const agora = new Date().toISOString();
         const dataBR = new Date().toLocaleDateString('pt-BR');
 
-        const loteDeLeads = previewLeads.map(lead => ({
+        const loteDeLeads = leadsValidos.map(lead => ({
             unidade: usuarioLogado?.unidade || 'MATRIZ',
             nome: lead.nome,
             telefone: lead.telefone,
@@ -208,18 +278,74 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         } else if (data) {
             setVisitantes(prev => [...data, ...prev]);
             for (const leadSalvo of data) {
-                // IGNORA NA META (passando true no final)
                 await registrarHistorico(leadSalvo.id, 'Importação em Lote', `Inserido na Base via Smart Paste.`, true);
             }
             alert(`${data.length} leads inseridos na Base com sucesso!`);
             setTextoSmartPaste('');
             setPreviewLeads([]);
+            setEstatisticasPaste({ novos: 0, duplicados: 0 });
         }
         setProcessandoPaste(false);
     };
 
     // ==========================================
-    // PUXAR FILA (LOTE OU SELECIONADOS)
+    // EXCLUSÃO REAL E DEFINITIVA (HARD DELETE)
+    // ==========================================
+    const excluirSelecionadosBase = async () => {
+        if (selecionadosBase.length === 0) return;
+        
+        if(window.confirm(`ATENÇÃO DELETAR DADOS: Deseja EXCLUIR DEFINITIVAMENTE os ${selecionadosBase.length} contatos da base bruta do Supabase?\n\nIsso apagará os dados do banco e liberará os CPFs. Esta ação NÃO pode ser desfeita.`)) {
+            const backupVisitantes = [...visitantes];
+            // Remove imediatamente da tela para a UX ficar fluida
+            setVisitantes(prev => prev.filter(v => !selecionadosBase.includes(v.id)));
+            
+            // Dispara a deleção real no banco de dados
+            const { error } = await supabase.from('leads').delete().in('id', selecionadosBase);
+            
+            if (error) {
+                setVisitantes(backupVisitantes);
+                alert("Erro ao excluir os contatos no banco. Ação revertida.");
+            } else {
+                alert(`${selecionadosBase.length} leads foram apagados definitivamente do sistema!`);
+                setSelecionadosBase([]);
+            }
+        }
+    };
+
+    const deletarLeadsEmLote = async (ids) => {
+        if(window.confirm(`ATENÇÃO LIXEIRA: Deseja EXCLUIR DEFINITIVAMENTE os ${ids.length} leads selecionados do banco de dados?\n\nEles sumirão do funil, os CPFs serão liberados e o histórico apagado.`)) {
+            const backupVisitantes = [...visitantes];
+            setVisitantes(prev => prev.filter(v => !ids.includes(v.id)));
+            
+            const { error } = await supabase.from('leads').delete().in('id', ids);
+            
+            if (error) {
+                setVisitantes(backupVisitantes);
+                alert("Erro ao excluir. Ação revertida.");
+            } else {
+                alert(`${ids.length} leads foram apagados permanentemente!`);
+            }
+        }
+    };
+
+    const deletarLead = async (id) => {
+        if(window.confirm('EXCLUIR DEFINITIVAMENTE este Lead do banco de dados?\nEle desaparecerá do funil e o CPF ficará livre para um novo cadastro no futuro.')) {
+            const backupVisitantes = [...visitantes];
+            setVisitantes(visitantes.filter(v => v.id !== id));
+            
+            const { error } = await supabase.from('leads').delete().eq('id', id);
+            
+            if (error) {
+                setVisitantes(backupVisitantes);
+                alert("Erro ao excluir do banco de dados.");
+            } else {
+                if (modalDetalhe.show && modalDetalhe.lead?.id === id) setModalDetalhe({ show: false, lead: null });
+            }
+        }
+    };
+
+    // ==========================================
+    // PUXAR FILA E ALTERAR STATUS
     // ==========================================
     const executarPuxada = async (idsParaPuxar, msgSucesso) => {
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
@@ -233,10 +359,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         if (error) {
             alert("Erro de conexão. A fila não foi puxada corretamente.");
         } else {
-            // IGNORA NA META (passando true)
             idsParaPuxar.forEach(id => registrarHistorico(id, 'Fila de Trabalho', `Lead puxado da base para atendimento.`, true));
             alert(msgSucesso);
-            setSelecionadosBase([]); // Limpa a seleção
+            setSelecionadosBase([]); 
             setVisaoAtiva('kanban'); 
         }
     };
@@ -253,9 +378,28 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         executarPuxada(selecionadosBase, `${selecionadosBase.length} leads selecionados foram para o Kanban!`);
     };
 
-    // ==========================================
-    // STATUS E EXCLUSÃO
-    // ==========================================
+    const alterarStatusEmLote = async (ids, novoStatus) => {
+        const confirmacao = novoStatus === 'Perdido' 
+            ? `Enviar ${ids.length} contatos para a Geladeira (Espera de 30 dias)?` 
+            : `Mover ${ids.length} contatos para a fase ${novoStatus}?`;
+
+        if(window.confirm(confirmacao)) {
+            const dataPerdido = novoStatus === 'Perdido' ? new Date().toISOString() : null;
+            const backupVisitantes = [...visitantes];
+
+            setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, status: novoStatus, perdido_em: dataPerdido } : v));
+            const { error } = await supabase.from('leads').update({ status: novoStatus, perdido_em: dataPerdido }).in('id', ids);
+
+            if (error) {
+                setVisitantes(backupVisitantes);
+                alert("Erro de conexão. Ação revertida.");
+            } else {
+                ids.forEach(id => registrarHistorico(id, 'Mudança de Fase', `Movido em lote para "${novoStatus}".`, true));
+                alert("Operação em lote concluída com sucesso!");
+            }
+        }
+    };
+
     const alterarStatus = async (id, novoStatus) => {
         const leadAtual = visitantes.find(v => v.id === id);
         const statusAntigo = leadAtual ? leadAtual.status : null;
@@ -275,17 +419,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         }
     };
 
-    const deletarLead = async (id) => {
-        if(window.confirm('Mover este Lead para o Arquivo Morto? Ele não aparecerá mais no funil.')) {
-            const backupVisitantes = [...visitantes];
-            setVisitantes(visitantes.map(v => v.id === id ? { ...v, status: 'Arquivado' } : v));
-            await registrarHistorico(id, 'Exclusão', 'Lead arquivado (Soft-Delete) pelo usuário.');
-            const { error } = await supabase.from('leads').update({ status: 'Arquivado' }).eq('id', id);
-            if (error) setVisitantes(backupVisitantes);
-            else if (modalDetalhe.show && modalDetalhe.lead?.id === id) setModalDetalhe({ show: false, lead: null });
-        }
-    };
-
+    // ==========================================
+    // CATRACA DE IDENTIFICAÇÃO E RENDERIZAÇÃO
+    // ==========================================
     if (usuarioLogado?.role === 'RECEPCAO' && !consultorAtivo) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[70vh] animate-[fadeIn_0.3s_ease-out] px-4">
@@ -319,6 +455,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     const consultorLogado = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
     const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado').sort((a,b) => new Date(b.criado_em) - new Date(a.criado_em));
     const meusLeadsAtivos = visitantes.filter(v => v.puxado_em && v.puxado_por === consultorLogado && v.status !== 'Arquivado' && v.status !== 'Perdido');
+    const meusLeadsGeladeira = visitantes.filter(v => v.puxado_por === consultorLogado && v.status === 'Perdido');
 
     const vendedoresPermitidos = colaboradores.filter(c => {
         const role = String(c.role || c.cargo || '').toUpperCase();
@@ -332,6 +469,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative">
 
+            {/* HEADER DE PRODUTIVIDADE */}
             <div className="bg-white rounded-[24px] border border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm flex-wrap gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-[300px]">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shrink-0 ${metaBatida ? 'bg-emerald-100 text-emerald-600 shadow-inner' : 'bg-orange-100 text-orange-600 shadow-inner'}`}>
@@ -360,7 +498,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             </div>
 
-            <div className="flex bg-slate-200 p-1.5 rounded-xl border border-slate-300/60 shadow-inner w-full max-w-2xl mx-auto overflow-x-auto custom-scrollbar">
+            {/* BARRA DE NAVEGAÇÃO / ABAS */}
+            <div className="flex bg-slate-200 p-1.5 rounded-xl border border-slate-300/60 shadow-inner w-full max-w-4xl mx-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                     <Database className="w-4 h-4" /> Base ({leadsNaBase.length})
                 </button>
@@ -370,12 +509,63 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'lista' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
                     <i data-lucide="list" className="w-4 h-4"></i> Lista
                 </button>
+                <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-cyan-500 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <Snowflake className="w-4 h-4" /> Geladeira ({meusLeadsGeladeira.length})
+                </button>
                 <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-slate-900 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                     <i data-lucide="pie-chart" className="w-4 h-4"></i> Métricas
                 </button>
             </div>
 
-            {/* ABA: BASE DE LEADS */}
+            {/* ABA GELADEIRA (RECUPERAÇÃO) */}
+            {visaoAtiva === 'geladeira' && (
+                <div className="bg-white rounded-[24px] border border-cyan-200 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out]">
+                    <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
+                        <div className="w-14 h-14 bg-cyan-50 text-cyan-500 rounded-2xl flex items-center justify-center shadow-inner">
+                            <Snowflake className="w-7 h-7" />
+                        </div>
+                        <div>
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Geladeira de Contatos (30 Dias)</h2>
+                            <p className="text-sm text-slate-500 font-medium">Contatos que deram "Perdido". Aguarde o tempo de maturação para tentar resgatá-los para o Kanban.</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {meusLeadsGeladeira.length === 0 ? (
+                            <p className="text-slate-400 font-bold col-span-3 text-center py-10 uppercase tracking-widest text-xs">Sua geladeira está vazia.</p>
+                        ) : (
+                            meusLeadsGeladeira.map(v => {
+                                const diasNaGeladeira = Math.floor((new Date() - new Date(v.perdido_em)) / (1000 * 60 * 60 * 24));
+                                const liberado = diasNaGeladeira >= 30;
+
+                                return (
+                                    <div key={v.id} className={`p-5 rounded-2xl border ${liberado ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-50'} relative flex flex-col`}>
+                                        <h4 className="font-black text-slate-800 uppercase text-sm mb-1 pr-10">{v.nome}</h4>
+                                        <p className="text-xs font-bold text-slate-500 mb-4">{v.telefone}</p>
+                                        
+                                        <div className="mt-auto pt-4 border-t border-slate-200/60 flex items-center justify-between">
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${liberado ? 'text-emerald-700 bg-emerald-200/50' : 'text-slate-500 bg-slate-200'}`}>
+                                                {diasNaGeladeira} / 30 Dias
+                                            </span>
+                                            
+                                            <button 
+                                                onClick={() => alterarStatus(v.id, 'Novo')}
+                                                disabled={!liberado}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${liberado ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
+                                                title={liberado ? "Resgatar para o Kanban" : "Ainda em maturação"}
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" /> Resgatar
+                                            </button>
+                                        </div>
+                                    </div>
+                                )
+                            })
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* ABA BASE DE LEADS */}
             {visaoAtiva === 'base' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     
@@ -414,8 +604,17 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                                     <input type="text" name="nome" value={formData.nome} onChange={handleChange} required placeholder="Nome do Lead" className="w-2/3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none uppercase shadow-sm" />
                                 </div>
                                 <div className="flex gap-4">
-                                    <input type="text" name="cpf" value={formData.cpf} onChange={handleChange} placeholder="CPF" maxLength={14} className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none shadow-sm" />
-                                    <input type="text" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder="Telefone/Zap" className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none shadow-sm" />
+                                    <div className="w-1/2 flex flex-col">
+                                        <input type="text" name="cpf" value={formData.cpf} onChange={handleChange} placeholder="CPF" maxLength={14} className={`bg-slate-50 border ${leadDuplicadoManual ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200'} rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none shadow-sm transition-colors`} />
+                                        {leadDuplicadoManual && (
+                                            <span className="text-[9px] text-rose-500 font-black uppercase mt-1.5 flex items-center gap-1 animate-[fadeIn_0.2s_ease-out]">
+                                                <AlertTriangle className="w-3 h-3"/> Já Existe: {leadDuplicadoManual.nome} ({leadDuplicadoManual.status})
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="w-1/2 flex flex-col">
+                                        <input type="text" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder="Telefone/Zap" className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none shadow-sm" />
+                                    </div>
                                 </div>
                                 <div className="flex gap-4">
                                     <select name="vendedor" value={formData.vendedor} onChange={handleChange} required className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs font-bold text-slate-700 outline-none uppercase shadow-sm">
@@ -424,7 +623,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                                     </select>
                                     <input type="text" name="observacao" value={formData.observacao} onChange={handleChange} placeholder="Observação..." className="w-1/2 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none shadow-sm" />
                                 </div>
-                                <button type="submit" disabled={isSubmitting} className="w-full mt-2 bg-slate-800 hover:bg-black text-white font-black py-3.5 rounded-xl shadow-md transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                                <button type="submit" disabled={isSubmitting || !!leadDuplicadoManual} className="w-full mt-2 bg-slate-800 hover:bg-black disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3.5 rounded-xl shadow-md transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
                                     {isSubmitting ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : 'Salvar na Base'}
                                 </button>
                             </form>
@@ -460,31 +659,44 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
 
                         {previewLeads.length > 0 && (
                             <div className="mt-4 animate-[zoomIn_0.2s_ease-out]">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 flex items-center gap-1.5"><ListPlus className="w-3.5 h-3.5"/> {previewLeads.length} Identificados</span>
-                                    <button onClick={() => {setTextoSmartPaste(''); setPreviewLeads([])}} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors"><Trash2 className="w-3 h-3"/> Limpar</button>
+                                <div className="flex justify-between items-center mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-md">{estatisticasPaste.novos} Novos</span>
+                                        {estatisticasPaste.duplicados > 0 && (
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 border border-rose-100 px-2 py-1 rounded-md flex items-center gap-1">
+                                                <AlertTriangle className="w-3 h-3"/> {estatisticasPaste.duplicados} Ignorados
+                                            </span>
+                                        )}
+                                    </div>
+                                    <button onClick={() => {setTextoSmartPaste(''); setPreviewLeads([]); setEstatisticasPaste({novos:0, duplicados:0});}} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-700 flex items-center gap-1 transition-colors"><Trash2 className="w-3 h-3"/> Limpar</button>
                                 </div>
+                                
                                 <div className="max-h-[140px] overflow-y-auto custom-scrollbar bg-slate-50 border border-slate-200 rounded-xl mb-4">
                                     <table className="w-full text-left">
                                         <tbody>
                                             {previewLeads.slice(0,50).map((l) => (
-                                                <tr key={l.id_temp} className="border-b border-slate-100 last:border-0 text-[10px] uppercase font-bold text-slate-600">
-                                                    <td className="px-3 py-2 truncate max-w-[120px]">{l.nome}</td>
+                                                <tr key={l.id_temp} className={`border-b border-slate-100 last:border-0 text-[10px] uppercase font-bold transition-opacity ${l.isDuplicado ? 'text-slate-400 opacity-60 bg-slate-100/50' : 'text-slate-700'}`}>
+                                                    <td className="px-3 py-2 truncate max-w-[140px] flex items-center">
+                                                        {l.isDuplicado && <span className="mr-2 text-[8px] bg-rose-100 border border-rose-200 text-rose-600 px-1.5 py-0.5 rounded shadow-sm font-black whitespace-nowrap">{l.motivo}</span>}
+                                                        <span className="truncate">{l.nome}</span>
+                                                    </td>
                                                     <td className="px-3 py-2">{l.telefone}</td>
-                                                    <td className="px-3 py-2 text-slate-400">{l.cpf || '-'}</td>
                                                 </tr>
                                             ))}
+                                            {previewLeads.length > 50 && (
+                                                <tr><td colSpan="2" className="px-3 py-2 text-center text-[10px] font-bold text-slate-400">...e mais {previewLeads.length - 50} linhas</td></tr>
+                                            )}
                                         </tbody>
                                     </table>
                                 </div>
-                                <button onClick={confirmarSmartPaste} disabled={processandoPaste} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
-                                    {processandoPaste ? <i data-lucide="loader-2" className="w-5 h-5 animate-spin"></i> : <><CheckCircle2 className="w-5 h-5" /> Confirmar e Salvar no Banco</>}
+                                
+                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                                    {processandoPaste ? <i data-lucide="loader-2" className="w-5 h-5 animate-spin"></i> : <><CheckCircle2 className="w-5 h-5" /> Salvar {estatisticasPaste.novos} Novos no Banco</>}
                                 </button>
                             </div>
                         )}
                     </div>
 
-                    {/* --- A NOVA TABELA DA BASE DE LEADS --- */}
                     <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 lg:p-8 col-span-1 lg:col-span-2 mt-2">
                         <div className="flex justify-between items-center mb-6">
                             <div>
@@ -493,10 +705,16 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                                     <span className="text-[10px] bg-slate-100 px-2.5 py-1 rounded-md text-slate-500 uppercase tracking-widest ml-2 border border-slate-200">{leadsNaBase.length} Registros</span>
                                 </h3>
                             </div>
+                            
                             {selecionadosBase.length > 0 && (
-                                <button onClick={puxarSelecionados} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-2.5 rounded-xl shadow-[0_4px_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest animate-[zoomIn_0.2s_ease-out]">
-                                    <CheckSquare className="w-4 h-4" /> Puxar {selecionadosBase.length} Selecionados
-                                </button>
+                                <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
+                                    <button onClick={excluirSelecionadosBase} className="bg-rose-100 hover:bg-rose-200 text-rose-600 font-black px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                        <Trash2 className="w-4 h-4" /> Apagar do Banco ({selecionadosBase.length})
+                                    </button>
+                                    <button onClick={puxarSelecionados} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-2.5 rounded-xl shadow-[0_4px_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                        <CheckSquare className="w-4 h-4" /> Puxar para Fila
+                                    </button>
+                                </div>
                             )}
                         </div>
 
@@ -529,7 +747,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                                                     type="checkbox" 
                                                     className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                                                     checked={selecionadosBase.includes(v.id)}
-                                                    onChange={() => {}} // Handle is on the row
+                                                    onChange={() => {}}
                                                     onClick={(e) => e.stopPropagation()} 
                                                 />
                                             </td>
@@ -563,10 +781,34 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             )}
 
-            {/* KANBAN E LISTA MANTIDOS */}
+            {/* MÓDULOS EXTERNOS */}
             {visaoAtiva === 'dashboard' && <Metricas visitantes={meusLeadsAtivos} colaboradores={colaboradores} />}
-            {visaoAtiva === 'kanban' && <Kanban visitantes={meusLeadsAtivos} alterarStatus={alterarStatus} deletarLead={deletarLead} setModalWpp={setModalWpp} setModalDetalhe={setModalDetalhe} carregarHistoricoLead={carregarHistoricoLead} registrarHistorico={registrarHistorico} usuarioLogado={usuarioLogado}/>}
-            {visaoAtiva === 'lista' && <Lista visitantes={meusLeadsAtivos} alterarStatus={alterarStatus} deletarLead={deletarLead} setModalWpp={setModalWpp} setModalDetalhe={setModalDetalhe} carregarHistoricoLead={carregarHistoricoLead} registrarHistorico={registrarHistorico} usuarioLogado={usuarioLogado}/>}
+            
+            {visaoAtiva === 'kanban' && (
+                <Kanban 
+                    visitantes={meusLeadsAtivos} 
+                    alterarStatus={alterarStatus} 
+                    deletarLead={deletarLead} 
+                    setModalWpp={setModalWpp} 
+                    setModalDetalhe={setModalDetalhe} 
+                    carregarHistoricoLead={carregarHistoricoLead} 
+                    registrarHistorico={registrarHistorico} 
+                    usuarioLogado={usuarioLogado}
+                />
+            )}
+            
+            {visaoAtiva === 'lista' && (
+                <Lista 
+                    visitantes={meusLeadsAtivos} 
+                    alterarStatus={alterarStatus} 
+                    deletarLead={deletarLead} 
+                    alterarStatusEmLote={alterarStatusEmLote}
+                    deletarLeadsEmLote={deletarLeadsEmLote}
+                    setModalWpp={setModalWpp} 
+                    setModalDetalhe={setModalDetalhe} 
+                    carregarHistoricoLead={carregarHistoricoLead} 
+                />
+            )}
 
             <Modais 
                 modalWpp={modalWpp} setModalWpp={setModalWpp} modalDetalhe={modalDetalhe} setModalDetalhe={setModalDetalhe}

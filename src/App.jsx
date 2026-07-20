@@ -1,12 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient.js';
+
+// Ícones via Lucide-React (Fim da dependência global de <script>)
+import { 
+    Zap, ChevronDown, Menu, X, LogOut, 
+    ShoppingCart, History, PieChart, Wallet, 
+    Users, Database, Settings 
+} from 'lucide-react';
 
 // Importação Segura das Páginas
 import LancamentoVendas from './pages/Lancamento.jsx';
 import AssinaturasPratique from './pages/RegistroVendas.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa.jsx';
 import AnaliseDashboard from './pages/Analise.jsx';
-// A MÁGICA AQUI: Apontando para o Maestro (index.jsx) da pasta CRM!
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
 import CadastroGeral from './pages/CadastroGeral.jsx';
 import Configuracoes from './pages/Configuracoes.jsx';
@@ -19,8 +25,6 @@ export default function App() {
     const [usuarioLogado, setUsuarioLogado] = useState(null);
     const [activeTab, setActiveTab] = useState('lancamento');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
-    
-    // ESTADO DO SWITCHER GLOBAL DE UNIDADE NO CABEÇALHO
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
 
     // Estados vazios aguardando a nuvem
@@ -32,122 +36,135 @@ export default function App() {
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
 
-    // Resetar unidade global ao logar
     useEffect(() => {
         if (usuarioLogado) setUnidadeGlobal('TODAS');
     }, [usuarioLogado]);
 
     // ==========================================
-    // 2. SINCRONIZAÇÃO COM SUPABASE (SUPER FILTRO GLOBAL + REALTIME)
+    // 2. ACESSIBILIDADE E UX (MOBILE MENU)
     // ==========================================
     useEffect(() => {
-        if (!usuarioLogado) return;
-
-        let isMounted = true; // Previne vazamento de memória
-
-        // A MÁGICA: Se o Admin escolheu uma unidade no topo, nós já filtramos TUDO aqui!
-        const ehChefe = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
-        const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
-        const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado.unidade;
-
-        // Função empacotada para podermos chamar toda vez que o banco "gritar"
-        const carregarTudo = async () => {
-            try {
-                // 1. Puxar Unidades cadastradas
-                const { data: unids } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
-                if (isMounted && unids) setUnidades(unids);
-
-                // 2. Puxar Equipe
-                let queryColabs = supabase.from('colaboradores').select('*');
-                if (deveFiltrar) queryColabs = queryColabs.eq('unidade', unidadeFiltro);
-                const { data: colabs } = await queryColabs;
-                if (isMounted && colabs) setColaboradores(colabs);
-
-                // 3. Puxar Catálogo (Sempre global)
-                const { data: cat } = await supabase.from('catalogo').select('*');
-                if (isMounted && cat) {
-                    setPlanos(cat.filter(item => item.tipo === 'plano'));
-                    setProdutos(cat.filter(item => item.tipo === 'produto'));
-                    setServicos(cat.filter(item => item.tipo === 'servico')); 
-                }
-
-                // 4. Puxar Histórico de Vendas
-                let queryVendas = supabase.from('vendas').select('*').order('id', { ascending: false });
-                if (deveFiltrar) queryVendas = queryVendas.eq('unidade', unidadeFiltro);
-                const { data: vends } = await queryVendas;
-                if (isMounted && vends) setDadosAssinaturas(vends);
-
-                // 5. Puxar CRM de Leads
-                let queryLeads = supabase.from('leads').select('*').order('id', { ascending: false });
-                if (deveFiltrar) queryLeads = queryLeads.eq('unidade', unidadeFiltro);
-                const { data: leds } = await queryLeads;
-                if (isMounted && leds) setDadosVisitantes(leds);
-                
-            } catch (error) {
-                console.error("Erro ao puxar dados da nuvem:", error);
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape' && isMobileMenuOpen) {
+                setIsMobileMenuOpen(false);
             }
         };
 
-        // Carrega a primeira vez quando a tela abre
-        carregarTudo();
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = 'hidden'; // Trava o scroll do fundo
+            window.addEventListener('keydown', handleKeyDown);
+        } else {
+            document.body.style.overflow = 'auto'; // Libera o scroll
+        }
 
-        // 🚀 O MOTOR REALTIME: Fica de antena ligada no Supabase 24h
+        return () => {
+            document.body.style.overflow = 'auto';
+            window.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [isMobileMenuOpen]);
+
+    // ==========================================
+    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE 
+    // ==========================================
+    const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
+    const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado?.unidade;
+
+    // Funções Separadas para Otimização de Refetch
+    const fetchUnidades = useCallback(async (isMounted = true) => {
+        const { data, error } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
+        if (error) console.error("Erro ao buscar unidades:", error);
+        else if (isMounted && data) setUnidades(data);
+    }, []);
+
+    const fetchColaboradores = useCallback(async (isMounted = true) => {
+        let query = supabase.from('colaboradores').select('*');
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
+        const { data, error } = await query;
+        if (error) console.error("Erro ao buscar colaboradores:", error);
+        else if (isMounted && data) setColaboradores(data);
+    }, [deveFiltrar, unidadeFiltro]);
+
+    const fetchCatalogo = useCallback(async (isMounted = true) => {
+        const { data, error } = await supabase.from('catalogo').select('*');
+        if (error) console.error("Erro ao buscar catálogo:", error);
+        else if (isMounted && data) {
+            setPlanos(data.filter(item => item.tipo === 'plano'));
+            setProdutos(data.filter(item => item.tipo === 'produto'));
+            setServicos(data.filter(item => item.tipo === 'servico')); 
+        }
+    }, []);
+
+    const fetchVendas = useCallback(async (isMounted = true) => {
+        let query = supabase.from('vendas').select('*').order('id', { ascending: false });
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
+        const { data, error } = await query;
+        if (error) console.error("Erro ao buscar vendas:", error);
+        else if (isMounted && data) setDadosAssinaturas(data);
+    }, [deveFiltrar, unidadeFiltro]);
+
+    const fetchLeads = useCallback(async (isMounted = true) => {
+        let query = supabase.from('leads').select('*').order('id', { ascending: false });
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
+        const { data, error } = await query;
+        if (error) console.error("Erro ao buscar leads:", error);
+        else if (isMounted && data) setDadosVisitantes(data);
+    }, [deveFiltrar, unidadeFiltro]);
+
+    // Disparo Inicial Múltiplo
+    useEffect(() => {
+        if (!usuarioLogado) return;
+        let isMounted = true; 
+
+        fetchUnidades(isMounted);
+        fetchColaboradores(isMounted);
+        fetchCatalogo(isMounted);
+        fetchVendas(isMounted);
+        fetchLeads(isMounted);
+
+        // MOTOR REALTIME INDIVIDUALIZADO
         const realtimeChannel = supabase.channel('schema-db-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => { carregarTudo(); })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => { carregarTudo(); })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, () => { carregarTudo(); })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, () => { carregarTudo(); })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => { carregarTudo(); })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => fetchVendas(isMounted))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads(isMounted))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, () => fetchColaboradores(isMounted))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, () => fetchCatalogo(isMounted))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => fetchUnidades(isMounted))
             .subscribe();
 
-        // Limpa a antena se o usuário deslogar ou fechar a aba
         return () => {
             isMounted = false;
             supabase.removeChannel(realtimeChannel);
         };
         
-    }, [usuarioLogado, unidadeGlobal]); // Recarrega o banco instantaneamente ao trocar de unidade!
+    }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads]); 
 
     // ==========================================
-    // 3. FUNÇÕES E EFEITOS DE INTERFACE
+    // 4. FUNÇÕES DE INTERFACE
     // ==========================================
     const handleAddLancamentos = (novos) => setDadosAssinaturas([...novos, ...dadosAssinaturas]);
-    const handleLogout = () => setUsuarioLogado(null);
+    const handleLogout = () => {
+        setUsuarioLogado(null);
+        setIsMobileMenuOpen(false); 
+    };
 
-    useEffect(() => { 
-        if (window.lucide) window.lucide.createIcons(); 
-    }, [activeTab, usuarioLogado, isMobileMenuOpen, dadosAssinaturas, dadosVisitantes, unidadeGlobal]);
-
-    // ==========================================
-    // 4. TRAVA DE AUTENTICAÇÃO
-    // ==========================================
     if (!usuarioLogado) {
         return <Login onLogin={setUsuarioLogado} />;
     }
 
-    // ==========================================
-    // 5. CRIAÇÃO DO "AVATAR VIRTUAL" (IMPERSONATION)
-    // ==========================================
-    const ehChefe = usuarioLogado.role === 'ADMIN' || usuarioLogado.role === 'MENTOR';
-    
-    // Este é o usuário que as páginas vão enxergar!
     const usuarioVirtual = {
         ...usuarioLogado,
         role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
         unidade: (ehChefe && unidadeGlobal !== 'TODAS') ? unidadeGlobal : usuarioLogado.unidade
     };
 
-    // ==========================================
-    // 6. CONTROLE DE ACESSO
-    // ==========================================
     const todasAbas = [
-        { id: 'lancamento', label: 'Nova Venda', icon: 'shopping-cart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'assinaturas', label: 'Histórico', icon: 'history', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'analise', label: 'Dashboard', icon: 'pie-chart', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'fechamento', label: 'Fechamento', icon: 'wallet', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        { id: 'crm', label: 'CRM', icon: 'users', permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'cadastros', label: 'Cadastros', icon: 'database', permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        { id: 'config', label: 'Configurações', icon: 'settings', permissoes: ['ADMIN'] }
+        { id: 'lancamento', label: 'Nova Venda', icon: ShoppingCart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'assinaturas', label: 'Histórico', icon: History, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'analise', label: 'Dashboard', icon: PieChart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'fechamento', label: 'Fechamento', icon: Wallet, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
+        { id: 'crm', label: 'CRM', icon: Users, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'cadastros', label: 'Cadastros', icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
+        { id: 'config', label: 'Configurações', icon: Settings, permissoes: ['ADMIN'] }
     ];
 
     const abasPermitidas = todasAbas.filter(aba => aba.permissoes.includes(usuarioLogado.role));
@@ -155,35 +172,33 @@ export default function App() {
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-slate-600">
             
-            {/* CABEÇALHO COM O MENU GLOBAL */}
-            <header className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 shadow-sm border-b border-blue-500/20 sticky top-0 z-50 transition-all">
+            <header className="bg-slate-900 shadow-lg border-b border-slate-800 sticky top-0 z-40 transition-all">
                 <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
                     
                     <div className="flex items-center gap-3.5">
-                        <div className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center border border-white/10 shadow-inner">
-                            <i data-lucide="zap" className="text-white w-5 h-5"></i>
+                        <div className="w-11 h-11 bg-emerald-500 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400 shrink-0">
+                            <Zap className="text-slate-900 w-6 h-6 fill-current" />
                         </div>
                         <div>
                             <h1 className="text-lg font-black text-white tracking-wider leading-none">PRATIQUE VENDAS</h1>
                             
-                            {/* O GRANDE SELETOR GLOBAL DE UNIDADES */}
                             {ehChefe ? (
-                                <div className="mt-1.5 relative flex items-center bg-black/20 rounded-lg border border-white/10 px-2 py-0.5 w-fit hover:bg-black/30 transition-colors">
+                                <div className="mt-1.5 relative flex items-center bg-slate-800 rounded-lg border border-slate-700 px-2 py-0.5 w-fit hover:bg-slate-700 transition-colors">
                                     <span className={`w-1.5 h-1.5 rounded-full mr-2 shadow-sm animate-pulse ${unidadeGlobal === 'TODAS' ? 'bg-amber-400' : 'bg-emerald-400'}`}></span>
                                     <select 
                                         value={unidadeGlobal} 
                                         onChange={(e) => setUnidadeGlobal(e.target.value)}
-                                        className="bg-transparent text-[10px] font-bold text-blue-100 uppercase tracking-widest outline-none cursor-pointer appearance-none pr-5 z-10"
+                                        className="bg-transparent text-[10px] font-bold text-slate-300 uppercase tracking-widest outline-none cursor-pointer appearance-none pr-5 z-10"
                                     >
-                                        <option value="TODAS" className="bg-blue-900 text-white">VISÃO GLOBAL (TODAS)</option>
+                                        <option value="TODAS" className="bg-slate-800 text-white">VISÃO GLOBAL (TODAS)</option>
                                         {unidades.map(u => (
-                                            <option key={u.id} value={u.nome} className="bg-blue-900 text-white">{u.nome}</option>
+                                            <option key={u.id} value={u.nome} className="bg-slate-800 text-white">{u.nome}</option>
                                         ))}
                                     </select>
-                                    <i data-lucide="chevron-down" className="w-3 h-3 text-blue-300 absolute right-2 pointer-events-none"></i>
+                                    <ChevronDown className="w-3 h-3 text-slate-500 absolute right-2 pointer-events-none" />
                                 </div>
                             ) : (
-                                <p className="text-[9px] font-bold text-blue-200 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
+                                <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 
                                     {usuarioLogado.unidade}
                                 </p>
@@ -191,52 +206,86 @@ export default function App() {
                         </div>
                     </div>
                     
-                    <button onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} className="md:hidden p-2 text-blue-100 hover:text-white hover:bg-white/10 rounded-xl transition-all">
-                        <i data-lucide={isMobileMenuOpen ? "x" : "menu"} className="w-6 h-6"></i>
+                    <button onClick={() => setIsMobileMenuOpen(true)} className="xl:hidden p-2.5 bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 rounded-xl transition-all border border-slate-700">
+                        <Menu className="w-6 h-6" />
                     </button>
                     
-                    <div className="hidden md:flex items-center gap-6">
-                        <nav className="flex items-center gap-1 bg-black/10 p-1 rounded-xl border border-white/5">
+                    <div className="hidden xl:flex items-center gap-6">
+                        <nav className="flex items-center gap-1.5 bg-slate-800/50 p-1.5 rounded-2xl border border-slate-700/50">
                             {abasPermitidas.map(tab => {
                                 const isActive = activeTab === tab.id;
+                                const Icone = tab.icon;
                                 return (
                                     <button 
                                         key={tab.id} 
                                         onClick={() => setActiveTab(tab.id)} 
-                                        className={`px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap ${
+                                        className={`px-4 py-2.5 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-wider transition-all duration-200 whitespace-nowrap ${
                                             isActive 
-                                            ? 'bg-white text-blue-700 shadow-sm font-black' 
-                                            : 'text-blue-100 hover:text-white hover:bg-white/5'
+                                            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
+                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
                                         }`}
                                     >
-                                        <i data-lucide={tab.icon} className="w-3.5 h-3.5"></i> {tab.label}
+                                        <Icone className="w-3.5 h-3.5" /> {tab.label}
                                     </button>
                                 )
                             })}
                         </nav>
 
-                        <div className="flex items-center gap-4 pl-4 border-l border-white/10">
+                        <div className="flex items-center gap-4 pl-5 border-l border-slate-800">
                             <div className="text-right">
                                 <p className="text-xs font-black text-white tracking-tight">{usuarioLogado.nome}</p>
-                                <p className="text-[9px] font-black text-blue-200 uppercase tracking-widest mt-0.5 bg-black/20 px-2 py-0.5 rounded-md border border-white/5">{usuarioLogado.role}</p>
+                                <p className="text-[9px] font-black text-blue-400 uppercase tracking-widest mt-0.5">{usuarioLogado.role}</p>
                             </div>
                             <button 
                                 onClick={handleLogout} 
-                                className="w-9 h-10 bg-white/10 hover:bg-rose-500/90 text-blue-100 hover:text-white rounded-xl flex items-center justify-center transition-all border border-white/10 hover:border-transparent shadow-sm" 
+                                className="w-10 h-10 bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white rounded-xl flex items-center justify-center transition-all border border-rose-500/20 hover:border-transparent shadow-sm" 
                                 title="Sair do Sistema"
                             >
-                                <i data-lucide="log-out" className="w-4 h-4"></i>
+                                <LogOut className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
                 </div>
+            </header>
 
-                {/* MENU MOBILE INTERATIVO */}
-                {isMobileMenuOpen && (
-                    <div className="md:hidden bg-blue-800 border-t border-blue-600/60 shadow-xl overflow-hidden animate-[fadeIn_0.15s_ease-out]">
-                        <div className="px-3 pt-2 pb-4 space-y-1">
+            {/* OVERLAY E MENU GAVETA MOBILE (Acessível) */}
+            {isMobileMenuOpen && (
+                <div className="fixed inset-0 z-[100] xl:hidden">
+                    <div 
+                        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]" 
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    ></div>
+
+                    <div 
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Menu Principal"
+                        className="fixed top-0 right-0 w-[280px] sm:w-[320px] h-full bg-white shadow-2xl flex flex-col animate-[slideLeft_0.3s_ease-out] z-10"
+                    >
+                        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-sm">
+                                    {usuarioLogado.nome.charAt(0)}
+                                </div>
+                                <div>
+                                    <p className="text-xs font-black text-slate-800 truncate max-w-[140px] uppercase">{usuarioLogado.nome}</p>
+                                    <p className="text-[9px] font-black text-blue-600 uppercase tracking-widest">{usuarioLogado.role}</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setIsMobileMenuOpen(false)} 
+                                aria-label="Fechar Menu"
+                                className="w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-2">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 ml-2">Menu Principal</p>
                             {abasPermitidas.map(tab => {
                                 const isActive = activeTab === tab.id;
+                                const Icone = tab.icon;
                                 return (
                                     <button 
                                         key={tab.id} 
@@ -244,108 +293,39 @@ export default function App() {
                                             setActiveTab(tab.id);
                                             setIsMobileMenuOpen(false); 
                                         }} 
-                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
+                                        className={`w-full flex items-center gap-3 px-4 py-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${
                                             isActive 
-                                            ? 'bg-white text-blue-700 shadow-md' 
-                                            : 'text-blue-100 hover:bg-blue-700/50 hover:text-white'
+                                            ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-100' 
+                                            : 'text-slate-600 hover:bg-slate-50 border border-transparent'
                                         }`}
                                     >
-                                        <i data-lucide={tab.icon} className="w-4 h-4"></i> {tab.label}
+                                        <Icone className={`w-5 h-5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                                        {tab.label}
                                     </button>
                                 )
                             })}
-                            
-                            <div className="h-px bg-white/10 my-3"></div>
-                            
-                            <div className="flex items-center justify-between px-3 py-2 bg-black/10 rounded-xl border border-white/5">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 bg-white/10 rounded-full flex items-center justify-center font-black text-white text-xs border border-white/10">
-                                        {usuarioLogado.nome.charAt(0)}
-                                    </div>
-                                    <div>
-                                        <p className="text-xs font-black text-white">{usuarioLogado.nome}</p>
-                                        <p className="text-[9px] font-bold text-blue-200 uppercase tracking-widest">{usuarioLogado.role}</p>
-                                    </div>
-                                </div>
-                                <button 
-                                    onClick={handleLogout} 
-                                    className="p-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition-colors shadow-sm"
-                                    title="Sair"
-                                >
-                                    <i data-lucide="log-out" className="w-4 h-4"></i>
-                                </button>
-                            </div>
+                        </div>
+
+                        <div className="p-5 border-t border-slate-100 bg-slate-50">
+                            <button 
+                                onClick={handleLogout} 
+                                className="w-full flex items-center justify-center gap-2 bg-rose-100 text-rose-600 hover:bg-rose-600 hover:text-white py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-sm"
+                            >
+                                <LogOut className="w-4 h-4" /> Sair do Sistema
+                            </button>
                         </div>
                     </div>
-                )}
-            </header>
+                </div>
+            )}
 
-            {/* ESPAÇO DE TRABALHO GERAL */}
             <main key={unidadeGlobal} className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
-                {activeTab === 'lancamento' && (
-                    <LancamentoVendas 
-                        usuarioLogado={usuarioVirtual}
-                        unidades={unidades}
-                        onAddMultiple={handleAddLancamentos} 
-                        planos={planos} 
-                        produtos={produtos} 
-                        servicos={servicos}
-                        colaboradores={colaboradores} 
-                    />
-                )}
-                
-                {activeTab === 'assinaturas' && (
-                    <AssinaturasPratique 
-                        usuarioLogado={usuarioVirtual}
-                        data={dadosAssinaturas} 
-                        setData={setDadosAssinaturas} 
-                    />
-                )}
-
-                {activeTab === 'analise' && (
-                    <AnaliseDashboard 
-                        usuarioLogado={usuarioVirtual}
-                        vendas={dadosAssinaturas} 
-                        planos={planos} 
-                    />
-                )}
-
-                {activeTab === 'fechamento' && (
-                    <FechamentoCaixa 
-                        usuarioLogado={usuarioVirtual}
-                        vendas={dadosAssinaturas} 
-                        setVendas={setDadosAssinaturas} 
-                    />
-                )}
-                
-                {activeTab === 'crm' && (
-                    <CrmVisitantes 
-                        usuarioLogado={usuarioVirtual}
-                        visitantes={dadosVisitantes} 
-                        setVisitantes={setDadosVisitantes} 
-                        colaboradores={colaboradores} 
-                    />
-                )}
-
-                {activeTab === 'cadastros' && (
-                    <CadastroGeral 
-                        usuarioLogado={usuarioVirtual}
-                        planos={planos} 
-                        setPlanos={setPlanos} 
-                        produtos={produtos} 
-                        setProdutos={setProdutos} 
-                        colaboradores={colaboradores} 
-                        setColaboradores={setColaboradores} 
-                        unidades={unidades} 
-                    />
-                )}
-
-                {activeTab === 'config' && (
-                    <Configuracoes 
-                        unidades={unidades} 
-                        setUnidades={setUnidades} 
-                    />
-                )}
+                {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
+                {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} />}
+                {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} planos={planos} />}
+                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} setVendas={setDadosAssinaturas} />}
+                {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
+                {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
+                {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
             </main>
         </div>
     );
