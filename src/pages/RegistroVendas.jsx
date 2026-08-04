@@ -1,15 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient.js'; 
 
 const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
+    // ESTADOS DE FILTRO
     const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
     const [filtroMes, setFiltroMes] = useState('TODOS');
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
     const [dataInicio, setDataInicio] = useState('');
     const [dataFim, setDataFim] = useState('');
+    const [diaEspecifico, setDiaEspecifico] = useState(new Date().toISOString().split('T')[0]);
+    
     const [filtroProduto, setFiltroProduto] = useState('TODOS');
     const [filtroVendedor, setFiltroVendedor] = useState('TODOS');
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); 
+
+    // ESTADO DE ORDENAÇÃO (Classificação A-Z, Menor-Maior)
+    const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
 
     const [catalogoGeral, setCatalogoGeral] = useState([]);
     const [editandoId, setEditandoId] = useState(null);
@@ -19,15 +25,58 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
 
     // ==========================================
-    // TRADUTORES UNIVERSAIS (BLINDAGEM CONTRA DADOS ANTIGOS)
+    // SISTEMA DE SCROLL POR ARRASTE (DRAG TO SCROLL) - CORRIGIDO
+    // ==========================================
+    const scrollContainerRef = useRef(null);
+    const isDragging = useRef(false);
+    const startX = useRef(0);
+    const scrollLeft = useRef(0);
+
+    const handleMouseDown = (e) => {
+        // Inteligência: Ignora o arraste se o usuário clicar num botão, input ou select para poder editar!
+        const targetTag = e.target.tagName;
+        if (targetTag === 'INPUT' || targetTag === 'SELECT' || targetTag === 'BUTTON' || e.target.closest('button')) {
+            return;
+        }
+
+        isDragging.current = true;
+        
+        // Desativa a seleção de texto nativa do navegador enquanto arrasta
+        scrollContainerRef.current.style.userSelect = 'none'; 
+        
+        scrollContainerRef.current.classList.add('cursor-grabbing');
+        scrollContainerRef.current.classList.remove('cursor-grab');
+        startX.current = e.pageX - scrollContainerRef.current.offsetLeft;
+        scrollLeft.current = scrollContainerRef.current.scrollLeft;
+    };
+
+    const handleMouseLeaveOrUp = () => {
+        isDragging.current = false;
+        if (scrollContainerRef.current) {
+            // Devolve a permissão de selecionar texto ao soltar o mouse
+            scrollContainerRef.current.style.userSelect = 'auto';
+            
+            scrollContainerRef.current.classList.remove('cursor-grabbing');
+            scrollContainerRef.current.classList.add('cursor-grab');
+        }
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging.current) return;
+        e.preventDefault(); // Impede comportamentos bizarros do navegador durante o arrasto
+        const x = e.pageX - scrollContainerRef.current.offsetLeft;
+        const walk = (x - startX.current) * 1.5; // Velocidade do arrasto (1.5x)
+        scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
+    };
+
+    // ==========================================
+    // TRADUTORES UNIVERSAIS (BLINDAGEM)
     // ==========================================
     const safeNumber = (val) => {
         if (typeof val === 'number') return val;
         if (!val) return 0;
         const str = String(val);
-        if (str.includes(',')) {
-            return parseFloat(str.replace(/[^0-9,-]+/g, '').replace(',', '.')) || 0;
-        }
+        if (str.includes(',')) return parseFloat(str.replace(/[^0-9,-]+/g, '').replace(',', '.')) || 0;
         return parseFloat(str.replace(/[^0-9.-]+/g, '')) || 0;
     };
 
@@ -51,7 +100,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         return dStr;
     };
 
-    // Extrai o horário exato da criação da venda no banco (Para a Auditoria)
     const extrairHoraCriacao = (isoString) => {
         if (!isoString) return '';
         const dataObj = new Date(isoString);
@@ -68,8 +116,11 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [data, tipoFiltroData, filtroMes, filtroAno, filtroProduto, filtroVendedor, filtroUnidade, editandoId, catalogoGeral]);
+    }, [data, tipoFiltroData, filtroMes, filtroAno, diaEspecifico, filtroProduto, filtroVendedor, filtroUnidade, editandoId, catalogoGeral, ordenacao]);
 
+    // ==========================================
+    // AÇÕES DE EDIÇÃO E EXCLUSÃO
+    // ==========================================
     const removerLancamento = async (id) => {
         if(!podeEditar) return;
         if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
@@ -90,11 +141,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
 
         let unitario = 0;
         const itemCatalogo = catalogoGeral.find(c => c.nome.toUpperCase() === venda.produto?.toUpperCase());
-        if (itemCatalogo) {
-            unitario = safeNumber(itemCatalogo.valor);
-        } else {
-            unitario = valorNumericoBanco / qtd;
-        }
+        if (itemCatalogo) unitario = safeNumber(itemCatalogo.valor);
+        else unitario = valorNumericoBanco / qtd;
 
         setEditandoId(venda.id);
         setDadosEdicao({
@@ -160,6 +208,9 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         }
     };
 
+    // ==========================================
+    // LISTAS DE FILTROS ÚNICOS
+    // ==========================================
     const produtosUnicos = ['TODOS', ...new Set(data.map(v => v.produto))].filter(Boolean);
     const vendedoresUnicos = ['TODOS', ...new Set(data.map(v => v.vendedor))].filter(Boolean);
     const unidadesUnicas = ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean); 
@@ -174,6 +225,9 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         { val: '12', label: '12 - Dezembro' }
     ];
 
+    // ==========================================
+    // MOTOR DE FILTRAGEM
+    // ==========================================
     const vendasFiltradas = data.filter(venda => {
         if (temVisaoGlobal && filtroUnidade !== 'TODOS' && venda.unidade !== filtroUnidade) return false;
         if (filtroProduto !== 'TODOS' && venda.produto !== filtroProduto) return false;
@@ -189,12 +243,47 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         if (tipoFiltroData === 'mes') {
             if (filtroMes !== 'TODOS' && m !== filtroMes) return false;
             if (filtroAno !== 'TODOS' && y !== filtroAno) return false;
-        } else {
+        } else if (tipoFiltroData === 'periodo') {
             if (dataInicio && isoDate < dataInicio) return false;
             if (dataFim && isoDate > dataFim) return false;
+        } else if (tipoFiltroData === 'dia') {
+            if (diaEspecifico && isoDate !== diaEspecifico) return false;
         }
 
         return true;
+    });
+
+    // ==========================================
+    // MOTOR DE CLASSIFICAÇÃO (A-Z, Menor-Maior)
+    // ==========================================
+    const handleOrdenar = (colunaClicada) => {
+        let novaDirecao = 'asc';
+        if (ordenacao.coluna === colunaClicada && ordenacao.direcao === 'asc') {
+            novaDirecao = 'desc';
+        }
+        setOrdenacao({ coluna: colunaClicada, direcao: novaDirecao });
+    };
+
+    const vendasOrdenadas = [...vendasFiltradas].sort((a, b) => {
+        let valorA, valorB;
+
+        if (ordenacao.coluna === 'nome_aluno') {
+            valorA = (a.nome_aluno || a.nome || '').toUpperCase();
+            valorB = (b.nome_aluno || b.nome || '').toUpperCase();
+        } else if (ordenacao.coluna === 'data') {
+            valorA = a.created_at || a.data;
+            valorB = b.created_at || b.data;
+        } else if (ordenacao.coluna === 'valor') {
+            valorA = safeNumber(a.valor);
+            valorB = safeNumber(b.valor);
+        } else {
+            valorA = String(a[ordenacao.coluna] || '').toUpperCase();
+            valorB = String(b[ordenacao.coluna] || '').toUpperCase();
+        }
+
+        if (valorA < valorB) return ordenacao.direcao === 'asc' ? -1 : 1;
+        if (valorA > valorB) return ordenacao.direcao === 'asc' ? 1 : -1;
+        return 0;
     });
 
     return (
@@ -212,24 +301,31 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         </div>
                     </div>
                     
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner w-full md:w-auto">
+                    {/* O FAMOSO SEGMENTED CONTROL (Mês | Período | Dia) */}
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
                         <button 
                             onClick={() => setTipoFiltroData('mes')} 
-                            className={`flex-1 md:w-36 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoFiltroData === 'mes' ? 'bg-white shadow-sm text-blue-600 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            <i data-lucide="calendar" className="w-3.5 h-3.5"></i> Mês / Ano
+                            <i data-lucide="calendar" className="w-3.5 h-3.5"></i> Mês
                         </button>
                         <button 
                             onClick={() => setTipoFiltroData('periodo')} 
-                            className={`flex-1 md:w-44 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoFiltroData === 'periodo' ? 'bg-white shadow-sm text-blue-600 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            <i data-lucide="calendar-days" className="w-3.5 h-3.5"></i> Período Específico
+                            <i data-lucide="calendar-days" className="w-3.5 h-3.5"></i> Período
+                        </button>
+                        <button 
+                            onClick={() => setTipoFiltroData('dia')} 
+                            className={`flex-1 md:w-32 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <i data-lucide="sun" className="w-3.5 h-3.5"></i> Dia
                         </button>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                    {tipoFiltroData === 'mes' ? (
+                    {tipoFiltroData === 'mes' && (
                         <>
                             <div>
                                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Mês Ref.</label>
@@ -245,7 +341,9 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                 </select>
                             </div>
                         </>
-                    ) : (
+                    )}
+                    
+                    {tipoFiltroData === 'periodo' && (
                         <>
                             <div>
                                 <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Data Início</label>
@@ -256,6 +354,13 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                 <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" />
                             </div>
                         </>
+                    )}
+
+                    {tipoFiltroData === 'dia' && (
+                        <div className="sm:col-span-2 lg:col-span-2">
+                            <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Dia Específico</label>
+                            <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer" />
+                        </div>
                     )}
 
                     <div>
@@ -275,7 +380,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         <div className="animate-[fadeIn_0.3s_ease-out]">
                             <label className="block text-[9px] font-black text-rose-500 uppercase tracking-widest mb-1.5 ml-1">Isolar Unidade</label>
                             <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="w-full bg-white border border-rose-200 rounded-xl px-3 py-2.5 text-xs font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase">
-                                {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS 10 UNIDADES' : u}</option>)}
+                                {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS UNIDADES' : u}</option>)}
                             </select>
                         </div>
                     )}
@@ -290,32 +395,73 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         </h2>
                     </div>
                     <div className="bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200 shadow-sm">
-                        {vendasFiltradas.length} de {data.length} Encontrados
+                        {vendasOrdenadas.length} de {data.length} Encontrados
                     </div>
                 </div>
                 
-                <div className="overflow-x-auto custom-scrollbar" style={{ maxHeight: '65vh' }}>
+                {/* CONTAINER COM O DRAG-TO-SCROLL (A MÃOZINHA) LISO! */}
+                <div 
+                    ref={scrollContainerRef}
+                    onMouseDown={handleMouseDown}
+                    onMouseLeave={handleMouseLeaveOrUp}
+                    onMouseUp={handleMouseLeaveOrUp}
+                    onMouseMove={handleMouseMove}
+                    className="overflow-x-auto custom-scrollbar cursor-grab" 
+                    style={{ maxHeight: '65vh' }}
+                >
                     <table className="w-full text-left border-collapse min-w-max">
                         <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm">
                             <tr>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data / Lançamento</th>
+                                {/* CABEÇALHOS CLICÁVEIS (CLASSIFICAÇÃO A-Z) */}
+                                <th onClick={() => handleOrdenar('data')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                    <div className="flex items-center gap-1.5">
+                                        Data / Lançamento
+                                        <i data-lucide={ordenacao.coluna === 'data' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'data' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    </div>
+                                </th>
                                 {temVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200">Unidade</th>}
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno / Matrícula</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Plano/Produto</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Vendedor</th>
+                                
+                                <th onClick={() => handleOrdenar('nome_aluno')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                    <div className="flex items-center gap-1.5">
+                                        Aluno / Matrícula
+                                        <i data-lucide={ordenacao.coluna === 'nome_aluno' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'nome_aluno' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    </div>
+                                </th>
+                                
+                                <th onClick={() => handleOrdenar('produto')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                    <div className="flex items-center gap-1.5">
+                                        Plano/Produto
+                                        <i data-lucide={ordenacao.coluna === 'produto' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'produto' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    </div>
+                                </th>
+                                
+                                <th onClick={() => handleOrdenar('vendedor')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                    <div className="flex items-center gap-1.5">
+                                        Vendedor
+                                        <i data-lucide={ordenacao.coluna === 'vendedor' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'vendedor' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    </div>
+                                </th>
+                                
                                 <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Qtd</th>
-                                <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right">Valor Total</th>
+                                
+                                <th onClick={() => handleOrdenar('valor')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                    <div className="flex items-center justify-end gap-1.5">
+                                        Valor Total
+                                        <i data-lucide={ordenacao.coluna === 'valor' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'valor' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    </div>
+                                </th>
+                                
                                 {podeEditar && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Gestão</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
-                            {vendasFiltradas.map((row) => {
+                            {/* MAP PARA RENDERIZAR OS DADOS ORDENADOS */}
+                            {vendasOrdenadas.map((row) => {
                                 const isEditing = editandoId === row.id;
 
                                 return (
                                     <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                                         
-                                        {/* COLUNA DE DATA COM O NOME DE QUEM LANÇOU! */}
                                         <td className="px-6 py-4 align-middle">
                                             {isEditing ? (
                                                 <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
@@ -422,7 +568,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                 );
                             })}
                             
-                            {vendasFiltradas.length === 0 && (
+                            {vendasOrdenadas.length === 0 && (
                                 <tr>
                                     <td colSpan={temVisaoGlobal ? "8" : "7"} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
                                         <i data-lucide="filter-x" className="w-10 h-10 mx-auto text-slate-300 mb-4 opacity-50"></i>
