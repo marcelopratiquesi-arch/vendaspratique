@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabaseClient.js';
 
-// Ícones via Lucide-React (Fim da dependência global de <script>)
+// Ícones via Lucide-React 
 import { 
     Zap, ChevronDown, Menu, X, LogOut, 
     ShoppingCart, History, PieChart, Wallet, 
@@ -51,7 +51,7 @@ export default function App() {
         };
 
         if (isMobileMenuOpen) {
-            document.body.style.overflow = 'hidden'; // Trava o scroll do fundo
+            document.body.style.overflow = 'hidden'; // Trava o scroll do fundo no celular
             window.addEventListener('keydown', handleKeyDown);
         } else {
             document.body.style.overflow = 'auto'; // Libera o scroll
@@ -64,7 +64,7 @@ export default function App() {
     }, [isMobileMenuOpen]);
 
     // ==========================================
-    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE 
+    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE (EFEITO WHATSAPP)
     // ==========================================
     const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
@@ -111,25 +111,79 @@ export default function App() {
         else if (isMounted && data) setDadosVisitantes(data);
     }, [deveFiltrar, unidadeFiltro]);
 
-    // Disparo Inicial Múltiplo
+    // Disparo Inicial Múltiplo e Realtime Turbo
     useEffect(() => {
         if (!usuarioLogado) return;
         let isMounted = true; 
 
+        // 1. Carrega tudo na primeira vez que a tela abre
         fetchUnidades(isMounted);
         fetchColaboradores(isMounted);
         fetchCatalogo(isMounted);
         fetchVendas(isMounted);
         fetchLeads(isMounted);
 
-        // MOTOR REALTIME INDIVIDUALIZADO
-        const realtimeChannel = supabase.channel('schema-db-changes')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => fetchVendas(isMounted))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads(isMounted))
+        // 2. MOTOR REALTIME TURBO (INJEÇÃO DIRETA)
+        const realtimeChannel = supabase.channel('sistema-pratique-realtime')
+            
+            // --- EVENTOS DE VENDAS ---
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendas' }, (payload) => {
+                if (!isMounted) return;
+                setDadosAssinaturas(prev => {
+                    // Evita duplicar se foi a própria máquina que lançou a venda
+                    if (prev.find(v => v.id === payload.new.id)) return prev; 
+                    
+                    const isAdmin = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+                    const filtroAtual = isAdmin ? unidadeGlobal : usuarioLogado?.unidade;
+                    
+                    // Bloqueia venda de outra academia de poluir a tela se não estiver na visão global
+                    if (filtroAtual !== 'TODAS' && payload.new.unidade !== filtroAtual) return prev; 
+                    
+                    // Injeta a nova linha no topo da lista atual!
+                    return [payload.new, ...prev].sort((a,b) => b.id - a.id);
+                });
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vendas' }, (payload) => {
+                if (!isMounted) return;
+                setDadosAssinaturas(prev => prev.map(v => v.id === payload.new.id ? payload.new : v));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'vendas' }, (payload) => {
+                if (!isMounted) return;
+                setDadosAssinaturas(prev => prev.filter(v => v.id !== payload.old.id));
+            })
+
+            // --- EVENTOS DE LEADS (CRM) ---
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'leads' }, (payload) => {
+                if (!isMounted) return;
+                setDadosVisitantes(prev => {
+                    if (prev.find(l => l.id === payload.new.id)) return prev;
+                    
+                    const isAdmin = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+                    const filtroAtual = isAdmin ? unidadeGlobal : usuarioLogado?.unidade;
+                    if (filtroAtual !== 'TODAS' && payload.new.unidade !== filtroAtual) return prev;
+                    
+                    return [payload.new, ...prev].sort((a,b) => b.id - a.id);
+                });
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'leads' }, (payload) => {
+                if (!isMounted) return;
+                setDadosVisitantes(prev => prev.map(l => l.id === payload.new.id ? payload.new : l));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'leads' }, (payload) => {
+                if (!isMounted) return;
+                setDadosVisitantes(prev => prev.filter(l => l.id !== payload.old.id));
+            })
+
+            // Tabelas menores (Configurações) não precisam de injeção complexa, um refetch simples basta
             .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, () => fetchColaboradores(isMounted))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, () => fetchCatalogo(isMounted))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => fetchUnidades(isMounted))
-            .subscribe();
+            
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('✅ Motor Realtime Turbo Conectado na Pratique!');
+                }
+            });
 
         return () => {
             isMounted = false;
@@ -248,7 +302,6 @@ export default function App() {
                 </div>
             </header>
 
-            {/* OVERLAY E MENU GAVETA MOBILE (Acessível) */}
             {isMobileMenuOpen && (
                 <div className="fixed inset-0 z-[100] xl:hidden">
                     <div 
@@ -319,69 +372,13 @@ export default function App() {
             )}
 
             <main key={unidadeGlobal} className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
-                {activeTab === 'lancamento' && (
-                    <LancamentoVendas 
-                        usuarioLogado={usuarioVirtual} 
-                        unidades={unidades} 
-                        onAddMultiple={handleAddLancamentos} 
-                        planos={planos} 
-                        produtos={produtos} 
-                        servicos={servicos} 
-                        colaboradores={colaboradores} 
-                    />
-                )}
-                {activeTab === 'assinaturas' && (
-                    <AssinaturasPratique 
-                        usuarioLogado={usuarioVirtual} 
-                        data={dadosAssinaturas} 
-                        setData={setDadosAssinaturas} 
-                    />
-                )}
-                
-                {/* AQUI ESTÁ A CORREÇÃO: PASSANDO TODAS AS PROPS, INCLUINDO COLABORADORES */}
-                {activeTab === 'analise' && (
-                    <AnaliseDashboard 
-                        usuarioLogado={usuarioVirtual} 
-                        vendas={dadosAssinaturas} 
-                        planos={planos} 
-                        produtos={produtos} 
-                        colaboradores={colaboradores} 
-                    />
-                )}
-                
-                {activeTab === 'fechamento' && (
-                    <FechamentoCaixa 
-                        usuarioLogado={usuarioVirtual} 
-                        vendas={dadosAssinaturas} 
-                        setVendas={setDadosAssinaturas} 
-                    />
-                )}
-                {activeTab === 'crm' && (
-                    <CrmVisitantes 
-                        usuarioLogado={usuarioVirtual} 
-                        visitantes={dadosVisitantes} 
-                        setVisitantes={setDadosVisitantes} 
-                        colaboradores={colaboradores} 
-                    />
-                )}
-                {activeTab === 'cadastros' && (
-                    <CadastroGeral 
-                        usuarioLogado={usuarioVirtual} 
-                        planos={planos} 
-                        setPlanos={setPlanos} 
-                        produtos={produtos} 
-                        setProdutos={setProdutos} 
-                        colaboradores={colaboradores} 
-                        setColaboradores={setColaboradores} 
-                        unidades={unidades} 
-                    />
-                )}
-                {activeTab === 'config' && (
-                    <Configuracoes 
-                        unidades={unidades} 
-                        setUnidades={setUnidades} 
-                    />
-                )}
+                {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
+                {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} />}
+                {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
+                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} setVendas={setDadosAssinaturas} />}
+                {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
+                {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
+                {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
             </main>
         </div>
     );
