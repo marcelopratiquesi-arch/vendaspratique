@@ -57,7 +57,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         else setFormData({ ...formData, [name]: value });
     };
 
-    // 🤖 AUDITORIA EM TEMPO REAL: Verifica se o CPF digitado manualmente já existe no banco
+    // AUDITORIA EM TEMPO REAL
     const cpfDigitadoLimpo = formData.cpf.replace(/\D/g, '');
     const leadDuplicadoManual = cpfDigitadoLimpo.length === 11 
         ? visitantes.find(v => v.cpf && v.cpf.replace(/\D/g, '') === cpfDigitadoLimpo) 
@@ -155,7 +155,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     };
 
     // ==========================================
-    // O MOTOR DO SMART PASTE 
+    // O MOTOR DO SMART PASTE (COM IA DE DETECÇÃO DE COLUNAS)
     // ==========================================
     const processarColagem = (texto) => {
         setTextoSmartPaste(texto);
@@ -172,18 +172,42 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
 
         linhas.forEach(linha => {
             if (!linha.trim()) return;
-            const colunas = linha.split('\t');
+            const colunas = linha.split('\t').map(c => c.trim());
             let nome = '', telefone = '', cpf = '';
             
-            const isMatricula = /^\d{4,8}$/.test(colunas[0]?.trim());
+            // Descobre onde o nome começa (Ignora a coluna se a primeira for matrícula pura)
+            let offset = 0;
+            if (/^\d{3,8}$/.test(colunas[0])) {
+                offset = 1;
+            }
 
-            if (isMatricula) {
-                nome = colunas[1]?.trim().toUpperCase() || '';
-                telefone = colunas[2]?.trim() || '';
+            nome = colunas[offset]?.toUpperCase() || '';
+            const campo1 = colunas[offset + 1] || '';
+            const campo2 = colunas[offset + 2] || '';
+
+            // LÓGICA INTELIGENTE: O sistema agora tenta adivinhar o que é CPF e o que é telefone
+            // CPF sempre segue a regra de pontos e traços no Pacto.
+            const isCpfFormatado = (str) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(str);
+            
+            if (isCpfFormatado(campo1)) {
+                cpf = campo1;
+                telefone = campo2;
+            } else if (isCpfFormatado(campo2)) {
+                cpf = campo2;
+                telefone = campo1;
             } else {
-                nome = colunas[0]?.trim().toUpperCase() || '';
-                telefone = colunas[1]?.trim() || '';
-                cpf = colunas[2]?.trim() || '';
+                // Se nenhum for obviamente CPF, analisa pelo tamanho dos números para salvar planilhas despadronizadas
+                const numerosCampo1 = campo1.replace(/\D/g, '').length;
+                
+                // Se só tem 2 colunas copiadas (Nome e Telefone)
+                if (campo1 && !campo2 && (campo1.includes('(') || numerosCampo1 === 10 || numerosCampo1 === 11)) {
+                    telefone = campo1;
+                    cpf = '';
+                } else {
+                    // Fallback para o comportamento clássico do Pacto (Nome, CPF, Telefone)
+                    cpf = campo1;
+                    telefone = campo2;
+                }
             }
             
             let cpfLimpo = cpf.replace(/\D/g, '');
@@ -296,10 +320,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         
         if(window.confirm(`ATENÇÃO DELETAR DADOS: Deseja EXCLUIR DEFINITIVAMENTE os ${selecionadosBase.length} contatos da base bruta do Supabase?\n\nIsso apagará os dados do banco e liberará os CPFs. Esta ação NÃO pode ser desfeita.`)) {
             const backupVisitantes = [...visitantes];
-            // Remove imediatamente da tela para a UX ficar fluida
             setVisitantes(prev => prev.filter(v => !selecionadosBase.includes(v.id)));
             
-            // Dispara a deleção real no banco de dados
             const { error } = await supabase.from('leads').delete().in('id', selecionadosBase);
             
             if (error) {
@@ -731,7 +753,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                                             />
                                         </th>
                                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Aluno / Lead</th>
-                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Contato</th>
+                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Contato (WhatsApp)</th>
                                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Tipo</th>
                                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">Data Base</th>
                                     </tr>

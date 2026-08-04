@@ -319,13 +319,69 @@ export default function App() {
             )}
 
             <main key={unidadeGlobal} className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
-                {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
-                {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} />}
-                {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} planos={planos} />}
-                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} setVendas={setDadosAssinaturas} />}
-                {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
-                {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
-                {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
+                {activeTab === 'lancamento' && (
+                    <LancamentoVendas 
+                        usuarioLogado={usuarioVirtual} 
+                        unidades={unidades} 
+                        onAddMultiple={handleAddLancamentos} 
+                        planos={planos} 
+                        produtos={produtos} 
+                        servicos={servicos} 
+                        colaboradores={colaboradores} 
+                    />
+                )}
+                {activeTab === 'assinaturas' && (
+                    <AssinaturasPratique 
+                        usuarioLogado={usuarioVirtual} 
+                        data={dadosAssinaturas} 
+                        setData={setDadosAssinaturas} 
+                    />
+                )}
+                
+                {/* AQUI ESTÁ A CORREÇÃO: PASSANDO TODAS AS PROPS, INCLUINDO COLABORADORES */}
+                {activeTab === 'analise' && (
+                    <AnaliseDashboard 
+                        usuarioLogado={usuarioVirtual} 
+                        vendas={dadosAssinaturas} 
+                        planos={planos} 
+                        produtos={produtos} 
+                        colaboradores={colaboradores} 
+                    />
+                )}
+                
+                {activeTab === 'fechamento' && (
+                    <FechamentoCaixa 
+                        usuarioLogado={usuarioVirtual} 
+                        vendas={dadosAssinaturas} 
+                        setVendas={setDadosAssinaturas} 
+                    />
+                )}
+                {activeTab === 'crm' && (
+                    <CrmVisitantes 
+                        usuarioLogado={usuarioVirtual} 
+                        visitantes={dadosVisitantes} 
+                        setVisitantes={setDadosVisitantes} 
+                        colaboradores={colaboradores} 
+                    />
+                )}
+                {activeTab === 'cadastros' && (
+                    <CadastroGeral 
+                        usuarioLogado={usuarioVirtual} 
+                        planos={planos} 
+                        setPlanos={setPlanos} 
+                        produtos={produtos} 
+                        setProdutos={setProdutos} 
+                        colaboradores={colaboradores} 
+                        setColaboradores={setColaboradores} 
+                        unidades={unidades} 
+                    />
+                )}
+                {activeTab === 'config' && (
+                    <Configuracoes 
+                        unidades={unidades} 
+                        setUnidades={setUnidades} 
+                    />
+                )}
             </main>
         </div>
     );

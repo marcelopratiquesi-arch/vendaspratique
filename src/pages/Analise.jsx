@@ -14,7 +14,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
     const [diaEspecifico, setDiaEspecifico] = useState(new Date().toISOString().split('T')[0]); 
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS');
 
-    // Estado para controlar qual grupo de planos está expandido na tela
     const [grupoExpandido, setGrupoExpandido] = useState(null);
 
     // Metas Persistidas na Nuvem
@@ -140,6 +139,29 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
     };
 
     // ==========================================
+    // O FILTRO INTELIGENTE DE CATEGORIAS
+    // ==========================================
+    const getCategoriaItem = (nomeProduto) => {
+        const nome = (nomeProduto || '').toUpperCase();
+        
+        if (nome.includes('DIÁRIA') || nome.includes('DIARIA') || 
+            nome.includes('AVALIAÇÃO') || nome.includes('AVALIACAO') || 
+            nome.includes('REAVALIAÇÃO') || nome.includes('TAXA') || 
+            nome.includes('MULTA') || nome.includes('DAY USE')) {
+            return 'SERVICO';
+        }
+
+        if (planos && planos.length > 0 && planos.some(p => p.nome?.toUpperCase() === nome)) return 'PLANO';
+        if (produtos && produtos.length > 0 && produtos.some(p => p.nome?.toUpperCase() === nome)) return 'PRODUTO';
+
+        if (nome.includes('NUTRI') || nome.includes('PLUS') || nome.includes('FIT') || nome.includes('PLANO') || nome.includes('MENSAL') || nome.includes('ANUAL') || nome.includes('SSP') || nome.includes('PERSONAL')) {
+            return 'PLANO';
+        }
+
+        return 'PRODUTO';
+    };
+
+    // ==========================================
     // MOTOR DE FILTRAGEM E RANKING
     // ==========================================
     const vendasFiltradas = vendas.filter(v => {
@@ -162,41 +184,38 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
         return true;
     });
 
-    const verificarSeEhPlano = (produtoNome) => {
-        if (!produtoNome) return false;
-        return planos.some(p => p.nome?.toUpperCase() === produtoNome.toUpperCase());
-    };
-
-    // Processamento de Métricas
     const rankingConsultoresFisicos = {};
     const unidadeAtual = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
     
-    const equipeLocal = colaboradores.filter(c => 
+    // Carrega a equipe da unidade para mostrar quem tá zerado!
+    const equipeLocal = (colaboradores || []).filter(c => 
         unidadeAtual === 'TODOS' ? true : c.unidade?.toUpperCase() === unidadeAtual?.toUpperCase()
     );
-
     equipeLocal.forEach(colab => { rankingConsultoresFisicos[colab.nome.toUpperCase()] = 0; });
 
     let totalVendasProdutos = 0;
     let totalPlanos = 0;
+    let totalServicos = 0;
     let faturamento = 0;
     const rankingProdutosFisicos = {};
 
-    // Estrutura inteligente de Agrupamento: Nutri, Plus, Fit fixos. O resto entra solto.
     const gruposPlanos = {
         "NUTRI": { total: 0, detalhes: {}, cor: "bg-emerald-500", textCor: "text-emerald-600" },
         "PLUS": { total: 0, detalhes: {}, cor: "bg-blue-600", textCor: "text-blue-700" },
-        "FIT": { total: 0, detalhes: {}, cor: "bg-indigo-500", textCor: "text-indigo-600" }
+        "FIT": { total: 0, detalhes: {}, cor: "bg-indigo-500", textCor: "text-indigo-600" },
+        "OUTROS PLANOS": { total: 0, detalhes: {}, cor: "bg-slate-500", textCor: "text-slate-700" } 
     };
 
     vendasFiltradas.forEach(v => {
         const qtd = parseInt(v.quantidade) || 1;
         faturamento += getValorRealDaVenda(v);
         const prodUpper = (v.produto || '').toUpperCase();
+        const vendUpper = (v.vendedor || '').toUpperCase();
 
-        if (verificarSeEhPlano(v.produto)) {
+        const categoriaFinal = getCategoriaItem(prodUpper);
+
+        if (categoriaFinal === 'PLANO') {
             totalPlanos += qtd;
-            
             if (prodUpper.includes("NUTRI")) {
                 gruposPlanos["NUTRI"].total += qtd;
                 gruposPlanos["NUTRI"].detalhes[prodUpper] = (gruposPlanos["NUTRI"].detalhes[prodUpper] || 0) + qtd;
@@ -207,79 +226,50 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                 gruposPlanos["FIT"].total += qtd;
                 gruposPlanos["FIT"].detalhes[prodUpper] = (gruposPlanos["FIT"].detalhes[prodUpper] || 0) + qtd;
             } else {
-                // Se não é Nutri, Plus ou Fit, vai direto solto pro objeto!
-                if (!gruposPlanos[prodUpper]) {
-                    gruposPlanos[prodUpper] = { total: 0, detalhes: {}, cor: "bg-slate-500", textCor: "text-slate-700" };
-                }
-                gruposPlanos[prodUpper].total += qtd;
-                gruposPlanos[prodUpper].detalhes[prodUpper] = (gruposPlanos[prodUpper].detalhes[prodUpper] || 0) + qtd;
+                gruposPlanos["OUTROS PLANOS"].total += qtd;
+                gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] = (gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] || 0) + qtd;
             }
 
-        } else {
+        } else if (categoriaFinal === 'PRODUTO') {
             totalVendasProdutos += qtd;
             rankingProdutosFisicos[prodUpper] = (rankingProdutosFisicos[prodUpper] || 0) + qtd;
-            
-            const vendUpper = (v.vendedor || '').toUpperCase();
             if (rankingConsultoresFisicos[vendUpper] !== undefined) {
                 rankingConsultoresFisicos[vendUpper] += qtd;
             } else {
                 rankingConsultoresFisicos[vendUpper] = qtd;
             }
+
+        } else if (categoriaFinal === 'SERVICO') {
+            totalServicos += qtd;
         }
     });
 
     const topProdutosLista = Object.entries(rankingProdutosFisicos).sort((a, b) => b[1] - a[1]);
-    const rankingOrdenado = Object.entries(rankingConsultoresFisicos).sort((a, b) => b[1] - a[1]);
+    
+    // ORDENA O RANKING: Primeiro por quem vendeu mais, depois em ordem alfabética para os zerados
+    const rankingOrdenado = Object.entries(rankingConsultoresFisicos).sort((a, b) => {
+        if (b[1] !== a[1]) return b[1] - a[1];
+        return a[0].localeCompare(b[0]);
+    });
 
     const toggleGrupoPlanos = (nomeGrupo) => {
         setGrupoExpandido(prev => prev === nomeGrupo ? null : nomeGrupo);
     };
 
-    // Visão Geral - Lógica de Metas
-    const listaUnidadesMetas = unidadesUnicas.filter(u => u !== 'TODOS' && (temVisaoGlobal ? true : u === usuarioLogado?.unidade));
-    
-    const dadosMetasPorUnidade = listaUnidadesMetas.map(unidade => {
-        const vendasDaUnidade = vendasFiltradas.filter(v => v.unidade === unidade);
-        let nutriRealizado = 0; 
-        let produtosRealizado = 0;
-        let personalRealizado = 0;
-
-        vendasDaUnidade.forEach(v => {
-            const qtd = parseInt(v.quantidade) || 1;
-            const prodUpper = (v.produto || '').toUpperCase();
-
-            if (verificarSeEhPlano(v.produto)) {
-                if (prodUpper.includes("NUTRI")) nutriRealizado += qtd;
-                if (prodUpper.includes("PERSONAL")) personalRealizado += qtd;
-            } else {
-                produtosRealizado += qtd;
-            }
-        });
-
-        return {
-            unidade, 
-            nutriRealizado, 
-            produtosRealizado, 
-            personalRealizado,
-            faltaNutri: Math.max(metaNutri - nutriRealizado, 0),
-            faltaProdutos: Math.max(metaProdutos - produtosRealizado, 0),
-            faltaPersonal: Math.max(metaPersonal - personalRealizado, 0)
-        };
-    });
-
     // ==========================================
-    // LÓGICA DA MENSAGEM DO WHATSAPP
+    // A MÁGICA DA GAMIFICAÇÃO: RANKING WHATSAPP
     // ==========================================
     const dispararModalCompartilhar = () => {
-        let labelFiltro = tipoFiltro === 'mes' ? `${filtroMes}/${filtroAno}` : tipoFiltro === 'dia' ? diaEspecifico.split('-').reverse().join('/') : `${dataInicio} a ${dataFim}`;
-        
         let txt = `*🏆 Ranking de Vendas de Produtos 🏆*\n`;
         txt += `*Total de Vendas:* ${String(totalVendasProdutos).padStart(2, '0')} / ${String(metaProdutos).padStart(2, '0')}\n\n`;
 
         const vendidos = rankingOrdenado.filter(item => item[1] > 0);
         const zerados = rankingOrdenado.filter(item => item[1] === 0);
 
-        vendidos.forEach((item, idx) => {
+        let posicaoAtual = 1;
+
+        // VENDEDORES POSITIVADOS
+        vendidos.forEach((item) => {
             const nome = item[0].split(' ')[0]; 
             const qtd = item[1];
             let emoji = "🟢❌❌";
@@ -287,17 +277,21 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
             else if (qtd === 3) emoji = "✅✅✅";
             else if (qtd > 3) emoji = "🔝🔝🔝";
             
-            txt += `${idx + 1} ${emoji} ${nome} ${String(qtd).padStart(2, '0')}\n`;
+            txt += `${posicaoAtual} ${emoji} ${nome} ${String(qtd).padStart(2, '0')}\n`;
+            posicaoAtual++;
         });
 
+        // O FAMOSO "SOCORRO DEUS" (ZERADOS)
         if (zerados.length > 0) {
             txt += `\n➖➖➖➖➖➖➖➖➖➖\n`;
             txt += `*🚨 BORA ACELERAR, GALERA! 🚀*\n`;
             txt += `_Todos abaixo ainda não pontuaram hoje._\n`;
             txt += `*SOCORRO, DEUS!!! 🙏*\n\n`;
             
-            zerados.forEach((item, idx) => {
-                txt += `${vendidos.length + idx + 1} ❌❌❌ ${item[0].split(' ')[0]} 00\n`;
+            zerados.forEach((item) => {
+                const nome = item[0].split(' ')[0];
+                txt += `${posicaoAtual} ❌❌❌ ${nome}\n`;
+                posicaoAtual++;
             });
         }
 
@@ -323,6 +317,33 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
     }, [vendas, tipoFiltro, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico, filtroUnidade, usuarioLogado, abaPrincipal, isModalTextoOpen, copiadoSucesso, grupoExpandido]);
+
+    // Visão Geral de Metas
+    const listaUnidadesMetas = unidadesUnicas.filter(u => u !== 'TODOS' && (temVisaoGlobal ? true : u === usuarioLogado?.unidade));
+    const dadosMetasPorUnidade = listaUnidadesMetas.map(unidade => {
+        const vendasDaUnidade = vendasFiltradas.filter(v => v.unidade === unidade);
+        let nutriRealizado = 0; let produtosRealizado = 0; let personalRealizado = 0;
+
+        vendasDaUnidade.forEach(v => {
+            const qtd = parseInt(v.quantidade) || 1;
+            const prodUpper = (v.produto || '').toUpperCase();
+            const cat = getCategoriaItem(prodUpper);
+
+            if (cat === 'PLANO') {
+                if (prodUpper.includes("NUTRI")) nutriRealizado += qtd;
+                if (prodUpper.includes("PERSONAL")) personalRealizado += qtd;
+            } else if (cat === 'PRODUTO') {
+                produtosRealizado += qtd;
+            }
+        });
+
+        return {
+            unidade, nutriRealizado, produtosRealizado, personalRealizado,
+            faltaNutri: Math.max(metaNutri - nutriRealizado, 0),
+            faltaProdutos: Math.max(metaProdutos - produtosRealizado, 0),
+            faltaPersonal: Math.max(metaPersonal - personalRealizado, 0)
+        };
+    });
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto">
@@ -420,8 +441,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                         </div>
                     </div>
 
-                    {/* CARDS COM MATEMÁTICA RECUPERADA */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* TOP CARDS */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Planos Vendidos</p>
                             <p className="text-4xl font-black tracking-tight">{totalPlanos}</p>
@@ -430,25 +451,27 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Produtos Físicos</p>
                             <p className="text-4xl font-black tracking-tight">{totalVendasProdutos}</p>
                         </div>
+                        <div className="bg-gradient-to-br from-violet-500 to-violet-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
+                            <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Serviços Avulsos</p>
+                            <p className="text-4xl font-black tracking-tight">{totalServicos}</p>
+                        </div>
                         <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
                             <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Faturamento Bruto</p>
-                            <p className="text-3xl font-black tracking-tight mt-1">{formatMoney(faturamento)}</p>
+                            <p className="text-2xl lg:text-3xl font-black tracking-tight mt-1">{formatMoney(faturamento)}</p>
                         </div>
                     </div>
 
-                    {/* DASHBOARD GRIDS */}
+                    {/* DASHBOARD GRIDS (AS 3 COLUNAS) */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         
-                        {/* NOVO ACORDEÃO HIERÁRQUICO DE PLANOS E LISTAGEM LIVRE */}
+                        {/* COLUNA 1: PLANOS */}
                         <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
-                                <i data-lucide="layers" className="w-5 h-5 text-blue-500"></i> Planos
+                                <i data-lucide="layers" className="w-5 h-5 text-blue-500"></i> Planos Ativos
                             </h3>
                             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
                                 {Object.entries(gruposPlanos).filter(([_, data]) => data.total > 0).map(([nomeGrupo, data]) => {
                                     const perc = totalPlanos > 0 ? (data.total / totalPlanos) * 100 : 0;
-                                    
-                                    // Regra: Se a gaveta só tem 1 item E o nome desse item é o mesmo nome do grupo, não precisa expandir. Mostra ele solto!
                                     const isSingleLooseItem = Object.keys(data.detalhes).length === 1 && Object.keys(data.detalhes)[0] === nomeGrupo;
                                     const isExpanded = grupoExpandido === nomeGrupo && !isSingleLooseItem;
 
@@ -476,7 +499,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                                                 <div className={`h-full rounded-full transition-all duration-700 ease-out ${data.cor}`} style={{ width: `${perc}%` }}></div>
                                             </div>
 
-                                            {/* Sub-lista Acordeão (apenas se for Nutri, Fit, Plus, etc.) */}
                                             {isExpanded && (
                                                 <div className="mt-3 pt-3 border-t border-slate-200 space-y-2 animate-[fadeIn_0.2s_ease-out]">
                                                     {Object.entries(data.detalhes).sort((a,b)=>b[1]-a[1]).map(([nomePlano, qtdPlano]) => (
@@ -494,6 +516,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                             </div>
                         </div>
 
+                        {/* COLUNA 2: PRODUTOS (SÓ PRODUTO FÍSICO) */}
                         <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
                                 <i data-lucide="box" className="w-5 h-5 text-amber-500"></i> Produtos / Complementos
@@ -509,24 +532,35 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                             </div>
                         </div>
 
+                        {/* COLUNA 3: PÓDIO DE VENDEDORES COM DESIGN GAMIFICADO */}
                         <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
-                                <i data-lucide="medal" className="w-5 h-5 text-emerald-500"></i> Pódio de Produtos
+                                <i data-lucide="medal" className="w-5 h-5 text-emerald-500"></i> Pódio Físico (Garrafa/Whey)
                             </h3>
                             <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
-                                {rankingOrdenado.map(([nome, qtd], idx) => (
-                                    <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <span className="text-[10px] font-black text-slate-800 uppercase truncate max-w-[120px]">{idx+1}º {nome.split(' ')[0]}</span>
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex gap-0.5">
-                                                {[1,2,3].map(i => (
-                                                    <div key={i} className={`w-2 h-2 rounded-full ${qtd >= i ? 'bg-emerald-500' : 'bg-slate-200'}`}></div>
-                                                ))}
+                                {rankingOrdenado.map(([nome, qtd], idx) => {
+                                    // A MÁGICA VISUAL AQUI
+                                    let emojiUI = "🟢 ❌ ❌";
+                                    if (qtd === 0) emojiUI = "❌ ❌ ❌";
+                                    else if (qtd === 2) emojiUI = "🟢 🟢 ❌";
+                                    else if (qtd === 3) emojiUI = "✅ ✅ ✅";
+                                    else if (qtd > 3) emojiUI = "🔝 🔝 🔝";
+
+                                    return (
+                                        <div key={idx} className={`flex justify-between items-center p-3 rounded-xl border ${qtd === 0 ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
+                                            <span className={`text-[10px] font-black uppercase truncate max-w-[120px] ${qtd === 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                {idx+1}º {nome.split(' ')[0]}
+                                            </span>
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-[10px] tracking-widest" title={`Meta de 3 vendas. Vendido: ${qtd}`}>{emojiUI}</span>
+                                                <span className={`text-[10px] font-black bg-white px-2 py-0.5 rounded border shadow-sm ${qtd === 0 ? 'text-rose-500 border-rose-200' : 'text-emerald-600 border-slate-200'}`}>
+                                                    {String(qtd).padStart(2, '0')} un
+                                                </span>
                                             </div>
-                                            <span className="text-[10px] font-black text-emerald-600">{qtd} un</span>
                                         </div>
-                                    </div>
-                                ))}
+                                    )
+                                })}
+                                {rankingOrdenado.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">Nenhum consultor cadastrado na unidade.</p>}
                             </div>
                             <button onClick={dispararModalCompartilhar} disabled={rankingOrdenado.length === 0} className="mt-4 w-full bg-slate-800 text-white py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center justify-center gap-2 shadow-sm">
                                 <i data-lucide="share-2" className="w-4 h-4"></i> Ranking WhatsApp
