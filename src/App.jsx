@@ -11,7 +11,7 @@ import {
 // Importação Segura das Páginas
 import LancamentoVendas from './pages/Lancamento.jsx';
 import AssinaturasPratique from './pages/RegistroVendas.jsx';
-import FechamentoCaixa from './pages/FechamentoCaixa.jsx';
+import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; // <-- IMPORTAÇÃO CORRIGIDA AQUI!
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
 import CadastroGeral from './pages/CadastroGeral.jsx';
