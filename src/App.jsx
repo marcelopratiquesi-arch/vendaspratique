@@ -12,7 +12,7 @@ import {
 import LancamentoVendas from './pages/Lancamento.jsx';
 import AssinaturasPratique from './pages/RegistroVendas.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa.jsx';
-import AnaliseDashboard from './pages/Analise.jsx';
+import AnaliseDashboard from './pages/AnaliseVendas'; // <-- IMPORTAÇÃO CORRIGIDA AQUI!
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
 import CadastroGeral from './pages/CadastroGeral.jsx';
 import Configuracoes from './pages/Configuracoes.jsx';
