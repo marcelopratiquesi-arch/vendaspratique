@@ -1,15 +1,13 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao } from './utils.js';
+import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao, toTitleCase } from './utils.js';
+import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX } from 'lucide-react';
 
-const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar }) => {
-    // ESTADOS EXCLUSIVOS DA TABELA
+const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, filtroVendedor, catalogoGeral }) => {
     const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
-    const [catalogoGeral, setCatalogoGeral] = useState([]);
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
 
-    // REFS PARA O DRAG TO SCROLL
     const scrollContainerRef = useRef(null);
     const isDragging = useRef(false);
     const startX = useRef(0);
@@ -45,21 +43,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
     };
 
-    // FETCH DO CATÁLOGO PARA EDIÇÃO
-    useEffect(() => {
-        const fetchCatalogo = async () => {
-            const { data } = await supabase.from('catalogo').select('*');
-            if (data) setCatalogoGeral(data);
-        };
-        fetchCatalogo();
-    }, []);
-
-    // RENDERIZAÇÃO DE ÍCONES
-    useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
-    }, [vendasFiltradas, editandoId, ordenacao]);
-
-    // GESTÃO DE DADOS (CRUD)
     const removerLancamento = async (id) => {
         if(!podeEditar) return;
         if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
@@ -141,7 +124,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         }
     };
 
-    // ORDENAÇÃO DE COLUNAS OTIMIZADA COM USEMEMO
     const handleOrdenar = (colunaClicada) => {
         let novaDirecao = 'asc';
         if (ordenacao.coluna === colunaClicada && ordenacao.direcao === 'asc') novaDirecao = 'desc';
@@ -171,15 +153,20 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         });
     }, [vendasFiltradas, ordenacao]);
 
+    const RenderSortIcon = ({ coluna }) => {
+        if (ordenacao.coluna !== coluna) return <ChevronsUpDown className="w-3 h-3 text-slate-300 group-hover:text-slate-400" />;
+        return ordenacao.direcao === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-500" /> : <ChevronDown className="w-3 h-3 text-blue-500" />;
+    };
+
     return (
-        <div className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col">
             <div className="px-6 py-5 border-b border-slate-100 bg-white flex justify-between items-center">
                 <div>
-                    <h2 className="text-lg font-black text-slate-800 flex items-center gap-2.5">
-                        <i data-lucide="history" className="w-5 h-5 text-blue-500"></i> Registros de Vendas
+                    <h2 className="text-xl font-black text-slate-800 flex items-center gap-3">
+                        <History className="w-6 h-6 text-blue-600" /> Registros de Vendas
                     </h2>
                 </div>
-                <div className="bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border border-slate-200 shadow-sm">
+                <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner">
                     {vendasOrdenadas.length} de {data.length} Encontrados
                 </div>
             </div>
@@ -194,47 +181,50 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 style={{ maxHeight: '65vh' }}
             >
                 <table className="w-full text-left border-collapse min-w-max">
-                    <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm">
+                    <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm border-b border-slate-200">
                         <tr>
-                            <th onClick={() => handleOrdenar('data')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-1.5">
+                            <th onClick={() => handleOrdenar('data')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                <div className="flex items-center gap-2">
                                     Data / Lançamento
-                                    <i data-lucide={ordenacao.coluna === 'data' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'data' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    <RenderSortIcon coluna="data" />
                                 </div>
                             </th>
-                            {temVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-rose-500 uppercase tracking-widest border-b border-slate-200">Unidade</th>}
                             
-                            <th onClick={() => handleOrdenar('nome_aluno')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-1.5">
+                            {temVisaoGlobal && <th className="px-5 py-4 text-xs font-black text-rose-600 uppercase tracking-widest">Unidade</th>}
+                            
+                            <th onClick={() => handleOrdenar('nome_aluno')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                <div className="flex items-center gap-2">
                                     Aluno / Matrícula
-                                    <i data-lucide={ordenacao.coluna === 'nome_aluno' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'nome_aluno' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    <RenderSortIcon coluna="nome_aluno" />
                                 </div>
                             </th>
                             
-                            <th onClick={() => handleOrdenar('produto')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-1.5">
+                            <th onClick={() => handleOrdenar('produto')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                <div className="flex items-center gap-2">
                                     Plano/Produto
-                                    <i data-lucide={ordenacao.coluna === 'produto' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'produto' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    <RenderSortIcon coluna="produto" />
                                 </div>
                             </th>
                             
-                            <th onClick={() => handleOrdenar('vendedor')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-1.5">
-                                    Vendedor
-                                    <i data-lucide={ordenacao.coluna === 'vendedor' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'vendedor' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
-                                </div>
-                            </th>
+                            {filtroVendedor === 'TODOS' && (
+                                <th onClick={() => handleOrdenar('vendedor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                    <div className="flex items-center gap-2">
+                                        Vendedor
+                                        <RenderSortIcon coluna="vendedor" />
+                                    </div>
+                                </th>
+                            )}
                             
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Qtd</th>
+                            <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right">Qtd</th>
                             
-                            <th onClick={() => handleOrdenar('valor')} className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center justify-end gap-1.5">
+                            <th onClick={() => handleOrdenar('valor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                <div className="flex items-center justify-end gap-2">
                                     Valor Total
-                                    <i data-lucide={ordenacao.coluna === 'valor' ? (ordenacao.direcao === 'asc' ? 'chevron-up' : 'chevron-down') : 'chevrons-up-down'} className={`w-3 h-3 ${ordenacao.coluna === 'valor' ? 'text-blue-500' : 'text-slate-300 group-hover:text-slate-400'}`}></i>
+                                    <RenderSortIcon coluna="valor" />
                                 </div>
                             </th>
                             
-                            {podeEditar && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Gestão</th>}
+                            {podeEditar && <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-center">Gestão</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
@@ -243,17 +233,17 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
                             return (
                                 <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
-                                    <td className="px-6 py-4 align-middle">
+                                    <td className="px-5 py-4 align-middle">
                                         {isEditing ? (
-                                            <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                            <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                         ) : (
                                             <div>
-                                                <p className="text-xs font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data)}</p>
+                                                <p className="text-sm font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data)}</p>
                                                 {row.created_at && (
-                                                    <div className="flex items-center gap-1.5 mt-1 text-slate-500 bg-slate-50 px-2 py-1 rounded-md border border-slate-200 w-max" title="Quem lançou e horário">
-                                                        <i data-lucide="user-edit" className="w-3 h-3 text-blue-500"></i>
-                                                        <span className="text-[9px] font-black uppercase tracking-widest">
-                                                            {row.criado_por ? row.criado_por.split(' ')[0] : 'SISTEMA'} • {extrairHoraCriacao(row.created_at)}
+                                                    <div className="flex items-center gap-1.5 mt-1.5 text-slate-500 w-max">
+                                                        <User className="w-3.5 h-3.5 text-slate-400" />
+                                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                            {toTitleCase(row.criado_por ? row.criado_por.split(' ')[0] : 'Sistema')} • {extrairHoraCriacao(row.created_at)}
                                                         </span>
                                                     </div>
                                                 )}
@@ -262,29 +252,31 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     </td>
                                     
                                     {temVisaoGlobal && (
-                                        <td className="px-6 py-4 text-xs font-black text-rose-600 bg-rose-50/10 whitespace-nowrap uppercase align-middle">
+                                        <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/20 whitespace-nowrap uppercase align-middle">
                                             {row.unidade || 'MATRIZ'}
                                         </td>
                                     )}
 
-                                    <td className="px-6 py-4 align-middle">
+                                    <td className="px-5 py-4 align-middle">
                                         {isEditing ? (
                                             <div className="flex flex-col gap-2">
-                                                <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-xs" />
-                                                <input type="text" placeholder="Matrícula" value={dadosEdicao.matricula} onChange={e => handleEdicaoChange('matricula', e.target.value)} className="w-32 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                                <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm" />
+                                                <input type="text" placeholder="Matrícula" value={dadosEdicao.matricula} onChange={e => handleEdicaoChange('matricula', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                             </div>
                                         ) : (
                                             <div>
-                                                <p className="text-xs font-black text-slate-800 uppercase max-w-[200px] truncate" title={row.nome_aluno || row.nome}>{row.nome_aluno || row.nome}</p>
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">MAT: {row.matricula || '-'}</p>
+                                                <p className="text-sm font-bold text-slate-800 max-w-[220px] truncate" title={row.nome_aluno || row.nome}>
+                                                    {toTitleCase(row.nome_aluno || row.nome)}
+                                                </p>
+                                                <p className="text-xs font-bold text-slate-400 uppercase mt-1 tracking-wider">MAT: {row.matricula || '-'}</p>
                                             </div>
                                         )}
                                     </td>
 
-                                    <td className="px-6 py-4 text-xs whitespace-nowrap uppercase font-bold text-indigo-600 align-middle">
+                                    <td className="px-5 py-4 text-sm whitespace-nowrap uppercase font-black text-blue-600 align-middle">
                                         {isEditing ? (
-                                            <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-xs">
-                                                <option value="" disabled>Selecione no Catálogo...</option>
+                                            <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm">
+                                                <option value="" disabled>Selecione...</option>
                                                 {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                             </select>
                                         ) : (
@@ -292,48 +284,50 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         )}
                                     </td>
 
-                                    <td className="px-6 py-4 text-xs whitespace-nowrap font-bold text-slate-600 uppercase align-middle">
-                                        {isEditing ? (
-                                            <input type="text" value={dadosEdicao.vendedor} onChange={e => handleEdicaoChange('vendedor', e.target.value)} className="w-28 bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-xs" />
-                                        ) : (
-                                            row.vendedor
-                                        )}
-                                    </td>
+                                    {filtroVendedor === 'TODOS' && (
+                                        <td className="px-5 py-4 text-sm whitespace-nowrap font-bold text-slate-700 align-middle">
+                                            {isEditing ? (
+                                                <input type="text" value={dadosEdicao.vendedor} onChange={e => handleEdicaoChange('vendedor', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm" />
+                                            ) : (
+                                                toTitleCase(row.vendedor)
+                                            )}
+                                        </td>
+                                    )}
 
-                                    <td className="px-6 py-4 text-xs text-center font-black text-slate-700 align-middle">
+                                    <td className="px-5 py-4 text-sm text-right font-black text-slate-800 align-middle">
                                         {isEditing ? (
-                                            <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-14 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-1 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-xs" />
+                                            <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                         ) : (
                                             row.quantidade || '1'
                                         )}
                                     </td>
 
-                                    <td className="px-6 py-4 text-xs font-black text-slate-800 whitespace-nowrap text-right align-middle">
+                                    <td className="px-5 py-4 text-sm font-black text-slate-900 whitespace-nowrap text-right align-middle">
                                         {isEditing ? (
-                                            <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-24 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-2 py-1.5 cursor-not-allowed font-black text-xs" title="O valor calcula sozinho" />
+                                            <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner" title="O valor calcula sozinho" />
                                         ) : (
                                             formatMoney(row.valor)
                                         )}
                                     </td>
 
                                     {podeEditar && (
-                                        <td className="px-6 py-4 text-center align-middle w-32">
+                                        <td className="px-5 py-4 text-center align-middle w-32">
                                             {isEditing ? (
                                                 <div className="flex flex-col gap-2 items-center justify-center">
-                                                    <button onClick={() => salvarEdicao(row.id)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                        <i data-lucide="check" className="w-3.5 h-3.5"></i> Salvar
+                                                    <button onClick={() => salvarEdicao(row.id)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
+                                                        <Check className="w-4 h-4" /> Salvar
                                                     </button>
-                                                    <button onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-1.5 bg-slate-200 text-slate-600 hover:bg-slate-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                        <i data-lucide="x" className="w-3.5 h-3.5"></i> Cancelar
+                                                    <button onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm">
+                                                        <X className="w-4 h-4" /> Cancelar
                                                     </button>
                                                 </div>
                                             ) : (
-                                                <div className="flex flex-col items-center justify-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => iniciarEdicao(row)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 w-24 bg-blue-50 text-blue-600 border border-blue-100 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                        <i data-lucide="edit-3" className="w-3.5 h-3.5"></i> Editar
+                                                <div className="flex flex-col items-center justify-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
+                                                    <button onClick={() => iniciarEdicao(row)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                                        <Edit3 className="w-4 h-4" /> Editar
                                                     </button>
-                                                    <button onClick={() => removerLancamento(row.id)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 w-24 bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                        <i data-lucide="trash-2" className="w-3.5 h-3.5"></i> Excluir
+                                                    <button onClick={() => removerLancamento(row.id)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                                        <Trash2 className="w-4 h-4" /> Excluir
                                                     </button>
                                                 </div>
                                             )}
@@ -344,8 +338,8 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         })}
                         {vendasOrdenadas.length === 0 && (
                             <tr>
-                                <td colSpan={temVisaoGlobal ? "8" : "7"} className="px-6 py-16 text-center text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                                    <i data-lucide="filter-x" className="w-10 h-10 mx-auto text-slate-300 mb-4 opacity-50"></i>
+                                <td colSpan={temVisaoGlobal ? "8" : "7"} className="px-5 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                                    <FilterX className="w-12 h-12 mx-auto text-slate-300 mb-4 opacity-60" />
                                     Nenhuma venda encontrada para estes filtros.
                                 </td>
                             </tr>

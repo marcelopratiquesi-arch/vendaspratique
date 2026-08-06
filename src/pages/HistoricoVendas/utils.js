@@ -34,6 +34,12 @@ export const extrairHoraCriacao = (isoString) => {
     return dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
+// NOVO: Função para formatar nomes próprios (Remove o ALL CAPS)
+export const toTitleCase = (str) => {
+    if (!str) return '';
+    return str.toLowerCase().replace(/(?:^|\s)\w/g, match => match.toUpperCase());
+};
+
 export const meses = [
     { val: 'TODOS', label: 'Todos os Meses' }, { val: '01', label: '01 - Janeiro' }, { val: '02', label: '02 - Fevereiro' },
     { val: '03', label: '03 - Março' }, { val: '04', label: '04 - Abril' }, { val: '05', label: '05 - Maio' },
