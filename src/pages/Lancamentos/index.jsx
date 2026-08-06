@@ -1,58 +1,60 @@
 import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
 import HubSelecao from './HubSelecao.jsx';
 import FormVenda from './FormVenda.jsx';
 import FormVisitante from './FormVisitante.jsx';
+import FormAvaliacao from './FormAvaliacao.jsx';
+import { ArrowLeft } from 'lucide-react';
 
-const Lancamentos = ({ usuarioLogado, unidades = [], onAddMultiple, planos = [], produtos = [], servicos = [], colaboradores = [] }) => {
+const Lancamentos = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, servicos, colaboradores }) => {
+    // Estado que controla qual tela está aparecendo. Padrão é o hub de seleção.
     const [modalidade, setModalidade] = useState('selecao');
 
     return (
-        <div className="max-w-[1000px] mx-auto animate-[fadeIn_0.3s_ease-out] pb-12">
+        <div className="w-full max-w-6xl mx-auto">
             
-            {/* HEADER GERAL */}
-            <div className="flex items-center gap-4 mb-8">
-                {modalidade !== 'selecao' && (
-                    <button 
-                        onClick={() => setModalidade('selecao')} 
-                        className="p-2.5 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-500 hover:text-slate-700 transition-colors shadow-sm"
-                        title="Voltar"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                )}
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                        {modalidade === 'selecao' ? 'Central de Lançamentos' : modalidade === 'venda' ? 'Novo Lançamento Financeiro' : 'Cadastro de Lead (CRM)'}
-                    </h1>
-                    <p className="text-sm font-medium text-slate-500 mt-0.5">
-                        {modalidade === 'selecao' ? 'O que vamos registrar agora?' : 'Preencha os dados abaixo com atenção.'}
-                    </p>
-                </div>
-            </div>
+            {/* Botão de voltar (só aparece se não estiver na tela inicial do Hub) */}
+            {modalidade !== 'selecao' && (
+                <button 
+                    onClick={() => setModalidade('selecao')}
+                    className="mb-6 flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold uppercase tracking-widest text-[10px] transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm w-fit"
+                >
+                    <ArrowLeft className="w-4 h-4" /> Voltar para Seleção
+                </button>
+            )}
 
-            {/* ROTEADOR INTERNO */}
-            {modalidade === 'selecao' && <HubSelecao setModalidade={setModalidade} />}
-            
+            {/* ROTEADOR DE TELAS */}
+            {modalidade === 'selecao' && (
+                <HubSelecao setModalidade={setModalidade} />
+            )}
+
             {modalidade === 'venda' && (
                 <FormVenda 
                     usuarioLogado={usuarioLogado} 
                     unidades={unidades} 
-                    onAddMultiple={onAddMultiple} 
-                    planos={planos} 
-                    produtos={produtos} 
-                    servicos={servicos} 
-                    colaboradores={colaboradores} 
-                    voltarHub={() => setModalidade('selecao')} 
+                    onAddMultiple={onAddMultiple}
+                    planos={planos}
+                    produtos={produtos}
+                    servicos={servicos}
+                    colaboradores={colaboradores}
+                    voltarHub={() => setModalidade('selecao')}
                 />
             )}
-            
+
             {modalidade === 'visitante' && (
                 <FormVisitante 
                     usuarioLogado={usuarioLogado} 
                     unidades={unidades} 
                     colaboradores={colaboradores} 
-                    voltarHub={() => setModalidade('selecao')} 
+                    voltarHub={() => setModalidade('selecao')}
+                />
+            )}
+
+            {modalidade === 'avaliacao' && (
+                <FormAvaliacao 
+                    usuarioLogado={usuarioLogado} 
+                    unidades={unidades} 
+                    colaboradores={colaboradores} 
+                    voltarHub={() => setModalidade('selecao')}
                 />
             )}
 

@@ -71,36 +71,29 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 interesse: leadForm.interesse.toUpperCase(),
                 vendedor: vendedorSelecionado, 
                 observacao: leadForm.observacao,
-                
-                // Correção 1: 'Novo' com 'N' maiúsculo para bater exatamente com a coluna do seu Kanban
                 status: 'Novo', 
-                
                 data_criacao: agora,
                 criado_por: usuarioLogado?.nome || 'SISTEMA',
-
-                // === A MÁGICA DO KANBAN ESTÁ AQUI ===
-                // Isso diz ao banco: "O lead já foi puxado e pertence a esse vendedor!"
                 puxado_em: agora,
                 puxado_por: vendedorSelecionado
             };
 
             const { error } = await supabase.from('leads').insert([novoLead]);
             
-            // === CORREÇÃO DO ERRO DO CPF DUPLICADO ===
             if (error) {
                 if (error.code === '23505') {
                     alert(`🚨 BLOQUEADO: O CPF ${leadForm.cpf} já está cadastrado no sistema!\n\nSe for um retorno de aluno antigo, peça ao consultor responsável para procurá-lo na aba "Base" ou "Geladeira" do CRM.`);
                     setIsSubmitting(false);
-                    return; // Para a execução aqui e não deixa a tela travar
+                    return; 
                 }
-                throw error; // Se for outro tipo de erro, joga pra baixo
+                throw error; 
             }
             
             setSucesso(true);
             setTimeout(() => {
                 setSucesso(false);
                 voltarHub();
-            }, 2000);
+            }, 1200); // <-- Tempo reduzido para maior velocidade
 
         } catch (error) {
             console.error("Erro:", error); 
@@ -115,10 +108,17 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
     return (
         <form onSubmit={handleSubmitVisitante} className="max-w-3xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            
+            {/* === NOVO POP-UP CENTRAL === */}
             {sucesso && (
-                <div className="fixed top-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 font-medium text-sm z-50 border border-slate-700 animate-[slideDown_0.3s_ease-out]">
-                    <CheckCircle2 className="w-5 h-5 text-blue-400" />
-                    <span>Lead enviado direto para o Kanban do Consultor!</span>
+                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200">
+                        <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-200">
+                            <CheckCircle2 className="w-10 h-10" />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Lead Capturado!</h3>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Enviado direto para o Funil.</p>
+                    </div>
                 </div>
             )}
 

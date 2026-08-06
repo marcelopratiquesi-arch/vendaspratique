@@ -1,11 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getCategoriaItem } from './utils.js';
 
-const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, planos, produtos, abrirModalWhatsapp }) => {
+const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFiltradas = [], temVisaoGlobal, labelFiltroAtual, planos, produtos, abrirModalWhatsapp }) => {
     
-    // ==========================================
-    // 1. ESTADO DE SANFONA (EXPANDIR/RECOLHER UNIDADES)
-    // ==========================================
     const [unidadesRecolhidas, setUnidadesRecolhidas] = useState({});
 
     const toggleUnidade = (unidade) => {
@@ -15,16 +12,12 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
         }));
     };
 
-    // ==========================================
-    // 2. MOTOR DE DRAG-TO-SCROLL (MÃOZINHA VERTICAL)
-    // ==========================================
     const scrollRef = useRef(null);
     const isDragging = useRef(false);
     const startY = useRef(0);
     const scrollTop = useRef(0);
 
     const onMouseDown = (e) => {
-        // Bloqueia o arraste se clicar num botão para não bugar o clique
         if (e.target.closest('button') || e.target.closest('.no-drag')) return;
         
         isDragging.current = true;
@@ -49,26 +42,19 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
         if (!isDragging.current) return;
         e.preventDefault();
         const y = e.pageY - scrollRef.current.offsetTop;
-        const walk = (y - startY.current) * 1.5; // Velocidade do scroll
+        const walk = (y - startY.current) * 1.5; 
         scrollRef.current.scrollTop = scrollTop.current - walk;
     };
 
-    // ==========================================
-    // 3. MOTOR DE AGRUPAMENTO DE DADOS
-    // ==========================================
     const relatorioPorUnidade = {};
 
-    vendasFiltradas.forEach(v => {
-        const unidade = v.unidade || 'SEM UNIDADE';
-        const qtd = parseInt(v.quantidade) || 1;
-        const prodUpper = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase();
-        const vendPrimeiroNome = (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').charAt(0).toUpperCase() + (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').slice(1).toLowerCase();
-        const categoria = getCategoriaItem(prodUpper, planos, produtos);
-
+    const inicializarUnidade = (unidade) => {
         if (!relatorioPorUnidade[unidade]) {
             relatorioPorUnidade[unidade] = {
                 totalGeralVendas: 0,
                 vendedoresTotal: {},
+                visitantes: [], 
+                avaliacoes: [], 
                 grupos: {
                     "NUTRI": { total: 0, itens: {}, cor: "text-emerald-600", bgIcone: "bg-emerald-100 text-emerald-600", icone: "🥗" },
                     "PLUS": { total: 0, itens: {}, cor: "text-blue-600", bgIcone: "bg-blue-100 text-blue-600", icone: "⭐" },
@@ -80,10 +66,20 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                 }
             };
         }
+    };
+
+    // 1. Processa Vendas
+    vendasFiltradas.forEach(v => {
+        const unidade = v.unidade || 'SEM UNIDADE';
+        inicializarUnidade(unidade);
+        
+        const qtd = parseInt(v.quantidade) || 1;
+        const prodUpper = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase();
+        const vendPrimeiroNome = (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').charAt(0).toUpperCase() + (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').slice(1).toLowerCase();
+        const categoria = getCategoriaItem(prodUpper, planos, produtos);
 
         const registro = relatorioPorUnidade[unidade];
         registro.totalGeralVendas += qtd;
-        
         registro.vendedoresTotal[vendPrimeiroNome] = (registro.vendedoresTotal[vendPrimeiroNome] || 0) + qtd;
 
         let grupoAlvo = '';
@@ -109,10 +105,24 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
         }
     });
 
+    // 2. Processa Visitantes
+    visitantesFiltrados.forEach(v => {
+        const unidade = v.unidade || 'SEM UNIDADE';
+        inicializarUnidade(unidade);
+        relatorioPorUnidade[unidade].visitantes.push(v);
+    });
+
+    // 3. Processa Avaliações
+    avaliacoesFiltradas.forEach(a => {
+        const unidade = a.unidade || 'SEM UNIDADE';
+        inicializarUnidade(unidade);
+        relatorioPorUnidade[unidade].avaliacoes.push(a);
+    });
+
     const unidadesOrdenadas = Object.keys(relatorioPorUnidade).sort();
 
     // ==========================================
-    // 4. GERADOR DO WHATSAPP (ISOLADO POR UNIDADE)
+    // 4. GERADOR DO WHATSAPP
     // ==========================================
     const gerarTextoFechamento = (unidadeAlvo) => {
         const dataAtual = new Date();
@@ -133,13 +143,16 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
             labelReferencia = `${diaSemanaStr}, ${hojeSemAno}`; 
         }
 
+        const dados = relatorioPorUnidade[unidadeAlvo];
+
         let txt = `📊 *RELATÓRIO DE FECHAMENTO – PRATIQUE FITNESS* 📊\n`;
         txt += `📅 *Referência:* ${labelReferencia}\n`;
         txt += `🕐 *Enviado em:* ${labelEnviado}\n`;
         txt += `🏢 *Unidade:* ${unidadeAlvo}\n\n`;
+        
+        // --- VENDAS ---
         txt += `📌 *RESUMO DAS VENDAS*\n\n`;
 
-        const dados = relatorioPorUnidade[unidadeAlvo];
         const iconesGrupo = {
             "NUTRI": "🥗", "PLUS": "⭐", "FIT": "🏃", "PERSONAL CLASS": "🏋️",
             "OUTROS PLANOS": "🧩", "PRODUTOS": "🛍️", "SERVIÇOS": "🧾"
@@ -163,22 +176,34 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
             }
         });
 
-        txt += `👥 *VENDAS POR CONSULTOR*\n`;
-        const consultoresOrdenados = Object.entries(dados.vendedoresTotal).sort((a,b) => b[1] - a[1]);
-        consultoresOrdenados.forEach(([cNome, cTotal]) => {
-            txt += `${cNome} — ${String(cTotal).padStart(2, '0')}\n`;
-        });
-
-        txt += `\n📈 *TOTAL DE VENDAS REALIZADAS: ${String(dados.totalGeralVendas).padStart(2, '0')}*\n`;
-        txt += `\n➖➖➖➖➖➖➖➖➖➖\n`;
+        if (dados.totalGeralVendas > 0) {
+            txt += `👥 *VENDAS POR CONSULTOR*\n`;
+            const consultoresOrdenados = Object.entries(dados.vendedoresTotal).sort((a,b) => b[1] - a[1]);
+            consultoresOrdenados.forEach(([cNome, cTotal]) => {
+                txt += `${cNome} — ${String(cTotal).padStart(2, '0')}\n`;
+            });
+            txt += `\n📈 *TOTAL DE VENDAS: ${String(dados.totalGeralVendas).padStart(2, '0')}*\n`;
+        } else {
+            txt += `Nenhuma venda registrada.\n`;
+        }
+        
+        // --- VISITANTES E AVALIAÇÕES (NOVO FORMATO CURTO E GROSSO) ---
+        txt += `\n➖➖➖➖➖➖➖➖➖➖\n\n`;
+        
+        if (dados.visitantes && dados.visitantes.length > 0) {
+            txt += `👥 *VISITANTES:* ${dados.visitantes.length}\n`;
+        }
+        
+        if (dados.avaliacoes && dados.avaliacoes.length > 0) {
+            txt += `📋 *AVALIAÇÕES FEITAS:* ${dados.avaliacoes.length}\n`;
+        }
 
         abrirModalWhatsapp(txt.trim(), { titulo: `Relatório: ${unidadeAlvo}`, icone: 'file-text', cor: 'blue' });
     };
 
-    // Re-renderiza ícones caso o estado de expansão mude
     useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
-    }, [unidadesRecolhidas, vendasFiltradas]);
+    }, [unidadesRecolhidas, vendasFiltradas, visitantesFiltrados, avaliacoesFiltradas]);
 
     return (
         <div 
@@ -195,7 +220,7 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                             <i data-lucide="file-x-2" className="w-8 h-8 text-slate-400"></i>
                         </div>
-                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Nenhuma venda neste período.</p>
+                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Nenhum dado neste período.</p>
                     </div>
                 ) : (
                     unidadesOrdenadas.map(unidade => {
@@ -205,12 +230,10 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                         return (
                             <div key={unidade} className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300">
                                 
-                                {/* CABEÇALHO DA UNIDADE (A MÁGICA ESTÁ AQUI!) */}
                                 <div 
                                     className="bg-slate-900 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-5 transition-colors cursor-pointer select-none group"
                                     onClick={() => toggleUnidade(unidade)}
                                 >
-                                    {/* Esquerda: Identificação */}
                                     <div className="flex items-center gap-4">
                                         <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center border border-white/10 shrink-0 group-hover:bg-blue-500/20 group-hover:border-blue-500/30 transition-colors">
                                             <i data-lucide="building-2" className="w-6 h-6 text-white"></i>
@@ -225,9 +248,7 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                                         </div>
                                     </div>
                                     
-                                    {/* Direita: Ações Contextuais (Não arrastam a tela) */}
                                     <div className="flex flex-wrap items-center gap-3 no-drag">
-                                        
                                         <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2" title="Total de Vendas Registradas">
                                             <span className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">
                                                 {String(dados.totalGeralVendas).padStart(2, '0')} Vendas
@@ -250,15 +271,12 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                                     </div>
                                 </div>
 
-                                {/* CORPO DO RELATÓRIO (GRID DE BLOCOS) */}
                                 <div className={`transition-all duration-300 ${isRecolhido ? 'h-0 opacity-0 overflow-hidden' : 'p-6 md:p-8 bg-slate-50/50 border-t border-slate-200'}`}>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                         
-                                        {/* RENDERIZA OS BLOCOS DE CATEGORIAS */}
+                                        {/* VENDAS */}
                                         {Object.entries(dados.grupos).filter(([_, info]) => info.total > 0).map(([grupo, info]) => (
                                             <div key={grupo} className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-slate-300">
-                                                
-                                                {/* Header do Bloco */}
                                                 <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
                                                     <div className="flex items-center gap-3">
                                                         <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${info.bgIcone}`}>
@@ -273,8 +291,7 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                                                     </span>
                                                 </div>
 
-                                                {/* Lista Limpa de Itens */}
-                                                <div className="flex-1 divide-y divide-slate-50 bg-slate-50/30">
+                                                <div className="flex-1 divide-y divide-slate-50 bg-slate-50/30 max-h-[160px] overflow-y-auto custom-scrollbar">
                                                     {Object.entries(info.itens).sort((a,b) => b[1].total - a[1].total).map(([nomeItem, itemData]) => {
                                                         const stringConsultores = Object.entries(itemData.vendedores)
                                                             .sort((a,b) => b[1] - a[1])
@@ -301,6 +318,54 @@ const RelatorioTab = ({ vendasFiltradas, temVisaoGlobal, labelFiltroAtual, plano
                                                 </div>
                                             </div>
                                         ))}
+
+                                        {/* VISITANTES (CARD DE TELA) */}
+                                        {dados.visitantes.length > 0 && (
+                                            <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-blue-300">
+                                                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-blue-100 text-blue-600">
+                                                            👥
+                                                        </span>
+                                                        <span className="text-xs font-black uppercase tracking-wider text-blue-600">
+                                                            VISITANTES
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-200">
+                                                        {String(dados.visitantes.length).padStart(2, '0')} UN
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center">
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Capturado</p>
+                                                    <p className="text-3xl font-black text-slate-800">{dados.visitantes.length}</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase">Visível no Relatório do WhatsApp</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* AVALIAÇÕES FEITAS (CARD DE TELA - AJUSTADO) */}
+                                        {dados.avaliacoes.length > 0 && (
+                                            <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-orange-300">
+                                                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-orange-100 text-orange-600">
+                                                            📋
+                                                        </span>
+                                                        <span className="text-xs font-black uppercase tracking-wider text-orange-600">
+                                                            AVALIAÇÕES FEITAS
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-[10px] font-black bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md border border-orange-200">
+                                                        {String(dados.avaliacoes.length).padStart(2, '0')} UN
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center">
+                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Realizadas Hoje</p>
+                                                    <p className="text-3xl font-black text-slate-800">{dados.avaliacoes.length}</p>
+                                                    <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase">Visível no Relatório do WhatsApp</p>
+                                                </div>
+                                            </div>
+                                        )}
 
                                     </div>
                                 </div>

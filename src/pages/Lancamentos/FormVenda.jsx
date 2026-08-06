@@ -105,24 +105,29 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                 setTimeout(() => {
                     setSucesso(false);
                     voltarHub();
-                }, 2000);
+                }, 1200); // <-- Tempo reduzido para 1.2s para ficar muito mais rápido!
             }
         } catch (error) {
             console.error("Erro:", error); alert("Erro ao salvar venda.");
         } finally { setIsSubmitting(false); }
     };
 
-    // Estilos padrão refinados
     const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
-    // placeholder:text-slate-500 garante melhor acessibilidade
     const inputClass = "w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-500 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200";
 
     return (
         <form onSubmit={handleSubmitVenda} className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            
+            {/* === NOVO POP-UP CENTRAL === */}
             {sucesso && (
-                <div className="fixed top-6 right-6 bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 font-medium text-sm z-50 border border-slate-700 animate-[slideDown_0.3s_ease-out]">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    <span>Registro salvo com sucesso!</span>
+                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200">
+                        <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-emerald-200">
+                            <CheckCircle2 className="w-10 h-10" />
+                        </div>
+                        <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Venda Confirmada!</h3>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lançamento salvo no Caixa.</p>
+                    </div>
                 </div>
             )}
             
@@ -177,9 +182,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                         <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50/50 p-5 rounded-xl border border-slate-100">
                             
                             <div className="md:col-span-3">
-                                {/* Label alinhado à esquerda como pedido na auditoria */}
                                 <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-left">Categoria *</label>
-                                {/* O 'group' aqui permite o focus-within iluminar o ícone */}
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                         {item.tipo === 'plano' && <BookOpen className="w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />}
@@ -233,7 +236,6 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                 </div>
             </div>
 
-            {/* items-start permite que o bloco da direita fique "sticky" (grudado) no topo enquanto a esquerda rola */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 
                 <div className="lg:col-span-2 bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
@@ -243,7 +245,6 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     <textarea name="observacao" value={formData.observacao} onChange={handleMainChange} rows="5" placeholder="Ex: Pagamento no PIX, Isento de taxa..." className="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder:text-slate-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all duration-200"></textarea>
                 </div>
                 
-                {/* STICKY SIDEBAR: Fica fixo no desktop quando o carrinho é muito longo */}
                 <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200 flex flex-col justify-between lg:sticky lg:top-28">
                     <div>
                         <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2 mb-6">

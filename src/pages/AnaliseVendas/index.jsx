@@ -15,7 +15,8 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
-const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = [], colaboradores = [] }) => {
+// Adicionado visitantes e avaliacoes nas props
+const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
     const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
     const [tipoFiltro, setTipoFiltro] = useState('mes');
     const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -43,17 +44,12 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
 
     const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean);
 
-    // ==========================================
-    // 🧠 INTELIGÊNCIA DE UX: RESET DE FILTROS POR ABA
-    // ==========================================
     useEffect(() => {
         const hoje = new Date();
         if (abaPrincipal === 'relatorio') {
-            // Se clicou no Relatório: Trava no "Dia" e puxa a data EXATA de hoje
             setTipoFiltro('dia');
             setDiaEspecifico(getLocalISODate());
         } else {
-            // Se clicou em Dashboard ou Metas: Trava no "Mês" e puxa o mês ATUAL
             setTipoFiltro('mes');
             setFiltroMes(String(hoje.getMonth() + 1).padStart(2, '0'));
             setFiltroAno(hoje.getFullYear().toString());
@@ -113,6 +109,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
         }
     };
 
+    // --- FILTRAGEM DE VENDAS ---
     const vendasFiltradas = vendas.filter(v => {
         if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
         if (!temVisaoGlobal && v.unidade !== usuarioLogado?.unidade) return false;
@@ -123,13 +120,46 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
         if (partes.length !== 3) return false;
         const [y, m] = partes;
 
-        if (tipoFiltro === 'mes') {
-            return (filtroMes === 'TODOS' || m === filtroMes) && (filtroAno === 'TODOS' || y === filtroAno);
-        } else if (tipoFiltro === 'periodo') {
-            return (!dataInicio || isoDate >= dataInicio) && (!dataFim || isoDate <= dataFim);
-        } else if (tipoFiltro === 'dia') {
-            return !diaEspecifico || isoDate === diaEspecifico;
-        }
+        if (tipoFiltro === 'mes') return (filtroMes === 'TODOS' || m === filtroMes) && (filtroAno === 'TODOS' || y === filtroAno);
+        if (tipoFiltro === 'periodo') return (!dataInicio || isoDate >= dataInicio) && (!dataFim || isoDate <= dataFim);
+        if (tipoFiltro === 'dia') return !diaEspecifico || isoDate === diaEspecifico;
+        return true;
+    });
+
+    // --- FILTRAGEM DE VISITANTES ---
+    const visitantesFiltrados = visitantes.filter(v => {
+        if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
+        if (!temVisaoGlobal && v.unidade !== usuarioLogado?.unidade) return false;
+        
+        // CRM usa data ou criado_em
+        const dataBase = v.data || v.criado_em;
+        if (!dataBase) return false;
+
+        const isoDate = safeIsoDate(dataBase);
+        const partes = isoDate.split('-');
+        if (partes.length !== 3) return false;
+        const [y, m] = partes;
+
+        if (tipoFiltro === 'mes') return (filtroMes === 'TODOS' || m === filtroMes) && (filtroAno === 'TODOS' || y === filtroAno);
+        if (tipoFiltro === 'periodo') return (!dataInicio || isoDate >= dataInicio) && (!dataFim || isoDate <= dataFim);
+        if (tipoFiltro === 'dia') return !diaEspecifico || isoDate === diaEspecifico;
+        return true;
+    });
+
+    // --- FILTRAGEM DE AVALIAÇÕES ---
+    const avaliacoesFiltradas = avaliacoes.filter(a => {
+        if (temVisaoGlobal && filtroUnidade !== 'TODOS' && a.unidade !== filtroUnidade) return false;
+        if (!temVisaoGlobal && a.unidade !== usuarioLogado?.unidade) return false;
+        if (!a.data) return false;
+
+        const isoDate = safeIsoDate(a.data);
+        const partes = isoDate.split('-');
+        if (partes.length !== 3) return false;
+        const [y, m] = partes;
+
+        if (tipoFiltro === 'mes') return (filtroMes === 'TODOS' || m === filtroMes) && (filtroAno === 'TODOS' || y === filtroAno);
+        if (tipoFiltro === 'periodo') return (!dataInicio || isoDate >= dataInicio) && (!dataFim || isoDate <= dataFim);
+        if (tipoFiltro === 'dia') return !diaEspecifico || isoDate === diaEspecifico;
         return true;
     });
 
@@ -186,7 +216,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                 onEnviar={enviarWhatsApp}
             />
 
-            {/* SELETOR DE ABA */}
             <div className="bg-white rounded-[24px] border border-slate-200 p-4 flex flex-col md:flex-row justify-between items-center shadow-sm gap-4">
                 <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
                     <button onClick={() => setAbaPrincipal('dashboard')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
@@ -201,7 +230,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
                 </div>
             </div>
 
-            {/* CONTROLES DE FILTROS GERAIS */}
             <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
@@ -247,6 +275,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
             {abaPrincipal === 'dashboard' && (
                 <DashboardTab
                     vendasFiltradas={vendasFiltradas}
+                    visitantesFiltrados={visitantesFiltrados}
+                    avaliacoesFiltradas={avaliacoesFiltradas}
                     colaboradores={colaboradores}
                     unidadeAtual={unidadeAtual}
                     metaProdutos={metaProdutos}
@@ -278,6 +308,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], planos = [], produtos = 
             {abaPrincipal === 'relatorio' && (
                 <RelatorioTab
                     vendasFiltradas={vendasFiltradas}
+                    visitantesFiltrados={visitantesFiltrados} 
+                    avaliacoesFiltradas={avaliacoesFiltradas}
                     temVisaoGlobal={temVisaoGlobal}
                     labelFiltroAtual={labelFiltroAtual}
                     planos={planos}

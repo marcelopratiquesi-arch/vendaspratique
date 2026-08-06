@@ -12,7 +12,7 @@ import {
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
 import AssinaturasPratique from './pages/RegistroVendas.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa';
-import AnaliseDashboard from './pages/AnaliseVendas'; // <-- IMPORTAÇÃO CORRIGIDA AQUI!
+import AnaliseDashboard from './pages/AnaliseVendas'; 
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
 import CadastroGeral from './pages/CadastroGeral.jsx';
 import Configuracoes from './pages/Configuracoes.jsx';
@@ -27,9 +27,11 @@ export default function App() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
 
-    // Estados vazios aguardando a nuvem
+    // Estados aguardando a nuvem
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
+    const [dadosAvaliacoes, setDadosAvaliacoes] = useState([]); // <-- NOVO ESTADO AQUI
+    
     const [planos, setPlanos] = useState([]);
     const [produtos, setProdutos] = useState([]);
     const [servicos, setServicos] = useState([]); 
@@ -51,10 +53,10 @@ export default function App() {
         };
 
         if (isMobileMenuOpen) {
-            document.body.style.overflow = 'hidden'; // Trava o scroll do fundo no celular
+            document.body.style.overflow = 'hidden'; 
             window.addEventListener('keydown', handleKeyDown);
         } else {
-            document.body.style.overflow = 'auto'; // Libera o scroll
+            document.body.style.overflow = 'auto'; 
         }
 
         return () => {
@@ -64,7 +66,7 @@ export default function App() {
     }, [isMobileMenuOpen]);
 
     // ==========================================
-    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE (EFEITO WHATSAPP)
+    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE
     // ==========================================
     const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
@@ -111,35 +113,36 @@ export default function App() {
         else if (isMounted && data) setDadosVisitantes(data);
     }, [deveFiltrar, unidadeFiltro]);
 
+    const fetchAvaliacoes = useCallback(async (isMounted = true) => {
+        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false });
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
+        const { data, error } = await query;
+        if (error) console.error("Erro ao buscar avaliações:", error);
+        else if (isMounted && data) setDadosAvaliacoes(data);
+    }, [deveFiltrar, unidadeFiltro]);
+
     // Disparo Inicial Múltiplo e Realtime Turbo
     useEffect(() => {
         if (!usuarioLogado) return;
         let isMounted = true; 
 
-        // 1. Carrega tudo na primeira vez que a tela abre
         fetchUnidades(isMounted);
         fetchColaboradores(isMounted);
         fetchCatalogo(isMounted);
         fetchVendas(isMounted);
         fetchLeads(isMounted);
+        fetchAvaliacoes(isMounted); // <-- CHAMA A FUNÇÃO AQUI
 
-        // 2. MOTOR REALTIME TURBO (INJEÇÃO DIRETA)
         const realtimeChannel = supabase.channel('sistema-pratique-realtime')
             
             // --- EVENTOS DE VENDAS ---
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendas' }, (payload) => {
                 if (!isMounted) return;
                 setDadosAssinaturas(prev => {
-                    // Evita duplicar se foi a própria máquina que lançou a venda
                     if (prev.find(v => v.id === payload.new.id)) return prev; 
-                    
                     const isAdmin = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
                     const filtroAtual = isAdmin ? unidadeGlobal : usuarioLogado?.unidade;
-                    
-                    // Bloqueia venda de outra academia de poluir a tela se não estiver na visão global
                     if (filtroAtual !== 'TODAS' && payload.new.unidade !== filtroAtual) return prev; 
-                    
-                    // Injeta a nova linha no topo da lista atual!
                     return [payload.new, ...prev].sort((a,b) => b.id - a.id);
                 });
             })
@@ -157,11 +160,9 @@ export default function App() {
                 if (!isMounted) return;
                 setDadosVisitantes(prev => {
                     if (prev.find(l => l.id === payload.new.id)) return prev;
-                    
                     const isAdmin = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
                     const filtroAtual = isAdmin ? unidadeGlobal : usuarioLogado?.unidade;
                     if (filtroAtual !== 'TODAS' && payload.new.unidade !== filtroAtual) return prev;
-                    
                     return [payload.new, ...prev].sort((a,b) => b.id - a.id);
                 });
             })
@@ -174,7 +175,27 @@ export default function App() {
                 setDadosVisitantes(prev => prev.filter(l => l.id !== payload.old.id));
             })
 
-            // Tabelas menores (Configurações) não precisam de injeção complexa, um refetch simples basta
+            // --- EVENTOS DE AVALIAÇÕES FÍSICAS ---
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'avaliacoes_realizadas' }, (payload) => {
+                if (!isMounted) return;
+                setDadosAvaliacoes(prev => {
+                    if (prev.find(a => a.id === payload.new.id)) return prev;
+                    const isAdmin = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+                    const filtroAtual = isAdmin ? unidadeGlobal : usuarioLogado?.unidade;
+                    if (filtroAtual !== 'TODAS' && payload.new.unidade !== filtroAtual) return prev;
+                    return [payload.new, ...prev].sort((a,b) => b.id - a.id);
+                });
+            })
+            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'avaliacoes_realizadas' }, (payload) => {
+                if (!isMounted) return;
+                setDadosAvaliacoes(prev => prev.map(a => a.id === payload.new.id ? payload.new : a));
+            })
+            .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'avaliacoes_realizadas' }, (payload) => {
+                if (!isMounted) return;
+                setDadosAvaliacoes(prev => prev.filter(a => a.id !== payload.old.id));
+            })
+
+            // Tabelas menores
             .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, () => fetchColaboradores(isMounted))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, () => fetchCatalogo(isMounted))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => fetchUnidades(isMounted))
@@ -190,7 +211,7 @@ export default function App() {
             supabase.removeChannel(realtimeChannel);
         };
         
-    }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads]); 
+    }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
 
     // ==========================================
     // 4. FUNÇÕES DE INTERFACE
@@ -373,11 +394,18 @@ export default function App() {
 
             <main key={unidadeGlobal} className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
                 {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
+                
                 {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} />}
-                {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
-                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} setVendas={setDadosAssinaturas} />}
+                
+                {/* Repassando avaliações e visitantes para o Dashboard e para o Fechamento de Caixa! */}
+                {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
+                
+                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} setVendas={setDadosAssinaturas} />}
+                
                 {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
+                
                 {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
+                
                 {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
             </main>
         </div>
