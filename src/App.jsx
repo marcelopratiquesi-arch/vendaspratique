@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 // Importação Segura das Páginas
-import LancamentoVendas from './pages/Lancamento.jsx';
+import LancamentoVendas from './pages/Lancamentos/index.jsx';
 import AssinaturasPratique from './pages/RegistroVendas.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; // <-- IMPORTAÇÃO CORRIGIDA AQUI!
