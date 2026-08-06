@@ -10,7 +10,8 @@ import {
 
 // Importação Segura das Páginas
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
-import AssinaturasPratique from './pages/RegistroVendas.jsx';
+// 👇 AQUI ESTÁ A CORREÇÃO: Apontando exatamente para a pasta que você criou!
+import AssinaturasPratique from './pages/HistoricoVendas/index.jsx'; 
 import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; 
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
@@ -30,7 +31,7 @@ export default function App() {
     // Estados aguardando a nuvem
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
-    const [dadosAvaliacoes, setDadosAvaliacoes] = useState([]); // <-- NOVO ESTADO AQUI
+    const [dadosAvaliacoes, setDadosAvaliacoes] = useState([]); 
     
     const [planos, setPlanos] = useState([]);
     const [produtos, setProdutos] = useState([]);
@@ -131,7 +132,7 @@ export default function App() {
         fetchCatalogo(isMounted);
         fetchVendas(isMounted);
         fetchLeads(isMounted);
-        fetchAvaliacoes(isMounted); // <-- CHAMA A FUNÇÃO AQUI
+        fetchAvaliacoes(isMounted); 
 
         const realtimeChannel = supabase.channel('sistema-pratique-realtime')
             
