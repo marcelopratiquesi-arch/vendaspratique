@@ -6,7 +6,8 @@ import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
 
-const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
+// Atualizado para receber visitantes e avaliacoes pelas props do App.jsx
+const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [] }) => {
     const [subAba, setSubAba] = useState('conferencia');
 
     const [confProduto, setConfProduto] = useState('TODOS');
@@ -34,7 +35,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
     const anosUnicos = [...new Set(vendas.map(v => v.data?.split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
 
-    // MOTOR DE DATA GLOBAL
+    // MOTOR DE DATA GLOBAL PARA VENDAS
     const vendasDataAvancada = vendas.filter(v => {
         if (!v.data) return false;
         if (tipoFiltroAvancado === 'dia') return v.data === filtroDia;
@@ -43,6 +44,9 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
         if (dataFinalInput && v.data > dataFinalInput) return false;
         return true;
     });
+
+    // 🚨 CASO USE VISITANTES NO FECHAMENTO FUTURAMENTE, AQUI ESTÁ A BARREIRA SANITÁRIA APLICADA
+    const visitantesFisicos = visitantes.filter(v => v.origem !== 'CRM' && v.origem !== 'SMART_PAGE');
 
     const vendasParaConferencia = vendasDataAvancada.filter(v => {
         const passProduto = confProduto === 'TODOS' || v.produto === confProduto;
@@ -196,7 +200,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             </div>
 
-            {/* O SEGREDO ESTAVA AQUI! Agora o filtro de data aparece na Conferência, Comissões e Auditoria */}
             {subAba !== 'geral' && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 animate-[fadeIn_0.3s_ease-out]">
                     <div className="flex flex-col xl:flex-row justify-between items-start gap-8">
@@ -265,7 +268,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             )}
 
-            {/* SCORECARDS ESPECÍFICOS */}
             {subAba === 'comissoes' && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-[fadeIn_0.3s_ease-out]">
                     <div>
@@ -299,7 +301,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado }) => {
                 </div>
             )}
 
-            {/* ABAS */}
             {subAba === 'conferencia' && (
                 <ConferenciaTab 
                     vendasParaConferencia={vendasParaConferencia} temVisaoGlobal={temVisaoGlobal} colunasVisiveis={colunasVisiveis}

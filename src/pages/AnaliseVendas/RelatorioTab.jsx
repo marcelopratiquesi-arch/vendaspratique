@@ -107,6 +107,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
     // 2. Processa Visitantes
     visitantesFiltrados.forEach(v => {
+        if (v.origem !== 'RECEPCAO') return;
         const unidade = v.unidade || 'SEM UNIDADE';
         inicializarUnidade(unidade);
         relatorioPorUnidade[unidade].visitantes.push(v);
@@ -119,10 +120,11 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         relatorioPorUnidade[unidade].avaliacoes.push(a);
     });
 
+    // Garante que mesmo unidades que não venderam nada, mas tiveram visitantes ou avaliações, apareçam
     const unidadesOrdenadas = Object.keys(relatorioPorUnidade).sort();
 
     // ==========================================
-    // 4. GERADOR DO WHATSAPP
+    // 4. GERADOR DO WHATSAPP (COM ZEROS EXPLÍCITOS)
     // ==========================================
     const gerarTextoFechamento = (unidadeAlvo) => {
         const dataAtual = new Date();
@@ -150,7 +152,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         txt += `🕐 *Enviado em:* ${labelEnviado}\n`;
         txt += `🏢 *Unidade:* ${unidadeAlvo}\n\n`;
         
-        // --- VENDAS ---
         txt += `📌 *RESUMO DAS VENDAS*\n\n`;
 
         const iconesGrupo = {
@@ -187,16 +188,10 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
             txt += `Nenhuma venda registrada.\n`;
         }
         
-        // --- VISITANTES E AVALIAÇÕES (NOVO FORMATO CURTO E GROSSO) ---
+        // --- VISITANTES E AVALIAÇÕES SEMPRE EXIBEM O NÚMERO EXATO (INCLUINDO 00) ---
         txt += `\n➖➖➖➖➖➖➖➖➖➖\n\n`;
-        
-        if (dados.visitantes && dados.visitantes.length > 0) {
-            txt += `👥 *VISITANTES:* ${dados.visitantes.length}\n`;
-        }
-        
-        if (dados.avaliacoes && dados.avaliacoes.length > 0) {
-            txt += `📋 *AVALIAÇÕES FEITAS:* ${dados.avaliacoes.length}\n`;
-        }
+        txt += `👥 *VISITANTES (BALCÃO):* ${String(dados.visitantes.length).padStart(2, '0')}\n`;
+        txt += `📋 *AVALIAÇÕES FEITAS:* ${String(dados.avaliacoes.length).padStart(2, '0')}\n`;
 
         abrirModalWhatsapp(txt.trim(), { titulo: `Relatório: ${unidadeAlvo}`, icone: 'file-text', cor: 'blue' });
     };
@@ -226,6 +221,9 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                     unidadesOrdenadas.map(unidade => {
                         const dados = relatorioPorUnidade[unidade];
                         const isRecolhido = unidadesRecolhidas[unidade];
+
+                        const hasVisitantes = dados.visitantes.length > 0;
+                        const hasAvaliacoes = dados.avaliacoes.length > 0;
 
                         return (
                             <div key={unidade} className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300">
@@ -319,53 +317,65 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                             </div>
                                         ))}
 
-                                        {/* VISITANTES (CARD DE TELA) */}
-                                        {dados.visitantes.length > 0 && (
-                                            <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-blue-300">
-                                                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-blue-100 text-blue-600">
-                                                            👥
-                                                        </span>
-                                                        <span className="text-xs font-black uppercase tracking-wider text-blue-600">
-                                                            VISITANTES
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-200">
-                                                        {String(dados.visitantes.length).padStart(2, '0')} UN
+                                        {/* UX PREMIUM: VISITANTES (SEMPRE APARECE, MUDA DE COR SE FOR 0) */}
+                                        <div className={`bg-white border ${hasVisitantes ? 'border-slate-200 hover:border-blue-300 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-md' : 'border-slate-200 border-dashed opacity-80'} rounded-2xl flex flex-col overflow-hidden transition-all`}>
+                                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${hasVisitantes ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                        👥
+                                                    </span>
+                                                    <span className={`text-xs font-black uppercase tracking-wider ${hasVisitantes ? 'text-blue-600' : 'text-slate-400'}`}>
+                                                        VISITANTES
                                                     </span>
                                                 </div>
-                                                <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center">
-                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Capturado</p>
-                                                    <p className="text-3xl font-black text-slate-800">{dados.visitantes.length}</p>
-                                                    <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase">Visível no Relatório do WhatsApp</p>
-                                                </div>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border ${hasVisitantes ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                    {String(dados.visitantes.length).padStart(2, '0')} UN
+                                                </span>
                                             </div>
-                                        )}
+                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px]">
+                                                {hasVisitantes ? (
+                                                    <>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Capturado</p>
+                                                        <p className="text-4xl md:text-5xl font-black text-slate-800">{dados.visitantes.length}</p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-4xl md:text-5xl font-black text-slate-300 mb-2">00</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sem visitantes registrados</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
 
-                                        {/* AVALIAÇÕES FEITAS (CARD DE TELA - AJUSTADO) */}
-                                        {dados.avaliacoes.length > 0 && (
-                                            <div className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-orange-300">
-                                                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="w-8 h-8 rounded-lg flex items-center justify-center text-sm bg-orange-100 text-orange-600">
-                                                            📋
-                                                        </span>
-                                                        <span className="text-xs font-black uppercase tracking-wider text-orange-600">
-                                                            AVALIAÇÕES FEITAS
-                                                        </span>
-                                                    </div>
-                                                    <span className="text-[10px] font-black bg-orange-50 text-orange-600 px-2.5 py-1 rounded-md border border-orange-200">
-                                                        {String(dados.avaliacoes.length).padStart(2, '0')} UN
+                                        {/* UX PREMIUM: AVALIAÇÕES (SEMPRE APARECE, MUDA DE COR SE FOR 0) */}
+                                        <div className={`bg-white border ${hasAvaliacoes ? 'border-slate-200 hover:border-orange-300 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-md' : 'border-slate-200 border-dashed opacity-80'} rounded-2xl flex flex-col overflow-hidden transition-all`}>
+                                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${hasAvaliacoes ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                        📋
+                                                    </span>
+                                                    <span className={`text-xs font-black uppercase tracking-wider ${hasAvaliacoes ? 'text-orange-600' : 'text-slate-400'}`}>
+                                                        AVALIAÇÕES
                                                     </span>
                                                 </div>
-                                                <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center">
-                                                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Realizadas Hoje</p>
-                                                    <p className="text-3xl font-black text-slate-800">{dados.avaliacoes.length}</p>
-                                                    <p className="text-[9px] text-slate-400 font-bold mt-2 uppercase">Visível no Relatório do WhatsApp</p>
-                                                </div>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border ${hasAvaliacoes ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                    {String(dados.avaliacoes.length).padStart(2, '0')} UN
+                                                </span>
                                             </div>
-                                        )}
+                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px]">
+                                                {hasAvaliacoes ? (
+                                                    <>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Realizadas Hoje</p>
+                                                        <p className="text-4xl md:text-5xl font-black text-slate-800">{dados.avaliacoes.length}</p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className="text-4xl md:text-5xl font-black text-slate-300 mb-2">00</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhuma avaliação hoje</p>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
 
                                     </div>
                                 </div>

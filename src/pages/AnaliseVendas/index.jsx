@@ -6,7 +6,6 @@ import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
 
-// Função segura para pegar a data de Brasília exata e evitar bugs de fuso horário (UTC)
 const getLocalISODate = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -15,7 +14,6 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
-// Adicionado visitantes e avaliacoes nas props
 const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
     const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
     const [tipoFiltro, setTipoFiltro] = useState('mes');
@@ -128,10 +126,14 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     // --- FILTRAGEM DE VISITANTES ---
     const visitantesFiltrados = visitantes.filter(v => {
+        // ✅ BARREIRA SANITÁRIA DE ORIGEM (A REGRA DE NEGÓCIO):
+        // Bloqueia Leads que vieram do CRM (manual ou Smart Paste) ou tráfego. 
+        // Garante que a conversão conte apenas as visitas físicas.
+        if (v.origem === 'CRM' || v.origem === 'SMART_PAGE') return false;
+
         if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
         if (!temVisaoGlobal && v.unidade !== usuarioLogado?.unidade) return false;
         
-        // CRM usa data ou criado_em
         const dataBase = v.data || v.criado_em;
         if (!dataBase) return false;
 

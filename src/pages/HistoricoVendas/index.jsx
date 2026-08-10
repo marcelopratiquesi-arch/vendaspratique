@@ -1,45 +1,58 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import TabelaHistorico from './TabelaHistorico.jsx';
-import { supabase } from '../../supabaseClient.js'; // NOVO: Conexão para ler o catálogo real
-import { safeIsoDate, safeNumber, formatMoney, meses, toTitleCase } from './utils.js';
-import { Filter, Calendar, CalendarDays, Sun, UserCheck, Wallet, BarChart2, Leaf, Star, Activity, Dumbbell, ShoppingBag, Receipt, Layers, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { supabase } from '../../supabaseClient.js';
+import { safeIsoDate, safeNumber, formatMoney, meses, toTitleCase, buildCatalogoMap } from './utils.js';
+import { Filter, Calendar, CalendarDays, Sun, UserCheck, Wallet, BarChart2, Leaf, Star, Activity, Dumbbell, ShoppingBag, Receipt, Layers, ChevronDown, ChevronUp, AlertCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 
 const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
-    // 1. FILTROS INTELIGENTES (PRÉ-PREENCHIDOS CORRETAMENTE)
+    const hojePadrao = new Date().toISOString().split('T')[0];
+    const mesPadrao = String(new Date().getMonth() + 1).padStart(2, '0');
+    const anoPadrao = new Date().getFullYear().toString();
+
     const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
-    const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
-    const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
+    const [filtroMes, setFiltroMes] = useState(mesPadrao);
+    const [filtroAno, setFiltroAno] = useState(anoPadrao);
     const [dataInicio, setDataInicio] = useState('');
     const [dataFim, setDataFim] = useState('');
-    const [diaEspecifico, setDiaEspecifico] = useState(new Date().toISOString().split('T')[0]);
+    const [diaEspecifico, setDiaEspecifico] = useState(hojePadrao);
     
     const [filtroProduto, setFiltroProduto] = useState('TODOS');
     const [filtroVendedor, setFiltroVendedor] = useState('TODOS');
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); 
 
     const [categoriaExpandida, setCategoriaExpandida] = useState(null);
-    const [catalogoGeral, setCatalogoGeral] = useState([]); // NOVO: Armazena o catálogo
+    const [catalogoGeral, setCatalogoGeral] = useState([]); 
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
 
-    // Busca o catálogo oficial do Supabase uma única vez para classificar corretamente
     useEffect(() => {
         const fetchCatalogo = async () => {
-            const { data } = await supabase.from('catalogo').select('*');
-            if (data) setCatalogoGeral(data);
+            const { data, error } = await supabase.from('catalogo').select('id, nome, tipo, valor');
+            if (data && !error) setCatalogoGeral(data);
         };
         fetchCatalogo();
     }, []);
+
+    const mapCatalogo = useMemo(() => buildCatalogoMap(catalogoGeral), [catalogoGeral]);
+
+    const limparFiltros = () => {
+        setTipoFiltroData('mes');
+        setFiltroMes(mesPadrao);
+        setFiltroAno(anoPadrao);
+        setFiltroVendedor('TODOS');
+        setFiltroProduto('TODOS');
+        if (temVisaoGlobal) setFiltroUnidade('TODOS');
+    };
 
     const produtosUnicos = useMemo(() => ['TODOS', ...new Set(data.map(v => v.produto))].filter(Boolean), [data]);
     const vendedoresUnicos = useMemo(() => ['TODOS', ...new Set(data.map(v => v.vendedor))].filter(Boolean), [data]);
     const unidadesUnicas = useMemo(() => ['TODOS', ...new Set(data.map(v => v.unidade))].filter(Boolean), [data]); 
     const anosUnicos = useMemo(() => {
         const anos = [...new Set(data.map(v => safeIsoDate(v.data).split('-')[0]))].filter(Boolean).sort((a,b) => b-a); 
-        if(anos.length === 0) anos.push(new Date().getFullYear().toString());
+        if(anos.length === 0) anos.push(anoPadrao);
         return anos;
-    }, [data]);
+    }, [data, anoPadrao]);
 
     const vendasFiltradas = useMemo(() => {
         return data.filter(venda => {
@@ -68,7 +81,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
         });
     }, [data, temVisaoGlobal, filtroUnidade, filtroProduto, filtroVendedor, tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
 
-    // 2. AGRUPAMENTO INTELIGENTE USANDO A REGRA DE OURO DO DASHBOARD
     const resumoVendedor = useMemo(() => {
         const resumo = {
             valorTotal: 0,
@@ -80,7 +92,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 "PERSONAL CLASS": { qtd: 0, valor: 0, itens: {}, icone: Dumbbell, cor: 'text-rose-600', bg: 'bg-rose-100', border: 'border-rose-200' },
                 "OUTROS PLANOS": { qtd: 0, valor: 0, itens: {}, icone: Layers, cor: 'text-slate-600', bg: 'bg-slate-200', border: 'border-slate-300' },
                 "PRODUTOS": { qtd: 0, valor: 0, itens: {}, icone: ShoppingBag, cor: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200' },
-                "SERVIÇOS": { qtd: 0, valor: 0, itens: {}, icone: Receipt, cor: 'text-violet-600', bg: 'bg-violet-100', border: 'border-violet-200' }
+                "SERVIÇOS": { qtd: 0, valor: 0, itens: {}, icone: Receipt, cor: 'text-violet-600', bg: 'bg-violet-100', border: 'border-violet-200' },
+                "NÃO CATALOGADO": { qtd: 0, valor: 0, itens: {}, icone: AlertTriangle, cor: 'text-red-600', bg: 'bg-red-100', border: 'border-red-400' }
             }
         };
         
@@ -92,23 +105,25 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 resumo.qtdTotal += qtd;
 
                 const nomeExato = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase();
+                const itemCat = mapCatalogo.get(nomeExato);
                 
-                // INTELIGÊNCIA EXATA: Consulta o catálogo para saber a categoria real
-                const itemCat = catalogoGeral.find(c => c.nome.toUpperCase() === nomeExato);
-                const categoriaDB = itemCat ? itemCat.tipo.toLowerCase() : 'plano';
-
                 let grupoAlvo = 'OUTROS PLANOS';
 
-                if (categoriaDB === 'plano') {
-                    if (nomeExato.includes('NUTRI')) grupoAlvo = 'NUTRI';
-                    else if (nomeExato.includes('PLUS') || nomeExato.includes('AFL')) grupoAlvo = 'PLUS';
-                    else if (nomeExato.includes('FIT')) grupoAlvo = 'FIT';
-                    else if (nomeExato.includes('PERSONAL')) grupoAlvo = 'PERSONAL CLASS';
-                    else grupoAlvo = 'OUTROS PLANOS';
-                } else if (categoriaDB === 'produto') {
-                    grupoAlvo = 'PRODUTOS';
-                } else if (categoriaDB === 'servico' || categoriaDB === 'serviço') {
-                    grupoAlvo = 'SERVIÇOS';
+                if (!itemCat) {
+                    grupoAlvo = 'NÃO CATALOGADO'; 
+                } else {
+                    const categoriaDB = itemCat.tipo.toLowerCase();
+                    if (categoriaDB === 'plano') {
+                        if (nomeExato.includes('NUTRI')) grupoAlvo = 'NUTRI';
+                        else if (nomeExato.includes('PLUS') || nomeExato.includes('AFL')) grupoAlvo = 'PLUS';
+                        else if (nomeExato.includes('FIT')) grupoAlvo = 'FIT';
+                        else if (nomeExato.includes('PERSONAL')) grupoAlvo = 'PERSONAL CLASS';
+                        else grupoAlvo = 'OUTROS PLANOS';
+                    } else if (categoriaDB === 'produto') {
+                        grupoAlvo = 'PRODUTOS';
+                    } else if (categoriaDB === 'servico' || categoriaDB === 'serviço') {
+                        grupoAlvo = 'SERVIÇOS';
+                    }
                 }
 
                 resumo.grupos[grupoAlvo].qtd += qtd;
@@ -122,7 +137,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
             });
         }
         return resumo;
-    }, [vendasFiltradas, filtroVendedor, catalogoGeral]); // Adicionado o catalogo como dependência
+    }, [vendasFiltradas, filtroVendedor, mapCatalogo]);
 
     const toggleCategoria = (catNome) => {
         setCategoriaExpandida(prev => prev === catNome ? null : catNome);
@@ -131,7 +146,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto">
             
-            {/* CABEÇALHO DE FILTROS */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
                     <div className="flex items-center gap-4">
@@ -144,16 +158,21 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                         </div>
                     </div>
                     
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
-                        <button onClick={() => setTipoFiltroData('mes')} className={`flex-1 md:w-32 px-4 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
-                            <Calendar className="w-4 h-4" /> Mês
+                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
+                        <button onClick={limparFiltros} title="Limpar Filtros" aria-label="Limpar Filtros" className="w-11 h-11 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-800 rounded-xl transition-colors border border-slate-200 shrink-0">
+                            <RefreshCw className="w-4 h-4" />
                         </button>
-                        <button onClick={() => setTipoFiltroData('periodo')} className={`flex-1 md:w-32 px-4 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
-                            <CalendarDays className="w-4 h-4" /> Período
-                        </button>
-                        <button onClick={() => setTipoFiltroData('dia')} className={`flex-1 md:w-32 px-4 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
-                            <Sun className="w-4 h-4" /> Dia
-                        </button>
+                        <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 flex-1 md:flex-none overflow-x-auto custom-scrollbar">
+                            <button onClick={() => setTipoFiltroData('mes')} className={`flex-1 md:w-32 px-4 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                <Calendar className="w-4 h-4" /> Mês
+                            </button>
+                            <button onClick={() => setTipoFiltroData('periodo')} className={`flex-1 md:w-32 px-4 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                <CalendarDays className="w-4 h-4" /> Período
+                            </button>
+                            <button onClick={() => setTipoFiltroData('dia')} className={`flex-1 md:w-32 px-4 py-3 rounded-lg text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                                <Sun className="w-4 h-4" /> Dia
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -161,14 +180,14 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                     {tipoFiltroData === 'mes' && (
                         <>
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Mês Referência</label>
-                                <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors">
+                                <label htmlFor="filtro-mes" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Mês Referência</label>
+                                <select id="filtro-mes" value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors">
                                     {meses.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Ano Referência</label>
-                                <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors">
+                                <label htmlFor="filtro-ano" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Ano Referência</label>
+                                <select id="filtro-ano" value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors">
                                     <option value="TODOS">Todos os Anos</option>
                                     {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
@@ -179,40 +198,40 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                     {tipoFiltroData === 'periodo' && (
                         <>
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Data Início</label>
-                                <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors" />
+                                <label htmlFor="filtro-data-inicio" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Data Início</label>
+                                <input id="filtro-data-inicio" type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors" />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Data Fim</label>
-                                <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors" />
+                                <label htmlFor="filtro-data-fim" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Data Fim</label>
+                                <input id="filtro-data-fim" type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors" />
                             </div>
                         </>
                     )}
 
                     {tipoFiltroData === 'dia' && (
                         <div className="sm:col-span-2 lg:col-span-2">
-                            <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Dia Específico</label>
-                            <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors" />
+                            <label htmlFor="filtro-dia" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Dia Específico</label>
+                            <input id="filtro-dia" type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors" />
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Consultor</label>
-                        <select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer capitalize hover:border-blue-400 transition-colors">
+                        <label htmlFor="filtro-vendedor" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Consultor</label>
+                        <select id="filtro-vendedor" value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer capitalize hover:border-blue-400 transition-colors">
                             {vendedoresUnicos.map(v => <option key={v} value={v}>{v === 'TODOS' ? 'TODOS' : toTitleCase(v)}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Plano / Produto</label>
-                        <select value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors">
+                        <label htmlFor="filtro-produto" className="block text-xs font-bold text-slate-700 uppercase tracking-widest mb-2 ml-1">Plano / Produto</label>
+                        <select id="filtro-produto" value={filtroProduto} onChange={(e) => setFiltroProduto(e.target.value)} className="w-full bg-white border border-slate-300 rounded-xl px-4 py-3 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-blue-400 transition-colors">
                             {produtosUnicos.map(p => <option key={p} value={p}>{p}</option>)}
                         </select>
                     </div>
 
                     {temVisaoGlobal && (
                         <div className="animate-[fadeIn_0.3s_ease-out]">
-                            <label className="block text-xs font-bold text-rose-600 uppercase tracking-widest mb-2 ml-1">Isolar Unidade</label>
-                            <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="w-full bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase hover:border-rose-400 transition-colors">
+                            <label htmlFor="filtro-unidade" className="block text-xs font-bold text-rose-600 uppercase tracking-widest mb-2 ml-1">Isolar Unidade</label>
+                            <select id="filtro-unidade" value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="w-full bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase hover:border-rose-400 transition-colors">
                                 {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS UNIDADES' : u}</option>)}
                             </select>
                         </div>
@@ -220,7 +239,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 </div>
             </div>
 
-            {/* EXTRATO DO CONSULTOR COM DESIGN EXPANDÍVEL */}
             {filtroVendedor !== 'TODOS' && (
                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 md:p-8 animate-[slideDown_0.3s_ease-out]">
                     
@@ -239,13 +257,12 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                             </div>
                         </div>
 
-                        {/* LEMBRETE IMPORTANTE DE AUDITORIA */}
                         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-4 rounded-xl max-w-sm">
                             <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                             <div>
                                 <p className="text-xs font-black text-amber-700 uppercase tracking-widest mb-1">Aviso de Fechamento</p>
                                 <p className="text-xs font-semibold text-amber-600/80 leading-relaxed">
-                                    Este painel exibe o <strong className="text-amber-600">faturamento a conferir</strong>. O valor real depende da auditoria de pagamentos no Caixa.
+                                    Este painel exibe o <strong className="text-amber-600">faturamento a conferir</strong>. O valor real depende da auditoria no Caixa.
                                 </p>
                             </div>
                         </div>
@@ -284,6 +301,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                             
                                             <button 
                                                 onClick={() => toggleCategoria(nomeGrupo)} 
+                                                aria-expanded={isExpanded}
                                                 className="w-full text-left px-5 py-4 flex items-center justify-between bg-white"
                                             >
                                                 <div className="flex items-center gap-3">
@@ -295,12 +313,12 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                                                         <p className={`text-[10px] font-black uppercase tracking-widest ${info.cor}`}>{nomeGrupo}</p>
                                                     </div>
                                                 </div>
-                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-slate-100 text-slate-800' : 'bg-slate-50 text-slate-400'}`}>
+                                                <div aria-hidden="true" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-slate-100 text-slate-800' : 'bg-slate-50 text-slate-400'}`}>
                                                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                 </div>
                                             </button>
 
-                                            <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}>
+                                            <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[400px] opacity-100 overflow-y-auto custom-scrollbar' : 'max-h-0 opacity-0 overflow-hidden'}`}>
                                                 <div className="px-5 pb-5 pt-2 bg-slate-50/50 border-t border-slate-100">
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Detalhamento dos Lançamentos</p>
                                                     <div className="space-y-3">
@@ -338,7 +356,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 temVisaoGlobal={temVisaoGlobal}
                 podeEditar={podeEditar}
                 filtroVendedor={filtroVendedor}
-                catalogoGeral={catalogoGeral} // NOVO: Passando a inteligência para a tabela 
+                catalogoGeral={catalogoGeral} 
+                usuarioLogado={usuarioLogado}
             />
 
         </div>

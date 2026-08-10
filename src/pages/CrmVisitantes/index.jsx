@@ -14,9 +14,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // ==========================================
-    // ESTADOS: SMART PASTE & SELEÇÃO NA BASE
-    // ==========================================
     const [textoSmartPaste, setTextoSmartPaste] = useState('');
     const [previewLeads, setPreviewLeads] = useState([]);
     const [tipoLeadSmartPaste, setTipoLeadSmartPaste] = useState('CANCELADO/INATIVO');
@@ -25,7 +22,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     
     const [selecionadosBase, setSelecionadosBase] = useState([]);
 
-    // MODAIS E HISTÓRICO
     const [modalWpp, setModalWpp] = useState({ show: false, lead: null, texto: '' });
     const [modalDetalhe, setModalDetalhe] = useState({ show: false, lead: null });
     const [historicoLead, setHistoricoLead] = useState([]);
@@ -57,7 +53,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         else setFormData({ ...formData, [name]: value });
     };
 
-    // AUDITORIA EM TEMPO REAL
     const cpfDigitadoLimpo = formData.cpf.replace(/\D/g, '');
     const leadDuplicadoManual = cpfDigitadoLimpo.length === 11 
         ? visitantes.find(v => v.cpf && v.cpf.replace(/\D/g, '') === cpfDigitadoLimpo) 
@@ -103,9 +98,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         setLoadingHistorico(false);
     };
 
-    // ==========================================
-    // CAPTURA MANUAL BLINDADA
-    // ==========================================
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -129,6 +121,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             tipo_lead: formData.tipo_lead, 
             vendedor: formData.vendedor,
             observacao: formData.observacao,
+            // ✅ REGRA DE NEGÓCIO: Carimba que este lead não foi inserido na recepção (foi inserido no CRM)
+            origem: 'CRM',
             data: new Date().toLocaleDateString('pt-BR'), 
             criado_em: new Date().toISOString(), 
             status: 'Novo',
@@ -154,9 +148,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         setIsSubmitting(false);
     };
 
-    // ==========================================
-    // O MOTOR DO SMART PASTE (COM IA DE DETECÇÃO DE COLUNAS)
-    // ==========================================
     const processarColagem = (texto) => {
         setTextoSmartPaste(texto);
         if (!texto.trim()) { 
@@ -175,7 +166,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             const colunas = linha.split('\t').map(c => c.trim());
             let nome = '', telefone = '', cpf = '';
             
-            // Descobre onde o nome começa (Ignora a coluna se a primeira for matrícula pura)
             let offset = 0;
             if (/^\d{3,8}$/.test(colunas[0])) {
                 offset = 1;
@@ -185,8 +175,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             const campo1 = colunas[offset + 1] || '';
             const campo2 = colunas[offset + 2] || '';
 
-            // LÓGICA INTELIGENTE: O sistema agora tenta adivinhar o que é CPF e o que é telefone
-            // CPF sempre segue a regra de pontos e traços no Pacto.
             const isCpfFormatado = (str) => /^\d{3}\.\d{3}\.\d{3}-\d{2}$/.test(str);
             
             if (isCpfFormatado(campo1)) {
@@ -196,15 +184,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 cpf = campo2;
                 telefone = campo1;
             } else {
-                // Se nenhum for obviamente CPF, analisa pelo tamanho dos números para salvar planilhas despadronizadas
                 const numerosCampo1 = campo1.replace(/\D/g, '').length;
                 
-                // Se só tem 2 colunas copiadas (Nome e Telefone)
                 if (campo1 && !campo2 && (campo1.includes('(') || numerosCampo1 === 10 || numerosCampo1 === 11)) {
                     telefone = campo1;
                     cpf = '';
                 } else {
-                    // Fallback para o comportamento clássico do Pacto (Nome, CPF, Telefone)
                     cpf = campo1;
                     telefone = campo2;
                 }
@@ -286,6 +271,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             telefone: lead.telefone,
             cpf: lead.cpf || null,
             tipo_lead: tipoLeadSmartPaste,
+            // ✅ REGRA DE NEGÓCIO: Carimba os leads do Smart Paste
+            origem: 'CRM',
             vendedor: 'Importação',
             status: 'Novo',
             data: dataBR,
@@ -312,9 +299,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         setProcessandoPaste(false);
     };
 
-    // ==========================================
-    // EXCLUSÃO REAL E DEFINITIVA (HARD DELETE)
-    // ==========================================
     const excluirSelecionadosBase = async () => {
         if (selecionadosBase.length === 0) return;
         
@@ -366,9 +350,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         }
     };
 
-    // ==========================================
-    // PUXAR FILA E ALTERAR STATUS
-    // ==========================================
     const executarPuxada = async (idsParaPuxar, msgSucesso) => {
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
         if (!consultorAtual) return alert("Selecione um operador primeiro!");
@@ -401,9 +382,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     };
 
     const alterarStatusEmLote = async (ids, novoStatus) => {
-        const confirmacao = novoStatus === 'Perdido' 
-            ? `Enviar ${ids.length} contatos para a Geladeira (Espera de 30 dias)?` 
-            : `Mover ${ids.length} contatos para a fase ${novoStatus}?`;
+        const confirmacao = novoStatus === 'Perdido' ? `Enviar ${ids.length} contatos para a Geladeira (Espera de 30 dias)?` : `Mover ${ids.length} contatos para a fase ${novoStatus}?`;
 
         if(window.confirm(confirmacao)) {
             const dataPerdido = novoStatus === 'Perdido' ? new Date().toISOString() : null;
@@ -441,9 +420,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         }
     };
 
-    // ==========================================
-    // CATRACA DE IDENTIFICAÇÃO E RENDERIZAÇÃO
-    // ==========================================
     if (usuarioLogado?.role === 'RECEPCAO' && !consultorAtivo) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[70vh] animate-[fadeIn_0.3s_ease-out] px-4">
@@ -491,7 +467,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative">
 
-            {/* HEADER DE PRODUTIVIDADE */}
             <div className="bg-white rounded-[24px] border border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm flex-wrap gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-[300px]">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shrink-0 ${metaBatida ? 'bg-emerald-100 text-emerald-600 shadow-inner' : 'bg-orange-100 text-orange-600 shadow-inner'}`}>
@@ -520,7 +495,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             </div>
 
-            {/* BARRA DE NAVEGAÇÃO / ABAS */}
             <div className="flex bg-slate-200 p-1.5 rounded-xl border border-slate-300/60 shadow-inner w-full max-w-4xl mx-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                     <Database className="w-4 h-4" /> Base ({leadsNaBase.length})
@@ -539,7 +513,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </button>
             </div>
 
-            {/* ABA GELADEIRA (RECUPERAÇÃO) */}
             {visaoAtiva === 'geladeira' && (
                 <div className="bg-white rounded-[24px] border border-cyan-200 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out]">
                     <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
@@ -587,7 +560,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             )}
 
-            {/* ABA BASE DE LEADS */}
             {visaoAtiva === 'base' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     
@@ -803,7 +775,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             )}
 
-            {/* MÓDULOS EXTERNOS */}
             {visaoAtiva === 'dashboard' && <Metricas visitantes={meusLeadsAtivos} colaboradores={colaboradores} />}
             
             {visaoAtiva === 'kanban' && (

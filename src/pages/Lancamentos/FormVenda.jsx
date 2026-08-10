@@ -80,6 +80,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
         try {
             const novosLancamentos = itensValidos.map(item => {
                 const valorPuro = safeNumber(item.valorCalculado); 
+                
                 return {
                     unidade: formData.unidade.toUpperCase(), 
                     data: formData.data, 
@@ -91,6 +92,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     observacao: formData.observacao, 
                     conferiu: false, 
                     quantidade: parseInt(item.quantidade) || 1, 
+                    // ✅ REGRA DE NEGÓCIO CONFIRMADA: A comissão é 100% do valor lançado.
                     comissao: valorPuro,
                     criado_por: usuarioLogado?.nome || 'SISTEMA' 
                 };
@@ -105,10 +107,10 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                 setTimeout(() => {
                     setSucesso(false);
                     voltarHub();
-                }, 1200); // <-- Tempo reduzido para 1.2s para ficar muito mais rápido!
+                }, 1200);
             }
         } catch (error) {
-            console.error("Erro:", error); alert("Erro ao salvar venda.");
+            console.error("Erro:", error); alert("Erro ao salvar venda. Tente novamente.");
         } finally { setIsSubmitting(false); }
     };
 
@@ -118,7 +120,6 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
     return (
         <form onSubmit={handleSubmitVenda} className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
             
-            {/* === NOVO POP-UP CENTRAL === */}
             {sucesso && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200">
@@ -178,7 +179,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                 </div>
                 
                 <div className="space-y-4">
-                    {itensForm.map((item, index) => (
+                    {itensForm.map((item) => (
                         <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50/50 p-5 rounded-xl border border-slate-100">
                             
                             <div className="md:col-span-3">
@@ -216,7 +217,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                             
                             <div className="md:col-span-2">
                                 <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-right">Subtotal</label>
-                                <input type="text" value={item.valor} readOnly className="w-full bg-transparent border-none text-base font-bold text-slate-900 text-right pr-2 cursor-default py-2 focus:outline-none" />
+                                <input type="text" value={item.valor} readOnly className="w-full bg-slate-200/50 border border-slate-200 text-base font-black text-slate-700 rounded-lg text-right pr-3 cursor-not-allowed py-2 focus:outline-none" title="Calculado automaticamente" />
                             </div>
 
                             <div className="md:col-span-1 flex justify-center pb-2">

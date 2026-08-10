@@ -1,21 +1,27 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao, toTitleCase } from './utils.js';
-import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX } from 'lucide-react';
+import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao, toTitleCase, buildCatalogoMap } from './utils.js';
+import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2 } from 'lucide-react';
 
-const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, filtroVendedor, catalogoGeral }) => {
+const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, filtroVendedor, catalogoGeral, usuarioLogado }) => {
     const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
+    
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [paginaAtual, setPaginaAtual] = useState(1);
+    const itensPorPagina = 50;
 
     const scrollContainerRef = useRef(null);
     const isDragging = useRef(false);
     const startX = useRef(0);
     const scrollLeft = useRef(0);
 
+    const mapCatalogo = useMemo(() => buildCatalogoMap(catalogoGeral), [catalogoGeral]);
+
     const handleMouseDown = (e) => {
         const targetTag = e.target.tagName;
-        if (targetTag === 'INPUT' || targetTag === 'SELECT' || targetTag === 'BUTTON' || e.target.closest('button')) {
+        if (targetTag === 'INPUT' || targetTag === 'SELECT' || targetTag === 'BUTTON' || targetTag === 'TH' || e.target.closest('button') || e.target.closest('th')) {
             return;
         }
         isDragging.current = true;
@@ -44,24 +50,36 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     };
 
     const removerLancamento = async (id) => {
-        if(!podeEditar) return;
+        if(!podeEditar || isSubmitting) return;
         if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
+            setIsSubmitting(true);
             const backupDados = [...data];
+            
             setData(data.filter(v => v.id !== id));
-            const { error } = await supabase.from('vendas').delete().eq('id', id);
+            
+            let query = supabase.from('vendas').delete().eq('id', id);
+            if (!temVisaoGlobal) {
+                query = query.eq('unidade', usuarioLogado?.unidade);
+            }
+            
+            const { error } = await query;
+            
             if (error) {
                 console.error("Erro ao deletar:", error);
-                alert("Erro ao excluir do banco de dados.");
-                setData(backupDados);
+                alert("Erro ao excluir do banco de dados. A ação foi revertida.");
+                setData(backupDados); 
             }
+            setIsSubmitting(false);
         }
     };
 
     const iniciarEdicao = (venda) => {
+        if (isSubmitting) return;
         const valorNumericoBanco = safeNumber(venda.valor);
         const qtd = parseInt(venda.quantidade) || 1;
         let unitario = 0;
-        const itemCatalogo = catalogoGeral.find(c => c.nome.toUpperCase() === venda.produto?.toUpperCase());
+        
+        const itemCatalogo = mapCatalogo.get(venda.produto?.toUpperCase());
         if (itemCatalogo) unitario = safeNumber(itemCatalogo.valor);
         else unitario = valorNumericoBanco / qtd;
 
@@ -81,7 +99,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const handleEdicaoChange = (field, value) => {
         let novosDados = { ...dadosEdicao, [field]: value };
         if (field === 'produto') {
-            const item = catalogoGeral.find(c => c.nome === value);
+            const item = mapCatalogo.get(value.toUpperCase());
             if (item) {
                 const novoUnitario = safeNumber(item.valor);
                 novosDados.valorUnitario = novoUnitario;
@@ -101,8 +119,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         setDadosEdicao({});
     };
 
-    const salvarEdicao = async (id) => {
+    const salvarEdicao = async (vendaOriginal) => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
         const valorPuro = safeNumber(dadosEdicao.valorCalculado);
+        
         const payload = {
             data: dadosEdicao.data, 
             matricula: dadosEdicao.matricula,
@@ -111,17 +133,30 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             vendedor: dadosEdicao.vendedor.toUpperCase(),
             quantidade: parseInt(dadosEdicao.quantidade) || 1,
             valor: valorPuro, 
+            // ✅ REGRA DE NEGÓCIO: Se o catálogo é de fato a tabela de comissões, 
+            // ao editar a venda, a comissão atualiza igual ao valor.
             comissao: valorPuro 
         };
 
-        setData(data.map(v => v.id === id ? { ...v, ...payload } : v));
+        const backupDados = [...data];
+        
+        setData(data.map(v => v.id === vendaOriginal.id ? { ...v, ...payload } : v));
         setEditandoId(null);
 
-        const { error } = await supabase.from('vendas').update(payload).eq('id', id);
+        let query = supabase.from('vendas').update(payload).eq('id', vendaOriginal.id);
+        if (!temVisaoGlobal) {
+            query = query.eq('unidade', usuarioLogado?.unidade);
+        }
+
+        const { error } = await query;
+        
         if (error) {
             console.error("Erro ao editar venda:", error);
-            alert("Erro de conexão ao tentar atualizar os dados da venda.");
+            alert("Falha de conexão com o servidor. As alterações não foram salvas.");
+            setData(backupDados); 
+            setEditandoId(vendaOriginal.id); 
         }
+        setIsSubmitting(false);
     };
 
     const handleOrdenar = (colunaClicada) => {
@@ -137,8 +172,8 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 valorA = (a.nome_aluno || a.nome || '').toUpperCase();
                 valorB = (b.nome_aluno || b.nome || '').toUpperCase();
             } else if (ordenacao.coluna === 'data') {
-                valorA = a.created_at || a.data;
-                valorB = b.created_at || b.data;
+                valorA = a.created_at ? new Date(a.created_at).getTime() : new Date(safeIsoDate(a.data)).getTime();
+                valorB = b.created_at ? new Date(b.created_at).getTime() : new Date(safeIsoDate(b.data)).getTime();
             } else if (ordenacao.coluna === 'valor') {
                 valorA = safeNumber(a.valor);
                 valorB = safeNumber(b.valor);
@@ -152,6 +187,13 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             return 0;
         });
     }, [vendasFiltradas, ordenacao]);
+
+    const totalPaginas = Math.ceil(vendasOrdenadas.length / itensPorPagina);
+    const vendasPaginadas = vendasOrdenadas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
+
+    useEffect(() => {
+        setPaginaAtual(1);
+    }, [vendasFiltradas]);
 
     const RenderSortIcon = ({ coluna }) => {
         if (ordenacao.coluna !== coluna) return <ChevronsUpDown className="w-3 h-3 text-slate-300 group-hover:text-slate-400" />;
@@ -184,51 +226,36 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm border-b border-slate-200">
                         <tr>
                             <th onClick={() => handleOrdenar('data')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-2">
-                                    Data / Lançamento
-                                    <RenderSortIcon coluna="data" />
-                                </div>
+                                <div className="flex items-center gap-2">Data / Lançamento <RenderSortIcon coluna="data" /></div>
                             </th>
                             
                             {temVisaoGlobal && <th className="px-5 py-4 text-xs font-black text-rose-600 uppercase tracking-widest">Unidade</th>}
                             
                             <th onClick={() => handleOrdenar('nome_aluno')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-2">
-                                    Aluno / Matrícula
-                                    <RenderSortIcon coluna="nome_aluno" />
-                                </div>
+                                <div className="flex items-center gap-2">Aluno / Matrícula <RenderSortIcon coluna="nome_aluno" /></div>
                             </th>
                             
                             <th onClick={() => handleOrdenar('produto')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center gap-2">
-                                    Plano/Produto
-                                    <RenderSortIcon coluna="produto" />
-                                </div>
+                                <div className="flex items-center gap-2">Plano/Produto <RenderSortIcon coluna="produto" /></div>
                             </th>
                             
                             {filtroVendedor === 'TODOS' && (
                                 <th onClick={() => handleOrdenar('vendedor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                    <div className="flex items-center gap-2">
-                                        Vendedor
-                                        <RenderSortIcon coluna="vendedor" />
-                                    </div>
+                                    <div className="flex items-center gap-2">Vendedor <RenderSortIcon coluna="vendedor" /></div>
                                 </th>
                             )}
                             
                             <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right">Qtd</th>
                             
                             <th onClick={() => handleOrdenar('valor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                <div className="flex items-center justify-end gap-2">
-                                    Valor Total
-                                    <RenderSortIcon coluna="valor" />
-                                </div>
+                                <div className="flex items-center justify-end gap-2">Valor Total <RenderSortIcon coluna="valor" /></div>
                             </th>
                             
                             {podeEditar && <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-center">Gestão</th>}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white">
-                        {vendasOrdenadas.map((row) => {
+                        {vendasPaginadas.map((row) => {
                             const isEditing = editandoId === row.id;
 
                             return (
@@ -314,19 +341,19 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         <td className="px-5 py-4 text-center align-middle w-32">
                                             {isEditing ? (
                                                 <div className="flex flex-col gap-2 items-center justify-center">
-                                                    <button onClick={() => salvarEdicao(row.id)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
-                                                        <Check className="w-4 h-4" /> Salvar
+                                                    <button disabled={isSubmitting} onClick={() => salvarEdicao(row)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
+                                                        {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
                                                     </button>
-                                                    <button onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm">
+                                                    <button disabled={isSubmitting} onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm">
                                                         <X className="w-4 h-4" /> Cancelar
                                                     </button>
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                                    <button onClick={() => iniciarEdicao(row)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                                    <button disabled={isSubmitting} onClick={() => iniciarEdicao(row)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                                                         <Edit3 className="w-4 h-4" /> Editar
                                                     </button>
-                                                    <button onClick={() => removerLancamento(row.id)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                                    <button disabled={isSubmitting} onClick={() => removerLancamento(row.id)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                                                         <Trash2 className="w-4 h-4" /> Excluir
                                                     </button>
                                                 </div>
@@ -347,6 +374,30 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     </tbody>
                 </table>
             </div>
+
+            {totalPaginas > 1 && (
+                <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        Página {paginaAtual} de {totalPaginas}
+                    </p>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
+                            disabled={paginaAtual === 1}
+                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
+                        >
+                            Anterior
+                        </button>
+                        <button 
+                            onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
+                            disabled={paginaAtual === totalPaginas}
+                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
+                        >
+                            Próxima
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

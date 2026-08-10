@@ -71,6 +71,8 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 interesse: leadForm.interesse.toUpperCase(),
                 vendedor: vendedorSelecionado, 
                 observacao: leadForm.observacao,
+                // ✅ REGRA DE NEGÓCIO: Carimba que este é um visitante físico real
+                origem: 'RECEPCAO', 
                 status: 'Novo', 
                 data_criacao: agora,
                 criado_por: usuarioLogado?.nome || 'SISTEMA',
@@ -93,7 +95,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
             setTimeout(() => {
                 setSucesso(false);
                 voltarHub();
-            }, 1200); // <-- Tempo reduzido para maior velocidade
+            }, 1200); 
 
         } catch (error) {
             console.error("Erro:", error); 
@@ -109,7 +111,6 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
     return (
         <form onSubmit={handleSubmitVisitante} className="max-w-3xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out]">
             
-            {/* === NOVO POP-UP CENTRAL === */}
             {sucesso && (
                 <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
                     <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200">

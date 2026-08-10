@@ -34,10 +34,20 @@ export const extrairHoraCriacao = (isoString) => {
     return dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 };
 
-// NOVO: Função para formatar nomes próprios (Remove o ALL CAPS)
 export const toTitleCase = (str) => {
     if (!str) return '';
     return str.toLowerCase().replace(/(?:^|\s)\w/g, match => match.toUpperCase());
+};
+
+// NOVO: Transforma o array do catálogo num Dicionário (Map) O(1) para performance Extrema
+export const buildCatalogoMap = (catalogoArray) => {
+    const map = new Map();
+    catalogoArray.forEach(item => {
+        if (item && item.nome) {
+            map.set(item.nome.toUpperCase(), item);
+        }
+    });
+    return map;
 };
 
 export const meses = [
