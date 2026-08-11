@@ -33,18 +33,30 @@ const LeadCard = memo(({
         if (confirmado) onDeletar(lead.id);
     };
 
+    // ✅ IDENTIFICADOR DE LEAD QUENTE (DAY USE)
+    const isDayUse = (lead.interesse || '').toUpperCase().includes('DAY USE');
+
     return (
         <div 
-            // Adicionado onMouseDown com stopPropagation para evitar que o clique no card arraste a tela sem querer
             onMouseDown={(e) => e.stopPropagation()} 
-            className="bg-white border border-slate-200 p-4 rounded-xl shadow-sm hover:shadow-md hover:border-blue-300 transition-all group flex flex-col relative shrink-0 cursor-default"
+            // ✅ UX PREMIUM: Se for Day Use, ganha borda âmbar e sombra brilhante
+            className={`bg-white border p-4 rounded-xl transition-all group flex flex-col relative shrink-0 cursor-default ${isDayUse ? 'border-amber-400 shadow-[0_0_12px_rgba(251,191,36,0.25)]' : 'border-slate-200 shadow-sm hover:shadow-md hover:border-blue-300'}`}
         >
 
-            {/* TOPO: TIPO DE LEAD E LIXEIRA */}
             <div className="flex justify-between items-start mb-3 relative z-10">
-                <span className={`inline-block px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : lead.tipo_lead === 'CANCELADO/INATIVO' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                    {lead.tipo_lead || 'Não Informado'}
-                </span>
+                <div className="flex flex-wrap gap-2 items-center">
+                    <span className={`inline-block px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-50 text-indigo-600 border-indigo-200' : lead.tipo_lead === 'CANCELADO/INATIVO' ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                        {lead.tipo_lead || 'Não Informado'}
+                    </span>
+                    
+                    {/* ✅ ETIQUETA DAY USE (PULSANTE) */}
+                    {isDayUse && (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-sm animate-pulse">
+                            🔥 Day Use
+                        </span>
+                    )}
+                </div>
+
                 <button
                     onClick={handleDeletar}
                     disabled={isDeleting}
@@ -55,7 +67,6 @@ const LeadCard = memo(({
                 </button>
             </div>
 
-            {/* DADOS BÁSICOS DO LEAD */}
             <div className="space-y-1 mb-3 relative z-10">
                 <h4
                     onClick={() => onDetalhe(lead)}
@@ -67,7 +78,6 @@ const LeadCard = memo(({
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">{lead.telefone}</p>
             </div>
 
-            {/* INFO METADADOS (Datas e Consultor) */}
             <div className="space-y-2 mb-4 relative z-10">
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     <CalendarClock className="w-3 h-3" /> {formatarDataHora(lead.puxado_em || lead.criado_em)}
@@ -85,7 +95,6 @@ const LeadCard = memo(({
                 </div>
             </div>
 
-            {/* RODAPÉ E AÇÕES VENDAS */}
             <div className="flex flex-col gap-2.5 pt-3 border-t border-slate-100 mt-auto shrink-0">
 
                 <div className="flex items-center gap-2">
@@ -166,9 +175,6 @@ const Kanban = ({
     const [sendingNotaIds, setSendingNotaIds] = useState(() => new Set());
     const [notasSalvasIds, setNotasSalvasIds] = useState(() => new Set());
 
-    // ==========================================
-    // SISTEMA DE SCROLL POR ARRASTE (DRAG TO SCROLL)
-    // ==========================================
     const scrollContainerRef = useRef(null);
     const isDragging = useRef(false);
     const startX = useRef(0);
@@ -192,15 +198,12 @@ const Kanban = ({
 
     const handleMouseMove = (e) => {
         if (!isDragging.current) return;
-        e.preventDefault(); // Evita que selecione o texto enquanto arrasta
+        e.preventDefault(); 
         const x = e.pageX - scrollContainerRef.current.offsetLeft;
-        const walk = (x - startX.current) * 1.5; // Velocidade do arrasto (1.5x)
+        const walk = (x - startX.current) * 1.5; 
         scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
     };
 
-    // ==========================================
-    // AGRUPAMENTO DE ALTA PERFORMANCE
-    // ==========================================
     const leadsPorColuna = useMemo(() => {
         const grupos = Object.fromEntries(COLUNAS.map(c => [c, []]));
         for (const v of visitantes) {
@@ -268,7 +271,6 @@ const Kanban = ({
 
     return (
         <div 
-            // Refs e Eventos do DRAG TO SCROLL inseridos aqui
             ref={scrollContainerRef}
             onMouseDown={handleMouseDown}
             onMouseLeave={handleMouseLeaveOrUp}
@@ -293,9 +295,7 @@ const Kanban = ({
                             </span>
                         </div>
 
-                        {/* Corpo da Coluna com Scroll Vertical */}
                         <div 
-                            // onMouseDown aqui previne que tentar selecionar um card ou usar a rolagem vertical ative o drag horizontal
                             onMouseDown={(e) => e.stopPropagation()} 
                             className="p-3 flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar" 
                             style={{ maxHeight: '68vh' }}

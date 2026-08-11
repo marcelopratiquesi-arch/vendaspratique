@@ -6,7 +6,8 @@ import Metricas from './Metricas';
 import Kanban from './Kanban';
 import Lista from './Lista';
 import Modais from './Modais';
-import { Database, Download, Users, ArrowRightCircle, ClipboardPaste, ListPlus, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw } from 'lucide-react';
+import RelatorioCrm from './RelatorioCrm'; // ✅ IMPORTAÇÃO DO NOVO RELATÓRIO
+import { Database, Download, Users, ArrowRightCircle, ClipboardPaste, ListPlus, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw, Table } from 'lucide-react'; // ✅ Ícone Table adicionado
 
 const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colaboradores = [] }) => {
     const [formData, setFormData] = useState({ nome: '', cpf: '', telefone: '', email: '', tipo_lead: '', vendedor: '', observacao: '' });
@@ -14,6 +15,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // ==========================================
+    // ESTADOS: SMART PASTE & SELEÇÃO NA BASE
+    // ==========================================
     const [textoSmartPaste, setTextoSmartPaste] = useState('');
     const [previewLeads, setPreviewLeads] = useState([]);
     const [tipoLeadSmartPaste, setTipoLeadSmartPaste] = useState('CANCELADO/INATIVO');
@@ -22,6 +26,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     
     const [selecionadosBase, setSelecionadosBase] = useState([]);
 
+    // MODAIS E HISTÓRICO
     const [modalWpp, setModalWpp] = useState({ show: false, lead: null, texto: '' });
     const [modalDetalhe, setModalDetalhe] = useState({ show: false, lead: null });
     const [historicoLead, setHistoricoLead] = useState([]);
@@ -32,6 +37,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     const META_DIARIA = 150; 
     const [progressoHoje, setProgressoHoje] = useState([]);
     const [mostrarRelatorio, setMostrarRelatorio] = useState(false);
+
+    // ✅ Variável de segurança para o Relatório Global
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
 
     useEffect(() => {
         if (usuarioLogado?.role === 'RECEPCAO' && !consultorAtivo) return;
@@ -53,6 +61,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         else setFormData({ ...formData, [name]: value });
     };
 
+    // AUDITORIA EM TEMPO REAL
     const cpfDigitadoLimpo = formData.cpf.replace(/\D/g, '');
     const leadDuplicadoManual = cpfDigitadoLimpo.length === 11 
         ? visitantes.find(v => v.cpf && v.cpf.replace(/\D/g, '') === cpfDigitadoLimpo) 
@@ -98,6 +107,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         setLoadingHistorico(false);
     };
 
+    // ==========================================
+    // CAPTURA MANUAL BLINDADA
+    // ==========================================
     const handleSubmit = async (e) => {
         e.preventDefault();
         
@@ -121,7 +133,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             tipo_lead: formData.tipo_lead, 
             vendedor: formData.vendedor,
             observacao: formData.observacao,
-            // ✅ REGRA DE NEGÓCIO: Carimba que este lead não foi inserido na recepção (foi inserido no CRM)
             origem: 'CRM',
             data: new Date().toLocaleDateString('pt-BR'), 
             criado_em: new Date().toISOString(), 
@@ -148,6 +159,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         setIsSubmitting(false);
     };
 
+    // ==========================================
+    // O MOTOR DO SMART PASTE (COM IA DE DETECÇÃO DE COLUNAS)
+    // ==========================================
     const processarColagem = (texto) => {
         setTextoSmartPaste(texto);
         if (!texto.trim()) { 
@@ -271,7 +285,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
             telefone: lead.telefone,
             cpf: lead.cpf || null,
             tipo_lead: tipoLeadSmartPaste,
-            // ✅ REGRA DE NEGÓCIO: Carimba os leads do Smart Paste
             origem: 'CRM',
             vendedor: 'Importação',
             status: 'Novo',
@@ -299,6 +312,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         setProcessandoPaste(false);
     };
 
+    // ==========================================
+    // EXCLUSÃO REAL E DEFINITIVA (HARD DELETE)
+    // ==========================================
     const excluirSelecionadosBase = async () => {
         if (selecionadosBase.length === 0) return;
         
@@ -350,6 +366,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         }
     };
 
+    // ==========================================
+    // PUXAR FILA E ALTERAR STATUS
+    // ==========================================
     const executarPuxada = async (idsParaPuxar, msgSucesso) => {
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
         if (!consultorAtual) return alert("Selecione um operador primeiro!");
@@ -420,6 +439,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
         }
     };
 
+    // ==========================================
+    // CATRACA DE IDENTIFICAÇÃO E RENDERIZAÇÃO
+    // ==========================================
     if (usuarioLogado?.role === 'RECEPCAO' && !consultorAtivo) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[70vh] animate-[fadeIn_0.3s_ease-out] px-4">
@@ -467,6 +489,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative">
 
+            {/* HEADER DE PRODUTIVIDADE */}
             <div className="bg-white rounded-[24px] border border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm flex-wrap gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-[300px]">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shrink-0 ${metaBatida ? 'bg-emerald-100 text-emerald-600 shadow-inner' : 'bg-orange-100 text-orange-600 shadow-inner'}`}>
@@ -495,6 +518,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             </div>
 
+            {/* BARRA DE NAVEGAÇÃO / ABAS */}
             <div className="flex bg-slate-200 p-1.5 rounded-xl border border-slate-300/60 shadow-inner w-full max-w-4xl mx-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                     <Database className="w-4 h-4" /> Base ({leadsNaBase.length})
@@ -511,8 +535,13 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-slate-900 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
                     <i data-lucide="pie-chart" className="w-4 h-4"></i> Métricas
                 </button>
+                {/* ✅ ABA RELATÓRIO INSERIDA NA BARRA DE NAVEGAÇÃO */}
+                <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'relatorio' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <Table className="w-4 h-4" /> Relatório
+                </button>
             </div>
 
+            {/* ABA GELADEIRA (RECUPERAÇÃO) */}
             {visaoAtiva === 'geladeira' && (
                 <div className="bg-white rounded-[24px] border border-cyan-200 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out]">
                     <div className="flex items-center gap-4 mb-8 border-b border-slate-100 pb-6">
@@ -560,6 +589,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             )}
 
+            {/* ABA BASE DE LEADS */}
             {visaoAtiva === 'base' && (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
                     
@@ -775,7 +805,17 @@ const CrmVisitantes = ({ usuarioLogado, visitantes = [], setVisitantes, colabora
                 </div>
             )}
 
+            {/* MÓDULOS EXTERNOS */}
             {visaoAtiva === 'dashboard' && <Metricas visitantes={meusLeadsAtivos} colaboradores={colaboradores} />}
+            
+            {/* ✅ ABA RELATÓRIO RENDERIZADA COM O COMPONENTE NOVO */}
+            {visaoAtiva === 'relatorio' && (
+                <RelatorioCrm 
+                    visitantes={visitantes} 
+                    temVisaoGlobal={temVisaoGlobal} 
+                    usuarioLogado={usuarioLogado}
+                />
+            )}
             
             {visaoAtiva === 'kanban' && (
                 <Kanban 

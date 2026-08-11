@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { getLocalDateISO } from './utils.js';
-import { UserPlus, Phone, Target, Send, Loader2, CheckCircle2, User, Briefcase, CreditCard } from 'lucide-react';
+import { UserPlus, Phone, Target, Send, Loader2, CheckCircle2, User, Briefcase, CreditCard, Dumbbell } from 'lucide-react';
 
 const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) => {
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
@@ -15,6 +15,9 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         vendedor: '', 
         observacao: ''
     });
+
+    // ✅ NOVO ESTADO: Botão inteligente de Day Use
+    const [fezDayUse, setFezDayUse] = useState(false);
 
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,16 +65,20 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
             const agora = new Date().toISOString();
             const vendedorSelecionado = leadForm.vendedor.toUpperCase();
 
+            // ✅ LÓGICA DE NEGÓCIO: Se marcou Day Use, embute a string perfeitamente formatada
+            const stringInteresse = fezDayUse 
+                ? `[DAY USE] ${leadForm.interesse.toUpperCase()}`.trim() 
+                : leadForm.interesse.toUpperCase();
+
             const novoLead = {
                 unidade: leadForm.unidade.toUpperCase(),
                 data: getLocalDateISO(), 
                 nome: leadForm.nome.toUpperCase(),
                 cpf: leadForm.cpf.replace(/\D/g, ''), 
                 telefone: leadForm.telefone,
-                interesse: leadForm.interesse.toUpperCase(),
+                interesse: stringInteresse, // <--- Aqui entra o carimbo!
                 vendedor: vendedorSelecionado, 
                 observacao: leadForm.observacao,
-                // ✅ REGRA DE NEGÓCIO: Carimba que este é um visitante físico real
                 origem: 'RECEPCAO', 
                 status: 'Novo', 
                 data_criacao: agora,
@@ -178,7 +185,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                 <Target className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                             </div>
-                            <input type="text" name="interesse" value={leadForm.interesse} onChange={handleLeadChange} placeholder="Ex: Musculação..." className={`${inputClassBase} pl-10 pr-4 uppercase`} />
+                            <input type="text" name="interesse" value={leadForm.interesse} onChange={handleLeadChange} placeholder="Ex: Musculação, Emagrecimento..." className={`${inputClassBase} pl-10 pr-4 uppercase`} />
                         </div>
                     </div>
 
@@ -193,6 +200,22 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                 {vendedoresDaUnidade.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                             </select>
                         </div>
+                    </div>
+
+                    {/* ✅ UX PREMIUM: Botão fácil para marcar Day Use sem precisar digitar */}
+                    <div className="md:col-span-2 pt-2 pb-1">
+                        <label 
+                            className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${fezDayUse ? 'bg-amber-50 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.2)]' : 'bg-slate-50 border-slate-200 hover:bg-slate-100 hover:border-slate-300'}`}
+                        >
+                            <div className={`w-6 h-6 rounded flex items-center justify-center shrink-0 border ${fezDayUse ? 'bg-amber-500 border-amber-600 text-white' : 'bg-white border-slate-300 text-transparent'}`}>
+                                <CheckCircle2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                                <h4 className={`text-sm font-black uppercase tracking-wide ${fezDayUse ? 'text-amber-700' : 'text-slate-700'}`}>Cliente vai fazer Day Use?</h4>
+                                <p className="text-[10px] font-bold text-slate-500">Marque se o visitante fará um treino experimental hoje.</p>
+                            </div>
+                            <Dumbbell className={`w-8 h-8 ml-auto transition-all ${fezDayUse ? 'text-amber-500 scale-110' : 'text-slate-300 grayscale opacity-50'}`} />
+                        </label>
                     </div>
 
                     <div className="md:col-span-2 mt-2">

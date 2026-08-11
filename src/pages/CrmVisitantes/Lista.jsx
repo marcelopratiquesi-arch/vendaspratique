@@ -12,12 +12,10 @@ const Lista = ({
     setModalDetalhe, 
     carregarHistoricoLead 
 }) => {
-    // ESTADOS DE CONTROLE DA TABELA
     const [sortConfig, setSortConfig] = useState({ key: 'puxado_em', direction: 'desc' });
     const [filtroStatus, setFiltroStatus] = useState('');
     const [selecionados, setSelecionados] = useState([]);
 
-    // FUNÇÕES DE AÇÃO INDIVIDUAL
     const handleLigarMicroSip = (telefone) => {
         if (!telefone) return;
         window.location.href = `sip:${telefone.replace(/\D/g, '')}`;
@@ -35,14 +33,12 @@ const Lista = ({
         carregarHistoricoLead(lead.id);
     };
 
-    // LÓGICA DE ORDENAÇÃO (De A a Z, Decrescente, etc)
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
         setSortConfig({ key, direction });
     };
 
-    // APLICAR FILTRO E ORDENAÇÃO NA LISTA
     let leadsExibidos = [...visitantes];
 
     if (filtroStatus) {
@@ -53,7 +49,6 @@ const Lista = ({
         let valA = a[sortConfig.key];
         let valB = b[sortConfig.key];
         
-        // Fallback de ordenação se a chave for data
         if (sortConfig.key === 'puxado_em' || sortConfig.key === 'criado_em') {
             valA = new Date(valA || a.criado_em).getTime();
             valB = new Date(valB || b.criado_em).getTime();
@@ -67,7 +62,6 @@ const Lista = ({
         return 0;
     });
 
-    // LÓGICA DE SELEÇÃO EM LOTE
     const toggleSelectAll = (e) => {
         if (e.target.checked) setSelecionados(leadsExibidos.map(l => l.id));
         else setSelecionados([]);
@@ -81,15 +75,12 @@ const Lista = ({
     const limparEExecutar = (funcaoDeLote, acaoParam) => {
         if(acaoParam) funcaoDeLote(selecionados, acaoParam);
         else funcaoDeLote(selecionados);
-        
-        // Limpa as caixinhas após a execução
         setTimeout(() => setSelecionados([]), 500);
     };
 
     return (
         <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out] flex flex-col overflow-hidden min-h-[600px]">
             
-            {/* CABEÇALHO COM FILTROS E AÇÕES EM LOTE */}
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-slate-100 pb-6">
                 <div>
                     <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
@@ -99,7 +90,6 @@ const Lista = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* BARRA DE AÇÕES EM LOTE (Só aparece se alguém estiver selecionado) */}
                     {selecionados.length > 0 && (
                         <div className="flex items-center gap-2 mr-4 animate-[fadeIn_0.2s_ease-out] bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
                             <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest mr-2">{selecionados.length} Selecionados:</span>
@@ -114,7 +104,6 @@ const Lista = ({
                         </div>
                     )}
 
-                    {/* FILTRO DE STATUS */}
                     <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer uppercase">
@@ -125,7 +114,6 @@ const Lista = ({
                 </div>
             </div>
 
-            {/* TABELA DE ALTA PERFORMANCE */}
             <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-xl">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm border-b border-slate-200">
@@ -160,6 +148,8 @@ const Lista = ({
                             leadsExibidos.map(v => {
                                 const isSelected = selecionados.includes(v.id);
                                 const token = STATUS_TOKENS[v.status] || STATUS_TOKENS['Novo'];
+                                // ✅ IDENTIFICADOR DE DAY USE NA LISTA
+                                const isDayUse = (v.interesse || '').toUpperCase().includes('DAY USE');
                                 
                                 return (
                                     <tr key={v.id} className={`transition-colors cursor-pointer ${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`} onClick={() => toggleSelectRow(v.id)}>
@@ -168,11 +158,15 @@ const Lista = ({
                                                 type="checkbox" 
                                                 className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
                                                 checked={isSelected} 
-                                                onChange={() => {}} // O onClick na linha <tr> cuida da mudança
+                                                onChange={() => {}} 
                                             />
                                         </td>
                                         <td className="px-6 py-3">
-                                            <p className="text-sm font-black text-slate-800 uppercase">{v.nome}</p>
+                                            <p className="text-sm font-black text-slate-800 uppercase flex items-center gap-2">
+                                                {v.nome}
+                                                {/* ✅ FOGUINHO MÁGICO AQUI */}
+                                                {isDayUse && <span className="text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded shadow-sm" title="Fez Day Use">🔥</span>}
+                                            </p>
                                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-1.5 py-0.5 rounded mt-1 inline-block border border-slate-200 shadow-sm">
                                                 {v.tipo_lead || 'LEAD'}
                                             </span>
@@ -203,7 +197,6 @@ const Lista = ({
                                                 <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200" title="Ficha Completa">
                                                     <Info className="w-4 h-4" />
                                                 </button>
-                                                {/* Exclusão individual chama a função Hard Delete do index */}
                                                 <button onClick={() => deletarLead(v.id)} className="w-8 h-8 rounded-lg bg-white text-slate-300 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100" title="Excluir Definitivamente">
                                                     <Archive className="w-4 h-4" />
                                                 </button>
