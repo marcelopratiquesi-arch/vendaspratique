@@ -5,12 +5,11 @@ import { supabase } from './supabaseClient.js';
 import { 
     Zap, ChevronDown, Menu, X, LogOut, 
     ShoppingCart, History, PieChart, Wallet, 
-    Users, Database, Settings 
+    Users, Database, Settings, Dumbbell 
 } from 'lucide-react';
 
 // Importação Segura das Páginas
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
-// 👇 AQUI ESTÁ A CORREÇÃO: Apontando exatamente para a pasta que você criou!
 import AssinaturasPratique from './pages/HistoricoVendas/index.jsx'; 
 import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; 
@@ -18,6 +17,8 @@ import CrmVisitantes from './pages/CrmVisitantes/index.jsx';
 import CadastroGeral from './pages/CadastroGeral.jsx';
 import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
+// ✅ IMPORTAÇÃO DO NOVO MÓDULO DE AVALIAÇÃO FÍSICA
+import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 
 export default function App() {
     // ==========================================
@@ -233,12 +234,14 @@ export default function App() {
         unidade: (ehChefe && unidadeGlobal !== 'TODAS') ? unidadeGlobal : usuarioLogado.unidade
     };
 
+    // ✅ ABA "AVALIAÇÃO" ADICIONADA AQUI!
     const todasAbas = [
         { id: 'lancamento', label: 'Nova Venda', icon: ShoppingCart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'assinaturas', label: 'Histórico', icon: History, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'analise', label: 'Dashboard', icon: PieChart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'fechamento', label: 'Fechamento', icon: Wallet, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'crm', label: 'CRM', icon: Users, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'avaliacao', label: 'Avaliação', icon: Dumbbell, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'cadastros', label: 'Cadastros', icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'config', label: 'Configurações', icon: Settings, permissoes: ['ADMIN'] }
     ];
@@ -398,12 +401,21 @@ export default function App() {
                 
                 {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} />}
                 
-                {/* Repassando avaliações e visitantes para o Dashboard e para o Fechamento de Caixa! */}
                 {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
                 
                 {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} setVendas={setDadosAssinaturas} />}
                 
                 {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
+                
+                {/* ✅ ABA AVALIAÇÃO FÍSICA INJETADA AQUI */}
+                {activeTab === 'avaliacao' && (
+                    <AvaliacaoFisica 
+                        usuarioLogado={usuarioVirtual} 
+                        avaliacoes={dadosAvaliacoes} 
+                        colaboradores={colaboradores}
+                        setAvaliacoes={setDadosAvaliacoes}
+                    />
+                )}
                 
                 {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
                 
