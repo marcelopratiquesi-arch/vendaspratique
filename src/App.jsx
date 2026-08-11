@@ -17,7 +17,6 @@ import CrmVisitantes from './pages/CrmVisitantes/index.jsx';
 import CadastroGeral from './pages/CadastroGeral.jsx';
 import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
-// ✅ IMPORTAÇÃO DO NOVO MÓDULO DE AVALIAÇÃO FÍSICA
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 
 export default function App() {
@@ -68,13 +67,12 @@ export default function App() {
     }, [isMobileMenuOpen]);
 
     // ==========================================
-    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE
+    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE (COM LIMITES EXPANDIDOS)
     // ==========================================
     const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
     const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado?.unidade;
 
-    // Funções Separadas para Otimização de Refetch
     const fetchUnidades = useCallback(async (isMounted = true) => {
         const { data, error } = await supabase.from('unidades').select('*').order('nome', { ascending: true });
         if (error) console.error("Erro ao buscar unidades:", error);
@@ -99,8 +97,9 @@ export default function App() {
         }
     }, []);
 
+    // 🔥 TRAVA DE SEGURANÇA RETIRADA: .limit(50000) ADICIONADO ABAIXO 🔥
     const fetchVendas = useCallback(async (isMounted = true) => {
-        let query = supabase.from('vendas').select('*').order('id', { ascending: false });
+        let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(50000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
         const { data, error } = await query;
         if (error) console.error("Erro ao buscar vendas:", error);
@@ -108,7 +107,7 @@ export default function App() {
     }, [deveFiltrar, unidadeFiltro]);
 
     const fetchLeads = useCallback(async (isMounted = true) => {
-        let query = supabase.from('leads').select('*').order('id', { ascending: false });
+        let query = supabase.from('leads').select('*').order('id', { ascending: false }).limit(50000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
         const { data, error } = await query;
         if (error) console.error("Erro ao buscar leads:", error);
@@ -116,7 +115,7 @@ export default function App() {
     }, [deveFiltrar, unidadeFiltro]);
 
     const fetchAvaliacoes = useCallback(async (isMounted = true) => {
-        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false });
+        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(50000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
         const { data, error } = await query;
         if (error) console.error("Erro ao buscar avaliações:", error);
@@ -234,7 +233,6 @@ export default function App() {
         unidade: (ehChefe && unidadeGlobal !== 'TODAS') ? unidadeGlobal : usuarioLogado.unidade
     };
 
-    // ✅ ABA "AVALIAÇÃO" ADICIONADA AQUI!
     const todasAbas = [
         { id: 'lancamento', label: 'Nova Venda', icon: ShoppingCart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'assinaturas', label: 'Histórico', icon: History, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
@@ -403,11 +401,10 @@ export default function App() {
                 
                 {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
                 
-                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} setVendas={setDadosAssinaturas} />}
+                {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
                 
                 {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
                 
-                {/* ✅ ABA AVALIAÇÃO FÍSICA INJETADA AQUI */}
                 {activeTab === 'avaliacao' && (
                     <AvaliacaoFisica 
                         usuarioLogado={usuarioVirtual} 

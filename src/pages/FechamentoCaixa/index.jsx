@@ -6,8 +6,7 @@ import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
 
-// Atualizado para receber visitantes e avaliacoes pelas props do App.jsx
-const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [] }) => {
+const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
     const [subAba, setSubAba] = useState('conferencia');
 
     const [confProduto, setConfProduto] = useState('TODOS');
@@ -45,7 +44,6 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         return true;
     });
 
-    // 🚨 CASO USE VISITANTES NO FECHAMENTO FUTURAMENTE, AQUI ESTÁ A BARREIRA SANITÁRIA APLICADA
     const visitantesFisicos = visitantes.filter(v => v.origem !== 'CRM' && v.origem !== 'SMART_PAGE');
 
     const vendasParaConferencia = vendasDataAvancada.filter(v => {
@@ -117,10 +115,39 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         relatorioVendedores[venda.vendedor].itens[venda.produto] = (relatorioVendedores[venda.vendedor].itens[venda.produto] || 0) + qty;
     });
 
-    const dadosTabelaComissoes = Object.values(relatorioVendedores).map(r => ({
-        ...r, 
-        totalItens: Object.values(r.itens).reduce((acc, q) => acc + q, 0)
-    })).sort((a, b) => b.totalComissao - a.totalComissao);
+    // ==============================================================
+    // 🔥 MOTOR DE BUSCA INTELIGENTE (SMART MATCH - CPF & CONTA)
+    // ==============================================================
+    const normalizarTexto = (texto) => String(texto || '').replace(/\s+/g, ' ').trim().toUpperCase();
+
+    const dadosTabelaComissoes = Object.values(relatorioVendedores).map(r => {
+        const nomeVenda = normalizarTexto(r.vendedor);
+        
+        // 1ª Tentativa: Busca Exata (Nome da Venda 100% igual ao do RH)
+        let infoColaborador = colaboradores.find(c => normalizarTexto(c.nome) === nomeVenda);
+        
+        // 2ª Tentativa: Busca Aproximada (Ex: "GABRIELA CHAVES" acha "GABRIELA CHAVES SANTANA DE SOUZA")
+        if (!infoColaborador) {
+            infoColaborador = colaboradores.find(c => {
+                if (!c.nome) return false;
+                const nomeRH = normalizarTexto(c.nome);
+                if (nomeRH.length < 3) return false; // Trava contra strings vazias
+                // Verifica se um nome está contido dentro do outro
+                return nomeVenda.includes(nomeRH) || nomeRH.includes(nomeVenda);
+            });
+        }
+
+        infoColaborador = infoColaborador || {}; // Fallback de segurança caso realmente não exista
+
+        return {
+            ...r, 
+            totalItens: Object.values(r.itens).reduce((acc, q) => acc + q, 0),
+            cpf: infoColaborador.cpf || '',
+            tipo_conta: infoColaborador.tipo_conta || '',
+            conta_inter: infoColaborador.conta_inter || ''
+        };
+    }).sort((a, b) => b.totalComissao - a.totalComissao);
+    // ==============================================================
 
     const relatorioAuditoria = {};
     let totalAuditoriaRegistrados = 0;
