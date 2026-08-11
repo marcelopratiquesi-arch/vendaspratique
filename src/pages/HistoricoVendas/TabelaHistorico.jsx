@@ -3,7 +3,8 @@ import { supabase } from '../../supabaseClient.js';
 import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao, toTitleCase, buildCatalogoMap } from './utils.js';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2 } from 'lucide-react';
 
-const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, filtroVendedor, catalogoGeral, usuarioLogado }) => {
+// ✅ CORREÇÃO: Adicionando 'colaboradores' nas props
+const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, filtroVendedor, catalogoGeral, usuarioLogado, colaboradores = [] }) => {
     const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
@@ -90,6 +91,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             nome_aluno: venda.nome_aluno || venda.nome || '',
             produto: venda.produto || '',
             vendedor: venda.vendedor || '',
+            unidade: venda.unidade || 'MATRIZ', // Usado para o filtro do select
             quantidade: qtd,
             valorUnitario: unitario,
             valorCalculado: valorNumericoBanco
@@ -133,8 +135,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             vendedor: dadosEdicao.vendedor.toUpperCase(),
             quantidade: parseInt(dadosEdicao.quantidade) || 1,
             valor: valorPuro, 
-            // ✅ REGRA DE NEGÓCIO: Se o catálogo é de fato a tabela de comissões, 
-            // ao editar a venda, a comissão atualiza igual ao valor.
             comissao: valorPuro 
         };
 
@@ -258,6 +258,20 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         {vendasPaginadas.map((row) => {
                             const isEditing = editandoId === row.id;
 
+                            // ✅ MOTOR INTELIGENTE: Pega apenas os vendedores da unidade da venda que está sendo editada
+                            let vendedoresDaUnidade = [];
+                            if (isEditing) {
+                                vendedoresDaUnidade = colaboradores
+                                    .filter(c => (c.unidade || 'MATRIZ').toUpperCase() === (row.unidade || 'MATRIZ').toUpperCase())
+                                    .map(c => c.nome.toUpperCase());
+
+                                const vendedorAtualFormatado = (dadosEdicao.vendedor || '').toUpperCase();
+                                // Trava: se o vendedor foi demitido ou teve o nome alterado, injetamos ele na lista para o select não ficar branco
+                                if (vendedorAtualFormatado && !vendedoresDaUnidade.includes(vendedorAtualFormatado)) {
+                                    vendedoresDaUnidade.push(vendedorAtualFormatado);
+                                }
+                            }
+
                             return (
                                 <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                                     <td className="px-5 py-4 align-middle">
@@ -314,7 +328,17 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     {filtroVendedor === 'TODOS' && (
                                         <td className="px-5 py-4 text-sm whitespace-nowrap font-bold text-slate-700 align-middle">
                                             {isEditing ? (
-                                                <input type="text" value={dadosEdicao.vendedor} onChange={e => handleEdicaoChange('vendedor', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm" />
+                                                // ✅ MENU SUSPENSO (DROPDOWN) DE VENDEDORES
+                                                <select 
+                                                    value={(dadosEdicao.vendedor || '').toUpperCase()} 
+                                                    onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
+                                                    className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
+                                                >
+                                                    <option value="" disabled>Selecione o Vendedor...</option>
+                                                    {vendedoresDaUnidade.sort().map(v => (
+                                                        <option key={v} value={v}>{toTitleCase(v)}</option>
+                                                    ))}
+                                                </select>
                                             ) : (
                                                 toTitleCase(row.vendedor)
                                             )}

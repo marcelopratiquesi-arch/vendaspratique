@@ -397,7 +397,7 @@ export default function App() {
             <main key={unidadeGlobal} className="flex-1 max-w-[1400px] w-full mx-auto px-4 sm:px-6 py-8">
                 {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
                 
-                {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} />}
+                {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} colaboradores={colaboradores} />}
                 
                 {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
                 

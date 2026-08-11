@@ -4,7 +4,8 @@ import { supabase } from '../../supabaseClient.js';
 import { safeIsoDate, safeNumber, formatMoney, meses, toTitleCase, buildCatalogoMap } from './utils.js';
 import { Filter, Calendar, CalendarDays, Sun, UserCheck, Wallet, BarChart2, Leaf, Star, Activity, Dumbbell, ShoppingBag, Receipt, Layers, ChevronDown, ChevronUp, AlertCircle, RefreshCw, AlertTriangle } from 'lucide-react';
 
-const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
+// ✅ CORREÇÃO AQUI: Adicionado colaboradores = [] nas props
+const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores = [] }) => {
     const hojePadrao = new Date().toISOString().split('T')[0];
     const mesPadrao = String(new Date().getMonth() + 1).padStart(2, '0');
     const anoPadrao = new Date().getFullYear().toString();
@@ -349,6 +350,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 </div>
             )}
 
+            {/* ✅ CORREÇÃO AQUI: Repassando colaboradores para a Tabela */}
             <TabelaHistorico 
                 data={data}
                 setData={setData}
@@ -358,6 +360,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData }) => {
                 filtroVendedor={filtroVendedor}
                 catalogoGeral={catalogoGeral} 
                 usuarioLogado={usuarioLogado}
+                colaboradores={colaboradores}
             />
 
         </div>
