@@ -11,19 +11,18 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
         data: getLocalDateISO(), 
         matricula: '', 
         nome: '', 
-        vendedor: '', 
         observacao: '' 
     });
 
-    const getInitialItem = () => ({ 
-        id: Date.now(), tipo: '', nomeItem: '', quantidade: 1, valor: 'R$ 0,00', valorUnitario: 0, valorCalculado: 0 
+    // ✅ NOVO: O vendedor agora nasce junto com o item
+    const getInitialItem = (vendedorPadrao = '') => ({ 
+        id: Date.now(), tipo: '', nomeItem: '', vendedor: vendedorPadrao, quantidade: 1, valor: 'R$ 0,00', valorUnitario: 0, valorCalculado: 0 
     });
     
     const [itensForm, setItensForm] = useState([getInitialItem()]);
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // 🔥 TRAVA DE SEGURANÇA 1: Filtra a unidade E garante que o vendedor não está desligado (Soft Delete)
     const vendedoresDaUnidade = colaboradores.filter(c => {
         const isAtivo = c.ativo !== false;
         const matchUnidade = temVisaoGlobal 
@@ -32,14 +31,17 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
         return isAtivo && matchUnidade;
     });
 
-    // 🔥 TRAVA DE SEGURANÇA 2: Filtra o catálogo para mostrar apenas as ofertas ativas
     const planosAtivos = planos.filter(p => p.ativo !== false);
     const produtosAtivos = produtos.filter(p => p.ativo !== false);
     const servicosAtivos = servicos.filter(s => s.ativo !== false);
 
     const handleMainChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'unidade') setFormData({ ...formData, unidade: value, vendedor: '' });
+        if (name === 'unidade') {
+            setFormData({ ...formData, unidade: value });
+            // Se trocou a unidade, limpa os vendedores que já estavam nos itens
+            setItensForm(itensForm.map(item => ({ ...item, vendedor: '' })));
+        }
         else setFormData({ ...formData, [name]: value });
     };
 
@@ -53,7 +55,6 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     updatedItem.valorCalculado = 0; updatedItem.valor = 'R$ 0,00';
                 } 
                 else if (field === 'nomeItem') {
-                    // Mantém a busca no array original (planos) para garantir que ache o valor, mesmo se for reedição de algo
                     const listaRef = updatedItem.tipo === 'plano' ? planos : (updatedItem.tipo === 'produto' ? produtos : servicos);
                     const selecionado = listaRef.find(x => x.nome === value) || { valor: 0 };
                     const precoNumericoLimpo = safeNumber(selecionado.valor); 
@@ -73,7 +74,13 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
     };
 
     const handleRemoveItem = (id) => itensForm.length > 1 && setItensForm(itensForm.filter(item => item.id !== id));
-    const handleAddItem = () => setItensForm([...itensForm, getInitialItem()]);
+    
+    // ✅ UX INTELIGENTE: Copia o vendedor da última linha para poupar cliques
+    const handleAddItem = () => {
+        const lastVendedor = itensForm.length > 0 ? itensForm[itensForm.length - 1].vendedor : '';
+        setItensForm([...itensForm, getInitialItem(lastVendedor)]);
+    };
+
     const totalVenda = itensForm.reduce((acc, curr) => acc + safeNumber(curr.valorCalculado), 0);
 
     const handleSubmitVenda = async (e) => {
@@ -83,6 +90,10 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
         
         const itensValidos = itensForm.filter(item => item.nomeItem !== '' && item.tipo !== '');
         if (itensValidos.length === 0) return alert('Adicione pelo menos um item válido.');
+
+        // ✅ TRAVA DE SEGURANÇA: Exige vendedor para todos os itens
+        const temItemSemVendedor = itensValidos.some(item => !item.vendedor);
+        if (temItemSemVendedor) return alert('Por favor, selecione o Consultor Responsável para TODOS os itens adicionados.');
 
         setIsSubmitting(true);
 
@@ -96,7 +107,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     matricula: formData.matricula, 
                     nome_aluno: formData.nome.toUpperCase(),
                     produto: item.nomeItem, 
-                    vendedor: formData.vendedor.toUpperCase(), 
+                    vendedor: item.vendedor.toUpperCase(), // ✅ Agora puxa direto do item
                     valor: valorPuro, 
                     observacao: formData.observacao, 
                     conferiu: false, 
@@ -145,22 +156,22 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     <User className="w-5 h-5 text-slate-400" /> Informações do Cliente
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div className="lg:col-span-1">
                         <label className={labelClass}>Data da Venda *</label>
                         <input type="date" name="data" value={formData.data} onChange={handleMainChange} required className={inputClass} />
                     </div>
-                    <div>
+                    <div className="lg:col-span-1">
                         <label className={labelClass}>Nº Matrícula *</label>
                         <input type="text" name="matricula" value={formData.matricula} onChange={handleMainChange} required placeholder="Ex: 00456" className={inputClass} />
                     </div>
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 lg:col-span-2">
                         <label className={labelClass}>Nome Completo do Aluno *</label>
                         <input type="text" name="nome" value={formData.nome} onChange={handleMainChange} required placeholder="Ex: João da Silva" className={inputClass} />
                     </div>
 
                     {temVisaoGlobal && (
-                        <div>
+                        <div className="md:col-span-2 lg:col-span-4">
                             <label className={labelClass}>Unidade da Venda *</label>
                             <select name="unidade" value={formData.unidade} onChange={handleMainChange} required className={inputClass}>
                                 <option value="">Selecione a Unidade...</option>
@@ -168,30 +179,22 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                             </select>
                         </div>
                     )}
-
-                    <div className={temVisaoGlobal ? "" : "md:col-span-2"}>
-                        <label className={labelClass}>Consultor Responsável *</label>
-                        <select name="vendedor" value={formData.vendedor} onChange={handleMainChange} required disabled={temVisaoGlobal && !formData.unidade} className={`${inputClass} disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed`}>
-                            <option value="">{(temVisaoGlobal && !formData.unidade) ? 'Escolha a unidade antes...' : 'Selecione o vendedor...'}</option>
-                            {vendedoresDaUnidade.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                        </select>
-                    </div>
                 </div>
             </div>
 
             <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                        <Package className="w-5 h-5 text-slate-400" /> Itens da Venda
+                        <Package className="w-5 h-5 text-slate-400" /> Itens da Venda e Atribuição de Consultores
                     </h3>
                 </div>
                 
                 <div className="space-y-4">
                     {itensForm.map((item) => (
-                        <div key={item.id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-slate-50/50 p-5 rounded-xl border border-slate-100">
+                        <div key={item.id} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end bg-slate-50/50 p-5 rounded-xl border border-slate-100 relative">
                             
-                            <div className="md:col-span-3">
-                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-left">Categoria *</label>
+                            <div className="lg:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block text-left">Categoria *</label>
                                 <div className="relative group">
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                         {item.tipo === 'plano' && <BookOpen className="w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />}
@@ -199,40 +202,48 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                         {item.tipo === 'servico' && <Briefcase className="w-4 h-4 text-slate-400 group-focus-within:text-emerald-500 transition-colors" />}
                                         {item.tipo === '' && <LayoutGrid className="w-4 h-4 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />}
                                     </div>
-                                    <select value={item.tipo} onChange={(e) => handleItemChange(item.id, 'tipo', e.target.value)} required className={`w-full bg-white border border-slate-300 rounded-lg pl-10 pr-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 ${item.tipo === '' ? 'text-slate-500' : 'text-slate-900'}`}>
+                                    <select value={item.tipo} onChange={(e) => handleItemChange(item.id, 'tipo', e.target.value)} required className={`w-full bg-white border border-slate-300 rounded-lg pl-10 pr-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 ${item.tipo === '' ? 'text-slate-500' : 'text-slate-900 font-bold'}`}>
                                         <option value="" disabled hidden>Selecione...</option>
-                                        <option value="plano">Plano / Assinatura</option>
+                                        <option value="plano">Plano</option>
                                         <option value="produto">Produto</option>
                                         <option value="servico">Serviço</option>
                                     </select>
                                 </div>
                             </div>
                             
-                            <div className="md:col-span-4">
-                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-left">Item do Catálogo *</label>
-                                <select value={item.nomeItem} onChange={(e) => handleItemChange(item.id, 'nomeItem', e.target.value)} required disabled={!item.tipo} className={`w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 disabled:cursor-not-allowed ${!item.tipo ? 'bg-slate-50 text-slate-400' : item.nomeItem === '' ? 'text-slate-500' : 'text-slate-900'}`}>
-                                    <option value="" disabled hidden>{!item.tipo ? 'Aguarde categoria' : 'Selecione...'}</option>
-                                    {/* 🔥 Mapeando apenas os itens que passaram no nosso filtro de ATIVOS */}
+                            <div className="lg:col-span-3">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block text-left">Item do Catálogo *</label>
+                                <select value={item.nomeItem} onChange={(e) => handleItemChange(item.id, 'nomeItem', e.target.value)} required disabled={!item.tipo} className={`w-full bg-white border border-slate-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 disabled:cursor-not-allowed ${!item.tipo ? 'bg-slate-50 text-slate-400' : item.nomeItem === '' ? 'text-slate-500' : 'text-slate-900 font-bold'}`}>
+                                    <option value="" disabled hidden>{!item.tipo ? 'Aguarde...' : 'Selecione o item...'}</option>
                                     {item.tipo === 'plano' && planosAtivos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                                     {item.tipo === 'produto' && produtosAtivos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
                                     {item.tipo === 'servico' && servicosAtivos.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                 </select>
                             </div>
-                            
-                            <div className="md:col-span-2">
-                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-left">Quantidade</label>
-                                <input type="number" min="1" disabled={!item.nomeItem} value={item.quantidade} onChange={(e) => handleItemChange(item.id, 'quantidade', e.target.value)} className="w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed" />
+
+                            {/* ✅ NOVO: Consultor movido para dentro da linha do item */}
+                            <div className="lg:col-span-3">
+                                <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1.5 block text-left">Consultor *</label>
+                                <select value={item.vendedor} onChange={(e) => handleItemChange(item.id, 'vendedor', e.target.value)} required disabled={temVisaoGlobal && !formData.unidade} className={`w-full bg-blue-50/30 border border-blue-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all duration-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed disabled:border-slate-200 ${item.vendedor === '' ? 'text-blue-400' : 'text-blue-700 font-bold uppercase'}`}>
+                                    <option value="" disabled hidden>{(temVisaoGlobal && !formData.unidade) ? 'Escolha a unidade...' : 'Selecione o vendedor...'}</option>
+                                    {vendedoresDaUnidade.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                                </select>
                             </div>
                             
-                            <div className="md:col-span-2">
-                                <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-right">Subtotal</label>
-                                <input type="text" value={item.valor} readOnly className="w-full bg-slate-200/50 border border-slate-200 text-base font-black text-slate-700 rounded-lg text-right pr-3 cursor-not-allowed py-2 focus:outline-none" title="Calculado automaticamente" />
+                            <div className="lg:col-span-1">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block text-left">Qtd</label>
+                                <input type="number" min="1" disabled={!item.nomeItem} value={item.quantidade} onChange={(e) => handleItemChange(item.id, 'quantidade', e.target.value)} className="w-full bg-white border border-slate-300 rounded-lg px-2 py-2 text-xs text-center font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed" />
+                            </div>
+                            
+                            <div className="lg:col-span-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5 block text-right">Subtotal</label>
+                                <input type="text" value={item.valor} readOnly className="w-full bg-slate-200/50 border border-slate-200 text-sm font-black text-slate-700 rounded-lg text-right pr-3 cursor-not-allowed py-1.5 focus:outline-none" title="Calculado automaticamente" />
                             </div>
 
-                            <div className="md:col-span-1 flex justify-center pb-2">
+                            <div className="lg:col-span-1 flex justify-center pb-1">
                                 {itensForm.length > 1 && (
-                                    <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors" title="Remover Item">
-                                        <Trash2 className="w-5 h-5" />
+                                    <button type="button" onClick={() => handleRemoveItem(item.id)} className="p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-500 rounded-lg transition-colors" title="Remover Item">
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 )}
                             </div>
@@ -240,8 +251,8 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                         </div>
                     ))}
 
-                    <button type="button" onClick={handleAddItem} className="w-full bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 text-slate-600 font-semibold text-sm py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 mt-4">
-                        <Plus className="w-4 h-4" /> Adicionar outro item
+                    <button type="button" onClick={handleAddItem} className="w-full bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 text-blue-600 font-bold text-xs uppercase tracking-widest py-3 rounded-xl transition-colors flex items-center justify-center gap-2 mt-4">
+                        <Plus className="w-4 h-4" /> Adicionar Múltiplos Itens / Consultores
                     </button>
                 </div>
             </div>
