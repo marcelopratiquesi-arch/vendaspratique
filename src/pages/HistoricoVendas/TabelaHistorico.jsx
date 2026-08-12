@@ -9,8 +9,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const [dadosEdicao, setDadosEdicao] = useState({});
     
     const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    // ✅ NOVO: Controle Dinâmico de Paginação
     const [paginaAtual, setPaginaAtual] = useState(1);
-    const itensPorPagina = 50;
+    const [itensPorPagina, setItensPorPagina] = useState(50); 
 
     const scrollContainerRef = useRef(null);
     const isDragging = useRef(false);
@@ -90,7 +92,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             nome_aluno: venda.nome_aluno || venda.nome || '',
             produto: venda.produto || '',
             vendedor: venda.vendedor || '',
-            unidade: venda.unidade || 'MATRIZ', // Usado para o filtro do select
+            unidade: venda.unidade || 'MATRIZ',
             quantidade: qtd,
             valorUnitario: unitario,
             valorCalculado: valorNumericoBanco
@@ -190,9 +192,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const totalPaginas = Math.ceil(vendasOrdenadas.length / itensPorPagina);
     const vendasPaginadas = vendasOrdenadas.slice((paginaAtual - 1) * itensPorPagina, paginaAtual * itensPorPagina);
 
+    // Reseta para a página 1 se mudar o filtro ou a quantidade por página
     useEffect(() => {
         setPaginaAtual(1);
-    }, [vendasFiltradas]);
+    }, [vendasFiltradas, itensPorPagina]);
 
     const RenderSortIcon = ({ coluna }) => {
         if (ordenacao.coluna !== coluna) return <ChevronsUpDown className="w-3 h-3 text-slate-300 group-hover:text-slate-400" />;
@@ -238,7 +241,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 <div className="flex items-center gap-2">Plano/Produto <RenderSortIcon coluna="produto" /></div>
                             </th>
                             
-                            {/* ✅ COLUNA DO VENDEDOR AGORA É FIXA (BLINDADA) */}
                             <th onClick={() => handleOrdenar('vendedor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
                                 <div className="flex items-center gap-2">Vendedor <RenderSortIcon coluna="vendedor" /></div>
                             </th>
@@ -256,7 +258,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         {vendasPaginadas.map((row) => {
                             const isEditing = editandoId === row.id;
 
-                            // ✅ MOTOR INTELIGENTE: Pega apenas os vendedores da unidade da venda que está sendo editada
                             let vendedoresDaUnidade = [];
                             if (isEditing) {
                                 vendedoresDaUnidade = colaboradores
@@ -264,7 +265,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     .map(c => c.nome.toUpperCase());
 
                                 const vendedorAtualFormatado = (dadosEdicao.vendedor || '').toUpperCase();
-                                // Trava: se o vendedor foi demitido ou teve o nome alterado, injetamos ele na lista para o select não ficar branco
                                 if (vendedorAtualFormatado && !vendedoresDaUnidade.includes(vendedorAtualFormatado)) {
                                     vendedoresDaUnidade.push(vendedorAtualFormatado);
                                 }
@@ -323,7 +323,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         )}
                                     </td>
 
-                                    {/* ✅ CÉLULA DO VENDEDOR AGORA É FIXA (BLINDADA) */}
                                     <td className="px-5 py-4 text-sm whitespace-nowrap font-bold text-slate-700 align-middle">
                                         {isEditing ? (
                                             <select 
@@ -395,29 +394,48 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 </table>
             </div>
 
-            {totalPaginas > 1 && (
-                <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex items-center justify-between">
+            {/* ✅ NOVO FOOTER COM SELETOR DE ITENS POR PÁGINA */}
+            <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
                     <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                        Página {paginaAtual} de {totalPaginas}
+                        Página {paginaAtual} de {totalPaginas || 1}
                     </p>
-                    <div className="flex gap-2">
+                    <div className="h-4 w-px bg-slate-300 hidden sm:block"></div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Exibir:</span>
+                        <select 
+                            value={itensPorPagina} 
+                            onChange={(e) => setItensPorPagina(Number(e.target.value))}
+                            className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm"
+                        >
+                            <option value={10}>10 linhas</option>
+                            <option value={50}>50 linhas</option>
+                            <option value={100}>100 linhas</option>
+                            <option value={500}>500 linhas</option>
+                            <option value={1000}>1000 linhas</option>
+                        </select>
+                    </div>
+                </div>
+
+                {totalPaginas > 1 && (
+                    <div className="flex gap-2 w-full sm:w-auto">
                         <button 
                             onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
                             disabled={paginaAtual === 1}
-                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm"
                         >
                             Anterior
                         </button>
                         <button 
                             onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
                             disabled={paginaAtual === totalPaginas}
-                            className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors"
+                            className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm"
                         >
                             Próxima
                         </button>
                     </div>
-                </div>
-            )}
+                )}
+            </div>
         </div>
     );
 };
