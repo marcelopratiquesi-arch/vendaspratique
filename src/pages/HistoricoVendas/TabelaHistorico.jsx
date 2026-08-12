@@ -3,8 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao, toTitleCase, buildCatalogoMap } from './utils.js';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2 } from 'lucide-react';
 
-// ✅ CORREÇÃO: Adicionando 'colaboradores' nas props
-const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, filtroVendedor, catalogoGeral, usuarioLogado, colaboradores = [] }) => {
+const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [] }) => {
     const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
@@ -239,11 +238,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 <div className="flex items-center gap-2">Plano/Produto <RenderSortIcon coluna="produto" /></div>
                             </th>
                             
-                            {filtroVendedor === 'TODOS' && (
-                                <th onClick={() => handleOrdenar('vendedor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                    <div className="flex items-center gap-2">Vendedor <RenderSortIcon coluna="vendedor" /></div>
-                                </th>
-                            )}
+                            {/* ✅ COLUNA DO VENDEDOR AGORA É FIXA (BLINDADA) */}
+                            <th onClick={() => handleOrdenar('vendedor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
+                                <div className="flex items-center gap-2">Vendedor <RenderSortIcon coluna="vendedor" /></div>
+                            </th>
                             
                             <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right">Qtd</th>
                             
@@ -325,25 +323,23 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         )}
                                     </td>
 
-                                    {filtroVendedor === 'TODOS' && (
-                                        <td className="px-5 py-4 text-sm whitespace-nowrap font-bold text-slate-700 align-middle">
-                                            {isEditing ? (
-                                                // ✅ MENU SUSPENSO (DROPDOWN) DE VENDEDORES
-                                                <select 
-                                                    value={(dadosEdicao.vendedor || '').toUpperCase()} 
-                                                    onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
-                                                    className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
-                                                >
-                                                    <option value="" disabled>Selecione o Vendedor...</option>
-                                                    {vendedoresDaUnidade.sort().map(v => (
-                                                        <option key={v} value={v}>{toTitleCase(v)}</option>
-                                                    ))}
-                                                </select>
-                                            ) : (
-                                                toTitleCase(row.vendedor)
-                                            )}
-                                        </td>
-                                    )}
+                                    {/* ✅ CÉLULA DO VENDEDOR AGORA É FIXA (BLINDADA) */}
+                                    <td className="px-5 py-4 text-sm whitespace-nowrap font-bold text-slate-700 align-middle">
+                                        {isEditing ? (
+                                            <select 
+                                                value={(dadosEdicao.vendedor || '').toUpperCase()} 
+                                                onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
+                                                className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
+                                            >
+                                                <option value="" disabled>Selecione o Vendedor...</option>
+                                                {vendedoresDaUnidade.sort().map(v => (
+                                                    <option key={v} value={v}>{toTitleCase(v)}</option>
+                                                ))}
+                                            </select>
+                                        ) : (
+                                            toTitleCase(row.vendedor)
+                                        )}
+                                    </td>
 
                                     <td className="px-5 py-4 text-sm text-right font-black text-slate-800 align-middle">
                                         {isEditing ? (

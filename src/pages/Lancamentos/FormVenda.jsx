@@ -23,11 +23,19 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const vendedoresDaUnidade = colaboradores.filter(c => 
-        temVisaoGlobal 
+    // 🔥 TRAVA DE SEGURANÇA 1: Filtra a unidade E garante que o vendedor não está desligado (Soft Delete)
+    const vendedoresDaUnidade = colaboradores.filter(c => {
+        const isAtivo = c.ativo !== false;
+        const matchUnidade = temVisaoGlobal 
             ? c.unidade?.toUpperCase() === formData.unidade?.toUpperCase()
-            : c.unidade?.toUpperCase() === usuarioLogado?.unidade?.toUpperCase()
-    );
+            : c.unidade?.toUpperCase() === usuarioLogado?.unidade?.toUpperCase();
+        return isAtivo && matchUnidade;
+    });
+
+    // 🔥 TRAVA DE SEGURANÇA 2: Filtra o catálogo para mostrar apenas as ofertas ativas
+    const planosAtivos = planos.filter(p => p.ativo !== false);
+    const produtosAtivos = produtos.filter(p => p.ativo !== false);
+    const servicosAtivos = servicos.filter(s => s.ativo !== false);
 
     const handleMainChange = (e) => {
         const { name, value } = e.target;
@@ -45,6 +53,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     updatedItem.valorCalculado = 0; updatedItem.valor = 'R$ 0,00';
                 } 
                 else if (field === 'nomeItem') {
+                    // Mantém a busca no array original (planos) para garantir que ache o valor, mesmo se for reedição de algo
                     const listaRef = updatedItem.tipo === 'plano' ? planos : (updatedItem.tipo === 'produto' ? produtos : servicos);
                     const selecionado = listaRef.find(x => x.nome === value) || { valor: 0 };
                     const precoNumericoLimpo = safeNumber(selecionado.valor); 
@@ -92,7 +101,6 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     observacao: formData.observacao, 
                     conferiu: false, 
                     quantidade: parseInt(item.quantidade) || 1, 
-                    // ✅ REGRA DE NEGÓCIO CONFIRMADA: A comissão é 100% do valor lançado.
                     comissao: valorPuro,
                     criado_por: usuarioLogado?.nome || 'SISTEMA' 
                 };
@@ -204,9 +212,10 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                 <label className="text-xs font-semibold text-slate-600 mb-1.5 block text-left">Item do Catálogo *</label>
                                 <select value={item.nomeItem} onChange={(e) => handleItemChange(item.id, 'nomeItem', e.target.value)} required disabled={!item.tipo} className={`w-full bg-white border border-slate-300 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all duration-200 disabled:cursor-not-allowed ${!item.tipo ? 'bg-slate-50 text-slate-400' : item.nomeItem === '' ? 'text-slate-500' : 'text-slate-900'}`}>
                                     <option value="" disabled hidden>{!item.tipo ? 'Aguarde categoria' : 'Selecione...'}</option>
-                                    {item.tipo === 'plano' && planos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-                                    {item.tipo === 'produto' && produtos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
-                                    {item.tipo === 'servico' && servicos.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
+                                    {/* 🔥 Mapeando apenas os itens que passaram no nosso filtro de ATIVOS */}
+                                    {item.tipo === 'plano' && planosAtivos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                                    {item.tipo === 'produto' && produtosAtivos.map(p => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                                    {item.tipo === 'servico' && servicosAtivos.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                 </select>
                             </div>
                             

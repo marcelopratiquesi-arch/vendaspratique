@@ -8,13 +8,13 @@ import {
     Users, Database, Settings, Dumbbell 
 } from 'lucide-react';
 
-// Importação Segura das Páginas
+// Importação Segura das Páginas (Padrão Modular)
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
 import AssinaturasPratique from './pages/HistoricoVendas/index.jsx'; 
 import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; 
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
-import CadastroGeral from './pages/CadastroGeral.jsx';
+import CadastroGeral from './pages/CadastroGeral'; // ✅ CORREÇÃO APLICADA: Resolução implícita do index.jsx na nova pasta
 import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
@@ -97,7 +97,6 @@ export default function App() {
         }
     }, []);
 
-    // 🔥 TRAVA DE SEGURANÇA RETIRADA: .limit(50000) ADICIONADO ABAIXO 🔥
     const fetchVendas = useCallback(async (isMounted = true) => {
         let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(50000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
@@ -414,7 +413,8 @@ export default function App() {
                     />
                 )}
                 
-                {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
+                {/* 📌 O MÓDULO CORRIGIDO ESTÁ AQUI */}
+                {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
                 
                 {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
             </main>
