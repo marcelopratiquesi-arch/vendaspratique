@@ -5,7 +5,7 @@ import { supabase } from './supabaseClient.js';
 import { 
     Zap, ChevronDown, Menu, X, LogOut, 
     ShoppingCart, History, PieChart, Wallet, 
-    Users, Database, Settings, Dumbbell 
+    Users, Database, Settings, Dumbbell, Lock 
 } from 'lucide-react';
 
 // Importação Segura das Páginas (Padrão Modular)
@@ -14,19 +14,20 @@ import AssinaturasPratique from './pages/HistoricoVendas/index.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; 
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
-import CadastroGeral from './pages/CadastroGeral'; // ✅ CORREÇÃO APLICADA: Resolução implícita do index.jsx na nova pasta
+import CadastroGeral from './pages/CadastroGeral'; 
 import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 
 export default function App() {
     // ==========================================
-    // 1. TODOS OS ESTADOS GLOBAIS
+    // 1. TODOS OS ESTADOS GLOBAIS E SEGURANÇA
     // ==========================================
     const [usuarioLogado, setUsuarioLogado] = useState(null);
     const [activeTab, setActiveTab] = useState('lancamento');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
+    const [isIdle, setIsIdle] = useState(false); // 🔥 Estado da Cortina de Inatividade
 
     // Estados aguardando a nuvem
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
@@ -44,7 +45,35 @@ export default function App() {
     }, [usuarioLogado]);
 
     // ==========================================
-    // 2. ACESSIBILIDADE E UX (MOBILE MENU)
+    // 2. SISTEMA DE SEGURANÇA CONTRA INATIVIDADE (15 MINUTOS)
+    // ==========================================
+    useEffect(() => {
+        let timeoutId;
+        const TEMPO_LIMITE = 15 * 60 * 1000; // 15 minutos em milissegundos
+
+        const resetTimer = () => {
+            clearTimeout(timeoutId);
+            // Se a tela já bloqueou, não adianta só mexer o mouse, tem que clicar em Atualizar
+            if (!isIdle) {
+                timeoutId = setTimeout(() => setIsIdle(true), TEMPO_LIMITE);
+            }
+        };
+
+        // Escuta qualquer sinal de vida do usuário na máquina
+        const eventos = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
+        eventos.forEach(evento => window.addEventListener(evento, resetTimer));
+
+        // Inicia o cronômetro assim que o sistema abre
+        resetTimer();
+
+        return () => {
+            clearTimeout(timeoutId);
+            eventos.forEach(evento => window.removeEventListener(evento, resetTimer));
+        };
+    }, [isIdle]);
+
+    // ==========================================
+    // 3. ACESSIBILIDADE E UX (MOBILE MENU)
     // ==========================================
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -53,7 +82,7 @@ export default function App() {
             }
         };
 
-        if (isMobileMenuOpen) {
+        if (isMobileMenuOpen || isIdle) {
             document.body.style.overflow = 'hidden'; 
             window.addEventListener('keydown', handleKeyDown);
         } else {
@@ -64,10 +93,10 @@ export default function App() {
             document.body.style.overflow = 'auto';
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [isMobileMenuOpen]);
+    }, [isMobileMenuOpen, isIdle]);
 
     // ==========================================
-    // 3. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE (COM LIMITES EXPANDIDOS)
+    // 4. SINCRONIZAÇÃO OTIMIZADA COM SUPABASE
     // ==========================================
     const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
@@ -98,7 +127,7 @@ export default function App() {
     }, []);
 
     const fetchVendas = useCallback(async (isMounted = true) => {
-        let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(50000);
+        let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(10000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
         const { data, error } = await query;
         if (error) console.error("Erro ao buscar vendas:", error);
@@ -106,7 +135,7 @@ export default function App() {
     }, [deveFiltrar, unidadeFiltro]);
 
     const fetchLeads = useCallback(async (isMounted = true) => {
-        let query = supabase.from('leads').select('*').order('id', { ascending: false }).limit(50000);
+        let query = supabase.from('leads').select('*').order('id', { ascending: false }).limit(10000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
         const { data, error } = await query;
         if (error) console.error("Erro ao buscar leads:", error);
@@ -114,7 +143,7 @@ export default function App() {
     }, [deveFiltrar, unidadeFiltro]);
 
     const fetchAvaliacoes = useCallback(async (isMounted = true) => {
-        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(50000);
+        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(10000);
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
         const { data, error } = await query;
         if (error) console.error("Erro ao buscar avaliações:", error);
@@ -214,7 +243,7 @@ export default function App() {
     }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
 
     // ==========================================
-    // 4. FUNÇÕES DE INTERFACE
+    // 5. FUNÇÕES DE INTERFACE
     // ==========================================
     const handleAddLancamentos = (novos) => setDadosAssinaturas([...novos, ...dadosAssinaturas]);
     const handleLogout = () => {
@@ -248,6 +277,34 @@ export default function App() {
     return (
         <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-slate-600">
             
+            {/* 🛡️ TELA DE BLOQUEIO POR INATIVIDADE (CORTINA) */}
+            {isIdle && (
+                <div className="fixed inset-0 z-[9999] bg-slate-900/80 backdrop-blur-md flex items-center justify-center animate-[fadeIn_0.3s_ease-out]">
+                    <div className="bg-white p-8 sm:p-10 rounded-3xl shadow-2xl flex flex-col items-center max-w-md w-[90%] text-center border border-slate-200 animate-[slideDown_0.4s_ease-out]">
+                        
+                        <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mb-6 border border-rose-100 shadow-inner">
+                            <Lock className="w-10 h-10 text-rose-600" />
+                        </div>
+                        
+                        <h2 className="text-2xl font-black text-slate-800 mb-3 tracking-tight">
+                            Sessão Inativa
+                        </h2>
+                        
+                        <p className="text-sm font-semibold text-slate-500 mb-8 leading-relaxed px-4">
+                            Por motivos de segurança e para garantir a sincronização em tempo real do banco de dados, o sistema foi pausado após 15 minutos sem uso.
+                        </p>
+                        
+                        <button
+                            onClick={() => window.location.reload()}
+                            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black uppercase tracking-widest text-sm transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.23)] hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                        >
+                            <Zap className="w-5 h-5 fill-current text-amber-300" /> Atualizar Sistema Agora
+                        </button>
+
+                    </div>
+                </div>
+            )}
+
             <header className="bg-slate-900 shadow-lg border-b border-slate-800 sticky top-0 z-40 transition-all">
                 <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
                     
@@ -413,7 +470,6 @@ export default function App() {
                     />
                 )}
                 
-                {/* 📌 O MÓDULO CORRIGIDO ESTÁ AQUI */}
                 {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
                 
                 {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { getCategoriaItem } from './utils.js';
+import { getCategoriaItem, safeIsoDate } from './utils.js'; // 🔥 Adicionado safeIsoDate
 
 const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFiltradas = [], temVisaoGlobal, labelFiltroAtual, planos, produtos, abrirModalWhatsapp }) => {
     
@@ -68,15 +68,30 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         }
     };
 
+    // 🚀 MOTOR INVISÍVEL DE DEDUPLICAÇÃO NO RELATÓRIO
+    const transacoesUnicas = new Set();
+
     // 1. Processa Vendas
     vendasFiltradas.forEach(v => {
         const unidade = v.unidade || 'SEM UNIDADE';
         inicializarUnidade(unidade);
         
-        const qtd = parseInt(v.quantidade) || 1;
+        let qtd = parseInt(v.quantidade) || 1;
         const prodUpper = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase();
         const vendPrimeiroNome = (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').charAt(0).toUpperCase() + (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').slice(1).toLowerCase();
         const categoria = getCategoriaItem(prodUpper, planos, produtos);
+
+        // 🔥 LOGICA DA MATRÍCULA
+        if (categoria === 'PLANO' && v.matricula && v.matricula.trim() !== '') {
+            const dataLimpa = safeIsoDate(v.data || v.created_at);
+            const chaveUnica = `${v.matricula.trim()}-${prodUpper}-${dataLimpa}`;
+
+            if (transacoesUnicas.has(chaveUnica)) {
+                qtd = 0; // Evita dupla contagem nas métricas da unidade
+            } else {
+                transacoesUnicas.add(chaveUnica);
+            }
+        }
 
         const registro = relatorioPorUnidade[unidade];
         registro.totalGeralVendas += qtd;
@@ -167,11 +182,14 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                 const itensOrdenados = Object.entries(grupoInfo.itens).sort((a,b) => b[1].total - a[1].total);
                 itensOrdenados.forEach(([nomeItem, itemData]) => {
                     const arrayVendedores = Object.entries(itemData.vendedores)
+                        .filter(([_, vQtd]) => vQtd > 0) // 🔥 Esconde quem tem 0 da dupla comissão
                         .sort((a,b) => b[1] - a[1]) 
                         .map(([vNome, vQtd]) => `${vNome} ${String(vQtd).padStart(2, '0')}`);
                     
-                    const textoVendedores = arrayVendedores.join(', ');
-                    txt += `▫️ ${String(itemData.total).padStart(2, '0')}x ${nomeItem} (${textoVendedores})\n`;
+                    if(arrayVendedores.length > 0) {
+                        const textoVendedores = arrayVendedores.join(', ');
+                        txt += `▫️ ${String(itemData.total).padStart(2, '0')}x ${nomeItem} (${textoVendedores})\n`;
+                    }
                 });
                 txt += `\n`;
             }
@@ -179,7 +197,10 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
         if (dados.totalGeralVendas > 0) {
             txt += `👥 *VENDAS POR CONSULTOR*\n`;
-            const consultoresOrdenados = Object.entries(dados.vendedoresTotal).sort((a,b) => b[1] - a[1]);
+            const consultoresOrdenados = Object.entries(dados.vendedoresTotal)
+                .filter(([_, cTotal]) => cTotal > 0) // 🔥 Esconde quem zerou por causa da dedup
+                .sort((a,b) => b[1] - a[1]);
+                
             consultoresOrdenados.forEach(([cNome, cTotal]) => {
                 txt += `${cNome} — ${String(cTotal).padStart(2, '0')}\n`;
             });
@@ -292,9 +313,12 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                                 <div className="flex-1 divide-y divide-slate-50 bg-slate-50/30 max-h-[160px] overflow-y-auto custom-scrollbar">
                                                     {Object.entries(info.itens).sort((a,b) => b[1].total - a[1].total).map(([nomeItem, itemData]) => {
                                                         const stringConsultores = Object.entries(itemData.vendedores)
+                                                            .filter(([_, vQtd]) => vQtd > 0) // 🔥 Só lista no visual quem pontuou > 0
                                                             .sort((a,b) => b[1] - a[1])
                                                             .map(([vNome, vQtd]) => `${vNome} (${String(vQtd).padStart(2, '0')})`)
                                                             .join(' • ');
+
+                                                        if(itemData.total === 0) return null; // Previne renderizar linha vazia
 
                                                         return (
                                                             <div key={nomeItem} className="px-5 py-3.5 flex justify-between items-center hover:bg-white transition-colors group">

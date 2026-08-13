@@ -4,7 +4,8 @@ import {
     getCategoriaItem,
     getValorRealDaVenda,
     criarGruposPlanosVazio,
-    classificarPlanoEmGrupo
+    classificarPlanoEmGrupo,
+    safeIsoDate // 🔥 Adicionando import para a chave de deduplicação
 } from './utils.js';
 
 const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdutos, planos, produtos, abrirModalWhatsapp }) => {
@@ -23,12 +24,33 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
     const rankingProdutosFisicos = {};
     const gruposPlanos = criarGruposPlanosVazio();
 
+    // 🚀 MOTOR INVISÍVEL DE DEDUPLICAÇÃO
+    const transacoesUnicas = new Set();
+
     vendasFiltradas.forEach(v => {
-        const qtd = parseInt(v.quantidade) || 1;
-        faturamento += getValorRealDaVenda(v, planos, produtos);
+        let qtd = parseInt(v.quantidade) || 1;
+        const valorFaturado = getValorRealDaVenda(v, planos, produtos);
+        
         const prodUpper = (v.produto || '').toUpperCase();
         const vendUpper = (v.vendedor || '').toUpperCase();
         const categoriaFinal = getCategoriaItem(prodUpper, planos, produtos);
+
+        // 🔥 LOGICA DA MATRÍCULA: Se houver matrícula e for plano, validamos a dupla contagem
+        if (categoriaFinal === 'PLANO' && v.matricula && v.matricula.trim() !== '') {
+            const dataLimpa = safeIsoDate(v.data || v.created_at);
+            const chaveUnica = `${v.matricula.trim()}-${prodUpper}-${dataLimpa}`;
+
+            if (transacoesUnicas.has(chaveUnica)) {
+                // Já contamos esse plano para essa matrícula nesta data.
+                // Zeramos a QTD para não inflar o dashboard de Planos, mas o Faturamento abaixo continua somando!
+                qtd = 0;
+            } else {
+                transacoesUnicas.add(chaveUnica);
+            }
+        }
+
+        // Faturamento sempre soma tudo (não é deduplicado, o dinheiro entrou)
+        faturamento += valorFaturado;
 
         if (categoriaFinal === 'PLANO') {
             totalPlanos += qtd;
@@ -98,7 +120,7 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Planos Vendidos</p>
-                    <p className="text-4xl font-black tracking-tight">{String(totalPlanos).padStart(2, '0')}</p>
+                    <p className="text-4xl font-black tracking-tight" title="Métrica deduplicada para espelhar número real de alunos">{String(totalPlanos).padStart(2, '0')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Produtos Físicos</p>
