@@ -5,7 +5,8 @@ import ModalTextoWhatsapp from './Modais.jsx';
 import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
-import { BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, Bookmark, Package, Briefcase, ChevronDown, ChevronUp, CheckSquare, Square } from 'lucide-react';
+import { BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, Bookmark, Package, Briefcase } from 'lucide-react';
+import { SmartFilter } from '../../components/SmartFilter.jsx';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -20,105 +21,7 @@ const toTitleCase = (str) => {
 };
 
 // ==========================================
-// 🧩 COMPONENTE EXCLUSIVO: MULTISELECT DINÂMICO
-// ==========================================
-const MultiSelect = ({ options, ocultos, setOcultos, label, Icone, iconColor = "text-slate-500" }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    const containerRef = useRef(null);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (containerRef.current && !containerRef.current.contains(event.target)) {
-                setIsOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, []);
-
-    const toggleOption = (opt) => {
-        if (ocultos.includes(opt)) {
-            setOcultos(prev => prev.filter(i => i !== opt)); // Mostra novamente
-        } else {
-            setOcultos(prev => [...prev, opt]); // Oculta
-        }
-    };
-
-    const toggleAll = () => {
-        if (ocultos.length === 0) {
-            // Se está tudo selecionado, o botão serve para DESMARCAR TODOS
-            setOcultos([...options]); 
-        } else {
-            // Se tem algo desmarcado, o botão serve para SELECIONAR TODOS
-            setOcultos([]); 
-        }
-    };
-
-    const isTodosSelecionados = ocultos.length === 0;
-    const qtdSelecionados = options.length - ocultos.length;
-    
-    // 🔥 Lógica visual que você pediu
-    let textoResumo = `${qtdSelecionados} selecionado${qtdSelecionados !== 1 ? 's' : ''}`;
-    if (qtdSelecionados === options.length) textoResumo = 'TODOS';
-    if (qtdSelecionados === 0) textoResumo = 'NENHUM SELECIONADO';
-
-    return (
-        <div className="relative flex flex-col gap-1.5 min-w-[200px] flex-1" ref={containerRef}>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
-               <Icone className={`w-3 h-3 ${iconColor}`} /> {label}
-            </label>
-            <div 
-                onClick={() => setIsOpen(!isOpen)}
-                className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none cursor-pointer flex justify-between items-center hover:border-blue-400 transition-colors select-none shadow-sm h-[46px]"
-            >
-                <span className="truncate pr-2 uppercase">{textoResumo}</span>
-                {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
-            </div>
-            {isOpen && (
-                <div className="absolute top-[100%] left-0 right-0 mt-2 bg-white border border-slate-200 shadow-2xl rounded-xl z-50 flex flex-col py-1 overflow-hidden" style={{ maxHeight: '280px' }}>
-                    
-                    {/* BOTÃO MÁGICO: Alterna entre Marcar Todos e Desmarcar Todos */}
-                    <div 
-                        className={`px-4 py-3 border-b flex items-center gap-3 cursor-pointer select-none transition-colors ${isTodosSelecionados ? 'bg-rose-50/50 hover:bg-rose-50 border-rose-100' : 'bg-blue-50/50 hover:bg-blue-50 border-blue-100'}`}
-                        onClick={toggleAll}
-                    >
-                        {isTodosSelecionados ? (
-                            <>
-                                <Square className="w-4 h-4 text-rose-500 shrink-0" />
-                                <span className="text-[11px] font-black text-rose-600 uppercase tracking-wider">Desmarcar Todos</span>
-                            </>
-                        ) : (
-                            <>
-                                <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
-                                <span className="text-[11px] font-black text-blue-700 uppercase tracking-wider">Selecionar Todos</span>
-                            </>
-                        )}
-                    </div>
-
-                    <div className="overflow-y-auto custom-scrollbar">
-                        {options.map(opt => {
-                            const isChecked = !ocultos.includes(opt);
-                            return (
-                                <div 
-                                    key={opt} 
-                                    className="px-4 py-3 hover:bg-slate-50 flex items-center gap-3 cursor-pointer select-none border-b border-slate-50 last:border-0 transition-colors"
-                                    onClick={() => toggleOption(opt)}
-                                >
-                                    {isChecked ? <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" /> : <Square className="w-4 h-4 text-slate-300 shrink-0" />}
-                                    <span className={`text-[11px] font-bold uppercase truncate tracking-wide ${isChecked ? 'text-slate-700' : 'text-slate-400'}`} title={opt}>{opt}</span>
-                                </div>
-                            );
-                        })}
-                        {options.length === 0 && <p className="px-4 py-6 text-xs font-bold text-slate-400 text-center uppercase tracking-widest">Nenhuma venda neste período</p>}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
-// ==========================================
-// MÓDULO PRINCIPAL
+// MÓDULO PRINCIPAL DE ANÁLISE (DASHBOARD)
 // ==========================================
 const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
     const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
@@ -130,7 +33,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const [diaEspecifico, setDiaEspecifico] = useState(getLocalISODate());
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS');
 
-    // ESTADOS DAS CAIXINHAS MULTISELECT
+    // ESTADOS DAS CAIXINHAS
     const [vendedoresOcultos, setVendedoresOcultos] = useState([]);
     const [planosOcultos, setPlanosOcultos] = useState([]);
     const [produtosOcultos, setProdutosOcultos] = useState([]);
@@ -169,7 +72,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         return map;
     }, [catalogoGeral]);
 
-    // PREPARA AS LISTAS PARA OS CHECKBOXES (APENAS COM BASE NA UNIDADE/DATA)
+    // PREPARA AS LISTAS PARA OS CHECKBOXES
     const { planosVendidos, produtosVendidos, servicosVendidos, vendedoresUnicos } = useMemo(() => {
         const arrPlanos = [];
         const arrProds = [];
@@ -238,7 +141,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         setServicosOcultos([]);
     };
 
-    // Reseta as caixinhas de multiselect quando muda a unidade ou o período
     useEffect(() => {
         setVendedoresOcultos([]);
         setPlanosOcultos([]);
@@ -311,13 +213,11 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         }
     };
 
-    // A MÁGICA: FILTRAGEM COMPLETA DAS VENDAS
     const vendasFiltradas = useMemo(() => {
         return vendas.filter(v => {
             if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
             if (!temVisaoGlobal && v.unidade !== usuarioLogado?.unidade) return false;
             
-            // Verifica os Ocultos
             const prodUpper = (v.produto || '').toUpperCase();
             const vendUpper = (v.vendedor || '').toUpperCase();
 
@@ -489,7 +389,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 </div>
 
                 <div className="flex flex-col gap-5">
-                    {/* LINHA 1: DATAS, UNIDADE E CONSULTOR */}
+                    {/* LINHA 1: DATAS E UNIDADE */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
                         {tipoFiltro === 'mes' && (
                             <>
@@ -531,7 +431,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             </div>
                         )}
 
-                        <MultiSelect 
+                        {/* 🔥 SMART FILTER: CONSULTORES */}
+                        <SmartFilter 
                             options={vendedoresUnicos} 
                             ocultos={vendedoresOcultos} 
                             setOcultos={setVendedoresOcultos} 
@@ -541,9 +442,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         />
                     </div>
 
-                    {/* LINHA 2: ISOLAMENTO DE CATÁLOGO (MULTISELECT) */}
+                    {/* LINHA 2: ISOLAMENTO DE CATÁLOGO COM SMART FILTERS */}
                     <div className="flex flex-col sm:flex-row flex-wrap gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
-                        <MultiSelect 
+                        <SmartFilter 
                             options={planosVendidos} 
                             ocultos={planosOcultos} 
                             setOcultos={setPlanosOcultos} 
@@ -551,7 +452,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             Icone={Bookmark} 
                             iconColor="text-blue-600" 
                         />
-                        <MultiSelect 
+                        <SmartFilter 
                             options={produtosVendidos} 
                             ocultos={produtosOcultos} 
                             setOcultos={setProdutosOcultos} 
@@ -559,7 +460,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             Icone={Package} 
                             iconColor="text-emerald-600" 
                         />
-                        <MultiSelect 
+                        <SmartFilter 
                             options={servicosVendidos} 
                             ocultos={servicosOcultos} 
                             setOcultos={setServicosOcultos} 
