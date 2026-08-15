@@ -1,13 +1,55 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { safeIsoDate, formatMoney } from './utils.js';
+import { safeIsoDate } from './utils.js';
 import { Download, Share2, Trophy, LayoutList, ChevronDown, ChevronUp } from 'lucide-react';
 
-const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFiltradas = [], temVisaoGlobal, labelFiltroAtual, planos, produtos, abrirModalWhatsapp }) => {
+// ==========================================
+// 🧠 MOTOR DE CLASSIFICAÇÃO INTELIGENTE (ADMIN / LÍDER)
+// ==========================================
+const classificarParaAdmin = (nome) => {
+    const prod = (nome || '').toUpperCase();
+    
+    // 1. PRODUTOS (Ordem 100)
+    if (prod.includes('WHEY') || prod.includes('TREINO') || prod.includes('DRY') || 
+        prod.includes('ENERGY') || prod.includes('CREATINA') || prod.includes('GALÃO') || prod.includes('GALAO') ||
+        prod.includes('GARRAFA') || prod.includes('TOALHA') || prod.includes('KIT') || 
+        prod.includes('RETENTION') || prod.includes('PRODUTO') || prod.includes('GATORADE')) {
+        return { grupo: 'PRODUTOS', tipo: 'AGRUPADO', order: 100, icone: '🛍️', cor: 'text-amber-600' };
+    }
+    
+    // 2. SERVIÇOS (Ordem 200)
+    if (prod.includes('TAXA') || prod.includes('AVALIA') || prod.includes('DIÁRIA') || 
+        prod.includes('DIARIA') || prod.includes('SERVICO') || prod.includes('SERVIÇO') || 
+        prod.includes('DAY USE')) {
+        return { grupo: 'SERVIÇOS', tipo: 'AGRUPADO', order: 200, icone: '🧾', cor: 'text-violet-600' };
+    }
+
+    // 3. PLANOS (Ordem 10 a 90)
+    if (prod.includes('NUTRI')) return { grupo: 'NUTRI', tipo: 'AGRUPADO', order: 10, icone: '🥗', cor: 'text-emerald-600' };
+    if (prod.includes('PLUS') || prod.includes('AFL')) return { grupo: 'PLUS', tipo: 'AGRUPADO', order: 20, icone: '⭐', cor: 'text-blue-600' };
+    if (prod.includes('FIT')) return { grupo: 'FIT', tipo: 'AGRUPADO', order: 30, icone: '🏃', cor: 'text-indigo-600' };
+    if (prod.includes('PERSONAL')) return { grupo: 'PERSONAL CLASS', tipo: 'INDIVIDUAL', order: 40, icone: '🏋️', cor: 'text-rose-600' };
+    if (prod.includes('1200')) return { grupo: 'PROMO 1200', tipo: 'INDIVIDUAL', order: 50, icone: '🎯', cor: 'text-purple-600' };
+    if (prod.includes('FÉRIAS') || prod.includes('FERIAS')) return { grupo: 'FÉRIAS', tipo: 'AGRUPADO', order: 60, icone: '🏖️', cor: 'text-orange-500' };
+    
+    if (prod.includes('SSP')) return { grupo: 'SSP', tipo: 'INDIVIDUAL', order: 80, icone: '▫️', cor: 'text-slate-600' };
+    if (prod.includes('PREFEITURA')) return { grupo: 'PREFEITURA BH', tipo: 'INDIVIDUAL', order: 80, icone: '▫️', cor: 'text-slate-600' };
+    if (prod.includes('BIKE')) return { grupo: 'BIKE', tipo: 'INDIVIDUAL', order: 80, icone: '▫️', cor: 'text-slate-600' };
+    if (prod.includes('MELHOR IDADE')) return { grupo: 'MELHOR IDADE', tipo: 'INDIVIDUAL', order: 80, icone: '▫️', cor: 'text-slate-600' };
+
+    // 4. FALLBACK DOS PLANOS
+    return { grupo: 'OUTROS PLANOS', tipo: 'AGRUPADO', order: 90, icone: '🧩', cor: 'text-slate-600' };
+};
+
+// ORDEM FIXA DO RELATÓRIO CLÁSSICO DA UNIDADE
+const ORDEM_CLASSICA = ["NUTRI", "PLUS", "FIT", "PERSONAL CLASS", "PROMO 1200", "FÉRIAS", "OUTROS PLANOS", "PRODUTOS", "SERVIÇOS"];
+
+const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFiltradas = [], temVisaoGlobal, labelFiltroAtual, abrirModalWhatsapp, usuarioLogado }) => {
     
     const [unidadesRecolhidas, setUnidadesRecolhidas] = useState({});
-    
-    // 🔥 A CHAVE MÁGICA: MODO RESUMO vs MODO DETALHADO (Afeta APENAS Ranking Global e Exportações)
     const [visaoDetalhada, setVisaoDetalhada] = useState(false);
+
+    // PROTEÇÃO ANTI-QUEBRA
+    const permissaoGerencial = temVisaoGlobal || (usuarioLogado && usuarioLogado.role === 'LIDER');
 
     const toggleUnidade = (unidade) => {
         setUnidadesRecolhidas(prev => ({
@@ -22,13 +64,11 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
     const scrollTop = useRef(0);
 
     const onMouseDown = (e) => {
-        if (e.target.closest('button') || e.target.closest('.no-drag') || e.target.closest('input')) return;
-        
+        if (e.target.closest('button') || e.target.closest('.no-drag')) return;
         isDragging.current = true;
         scrollRef.current.classList.add('cursor-grabbing');
         scrollRef.current.classList.remove('cursor-grab');
         scrollRef.current.style.userSelect = 'none';
-        
         startY.current = e.pageY - scrollRef.current.offsetTop;
         scrollTop.current = scrollRef.current.scrollTop;
     };
@@ -60,15 +100,20 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                 vendedoresTotal: {},
                 visitantes: [], 
                 avaliacoes: [], 
+                // Estrutura LEGADA (Unidade)
                 grupos: {
                     "NUTRI": { total: 0, itens: {}, cor: "text-emerald-600", bgIcone: "bg-emerald-100 text-emerald-600", icone: "🥗" },
                     "PLUS": { total: 0, itens: {}, cor: "text-blue-600", bgIcone: "bg-blue-100 text-blue-600", icone: "⭐" },
                     "FIT": { total: 0, itens: {}, cor: "text-indigo-600", bgIcone: "bg-indigo-100 text-indigo-600", icone: "🏃" },
                     "PERSONAL CLASS": { total: 0, itens: {}, cor: "text-rose-600", bgIcone: "bg-rose-100 text-rose-600", icone: "🏋️" }, 
+                    "PROMO 1200": { total: 0, itens: {}, cor: "text-purple-600", bgIcone: "bg-purple-100 text-purple-600", icone: "🎯" },
+                    "FÉRIAS": { total: 0, itens: {}, cor: "text-orange-500", bgIcone: "bg-orange-100 text-orange-500", icone: "🏖️" },
                     "OUTROS PLANOS": { total: 0, itens: {}, cor: "text-slate-600", bgIcone: "bg-slate-200 text-slate-600", icone: "🧩" },
                     "PRODUTOS": { total: 0, itens: {}, cor: "text-amber-600", bgIcone: "bg-amber-100 text-amber-600", icone: "🛍️" },
                     "SERVIÇOS": { total: 0, itens: {}, cor: "text-violet-600", bgIcone: "bg-violet-100 text-violet-600", icone: "🧾" }
-                }
+                },
+                // Estrutura GERENCIAL (Admin / Líder)
+                gruposAdmin: {}
             };
         }
     };
@@ -80,17 +125,18 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         inicializarUnidade(unidade);
         
         let qtd = parseInt(v.quantidade) || 1;
-        const prodUpper = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase();
+        const prodUpper = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase().trim();
         const vendPrimeiroNome = (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').charAt(0).toUpperCase() + (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').slice(1).toLowerCase();
         
-        let categoria = 'PLANO';
-        if (prodUpper.includes('WHEY') || prodUpper.includes('PRE TREINO') || prodUpper.includes('PRODUTO') || prodUpper.includes('GATORADE')) {
-            categoria = 'PRODUTO';
-        } else if (prodUpper.includes('TAXA') || prodUpper.includes('AVALIACAO') || prodUpper.includes('SERVICO') || prodUpper.includes('DAY USE')) {
-            categoria = 'SERVICO';
+        // Categoria Legada (Para o Histórico da Unidade)
+        let categoriaLegada = 'PLANO';
+        if (prodUpper.includes('WHEY') || prodUpper.includes('TREINO') || prodUpper.includes('DRY') || prodUpper.includes('ENERGY') || prodUpper.includes('CREATINA') || prodUpper.includes('PRODUTO') || prodUpper.includes('GATORADE')) {
+            categoriaLegada = 'PRODUTO';
+        } else if (prodUpper.includes('TAXA') || prodUpper.includes('AVALIACAO') || prodUpper.includes('SERVICO') || prodUpper.includes('DAY USE') || prodUpper.includes('DIARIA') || prodUpper.includes('DIÁRIA')) {
+            categoriaLegada = 'SERVICO';
         }
 
-        if (categoria === 'PLANO' && v.matricula && v.matricula.trim() !== '') {
+        if (categoriaLegada === 'PLANO' && v.matricula && v.matricula.trim() !== '') {
             const dataLimpa = safeIsoDate(v.data || v.created_at);
             const chaveUnica = `${v.matricula.trim()}-${prodUpper}-${dataLimpa}`;
 
@@ -106,16 +152,21 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         vendasGlobal += qtd;
         registro.vendedoresTotal[vendPrimeiroNome] = (registro.vendedoresTotal[vendPrimeiroNome] || 0) + qtd;
 
+        // ==========================================
+        // 1️⃣ LÓGICA DA UNIDADE / RECEPÇÃO 
+        // ==========================================
         let grupoAlvo = '';
-        if (categoria === 'PLANO') {
+        if (categoriaLegada === 'PLANO') {
             if (prodUpper.includes("NUTRI")) grupoAlvo = "NUTRI";
             else if (prodUpper.includes("PLUS") || prodUpper.includes("AFL")) grupoAlvo = "PLUS";
             else if (prodUpper.includes("FIT")) grupoAlvo = "FIT";
             else if (prodUpper.includes("PERSONAL")) grupoAlvo = "PERSONAL CLASS"; 
+            else if (prodUpper.includes("1200")) grupoAlvo = "PROMO 1200"; 
+            else if (prodUpper.includes("FÉRIAS") || prodUpper.includes("FERIAS")) grupoAlvo = "FÉRIAS"; 
             else grupoAlvo = "OUTROS PLANOS";
-        } else if (categoria === 'PRODUTO') {
+        } else if (categoriaLegada === 'PRODUTO') {
             grupoAlvo = "PRODUTOS";
-        } else if (categoria === 'SERVICO') {
+        } else if (categoriaLegada === 'SERVICO') {
             grupoAlvo = "SERVIÇOS";
         }
 
@@ -127,6 +178,29 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
             registro.grupos[grupoAlvo].itens[prodUpper].total += qtd;
             registro.grupos[grupoAlvo].itens[prodUpper].vendedores[vendPrimeiroNome] = (registro.grupos[grupoAlvo].itens[prodUpper].vendedores[vendPrimeiroNome] || 0) + qtd;
         }
+
+        // ==========================================
+        // 2️⃣ NOVA LÓGICA GERENCIAL (RANKING E WHATSAPP MACRO)
+        // ==========================================
+        const clAdmin = classificarParaAdmin(prodUpper);
+        
+        if (!registro.gruposAdmin[clAdmin.grupo]) {
+            registro.gruposAdmin[clAdmin.grupo] = { 
+                grupo: clAdmin.grupo,
+                total: 0, 
+                itens: {}, 
+                tipo: clAdmin.tipo,
+                order: clAdmin.order, 
+                icone: clAdmin.icone, 
+                cor: clAdmin.cor 
+            };
+        }
+        registro.gruposAdmin[clAdmin.grupo].total += qtd;
+
+        if (!registro.gruposAdmin[clAdmin.grupo].itens[prodUpper]) {
+            registro.gruposAdmin[clAdmin.grupo].itens[prodUpper] = { total: 0 };
+        }
+        registro.gruposAdmin[clAdmin.grupo].itens[prodUpper].total += qtd;
     });
 
     visitantesFiltrados.forEach(v => {
@@ -152,57 +226,82 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
     const maxVendasNoRanking = Math.max(...rankingUnidades.map(u => u.vendas), 1);
 
     // ==========================================
-    // 📤 EXPORTAÇÃO PARA CSV (INTELIGENTE)
+    // 📤 EXPORTAÇÃO PARA CSV (CORRIGIDA)
     // ==========================================
     const exportarCSV = () => {
-        if (vendasFiltradas.length === 0) {
-            alert("Não há dados para exportar com os filtros atuais.");
-            return;
-        }
+        try {
+            if (vendasFiltradas.length === 0) {
+                alert("Não há dados para exportar com os filtros atuais.");
+                return;
+            }
 
-        let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+            let csvContent = ""; // Removido o prefixo 'data:text/csv'
 
-        if (visaoDetalhada) {
-            // PLANILHA DETALHADA: LINHA POR LINHA
-            const cabeçalho = ['ID', 'Data', 'Unidade', 'Matricula', 'Aluno', 'Produto', 'Qtd'];
-            const linhas = vendasFiltradas.map(v => {
-                return [
-                    v.id,
-                    safeIsoDate(v.data || v.created_at),
-                    `"${v.unidade || ''}"`,
-                    `"${v.matricula || ''}"`,
-                    `"${v.nome_aluno || ''}"`,
-                    `"${v.produto || ''}"`,
-                    v.quantidade || 1
-                ].join(';');
-            });
-            csvContent += [cabeçalho.join(';'), ...linhas].join('\n');
-        } else {
-            // PLANILHA RESUMO: APENAS TOTAIS POR GRUPO
-            const cabeçalho = ['Unidade', 'Categoria', 'Quantidade Total'];
-            const linhas = [];
-            unidadesOrdenadas.forEach(uni => {
-                const dados = relatorioPorUnidade[uni];
-                Object.entries(dados.grupos).forEach(([nomeGrupo, info]) => {
-                    if (info.total > 0) {
-                        linhas.push(`"${uni}";"${nomeGrupo}";${info.total}`);
-                    }
+            if (visaoDetalhada) {
+                const cabeçalho = ['ID', 'Data', 'Unidade', 'Matricula', 'Aluno', 'Produto', 'Qtd', 'Vendedor'];
+                const linhas = vendasFiltradas.map(v => {
+                    const dataFormatada = v.data || v.created_at ? safeIsoDate(v.data || v.created_at) : '';
+                    return [
+                        v.id || '',
+                        dataFormatada,
+                        `"${(v.unidade || '').replace(/"/g, '""')}"`,
+                        `"${(v.matricula || '').replace(/"/g, '""')}"`,
+                        `"${(v.nome_aluno || '').replace(/"/g, '""')}"`,
+                        `"${(v.produto || '').replace(/"/g, '""')}"`,
+                        v.quantidade || 1,
+                        `"${(v.vendedor || '').replace(/"/g, '""')}"`
+                    ].join(';');
                 });
-            });
-            csvContent += [cabeçalho.join(';'), ...linhas].join('\n');
+                csvContent = [cabeçalho.join(';'), ...linhas].join('\n');
+            } else {
+                const cabeçalho = ['Unidade', 'Categoria', 'Quantidade Total'];
+                const linhas = [];
+                unidadesOrdenadas.forEach(uni => {
+                    const dados = relatorioPorUnidade[uni];
+                    const gruposOrd = Object.values(dados.gruposAdmin).sort((a,b) => {
+                        if (a.order !== b.order) return a.order - b.order;
+                        return b.total - a.total;
+                    });
+
+                    gruposOrd.forEach(info => {
+                        if (info.total > 0) {
+                            linhas.push(`"${uni}";"${info.grupo}";${info.total}`);
+                        }
+                    });
+                });
+                csvContent = [cabeçalho.join(';'), ...linhas].join('\n');
+            }
+            
+            // Criação segura da Data atual para o nome do arquivo
+            const hojeData = new Date();
+            const anoStr = hojeData.getFullYear();
+            const mesStr = String(hojeData.getMonth() + 1).padStart(2, '0');
+            const diaStr = String(hojeData.getDate()).padStart(2, '0');
+            const dataStringSegura = `${anoStr}-${mesStr}-${diaStr}`;
+            
+            // Geração via Blob (Robusto e com suporte a acentuação do Excel)
+            const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement("a");
+            link.href = url;
+            link.setAttribute("download", `Exportacao_Vendas_${visaoDetalhada ? 'Detalhada' : 'Resumo'}_${dataStringSegura}.csv`);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            URL.revokeObjectURL(url);
+            
+        } catch (error) {
+            console.error("Erro ao exportar CSV:", error);
+            alert("Ocorreu um erro ao gerar a planilha. Verifique o console para mais detalhes.");
         }
-        
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `Exportacao_Vendas_${visaoDetalhada ? 'Detalhada' : 'Resumo'}_${safeIsoDate(new Date())}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
     };
 
     // ==========================================
-    // 📲 RELATÓRIO GERAL PARA WHATSAPP
+    // 📲 RELATÓRIO GERENCIAL PARA WHATSAPP
     // ==========================================
     const gerarRelatorioGlobalWhatsapp = () => {
         if (unidadesOrdenadas.length === 0) {
@@ -223,22 +322,26 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
         rankingUnidades.forEach((uni) => {
             const dados = relatorioPorUnidade[uni.nome];
-            txt += `🏢 *${uni.nome}:* ${uni.vendas} vendas\n`;
+            txt += `🏢 *${uni.nome}:* ${uni.vendas} vendas\n\n`;
             
-            Object.entries(dados.grupos).forEach(([nomeGrupo, grupoInfo]) => {
-                if (grupoInfo.total > 0) {
-                    // O GLOBAL RESPEITA A CHAVE DETALHADA/RESUMO
-                    if (visaoDetalhada) {
-                        const itensOrdenados = Object.entries(grupoInfo.itens).sort((a,b) => b[1].total - a[1].total);
-                        itensOrdenados.forEach(([nomeItem, itemData]) => {
-                            if (itemData.total > 0) txt += `▫️ ${String(itemData.total).padStart(2, '0')}x ${nomeItem}\n`;
-                        });
-                    } else {
-                        txt += `▫️ ${String(grupoInfo.total).padStart(2, '0')}x ${nomeGrupo}\n`;
-                    }
-                }
+            const gruposOrd = Object.values(dados.gruposAdmin).sort((a,b) => {
+                if(a.order !== b.order) return a.order - b.order;
+                return b.total - a.total;
             });
-            txt += `\n`;
+
+            gruposOrd.forEach(g => {
+                if(g.total === 0) return;
+                
+                txt += `${g.icone} *${g.grupo} — ${String(g.total).padStart(2, '0')}*\n`;
+                
+                if (visaoDetalhada && g.tipo === 'AGRUPADO') {
+                    Object.entries(g.itens).sort((a,b)=>b[1].total - a[1].total).forEach(([ni, di]) => {
+                        txt += `▫️ ${String(di.total).padStart(2, '0')}x ${ni}\n`;
+                    });
+                }
+                
+                txt += `\n`;
+            });
         });
 
         txt += `📈 *TOTAL GERAL:* ${vendasGlobal} vendas\n`;
@@ -247,7 +350,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
     };
 
     // ==========================================
-    // 📲 RELATÓRIO INDIVIDUAL (POR UNIDADE) - 100% DETALHADO SEMPRE
+    // 📲 RELATÓRIO INDIVIDUAL UNIDADE (FECHAMENTO CAIXA AUDITÁVEL)
     // ==========================================
     const gerarTextoFechamento = (unidadeAlvo) => {
         const dataAtual = new Date();
@@ -270,39 +373,37 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
         const dados = relatorioPorUnidade[unidadeAlvo];
 
-        let txt = `📊 *RELATÓRIO DE VENDAS – PRATIQUE FITNESS* 📊\n`;
+        let txt = `📊 *RELATÓRIO DE FECHAMENTO – PRATIQUE FITNESS* 📊\n`;
         txt += `📅 *Referência:* ${labelReferencia}\n`;
         txt += `🕐 *Enviado em:* ${labelEnviado}\n`;
         txt += `🏢 *Unidade:* ${unidadeAlvo}\n\n`;
         
         txt += `📌 *RESUMO DAS VENDAS*\n\n`;
 
-        const iconesGrupo = {
-            "NUTRI": "🥗", "PLUS": "⭐", "FIT": "🏃", "PERSONAL CLASS": "🏋️",
-            "OUTROS PLANOS": "🧩", "PRODUTOS": "🛍️", "SERVIÇOS": "🧾"
-        };
+        const gruposClassicosOrdenados = Object.entries(dados.grupos)
+            .sort((a, b) => ORDEM_CLASSICA.indexOf(a[0]) - ORDEM_CLASSICA.indexOf(b[0]))
+            .filter(([_, info]) => info.total > 0);
 
-        Object.entries(dados.grupos).forEach(([nomeGrupo, grupoInfo]) => {
-            if (grupoInfo.total > 0) {
-                const icone = iconesGrupo[nomeGrupo] || "🔹";
-                txt += `${icone} *${nomeGrupo} — ${String(grupoInfo.total).padStart(2, '0')} venda${grupoInfo.total > 1 ? 's' : ''}*\n`;
-                
-                const itensOrdenados = Object.entries(grupoInfo.itens).sort((a,b) => b[1].total - a[1].total);
-                itensOrdenados.forEach(([nomeItem, itemData]) => {
-                    if (itemData.total > 0) {
-                        const stringConsultores = Object.entries(itemData.vendedores)
-                            .filter(([_, vQtd]) => vQtd > 0)
-                            .sort((a,b) => b[1] - a[1])
-                            .map(([vNome, vQtd]) => `${vNome} ${String(vQtd).padStart(2, '0')}`)
-                            .join(', ');
-                        
-                        const txtConsultores = stringConsultores ? ` (${stringConsultores})` : '';
-                        txt += `▫️ ${String(itemData.total).padStart(2, '0')}x ${nomeItem}${txtConsultores}\n`;
-                    }
-                });
-                
-                txt += `\n`;
-            }
+        gruposClassicosOrdenados.forEach(([nomeGrupo, grupoInfo]) => {
+            const icone = grupoInfo.icone || "🔹";
+
+            txt += `${icone} *${nomeGrupo} — ${String(grupoInfo.total).padStart(2, '0')} venda${grupoInfo.total > 1 ? 's' : ''}*\n`;
+            
+            const itensOrdenados = Object.entries(grupoInfo.itens).sort((a,b) => b[1].total - a[1].total);
+            itensOrdenados.forEach(([nomeItem, itemData]) => {
+                if (itemData.total > 0) {
+                    const stringConsultores = Object.entries(itemData.vendedores)
+                        .filter(([_, vQtd]) => vQtd > 0)
+                        .sort((a,b) => b[1] - a[1])
+                        .map(([vNome, vQtd]) => `${vNome} ${String(vQtd).padStart(2, '0')}`)
+                        .join(', ');
+                    
+                    const txtConsultores = stringConsultores ? ` (${stringConsultores})` : '';
+                    txt += `▫️ ${String(itemData.total).padStart(2, '0')}x ${nomeItem}${txtConsultores}\n`;
+                }
+            });
+            
+            txt += `\n`;
         });
 
         if (dados.totalGeralVendas > 0) {
@@ -341,8 +442,8 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         >
             <div className="space-y-8">
 
-                {/* 📌 BARRA DE AÇÕES GLOBAIS E CHAVE SELETORA */}
-                {unidadesOrdenadas.length > 0 && temVisaoGlobal && (
+                {/* 📌 BARRA DE AÇÕES GERENCIAIS E CHAVE SELETORA */}
+                {unidadesOrdenadas.length > 0 && permissaoGerencial && (
                     <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 items-center justify-between no-drag">
                         
                         <div className="flex items-center gap-4 w-full md:w-auto">
@@ -356,7 +457,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                         </div>
 
                         <div className="flex flex-col sm:flex-row w-full md:w-auto gap-4 items-center">
-                            {/* 🔥 CHAVE SELETORA: RESUMO vs DETALHADO */}
                             <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto">
                                 <button 
                                     onClick={() => setVisaoDetalhada(false)}
@@ -391,7 +491,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                 )}
 
                 {/* 🏆 RANKING VISUAL GLOBAL DETALHADO */}
-                {temVisaoGlobal && rankingUnidades.length > 0 && (
+                {permissaoGerencial && rankingUnidades.length > 0 && (
                     <div className="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 no-drag animate-[slideDown_0.4s_ease-out]">
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
                             <Trophy className="w-5 h-5 text-amber-500" /> Ranking Global de Vendas
@@ -439,14 +539,20 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
                                                     {/* DETALHAMENTO DA COMPOSIÇÃO DE VENDAS */}
                                                     <div className="flex flex-wrap gap-2">
-                                                        {Object.entries(dadosUnidade.grupos).map(([nomeGrupo, grupoInfo]) => {
+                                                        {Object.values(dadosUnidade.gruposAdmin)
+                                                            .sort((a,b) => {
+                                                                if(a.order !== b.order) return a.order - b.order;
+                                                                return b.total - a.total;
+                                                            })
+                                                            .map((grupoInfo) => {
+                                                            
                                                             if (grupoInfo.total === 0) return null;
 
-                                                            if (!visaoDetalhada) {
+                                                            if (grupoInfo.tipo === 'INDIVIDUAL' || !visaoDetalhada) {
                                                                 return (
-                                                                    <span key={nomeGrupo} className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-md text-[10px] font-black text-slate-600 shadow-sm">
+                                                                    <span key={grupoInfo.grupo} className="inline-flex items-center gap-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-md text-[10px] font-black text-slate-600 shadow-sm">
                                                                         <span className={grupoInfo.cor}>{grupoInfo.icone}</span>
-                                                                        {String(grupoInfo.total).padStart(2, '0')}x {nomeGrupo}
+                                                                        {String(grupoInfo.total).padStart(2, '0')}x {grupoInfo.grupo}
                                                                     </span>
                                                                 );
                                                             } else {
@@ -455,7 +561,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                                                     .map(([nomeItem, itemData]) => {
                                                                         if (itemData.total === 0) return null;
                                                                         return (
-                                                                            <span key={nomeItem} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-700 shadow-sm">
+                                                                            <span key={nomeItem} className="inline-flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-md text-[10px] font-bold text-slate-700 shadow-sm border-l-2 border-l-blue-400">
                                                                                 <span className="text-slate-400 font-black">{String(itemData.total).padStart(2, '0')}x</span> 
                                                                                 <span className="uppercase truncate max-w-[150px]" title={nomeItem}>{nomeItem}</span>
                                                                             </span>
@@ -474,7 +580,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                     </div>
                 )}
 
-                {/* 🏢 CARDS SANFONA POR UNIDADE (SEMPRE ABERTOS NA COMPOSIÇÃO E COM CONSULTORES) */}
+                {/* 🏢 CARDS SANFONA POR UNIDADE */}
                 {unidadesOrdenadas.length === 0 ? (
                     <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60 pointer-events-none">
                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
@@ -538,7 +644,10 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                         
                                         {/* VENDAS */}
-                                        {Object.entries(dados.grupos).filter(([_, info]) => info.total > 0).map(([grupo, info]) => (
+                                        {Object.entries(dados.grupos)
+                                            .sort((a, b) => ORDEM_CLASSICA.indexOf(a[0]) - ORDEM_CLASSICA.indexOf(b[0]))
+                                            .filter(([_, info]) => info.total > 0)
+                                            .map(([grupo, info]) => (
                                             <div key={grupo} className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-slate-300">
                                                 <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
                                                     <div className="flex items-center gap-3">
