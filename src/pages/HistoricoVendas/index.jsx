@@ -5,12 +5,24 @@ import { safeIsoDate, safeNumber, formatMoney, meses, toTitleCase, buildCatalogo
 import { Filter, Calendar, CalendarDays, Sun, UserCheck, Wallet, BarChart2, Leaf, Star, Activity, Dumbbell, ShoppingBag, Receipt, Layers, ChevronDown, ChevronUp, AlertCircle, RefreshCw, AlertTriangle, Bookmark, Package, Briefcase } from 'lucide-react';
 import { SmartFilter } from '../../components/SmartFilter.jsx';
 
+// 🔥 CORREÇÃO DE FUSO HORÁRIO BRASILEIRO
+// Gera a data atual no formato YYYY-MM-DD respeitando o fuso local do usuário, e não UTC.
+const getLocalISODate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores = [] }) => {
-    const hojePadrao = new Date().toISOString().split('T')[0];
+    // Agora o sistema está blindado contra fuso horário.
+    const hojePadrao = getLocalISODate();
     const mesPadrao = String(new Date().getMonth() + 1).padStart(2, '0');
     const anoPadrao = new Date().getFullYear().toString();
 
-    const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
+    // 🚨 REGRA DE NEGÓCIO: O estado default agora é sempre DIA ATUAL (HOJE)
+    const [tipoFiltroData, setTipoFiltroData] = useState('dia'); 
     const [filtroMes, setFiltroMes] = useState(mesPadrao);
     const [filtroAno, setFiltroAno] = useState(anoPadrao);
     const [dataInicio, setDataInicio] = useState('');
@@ -41,7 +53,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
     const mapCatalogo = useMemo(() => buildCatalogoMap(catalogoGeral), [catalogoGeral]);
 
     const limparFiltros = () => {
-        setTipoFiltroData('mes');
+        // 🚨 REGRA DE NEGÓCIO: Resetar filtro agora sempre volta para o DIA ATUAL (HOJE)
+        setTipoFiltroData('dia');
         setFiltroMes(mesPadrao);
         setFiltroAno(anoPadrao);
         setDataInicio('');
@@ -310,7 +323,6 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                         </div>
                     )}
 
-                    {/* 🔥 UTILIZANDO O SMART FILTER GLOBAL */}
                     <SmartFilter 
                         options={vendedoresUnicos} 
                         ocultos={vendedoresOcultos} 
