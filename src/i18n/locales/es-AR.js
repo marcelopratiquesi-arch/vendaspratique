@@ -9,7 +9,7 @@ export default {
     "auth.error.credentials": "E-mail o contraseña incorrectos.",
     "auth.error.permission": "Usuario sin permiso de acceso configurado por el Administrador.",
 
-    // NAVEGACIÓN (TABS)
+    // NAVIGATION
     "navigation.newSale": "Nueva Venta",
     "navigation.history": "Historial",
     "navigation.dashboard": "Dashboard",
@@ -18,52 +18,63 @@ export default {
     "navigation.assessment": "Evaluación",
     "navigation.management": "Gestión",
     "navigation.settings": "Configuraciones",
+    "navigation.communications": "Comunicados", // 🔥 AQUI ESTÁ
 
-    // HEADER Y MENÚ MÓVIL
     "header.globalView": "VISTA GLOBAL (TODAS)",
     "header.mainMenu": "Menú Principal",
     "header.signOut": "Cerrar Sesión",
 
-    // INACTIVIDAD
     "idle.title": "Sesión Inactiva",
     "idle.description": "Por motivos de seguridad y para garantizar la sincronización en tiempo real de la base de datos, el sistema se pausó tras 15 minutos sin uso.",
     "idle.button": "Actualizar Sistema Ahora",
 
-    // CONFIGURACIONES Y ACCESOS
-    "settings.successSaved": "¡Configuraciones guardadas con éxito!",
-    "settings.adminPanel": "Panel de Administrador",
-    "settings.restrictedAccess": "Acceso Restringido",
-    "settings.logins": "Control de Accesos",
-    "settings.unitsManagement": "Gestión de Sedes",
-    "settings.grantAccess": "Conceder Acceso",
-    "settings.userEmail": "E-mail del Colaborador",
-    "settings.permissionLevel": "Nivel de Permiso",
-    "settings.selectLevel": "Seleccione el nivel...",
-    "settings.roleAdmin": "ADMIN (Acceso Total)",
-    "settings.roleMentor": "MENTOR (Métricas y Auditoría)",
-    "settings.roleLeader": "LÍDER (Vista de Sede y Ventas)",
-    "settings.roleReception": "RECEPCIÓN / OPERATIVO (Nueva Venta, Historial, Dashboard, CRM)",
-    "settings.password": "Contraseña de Acceso",
-    "settings.definePassword": "Definir contraseña...",
-    "settings.displayName": "Nombre del Colaborador",
-    "settings.exName": "Ej: Carlos Pérez",
-    "settings.linkUnit": "Sede Vinculada",
-    "settings.selectUnit": "Seleccione la sede...",
-    "settings.allUnits": "CASA CENTRAL / TODAS LAS SEDES",
-    "settings.createAccess": "Crear Acceso",
-    "settings.registerNewUnit": "Registrar Nueva Sede",
-    "settings.unitName": "Nombre de la Sede",
-    "settings.typeNome": "Ej: Sede Centro",
-    "settings.registerUnit": "Registrar Sede",
-    "settings.systemReport": "Reporte de Usuarios",
-    "settings.viewPermissions": "Permisos: Nueva Venta, Historial, Dashboard, CRM",
-    "settings.revokeAccess": "Revocar Acceso",
-    "settings.deleteUnit": "Eliminar Sede",
+    // COMMUNICATIONS
+    "communications.title": "Central de Comunicados",
+    "communications.subtitleAdmin": "Cree mensajes, términos de aceptación o evaluaciones operativas.",
+    "communications.subtitleUser": "Tu Bandeja de Entrada",
+    "communications.new": "Nuevo Comunicado",
+    "communications.search": "Buscar título...",
+    "communications.empty": "No se encontraron comunicados.",
+    "communications.back": "Volver",
+    
+    "communications.form.contentSection": "Contenido del Mensaje",
+    "communications.form.titleLabel": "Título Principal",
+    "communications.form.titlePlaceholder": "Ej: Nueva Campaña de Ventas",
+    "communications.form.bodyLabel": "Contenido Detallado",
+    "communications.form.bodyPlaceholder": "Describa las pautas e instrucciones...",
+    "communications.form.bannerLabel": "Banner / Imagen (Opcional)",
+    "communications.form.selectFile": "Seleccionar Archivo",
+    "communications.form.fileSelected": "Imagen lista",
+    
+    "communications.form.typeSection": "Comportamiento",
+    "communications.form.typeInfo": "Informativo",
+    "communications.form.typeInfoDesc": "Solo lectura libre.",
+    "communications.form.typeConfirm": "Confirmación",
+    "communications.form.typeConfirmDesc": "Requiere confirmar recepción.",
+    "communications.form.typeQuiz": "Cuestionario",
+    "communications.form.typeQuizDesc": "Requiere respuesta correcta.",
+    "communications.form.requireRead": "Lectura obligatoria",
+    "communications.form.blockScreen": "Bloquear pantalla hasta confirmar",
+    
+    "communications.form.quizLabel": "Alternativas",
+    "communications.form.quizAdd": "Añadir Alternativa",
+    
+    "communications.form.targetSection": "Público y Programación",
+    "communications.form.targetLabel": "Enviar a:",
+    "communications.form.targetAll": "Todos los Usuarios",
+    "communications.form.targetRole": "Filtrar por Cargo",
+    "communications.form.targetUnit": "Filtrar por Sede",
+    "communications.form.startDate": "Fecha de Inicio",
+    "communications.form.startTime": "Hora",
+    "communications.form.expireDate": "Fecha Límite (Opcional)",
+    
+    "communications.form.publish": "Publicar Comunicado",
+    "communications.form.saving": "Guardando...",
 
-    // ALERTAS DE CONFIGURACIÓN
-    "settings.alert.errorSavingUnit": "Error al guardar sede: ",
-    "settings.alert.deleteUnitConfirm": "¿Está seguro de que desea eliminar permanentemente esta sede?",
-    "settings.alert.errorSupabaseAuth": "Error al crear credenciales de acceso: ",
-    "settings.alert.errorSavingPermissions": "Error al guardar los permisos del usuario: ",
-    "settings.alert.revokeAccessConfirm": "¿Está seguro de que desea revocar el acceso de {email}? El usuario será desconectado inmediatamente."
+    "communications.mandatoryNotice": "Aviso Obligatorio",
+    "communications.operationalLock": "Operación Pausada",
+    "communications.quizSelect": "Seleccione la respuesta correcta:",
+    "communications.btnSubmit": "Confirmar Respuesta",
+    "communications.btnUnderstand": "He leído y comprendido",
+    "communications.unlocked": "¡Acceso Liberado!"
 };

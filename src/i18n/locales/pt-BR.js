@@ -9,7 +9,7 @@ export default {
     "auth.error.credentials": "E-mail ou senha incorretos.",
     "auth.error.permission": "Usuário sem permissão de acesso configurada pelo Admin.",
 
-    // NAVEGAÇÃO (TABS)
+    // NAVEGAÇÃO
     "navigation.newSale": "Nova Venda",
     "navigation.history": "Histórico",
     "navigation.dashboard": "Dashboard",
@@ -18,52 +18,65 @@ export default {
     "navigation.assessment": "Avaliação",
     "navigation.management": "Cadastros",
     "navigation.settings": "Configurações",
+    "navigation.communications": "Comunicados", // 🔥 AQUI ESTÁ A CORREÇÃO!
 
-    // HEADER E MOBILE MENU
     "header.globalView": "VISÃO GLOBAL (TODAS)",
     "header.mainMenu": "Menu Principal",
-    "header.signOut": "Sair do Sistema",
+    "header.signOut": "Sair",
 
-    // INATIVIDADE
     "idle.title": "Sessão Inativa",
     "idle.description": "Por motivos de segurança e para garantir a sincronização em tempo real do banco de dados, o sistema foi pausado após 15 minutos sem uso.",
     "idle.button": "Atualizar Sistema Agora",
 
-    // CONFIGURAÇÕES E ACESSOS
-    "settings.successSaved": "Configurações salvas com sucesso!",
-    "settings.adminPanel": "Painel do Administrador",
-    "settings.restrictedAccess": "Acesso Restrito",
-    "settings.logins": "Controle de Acessos",
-    "settings.unitsManagement": "Gestão de Unidades",
-    "settings.grantAccess": "Conceder Acesso",
-    "settings.userEmail": "E-mail do Colaborador",
-    "settings.permissionLevel": "Nível de Permissão",
-    "settings.selectLevel": "Selecione o nível...",
-    "settings.roleAdmin": "ADMIN (Acesso Total)",
-    "settings.roleMentor": "MENTOR (Métricas e Auditoria)",
-    "settings.roleLeader": "LÍDER (Visão da Unidade e Vendas)",
-    "settings.roleReception": "RECEPÇÃO / OPERACIONAL (Nova Venda, Histórico, Dashboard, CRM)",
-    "settings.password": "Senha de Acesso",
-    "settings.definePassword": "Defina a senha...",
-    "settings.displayName": "Nome do Colaborador",
-    "settings.exName": "Ex: Felipe Mendes",
-    "settings.linkUnit": "Unidade Vinculada",
-    "settings.selectUnit": "Selecione a unidade...",
-    "settings.allUnits": "MATRIZ / TODAS AS UNIDADES",
-    "settings.createAccess": "Criar Acesso",
-    "settings.registerNewUnit": "Cadastrar Nova Unidade",
-    "settings.unitName": "Nome da Unidade",
-    "settings.typeNome": "Ex: Unidade Floresta",
-    "settings.registerUnit": "Cadastrar Unidade",
-    "settings.systemReport": "Relatório de Usuários",
-    "settings.viewPermissions": "Permissões: Nova Venda, Histórico, Dashboard, CRM",
-    "settings.revokeAccess": "Revogar Acesso",
-    "settings.deleteUnit": "Excluir Unidade",
+    // COMUNICADOS (Novo)
+    "communications.title": "Central de Comunicados",
+    "communications.subtitleAdmin": "Crie mensagens informativas, termos de aceite ou avaliações operacionais.",
+    "communications.subtitleUser": "Sua Caixa de Entrada Corporativa",
+    "communications.new": "Novo Comunicado",
+    "communications.search": "Buscar título...",
+    "communications.empty": "Nenhum comunicado encontrado.",
+    "communications.back": "Voltar",
     
-    // ALERTAS DE CONFIGURAÇÃO
-    "settings.alert.errorSavingUnit": "Erro ao salvar unidade: ",
-    "settings.alert.deleteUnitConfirm": "Tem certeza que deseja excluir esta unidade permanentemente?",
-    "settings.alert.errorSupabaseAuth": "Erro ao criar credenciais de acesso: ",
-    "settings.alert.errorSavingPermissions": "Erro ao salvar permissões do usuário: ",
-    "settings.alert.revokeAccessConfirm": "Tem certeza que deseja revogar o acesso de {email}? O usuário será desconectado imediatamente."
+    // Formulario Comunicados
+    "communications.form.contentSection": "Conteúdo da Mensagem",
+    "communications.form.titleLabel": "Título Principal",
+    "communications.form.titlePlaceholder": "Ex: Nova Campanha de Vendas",
+    "communications.form.bodyLabel": "Conteúdo Detalhado",
+    "communications.form.bodyPlaceholder": "Descreva as diretrizes e instruções...",
+    "communications.form.bannerLabel": "Banner / Imagem (Opcional)",
+    "communications.form.selectFile": "Selecionar Arquivo",
+    "communications.form.fileSelected": "Imagem pronta",
+    
+    "communications.form.typeSection": "Comportamento do Comunicado",
+    "communications.form.typeInfo": "Informativo",
+    "communications.form.typeInfoDesc": "Apenas leitura livre.",
+    "communications.form.typeConfirm": "Confirmação",
+    "communications.form.typeConfirmDesc": "Exige clique no botão 'Estou Ciente'.",
+    "communications.form.typeQuiz": "Questionário",
+    "communications.form.typeQuizDesc": "Exige resposta correta à pergunta.",
+    "communications.form.requireRead": "Tornar leitura obrigatória",
+    "communications.form.blockScreen": "Bloquear navegação até confirmação",
+    
+    "communications.form.quizLabel": "Alternativas da Pergunta",
+    "communications.form.quizAdd": "Adicionar Alternativa",
+    
+    "communications.form.targetSection": "Público e Agendamento",
+    "communications.form.targetLabel": "Destinatários:",
+    "communications.form.targetAll": "Todos os Usuários",
+    "communications.form.targetRole": "Filtrar por Cargo",
+    "communications.form.targetUnit": "Filtrar por Unidade",
+    "communications.form.startDate": "Data de Início",
+    "communications.form.startTime": "Hora",
+    "communications.form.expireDate": "Data Limite (Opcional)",
+    
+    "communications.form.publish": "Publicar Comunicado",
+    "communications.form.saving": "Salvando...",
+
+    // Viewer Comunicados
+    "communications.mandatoryNotice": "Aviso Obrigatório",
+    "communications.operationalLock": "Operação Temporariamente Interrompida",
+    "communications.quizSelect": "Selecione a alternativa correta:",
+    "communications.btnSubmit": "Confirmar Resposta",
+    "communications.btnUnderstand": "Li e compreendi",
+    "communications.unlocked": "Acesso Liberado!"
 };
