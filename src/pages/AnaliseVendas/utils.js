@@ -1,3 +1,8 @@
+// ==========================================
+// 🧠 UTILITÁRIOS GLOBAIS DE SISTEMA (B2B SaaS)
+// Otimizado para Performance, Segurança e i18n
+// ==========================================
+
 export const meses = [
     { val: 'TODOS', label: 'Todos os Meses' }, { val: '01', label: 'Janeiro' }, { val: '02', label: 'Fevereiro' },
     { val: '03', label: 'Março' }, { val: '04', label: 'Abril' }, { val: '05', label: 'Maio' },
@@ -6,26 +11,55 @@ export const meses = [
     { val: '12', label: 'Dezembro' }
 ];
 
-export const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
+// 🔥 I18N + PERFORMANCE: Cache de formatadores de Moeda separados por idioma
+let currentLocale = 'pt-BR';
+export const setGlobalLocale = (locale) => { currentLocale = locale; };
+
+const currencyFormatters = {};
+export const formatMoney = (val) => {
+    if (!currencyFormatters[currentLocale]) {
+        currencyFormatters[currentLocale] = new Intl.NumberFormat(currentLocale, { style: 'currency', currency: 'BRL' });
+    }
+    return currencyFormatters[currentLocale].format(safeNumber(val));
+};
 
 export const safeNumber = (val) => {
     if (typeof val === 'number') return val;
-    if (!val) return 0;
-    const str = String(val);
-    if (str.includes(',')) return parseFloat(str.replace(/[^0-9,-]+/g, '').replace(',', '.')) || 0;
+    if (val === null || val === undefined || val === '') return 0;
+    
+    const str = String(val).trim();
+    if (str.includes(',')) {
+        return parseFloat(str.replace(/[^0-9,-]+/g, '').replace(',', '.')) || 0;
+    }
     return parseFloat(str.replace(/[^0-9.-]+/g, '')) || 0;
 };
 
-export const safeIsoDate = (dStr) => {
-    if (!dStr) return '';
-    if (dStr.includes('-')) return dStr.split('T')[0];
+// 🔥 BLINDAGEM DE DATAS (Resolve o bug do Excel de passar 'new Date()')
+export const safeIsoDate = (dInput) => {
+    if (!dInput) return '';
+
+    if (dInput instanceof Date && !isNaN(dInput)) {
+        const year = dInput.getFullYear();
+        const month = String(dInput.getMonth() + 1).padStart(2, '0');
+        const day = String(dInput.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    const dStr = String(dInput);
+    if (dStr.includes('T')) return dStr.split('T')[0];
     if (dStr.includes('/')) {
-        const [d, m, y] = dStr.split('/');
-        return `${y}-${m}-${d}`;
+        const partes = dStr.split('/');
+        if (partes.length === 3) {
+            const [d, m, y] = partes;
+            return `${y}-${m}-${d}`;
+        }
     }
     return dStr;
 };
 
+// ---------------------------------------------------------
+// REGRAS DE NEGÓCIO DA ANÁLISE DE VENDAS (PRESERVADAS)
+// ---------------------------------------------------------
 export const getValorRealDaVenda = (venda, planos, produtos) => {
     const valorBanco = safeNumber(venda.valor);
     if (valorBanco > 0) return valorBanco;
@@ -61,9 +95,6 @@ export const getCategoriaItem = (nomeProduto, planos, produtos) => {
     return 'PRODUTO';
 };
 
-// ---------------------------------------------------------
-// NOVA REGRA: PERSONAL CLASS ISOLADO DOS "OUTROS PLANOS"
-// ---------------------------------------------------------
 export const criarGruposPlanosVazio = () => ({
     "NUTRI": { total: 0, detalhes: {}, cor: "bg-emerald-500", textCor: "text-emerald-600" },
     "PLUS": { total: 0, detalhes: {}, cor: "bg-blue-600", textCor: "text-blue-700" },
@@ -83,11 +114,71 @@ export const classificarPlanoEmGrupo = (gruposPlanos, prodUpper, qtd) => {
         gruposPlanos["FIT"].total += qtd;
         gruposPlanos["FIT"].detalhes[prodUpper] = (gruposPlanos["FIT"].detalhes[prodUpper] || 0) + qtd;
     } else if (prodUpper.includes("PERSONAL")) {
-        // FILTRANDO O PERSONAL AQUI!
         gruposPlanos["PERSONAL CLASS"].total += qtd;
         gruposPlanos["PERSONAL CLASS"].detalhes[prodUpper] = (gruposPlanos["PERSONAL CLASS"].detalhes[prodUpper] || 0) + qtd;
     } else {
         gruposPlanos["OUTROS PLANOS"].total += qtd;
         gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] = (gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] || 0) + qtd;
     }
+};
+
+// ---------------------------------------------------------
+// UTILITÁRIOS EXTRAS DA TABELA DE HISTÓRICO / DUPLICIDADES
+// ---------------------------------------------------------
+
+export const formatDataBR = (dInput) => {
+    if (!dInput) return '';
+    const dStr = String(dInput);
+    if (dStr.includes('/')) return dStr; 
+    const partes = dStr.split('-');
+    if (partes.length === 3) {
+        const day = partes[2].split('T')[0].split(' ')[0];
+        const month = partes[1];
+        const year = partes[0];
+        if (currentLocale === 'en-US') return `${month}/${day}/${year}`;
+        return `${day}/${month}/${year}`;
+    }
+    return dStr;
+};
+
+export const extrairHoraCriacao = (isoString) => {
+    if (!isoString) return '';
+    const dataObj = new Date(isoString);
+    if (isNaN(dataObj)) return '';
+    return dataObj.toLocaleTimeString(currentLocale, { hour: '2-digit', minute: '2-digit' });
+};
+
+export const toTitleCase = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.toLowerCase().replace(/(?:^|\s)\w/g, match => match.toUpperCase());
+};
+
+export const buildCatalogoMap = (catalogoArray) => {
+    const map = new Map();
+    if (!Array.isArray(catalogoArray)) return map;
+    catalogoArray.forEach(item => {
+        if (item && item.nome && typeof item.nome === 'string') {
+            map.set(item.nome.toUpperCase().trim(), item);
+        }
+    });
+    return map;
+};
+
+export const gerarChaveDuplicidade = (venda) => {
+    if (!venda) return null;
+
+    const unidade = (venda.unidade || 'MATRIZ').toUpperCase().trim();
+    const dataVenda = safeIsoDate(venda.data || venda.created_at);
+    const produto = (venda.produto || '').toUpperCase().trim();
+    
+    let identificadorAluno = '';
+    
+    if (venda.matricula && String(venda.matricula).trim() !== '') {
+        identificadorAluno = `MAT_${String(venda.matricula).trim()}`;
+    } else {
+        const nomeSujo = venda.nome_aluno || venda.nome || 'ALUNO_NAO_IDENTIFICADO';
+        identificadorAluno = `NOME_${nomeSujo.toUpperCase().trim().replace(/\s+/g, ' ')}`;
+    }
+
+    return `${unidade}|${dataVenda}|${identificadorAluno}|${produto}`;
 };

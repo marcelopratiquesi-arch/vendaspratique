@@ -1,14 +1,22 @@
 @import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
+/* O corpo da página obedece ao tema dinâmico com transição suave */
 body {
-  background-color: #f0f4f9; /* O fundo bonito do seu print */
-  color: #0f172a;
+  @apply bg-slate-50 text-slate-800 dark:bg-[#06080d] dark:text-slate-200 transition-colors duration-500;
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar limpa e moderna */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+/* Scrollbar limpa e responsiva ao Dark Mode */
+::-webkit-scrollbar { 
+  width: 6px; 
+  height: 6px; 
+}
+::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb { 
+  @apply bg-slate-300 dark:bg-slate-700 transition-colors duration-500;
+  border-radius: 4px; 
+}
