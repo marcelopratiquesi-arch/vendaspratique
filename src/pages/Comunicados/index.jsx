@@ -1,14 +1,237 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import FormularioComunicado from './Formulario.jsx';
 import { 
     Megaphone, Plus, Search, Calendar, CheckCircle, 
-    HelpCircle, Info, ShieldAlert, X, Loader2, Trash2, Eye 
+    HelpCircle, Info, ShieldAlert, X, Loader2, Trash2, Eye, FileText,
+    BarChart3, Users, Lock, Unlock, ArrowLeft, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
+function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
+    const { locale, language } = useI18n(); 
+    const langAtual = locale || language || 'pt-BR'; 
+    
+    const [loading, setLoading] = useState(true);
+    const [inboxes, setInboxes] = useState([]);
+    
+    const [busca, setBusca] = useState('');
+    const [filtroStatus, setFiltroStatus] = useState('TODOS');
+    const [pagina, setPagina] = useState(1);
+    const ITENS_POR_PAGINA = 15;
+
+    const carregarRelatorio = async () => {
+        setLoading(true);
+        try {
+            const { data: inboxData, error } = await supabase
+                .from('comunicado_inbox')
+                .select('*')
+                .eq('comunicado_id', comunicado.id)
+                .order('confirmado_em', { ascending: false, nullsFirst: false });
+
+            if (error) throw error;
+
+            const emails = inboxData.map(i => i.email_usuario);
+            let mapUsuarios = {};
+            if (emails.length > 0) {
+                const { data: users } = await supabase
+                    .from('colaboradores')
+                    .select('email, nome, unidade, cargo')
+                    .in('email', emails);
+                if (users) {
+                    users.forEach(u => { mapUsuarios[u.email] = u; });
+                }
+            }
+
+            const dadosEnriquecidos = inboxData.map(item => ({
+                ...item,
+                // 🔥 Se não achar o nome, exibe o próprio e-mail para não ficar em branco
+                nome: mapUsuarios[item.email_usuario]?.nome || item.email_usuario,
+                unidade: mapUsuarios[item.email_usuario]?.unidade || '-',
+                cargo: mapUsuarios[item.email_usuario]?.cargo || '-'
+            }));
+
+            setInboxes(dadosEnriquecidos);
+        } catch (err) {
+            console.error("Erro ao carregar relatório:", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        carregarRelatorio();
+    }, [comunicado.id]);
+
+    // 🔥 CORREÇÃO DO ERRO 404: Buscando a identidade direto da sessão do Supabase!
+    const handleResetarTentativas = async (inboxId, nome) => {
+        if (!window.confirm(`Deseja perdoar as falhas e liberar uma nova chance para ${nome}? O histórico de erros será mantido na auditoria.`)) return;
+        
+        try {
+            const { data: { user }, error: authError } = await supabase.auth.getUser();
+            if (authError || !user?.email) {
+                throw new Error("Sessão inválida ou e-mail não encontrado. Refaça o login.");
+            }
+
+            const { error } = await supabase.rpc('resetar_tentativas_comunicado', {
+                p_inbox_id: inboxId,
+                p_admin_email: user.email // Envia o e-mail absoluto do Supabase Auth
+            });
+            
+            if (error) throw error;
+            
+            setInboxes(prev => prev.map(i => i.id === inboxId ? { ...i, tentativas: 0, status_leitura: 'PENDENTE' } : i));
+            alert("Nova chance liberada com sucesso!");
+        } catch (err) {
+            console.error("ERRO DO SUPABASE:", err);
+            alert("Erro ao liberar nova chance: " + (err.message || "Erro desconhecido"));
+        }
+    };
+
+    const totalEnviados = inboxes.length;
+    const totalAbertos = inboxes.filter(i => i.visualizado_em).length;
+    const totalConcluidos = inboxes.filter(i => i.status_leitura === 'CONCLUIDO').length;
+    const totalBloqueados = inboxes.filter(i => i.status_leitura === 'BLOQUEADO').length;
+
+    const dadosFiltrados = useMemo(() => {
+        return inboxes.filter(i => {
+            const matchBusca = i.nome.toLowerCase().includes(busca.toLowerCase()) || i.email_usuario.toLowerCase().includes(busca.toLowerCase());
+            const matchStatus = filtroStatus === 'TODOS' || i.status_leitura === filtroStatus;
+            return matchBusca && matchStatus;
+        });
+    }, [inboxes, busca, filtroStatus]);
+
+    const totalPaginas = Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA);
+    const dadosPaginados = dadosFiltrados.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA);
+
+    return (
+        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl p-6 rounded-[32px] border border-slate-200/50 dark:border-white/5 shadow-sm">
+                <div>
+                    <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors mb-4">
+                        <ArrowLeft className="w-3.5 h-3.5" /> Voltar para Central
+                    </button>
+                    <div className="flex items-center gap-3 mb-1">
+                        <span className="bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-500/20">
+                            {comunicado.tipo}
+                        </span>
+                        <span className="text-xs font-bold text-slate-400">{new Date(comunicado.inicio_em).toLocaleDateString(langAtual)}</span>
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{comunicado.titulo_pt || comunicado.titulo}</h2>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Users className="w-3.5 h-3.5" /> Enviados</span>
+                    <span className="text-3xl font-black text-slate-800 dark:text-white">{loading ? '-' : totalEnviados}</span>
+                </div>
+                <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Eye className="w-3.5 h-3.5" /> Abertos</span>
+                    <span className="text-3xl font-black text-blue-600 dark:text-blue-400">{loading ? '-' : totalAbertos}</span>
+                </div>
+                <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><CheckCircle className="w-3.5 h-3.5" /> Concluídos</span>
+                    <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{loading ? '-' : totalConcluidos}</span>
+                </div>
+                <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-rose-200/50 dark:border-rose-500/20 shadow-sm flex flex-col bg-rose-50/30 dark:bg-rose-500/5">
+                    <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Lock className="w-3.5 h-3.5" /> Bloqueados (Falhas)</span>
+                    <span className="text-3xl font-black text-rose-600 dark:text-rose-400">{loading ? '-' : totalBloqueados}</span>
+                </div>
+            </div>
+
+            <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-[32px] border border-slate-200/70 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
+                <div className="p-5 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row gap-4 justify-between bg-slate-50/50 dark:bg-black/10">
+                    <div className="relative w-full sm:w-72">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input type="text" placeholder="Buscar destinatário..." value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} className="w-full bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500" />
+                    </div>
+                    <select value={filtroStatus} onChange={(e) => { setFiltroStatus(e.target.value); setPagina(1); }} className="w-full sm:w-48 bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white outline-none cursor-pointer">
+                        <option value="TODOS">Todos os Status</option>
+                        <option value="CONCLUIDO">Concluídos</option>
+                        <option value="PENDENTE">Pendentes</option>
+                        <option value="NAO_LIDO">Não Lidos</option>
+                        <option value="BLOQUEADO">Bloqueados</option>
+                    </select>
+                </div>
+
+                <div className="overflow-x-auto custom-scrollbar">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
+                    ) : (
+                        <table className="w-full text-left border-collapse min-w-[800px]">
+                            <thead>
+                                <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-200/50 dark:border-white/5">
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destinatário</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Tentativas</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ação de Auditoria</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {dadosPaginados.map(item => (
+                                    <tr key={item.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                                        <td className="px-6 py-4">
+                                            <p className="text-sm font-bold text-slate-900 dark:text-white">{item.nome}</p>
+                                            <p className="text-[10px] font-semibold text-slate-500 mt-0.5">{item.email_usuario} • {item.unidade}</p>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${item.tentativas >= 5 ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20' : item.tentativas > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20' : 'bg-slate-100 text-slate-400 dark:bg-white/5'}`}>
+                                                {item.tentativas}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${
+                                                item.status_leitura === 'CONCLUIDO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
+                                                item.status_leitura === 'BLOQUEADO' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20' :
+                                                item.status_leitura === 'PENDENTE' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20' :
+                                                'bg-slate-100 text-slate-500 border-slate-200 dark:bg-white/5 dark:border-white/10 dark:text-slate-400'
+                                            }`}>
+                                                {item.status_leitura}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            {item.status_leitura === 'BLOQUEADO' ? (
+                                                <button onClick={() => handleResetarTentativas(item.id, item.nome)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:border-rose-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">
+                                                    <Unlock className="w-3.5 h-3.5" /> Liberar
+                                                </button>
+                                            ) : (
+                                                <span className="text-[10px] font-bold text-slate-400 italic">Sem ação pendente</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {dadosPaginados.length === 0 && (
+                                    <tr>
+                                        <td colSpan="4" className="px-6 py-12 text-center text-sm font-bold text-slate-400 uppercase tracking-widest">
+                                            Nenhum destinatário encontrado.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {totalPaginas > 1 && (
+                    <div className="p-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/10">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Página {pagina} de {totalPaginas}</span>
+                        <div className="flex gap-2">
+                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5"><ChevronLeft className="w-4 h-4" /></button>
+                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5"><ChevronRight className="w-4 h-4" /></button>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+
 export default function CentralComunicados({ usuarioLogado, unidades }) {
-    const { t, locale } = useI18n();
+    const { t, locale, language } = useI18n(); 
+    
+    const langAtual = locale || language || 'pt-BR';
     
     const [modo, setModo] = useState('lista'); 
     const [filtroTexto, setFiltroTexto] = useState('');
@@ -16,11 +239,8 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
     const [loading, setLoading] = useState(true);
     
     const [visualizando, setVisualizando] = useState(null); 
-    const [respostaSelecionada, setRespostaSelecionada] = useState('');
-    const [validando, setValidando] = useState(false);
-    const [resultado, setResultado] = useState(null);
+    const [comunicadoParaRelatorio, setComunicadoParaRelatorio] = useState(null);
 
-    // REGRA DEFINITIVA: Somente Admin e Mentor gerenciam.
     const isGestor = ['ADMIN', 'MENTOR'].includes(usuarioLogado?.role);
 
     const fetchDados = async () => {
@@ -32,19 +252,17 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
 
             const mapCards = new Map();
 
-            // 1. Busca os comunicados que chegaram PARA o usuário
-            const { data: inbox } = await supabase
+            const { data: inbox, error: errInbox } = await supabase
                 .from('comunicado_inbox')
                 .select(`
                     id, status_leitura,
-                    comunicados (
-                        id, tipo, obrigatorio, bloqueia_operacao, titulo_pt, conteudo_pt, titulo_en, conteudo_en, 
-                        titulo_es, conteudo_es, imagem_url, inicio_em, expira_em, criado_por, status, deleted_at, alternativas
-                    )
+                    comunicados!inner (*)
                 `)
                 .eq('email_usuario', emailReal)
                 .is('comunicados.deleted_at', null)
                 .lte('comunicados.inicio_em', new Date().toISOString());
+
+            if (errInbox) throw errInbox;
 
             if (inbox) {
                 inbox.forEach(i => {
@@ -53,43 +271,45 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                         comunicado: i.comunicados,
                         inboxStatus: i.status_leitura,
                         inboxId: i.id,
-                        isAuthor: false, // Por padrão, apenas recebeu
+                        isAuthor: false,
                         metrics: null
                     });
                 });
             }
 
-            // 2. Se for GESTOR, busca os que ele CRIOU para acoplar métricas
             if (isGestor) {
-                let query = supabase
-                    .from('comunicados')
-                    .select('*, comunicado_inbox (id, status_leitura)')
-                    .is('deleted_at', null)
-                    .order('criado_em', { ascending: false });
-
-                // Mentor só vê métricas dos que ele criou. Admin vê tudo.
-                if (usuarioLogado.role === 'MENTOR') {
-                    query = query.eq('criado_por', emailReal);
-                }
-
+                let query = supabase.from('comunicados').select('*').is('deleted_at', null).order('criado_em', { ascending: false });
+                if (usuarioLogado.role === 'MENTOR') query = query.eq('criado_por', emailReal);
+                
                 const { data: authored } = await query;
                 
-                if (authored) {
+                if (authored && authored.length > 0) {
+                    const idsAuthored = authored.map(a => a.id);
+                    const { data: metricasView } = await supabase
+                        .from('vw_comunicados_metricas')
+                        .select('*')
+                        .in('comunicado_id', idsAuthored);
+
+                    const mapMetricas = {};
+                    if (metricasView) {
+                        metricasView.forEach(m => { mapMetricas[m.comunicado_id] = m; });
+                    }
+
                     authored.forEach(com => {
-                        const leituras = com.comunicado_inbox || [];
+                        const m = mapMetricas[com.id] || { total_enviados: 0, total_abertos: 0, total_pendentes: 0, total_concluidos: 0, total_bloqueados: 0 };
                         const metrics = {
-                            total: leituras.length,
-                            lidos: leituras.filter(l => l.status_leitura !== 'NAO_LIDO').length,
-                            pendentes: leituras.filter(l => l.status_leitura === 'NAO_LIDO' || l.status_leitura === 'PENDENTE').length
+                            total: m.total_enviados,
+                            lidos: m.total_abertos,
+                            pendentes: m.total_pendentes,
+                            concluidos: m.total_concluidos,
+                            bloqueados: m.total_bloqueados
                         };
 
                         if (mapCards.has(com.id)) {
-                            // Se ele recebeu o próprio aviso e administra, eleva o card para isAuthor
                             const existing = mapCards.get(com.id);
                             existing.isAuthor = true;
                             existing.metrics = metrics;
                         } else {
-                            // Se ele não é destinatário, mas é autor, adiciona na lista dele para gerenciar
                             mapCards.set(com.id, {
                                 comunicado: com,
                                 inboxStatus: null,
@@ -102,12 +322,11 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                 }
             }
 
-            // Converte Map para Array e ordena do mais recente pro mais antigo
             const arrayFinal = Array.from(mapCards.values()).sort((a, b) => new Date(b.comunicado.inicio_em) - new Date(a.comunicado.inicio_em));
             setCardsUnificados(arrayFinal);
 
         } catch (error) {
-            console.error("Erro ao buscar comunicados unificados:", error);
+            console.error("Erro ao buscar comunicados:", error);
         } finally {
             setLoading(false);
         }
@@ -118,7 +337,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
     }, [modo]);
 
     const excluirComunicado = async (e, comunicadoId, titulo) => {
-        e.stopPropagation(); // Evita abrir o modal ao clicar na lixeira
+        e.stopPropagation(); 
         if (window.confirm(`TEM CERTEZA?\n\nExcluir "${titulo}" removerá a mensagem da Caixa de Entrada de todos os destinatários imediatamente.`)) {
             setLoading(true);
             try {
@@ -136,53 +355,47 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
 
     const abrirViewer = async (card) => {
         setVisualizando(card);
-        setRespostaSelecionada('');
-        setResultado(null);
-
-        // Se tem inboxId e ainda não leu, muda o status silenciosamente
         if (card.inboxId && card.inboxStatus === 'NAO_LIDO') {
-            const novoStatus = card.comunicado.obrigatorio ? 'PENDENTE' : 'LIDO';
-            await supabase.from('comunicado_inbox')
-                .update({ status_leitura: novoStatus, visualizado_em: new Date().toISOString() })
-                .eq('id', card.inboxId);
+            await supabase.from('comunicado_inbox').update({ status_leitura: 'PENDENTE', visualizado_em: new Date().toISOString() }).eq('id', card.inboxId);
             fetchDados(); 
         }
     };
 
-    const submeterResposta = async (comId, resposta) => {
-        setValidando(true);
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            const { data, error } = await supabase.rpc('validar_resposta_comunicado', { 
-                p_comunicado_id: comId, p_email_usuario: user.email, p_resposta: resposta 
-            });
-            if (error) throw error;
-            setResultado(data);
-            if (data.sucesso) fetchDados();
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setValidando(false);
-        }
+    const abrirRelatorio = (e, comunicado) => {
+        e.stopPropagation();
+        setComunicadoParaRelatorio(comunicado);
+        setModo('relatorio');
     };
 
     const getTextoLocalizado = (com, campo) => {
-        const lang = locale.split('-')[0];
-        if (lang === 'en' && com[`${campo}_en`]) return com[`${campo}_en`];
-        if (lang === 'es' && com[`${campo}_es`]) return com[`${campo}_es`];
-        return com[`${campo}_pt`];
+        if (!com) return '';
+        try {
+            const currentLang = langAtual.split('-')[0];
+            if (currentLang === 'en' && com[`${campo}_en`]) return com[`${campo}_en`];
+            if (currentLang === 'es' && com[`${campo}_es`]) return com[`${campo}_es`];
+            return com[`${campo}_pt`] || com[campo] || '';
+        } catch (e) {
+            return com[campo] || '';
+        }
     };
 
     if (modo === 'criar') {
         return <FormularioComunicado usuarioLogado={usuarioLogado} unidades={unidades} onVoltar={() => setModo('lista')} onSalvo={() => { setModo('lista'); fetchDados(); }} />;
     }
 
-    const cardsVisiveis = cardsUnificados.filter(c => getTextoLocalizado(c.comunicado, 'titulo').toLowerCase().includes(filtroTexto.toLowerCase()));
+    if (modo === 'relatorio' && comunicadoParaRelatorio) {
+        return <RelatorioComunicado comunicado={comunicadoParaRelatorio} usuarioLogado={usuarioLogado} onVoltar={() => { setComunicadoParaRelatorio(null); setModo('lista'); fetchDados(); }} />;
+    }
+
+    const cardsVisiveis = cardsUnificados.filter(c => {
+        try {
+            return getTextoLocalizado(c.comunicado, 'titulo').toLowerCase().includes(filtroTexto.toLowerCase());
+        } catch(e) { return false; }
+    });
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto font-sans pb-10">
             
-            {/* HUB HEADER UNIFICADO */}
             <div className="bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl rounded-[32px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-2xl border border-white/80 dark:border-white/5 p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="flex items-center gap-5">
                     <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center border border-blue-100 dark:border-blue-500/20 shadow-inner shrink-0">
@@ -209,153 +422,151 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                 </div>
             </div>
 
-            {/* ÁREA DE LISTAGEM UNIFICADA */}
             {loading ? (
                 <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>
+            ) : cardsVisiveis.length === 0 ? (
+                <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-50">
+                    <Megaphone className="w-16 h-16 text-slate-400 mb-4" strokeWidth={1} />
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{t('communications.empty', {defaultValue: 'Nenhum comunicado encontrado.'})}</p>
+                </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {cardsVisiveis.map(card => {
                         const com = card.comunicado;
                         const isUnread = card.inboxStatus === 'NAO_LIDO';
                         const isPending = card.inboxStatus === 'PENDENTE';
+                        const isBlocked = card.inboxStatus === 'BLOQUEADO';
                         const isCompleted = card.inboxStatus === 'CONCLUIDO';
                         const isAuthor = card.isAuthor;
 
                         return (
-                            <div 
-                                key={com.id} onClick={() => abrirViewer(card)}
-                                className={`bg-white/80 dark:bg-[#111827]/65 backdrop-blur-xl border rounded-[32px] p-6 cursor-pointer transition-all group flex flex-col relative overflow-hidden ${
-                                    isUnread || isPending 
-                                    ? 'border-blue-300 dark:border-blue-500/50 shadow-[0_8px_30px_rgba(37,99,235,0.1)] dark:shadow-blue-500/10' 
-                                    : 'border-slate-200/70 dark:border-white/10 shadow-sm hover:shadow-lg hover:border-slate-300 dark:hover:border-white/20'
-                                }`}
-                            >
-                                {(isUnread || isPending) && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>}
+                            <div key={com.id} className="bg-white/90 dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200/70 dark:border-white/10 shadow-sm rounded-3xl p-5 flex flex-col relative transition-all hover:shadow-lg">
                                 
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                        {(isUnread || isPending) && <span className="flex h-2.5 w-2.5 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-blue-500"></span></span>}
-                                        <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 ${
-                                            com.tipo === 'INFORMATIVO' ? 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700' :
-                                            com.tipo === 'CONFIRMACAO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
-                                            'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20'
-                                        }`}>
-                                            {com.tipo === 'INFORMATIVO' ? <Info className="w-3 h-3" /> : com.tipo === 'CONFIRMACAO' ? <CheckCircle className="w-3 h-3" /> : <HelpCircle className="w-3 h-3" />}
-                                            {com.tipo}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-2">
-                                        {isCompleted && !isAuthor && <CheckCircle className="w-5 h-5 text-emerald-500 bg-emerald-50 rounded-full dark:bg-transparent" title="Concluído" />}
-                                        {isAuthor && (
-                                            <button onClick={(e) => excluirComunicado(e, com.id, getTextoLocalizado(com, 'titulo'))} className="p-2 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-slate-50 hover:bg-rose-50 dark:bg-white/5 dark:hover:bg-rose-500/20 rounded-lg transition-all" title="Excluir Globalmente">
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                    </div>
+                                {(isUnread || isPending) && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>}
+                                {isBlocked && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>}
+                                {isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-slate-300 dark:bg-white/20"></div>}
+
+                                <div className="flex justify-between items-start mb-3">
+                                    <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/5 dark:text-slate-300 dark:border-white/10">
+                                        {com.tipo === 'INFORMATIVO' ? <Info className="w-3 h-3" /> : <HelpCircle className="w-3 h-3" />} {com.tipo}
+                                    </span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(com.inicio_em).toLocaleDateString(langAtual)}</span>
                                 </div>
 
-                                <h3 className={`text-sm tracking-wide line-clamp-2 mb-2 transition-colors ${isUnread || isPending ? 'font-black text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400' : 'font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white'}`}>
+                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight line-clamp-1 mb-1" title={getTextoLocalizado(com, 'titulo')}>
                                     {getTextoLocalizado(com, 'titulo')}
                                 </h3>
-                                
-                                <p className={`text-xs line-clamp-2 mb-6 flex-1 ${isUnread || isPending ? 'font-semibold text-slate-600 dark:text-slate-300' : 'font-medium text-slate-500 dark:text-slate-500'}`}>
+                                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 flex-1">
                                     {getTextoLocalizado(com, 'conteudo')}
                                 </p>
 
-                                {/* Métricas Administrativas */}
-                                {isAuthor && card.metrics && (
-                                    <div className="mb-4 grid grid-cols-3 gap-2 p-3 bg-slate-50 dark:bg-[#0c101a] border border-slate-100 dark:border-white/5 rounded-xl text-center">
-                                        <div className="flex flex-col"><span className="text-[9px] font-bold text-slate-400 uppercase">Enviados</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
-                                        <div className="flex flex-col border-l border-r border-slate-200/50 dark:border-white/5"><span className="text-[9px] font-bold text-slate-400 uppercase">Abertos</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.lidos}</span></div>
-                                        <div className="flex flex-col"><span className="text-[9px] font-bold text-slate-400 uppercase">Pendentes</span><span className="text-xs font-black text-amber-600 dark:text-amber-400">{card.metrics.pendentes}</span></div>
+                                {!isAuthor && (
+                                    <div className="mb-4">
+                                        {isCompleted && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"><CheckCircle className="w-3 h-3"/> Concluído</span>}
+                                        {isPending && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"><Loader2 className="w-3 h-3 animate-spin"/> Pendente</span>}
+                                        {isBlocked && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20"><Lock className="w-3 h-3"/> Bloqueado</span>}
+                                        {isUnread && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> Não Lido</span>}
                                     </div>
                                 )}
 
-                                <div className="border-t border-slate-200/70 dark:border-white/5 pt-4 flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                    <div className="flex items-center gap-1.5" title="Data de Envio">
-                                        <Calendar className="w-3.5 h-3.5" /> {new Date(com.inicio_em).toLocaleDateString(locale)}
+                                {isAuthor && card.metrics && (
+                                    <div className="mb-4 py-3 border-t border-b border-slate-100 dark:border-white/5 grid grid-cols-4 gap-1 text-center">
+                                        <div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Enviados</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
+                                        <div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Abertos</span><span className="text-xs font-black text-blue-600 dark:text-blue-400">{card.metrics.lidos}</span></div>
+                                        <div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ok</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.concluidos}</span></div>
+                                        <div className="flex flex-col"><span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Block</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{card.metrics.bloqueados}</span></div>
                                     </div>
+                                )}
+
+                                <div className="flex items-center justify-end gap-2 mt-auto">
+                                    <button onClick={() => abrirViewer(card)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
+                                        <Eye className="w-3.5 h-3.5" /> Ver
+                                    </button>
+                                    
+                                    {isAuthor && (
+                                        <>
+                                            <button onClick={(e) => abrirRelatorio(e, com)} className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
+                                                <BarChart3 className="w-3.5 h-3.5" /> Relatório
+                                            </button>
+                                            <button onClick={(e) => excluirComunicado(e, com.id, getTextoLocalizado(com, 'titulo'))} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-transparent hover:border-rose-100 dark:bg-transparent dark:hover:bg-rose-500/10 dark:hover:border-rose-500/20 dark:hover:text-rose-400 rounded-xl transition-all" title="Excluir">
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         )
                     })}
-
-                    {cardsVisiveis.length === 0 && (
-                        <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-50">
-                            <Megaphone className="w-16 h-16 text-slate-400 mb-4" strokeWidth={1} />
-                            <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{t('communications.empty', {defaultValue: 'Nenhum comunicado encontrado.'})}</p>
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* VIEWER MODAL (OVERLAY LIQUID GLASS) */}
-            {visualizando && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-md p-4 sm:p-8 animate-[fadeIn_0.2s_ease-out]">
-                    <div className="bg-white/95 dark:bg-[#111827]/95 backdrop-blur-3xl w-full max-w-2xl max-h-[90vh] rounded-[32px] shadow-2xl border border-white dark:border-white/10 flex flex-col overflow-hidden animate-[slideDown_0.3s_ease-out]">
-                        
-                        <div className="flex justify-between items-center p-6 border-b border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-[#090b11]/50 shrink-0">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl"><Eye className="w-5 h-5" /></div>
-                                <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{visualizando.comunicado.tipo}</p>
-                                    <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{new Date(visualizando.comunicado.inicio_em).toLocaleString(locale)}</p>
+            {visualizando && (() => {
+                const com = visualizando.comunicado;
+                const getEmbedUrl = (url) => {
+                    if (!url) return null;
+                    try {
+                        const urlObj = new URL(url);
+                        if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) return `https://www.youtube.com/embed/${urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop()}`;
+                        if (urlObj.hostname.includes('vimeo.com')) return `https://player.vimeo.com/video/${urlObj.pathname.split('/').pop()}`;
+                        return null;
+                    } catch (e) { return null; }
+                };
+                const urlVideoExterno = getEmbedUrl(com.video_externo);
+
+                return (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-xl p-4 sm:p-8 animate-[fadeIn_0.2s_ease-out]">
+                        <div className="bg-white dark:bg-[#0c101a] w-full max-w-4xl max-h-[90vh] rounded-[32px] shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col overflow-hidden animate-[slideDown_0.3s_ease-out]">
+                            
+                            <div className="flex justify-between items-center p-6 border-b border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-[#090b11]/50 shrink-0">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl"><Eye className="w-5 h-5" /></div>
+                                    <div>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VISUALIZAÇÃO DE CONTEÚDO</p>
+                                        <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{new Date(com.inicio_em).toLocaleString(langAtual)}</p>
+                                    </div>
+                                </div>
+                                <button onClick={() => setVisualizando(null)} className="p-2 bg-slate-200/50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 bg-white dark:bg-transparent">
+                                <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">{getTextoLocalizado(com, 'titulo')}</h1>
+                                <div className="text-sm md:text-base font-semibold text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-10">{getTextoLocalizado(com, 'conteudo')}</div>
+
+                                <div className="space-y-6 mb-10">
+                                    {com.imagem_url && <img src={com.imagem_url} alt="Banner" className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
+                                    {com.pdf_url && (
+                                        <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 rounded-xl flex items-center justify-center"><FileText className="w-6 h-6" /></div>
+                                                <div>
+                                                    <p className="text-sm font-black text-slate-800 dark:text-white uppercase">Documento Anexo</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Formato PDF</p>
+                                                </div>
+                                            </div>
+                                            <a href={com.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm">Abrir Arquivo</a>
+                                        </div>
+                                    )}
+                                    {com.video_url && (
+                                        <div className="rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-md bg-black">
+                                            <video controls className="w-full h-auto max-h-[500px]"><source src={com.video_url} type="video/mp4" /></video>
+                                        </div>
+                                    )}
+                                    {urlVideoExterno && (
+                                        <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 shadow-md bg-black" style={{ paddingTop: '56.25%' }}>
+                                            <iframe className="absolute top-0 left-0 w-full h-full" src={urlVideoExterno} title="Video" frameBorder="0" allowFullScreen></iframe>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-8 p-4 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest text-center">
+                                    <Info className="w-5 h-5" />
+                                    Esta é apenas a visualização de mídia.<br/>A interação com o comunicado (Confirmação/Prova) ocorre no momento do Bloqueio de Tela do Usuário.
                                 </div>
                             </div>
-                            <button onClick={() => setVisualizando(null)} className="p-2 bg-slate-200/50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-transparent">
-                            {visualizando.comunicado.imagem_url && <img src={visualizando.comunicado.imagem_url} alt="Banner" className="w-full h-auto rounded-2xl mb-6 shadow-md object-cover border border-slate-200 dark:border-white/5" />}
-                            <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">{getTextoLocalizado(visualizando.comunicado, 'titulo')}</h1>
-                            <div className="text-sm md:text-base font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-8">{getTextoLocalizado(visualizando.comunicado, 'conteudo')}</div>
-
-                            {/* Área de Resposta (Somente se for inbox e o cara tiver que responder) */}
-                            {visualizando.inboxId && visualizando.comunicado.tipo !== 'INFORMATIVO' && visualizando.inboxStatus !== 'CONCLUIDO' && (
-                                <div className="bg-slate-50/80 dark:bg-[#0c101a] p-6 rounded-2xl border border-slate-200/70 dark:border-white/5">
-                                    {visualizando.comunicado.tipo === 'QUESTIONARIO' && (
-                                        <div className="space-y-4">
-                                            <p className="text-xs font-black text-amber-600 dark:text-amber-500 uppercase tracking-widest flex items-center gap-2 mb-4"><HelpCircle className="w-4 h-4" /> {t('communications.quizSelect', {defaultValue: 'Selecione a resposta:'})}</p>
-                                            {visualizando.comunicado.alternativas?.map((alt, idx) => (
-                                                <label key={idx} className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${respostaSelecionada === alt ? 'bg-amber-50 border-amber-500 dark:bg-amber-500/10 dark:border-amber-500/50' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 hover:border-amber-300'}`}>
-                                                    <input type="radio" name="resposta" value={alt} checked={respostaSelecionada === alt} onChange={() => setRespostaSelecionada(alt)} className="w-4 h-4 text-amber-600 cursor-pointer" />
-                                                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{alt}</span>
-                                                </label>
-                                            ))}
-                                            {resultado && (
-                                                <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-bold ${resultado.sucesso ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400'}`}>
-                                                    {resultado.sucesso ? <CheckCircle className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />} {resultado.mensagem}
-                                                </div>
-                                            )}
-                                            <button onClick={() => submeterResposta(visualizando.comunicado.id, respostaSelecionada)} disabled={validando || !respostaSelecionada || resultado?.sucesso} className="w-full mt-4 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50">
-                                                {validando ? <Loader2 className="w-4 h-4 animate-spin" /> : resultado?.sucesso ? t('communications.unlocked', {defaultValue: 'Acesso Liberado!'}) : t('communications.btnSubmit', {defaultValue: 'Submeter Resposta'})}
-                                            </button>
-                                        </div>
-                                    )}
-                                    {visualizando.comunicado.tipo === 'CONFIRMACAO' && (
-                                        <div className="text-center">
-                                            {resultado?.sucesso ? (
-                                                <div className="p-4 bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2"><CheckCircle className="w-5 h-5" /> {t('communications.unlocked', {defaultValue: 'Liberado'})}</div>
-                                            ) : (
-                                                <button onClick={() => submeterResposta(visualizando.comunicado.id, 'CIENTE')} disabled={validando} className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50">
-                                                    {validando ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4" /> {t('communications.btnUnderstand', {defaultValue: 'Estou Ciente'})}</>}
-                                                </button>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {visualizando.inboxStatus === 'CONCLUIDO' && (
-                                <div className="mt-8 p-4 bg-emerald-50/50 dark:bg-emerald-500/5 border border-emerald-200 dark:border-emerald-500/20 rounded-xl flex items-center gap-3 text-emerald-600 dark:text-emerald-400 font-bold text-xs uppercase tracking-widest justify-center">
-                                    <CheckCircle className="w-5 h-5" /> Você já concluiu este comunicado.
-                                </div>
-                            )}
                         </div>
                     </div>
-                </div>
-            )}
+                );
+            })()}
         </div>
     );
 }

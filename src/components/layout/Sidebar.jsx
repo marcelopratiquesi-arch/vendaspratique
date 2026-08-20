@@ -57,20 +57,30 @@ export function SidebarDesktop({
                             {isConfig && <div className="h-px bg-slate-200/50 dark:bg-white/5 my-4 mx-3"></div>}
                             <button 
                                 onClick={() => setActiveTab(tab.id)} 
-                                title={isCollapsed ? tab.label : ''}
-                                className={`flex items-center transition-all duration-200 group ${isCollapsed ? 'justify-center w-12 h-12 mx-auto rounded-xl' : 'gap-3.5 px-4 py-3.5 rounded-xl w-full text-left'} ${isActive ? 'bg-white dark:bg-blue-600/10 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-none border border-slate-200/50 dark:border-white/5 dark:border-l-2 dark:border-l-blue-500' : 'hover:bg-slate-200/50 dark:hover:bg-white/[0.03] border border-transparent'}`}
+                                title={isCollapsed ? (tab.badge ? `${tab.label} (${tab.badge} pendentes)` : tab.label) : ''}
+                                className={`flex items-center relative transition-all duration-200 group ${isCollapsed ? 'justify-center w-12 h-12 mx-auto rounded-xl' : 'gap-3.5 px-4 py-3.5 rounded-xl w-full text-left'} ${isActive ? 'bg-white dark:bg-blue-600/10 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-none border border-slate-200/50 dark:border-white/5 dark:border-l-2 dark:border-l-blue-500' : 'hover:bg-slate-200/50 dark:hover:bg-white/[0.03] border border-transparent'}`}
                             >
                                 <Icone className={`w-[18px] h-[18px] shrink-0 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} strokeWidth={isActive ? 2.5 : 2} />
+                                
+                                {/* Badge quando a Sidebar está RECOLHIDA */}
+                                {isCollapsed && tab.badge && (
+                                    <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                                    </span>
+                                )}
+
+                                {/* Label + Badge quando a Sidebar está ABERTA */}
                                 {!isCollapsed && (
-    <div className="flex items-center justify-between flex-1 truncate">
-        <span className={`text-[13px] font-bold tracking-wide truncate ${isActive ? 'text-blue-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'}`}>{tab.label}</span>
-        {tab.badge && (
-            <span className="ml-2 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
-                {tab.badge > 99 ? '99+' : tab.badge}
-            </span>
-        )}
-    </div>
-)}
+                                    <div className="flex items-center justify-between flex-1 truncate">
+                                        <span className={`text-[13px] font-bold tracking-wide truncate ${isActive ? 'text-blue-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'}`}>{tab.label}</span>
+                                        {tab.badge && (
+                                            <span className="ml-2 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                                                {tab.badge > 99 ? '99+' : tab.badge}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </button>
                         </React.Fragment>
                     );
@@ -146,7 +156,14 @@ export function SidebarMobile({
                         return (
                             <button key={tab.id} onClick={() => { setActiveTab(tab.id); setIsMobileMenuOpen(false); }} className={`w-full flex items-center gap-3.5 px-4 py-3.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${isActive ? 'bg-blue-50 text-blue-700 dark:bg-blue-600/10 dark:text-white border-l-2 border-blue-500' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 border-l-2 border-transparent'}`}>
                                 <Icone className={`w-4 h-4 ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                                {tab.label}
+                                <div className="flex items-center justify-between flex-1 truncate">
+                                    <span>{tab.label}</span>
+                                    {tab.badge && (
+                                        <span className="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-sm">
+                                            {tab.badge > 99 ? '99+' : tab.badge}
+                                        </span>
+                                    )}
+                                </div>
                             </button>
                         )
                     })}

@@ -1,136 +1,95 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
-import { ShieldAlert, CheckCircle, HelpCircle, Loader2, AlertTriangle, Info } from 'lucide-react';
+import { ShieldAlert, CheckCircle, HelpCircle, Loader2, AlertTriangle, FileText, Lock } from 'lucide-react';
 
-export default function BlockingGate() {
-    const { t, locale } = useI18n();
-    const [comunicado, setComunicado] = useState(null);
-    const [respostaSelecionada, setRespostaSelecionada] = useState('');
+export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
+    const { t, locale, language } = useI18n(); // 🛡️ Proteção dupla de idioma
+    const langAtual = locale || language || 'pt-BR';
+
+    const [respostasSelecionadas, setRespostasSelecionadas] = useState({});
     const [validando, setValidando] = useState(false);
+    
     const [resultado, setResultado] = useState(null);
+    const [bloqueioFatal, setBloqueioFatal] = useState(false);
 
     useEffect(() => {
-        let isMounted = true;
-        let timeoutId = null;
+        setResultado(null);
+        setRespostasSelecionadas({});
+        setBloqueioFatal(false);
+    }, [comunicadoBloqueante?.id]);
 
-        const checkComunicados = async () => {
-            try {
-                // 1. Identidade Blindada: Busca do Supabase Auth, ignora atrasos de state do React
-                const { data: authData, error: authError } = await supabase.auth.getUser();
-                if (authError || !authData?.user?.email) return;
-                const emailReal = authData.user.email;
+    if (!comunicadoBloqueante) return null;
 
-                // 2. Busca comunicados obrigatórios da Caixa de Entrada do usuário
-                const { data, error } = await supabase
-                    .from('comunicado_inbox')
-                    .select(`
-                        id, status_leitura,
-                        comunicados!inner (
-                            id, titulo_pt, conteudo_pt, titulo_en, conteudo_en, titulo_es, conteudo_es,
-                            imagem_url, tipo, obrigatorio, bloqueia_operacao, alternativas, inicio_em, deleted_at, status
-                        )
-                    `)
-                    .eq('email_usuario', emailReal)
-                    .eq('comunicados.obrigatorio', true)
-                    .eq('comunicados.status', 'ATIVO')
-                    .is('comunicados.deleted_at', null)
-                    .in('status_leitura', ['NAO_LIDO', 'PENDENTE']);
-
-                if (error || !isMounted) return;
-
-                const agora = new Date();
-                const pendentes = [];
-                let proximoAgendamento = null;
-
-                data.forEach(inboxItem => {
-                    const com = inboxItem.comunicados;
-                    const inicio = new Date(com.inicio_em);
-                    
-                    if (inicio <= agora) {
-                        pendentes.push({ inbox_id: inboxItem.id, ...com });
-                    } else {
-                        // Calcula o futuro mais próximo
-                        if (!proximoAgendamento || inicio < proximoAgendamento) {
-                            proximoAgendamento = inicio;
-                        }
-                    }
-                });
-
-                // Ordena: os que estão esperando há mais tempo aparecem primeiro
-                pendentes.sort((a, b) => new Date(a.inicio_em) - new Date(b.inicio_em));
-
-                if (pendentes.length > 0) {
-                    // SE NÃO BLOQUEIA OPERAÇÃO, não mostra o Gate global de cárcere (a regra atual diz que Gate é só pra bloqueantes)
-                    // Se você quer que obrigatórios não-bloqueantes também saltem no login, remova o `.eq('comunicados.bloqueia_operacao', true)` da query.
-                    // Para respeitar o "bloqueia_operacao", filtramos:
-                    const bloqueantes = pendentes.filter(p => p.bloqueia_operacao);
-                    if (bloqueantes.length > 0) {
-                        setComunicado(bloqueantes[0]); 
-                    } else {
-                        setComunicado(null);
-                    }
-                } else {
-                    setComunicado(null);
-                    setResultado(null);
-                    setRespostaSelecionada('');
-                }
-
-                // 3. Temporizador Inteligente (O usuário está logado às 12h59 e o aviso é 13h)
-                if (pendentes.length === 0 && proximoAgendamento) {
-                    const delay = proximoAgendamento.getTime() - Date.now() + 1000;
-                    if (delay > 0 && delay < 2147483647) { 
-                        timeoutId = setTimeout(checkComunicados, delay);
-                    }
-                }
-
-            } catch (err) {
-                console.error("Erro no BlockingGate:", err);
-            }
-        };
-
-        checkComunicados();
-
-        // 4. Realtime: Reage se o Admin apagar um aviso enquanto o usuário lê
-        const channel = supabase.channel('gate-realtime-global')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicados' }, checkComunicados)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicado_inbox' }, checkComunicados)
-            .subscribe();
-
-        return () => {
-            isMounted = false;
-            if (timeoutId) clearTimeout(timeoutId);
-            supabase.removeChannel(channel);
-        };
-    }, []);
-
-    if (!comunicado) return null;
-
+    // 🔥 BLINDAGEM DE TEXTO 
     const getTextoLocalizado = (campo) => {
-        const lang = locale.split('-')[0];
-        if (lang === 'en' && comunicado[`${campo}_en`]) return comunicado[`${campo}_en`];
-        if (lang === 'es' && comunicado[`${campo}_es`]) return comunicado[`${campo}_es`];
-        return comunicado[`${campo}_pt`];
+        if (!comunicadoBloqueante) return '';
+        try {
+            const currentLang = langAtual.split('-')[0];
+            if (currentLang === 'en' && comunicadoBloqueante[`${campo}_en`]) return comunicadoBloqueante[`${campo}_en`];
+            if (currentLang === 'es' && comunicadoBloqueante[`${campo}_es`]) return comunicadoBloqueante[`${campo}_es`];
+            return comunicadoBloqueante[`${campo}_pt`] || comunicadoBloqueante[campo] || '';
+        } catch (e) {
+            return comunicadoBloqueante[campo] || '';
+        }
     };
 
-    const submeter = async (respostaStr) => {
+    const getEmbedUrl = (url) => {
+        if (!url) return null;
+        try {
+            const urlObj = new URL(url);
+            if (urlObj.hostname.includes('youtube.com') || urlObj.hostname.includes('youtu.be')) {
+                const videoId = urlObj.searchParams.get('v') || urlObj.pathname.split('/').pop();
+                return `https://www.youtube.com/embed/${videoId}`;
+            }
+            if (urlObj.hostname.includes('vimeo.com')) {
+                const videoId = urlObj.pathname.split('/').pop();
+                return `https://player.vimeo.com/video/${videoId}`;
+            }
+            return null;
+        } catch (e) { return null; }
+    };
+
+    const isQuestionario = comunicadoBloqueante.tipo === 'QUESTIONARIO';
+    
+    let perguntas = [];
+    if (isQuestionario) {
+        if (comunicadoBloqueante.perguntas_json && comunicadoBloqueante.perguntas_json.length > 0) {
+            perguntas = comunicadoBloqueante.perguntas_json;
+        } else if (comunicadoBloqueante.alternativas && comunicadoBloqueante.alternativas.length > 0) {
+            perguntas = [{ id: 'legacy', pergunta: 'Selecione a resposta correta para o comunicado acima:', alternativas: comunicadoBloqueante.alternativas }];
+        }
+    }
+
+    const formularioCompleto = isQuestionario ? Object.keys(respostasSelecionadas).length === perguntas.length && perguntas.length > 0 : true;
+
+    const toggleResposta = (perguntaId, alternativa) => {
+        if (bloqueioFatal) return;
+        setRespostasSelecionadas(prev => ({ ...prev, [perguntaId]: alternativa }));
+        setResultado(null);
+    };
+
+    const submeter = async () => {
         setValidando(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
+            const payloadRespostas = isQuestionario ? respostasSelecionadas : { confirmacao: 'CIENTE' };
+
             const { data, error } = await supabase.rpc('validar_resposta_comunicado', {
-                p_comunicado_id: comunicado.id,
+                p_comunicado_id: comunicadoBloqueante.id,
                 p_email_usuario: user.email,
-                p_resposta: respostaStr
+                p_respostas: payloadRespostas
             });
 
             if (error) throw error;
-            
             setResultado(data);
-            if (data.sucesso) {
-                setTimeout(() => {
-                    setComunicado(null);
-                    setResultado(null);
-                }, 1500);
+
+            if (data.bloqueado) {
+                setBloqueioFatal(true);
+            }
+
+            if (data.sucesso && onConcluido) {
+                setTimeout(() => { onConcluido(); }, 1200);
             }
         } catch (err) {
             console.error(err);
@@ -139,86 +98,139 @@ export default function BlockingGate() {
         }
     };
 
+    const urlVideoExterno = getEmbedUrl(comunicadoBloqueante.video_externo);
+
     return (
-        <div role="dialog" aria-modal="true" className="absolute inset-0 z-[40] bg-slate-900/70 dark:bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-8 animate-[fadeIn_0.3s_ease-out]">
-            <div className="bg-white dark:bg-[#111827] w-full max-w-2xl max-h-full rounded-[32px] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.3)] border border-blue-500/20 dark:border-blue-500/30 flex flex-col overflow-hidden animate-[slideDown_0.4s_ease-out]">
+        <div role="dialog" aria-modal="true" className="fixed inset-0 z-[100] bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-8 animate-[fadeIn_0.3s_ease-out]">
+            <div className={`bg-white dark:bg-[#0c101a] w-full max-w-4xl max-h-full rounded-[32px] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.4)] border transition-colors flex flex-col overflow-hidden animate-[slideDown_0.4s_ease-out] ${bloqueioFatal ? 'border-rose-500/50' : 'border-blue-500/30'}`}>
                 
-                <div className="flex items-center gap-3 p-6 border-b border-blue-100 dark:border-white/5 bg-blue-50/50 dark:bg-blue-500/5 shrink-0">
-                    <div className="p-2 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl animate-pulse">
-                        <AlertTriangle className="w-6 h-6" />
+                <div className={`flex items-center gap-4 p-6 border-b shrink-0 transition-colors ${bloqueioFatal ? 'border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-500/10' : 'border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-500/5'}`}>
+                    <div className={`p-3 rounded-2xl animate-pulse shadow-inner ${bloqueioFatal ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400'}`}>
+                        {bloqueioFatal ? <Lock className="w-7 h-7" /> : <AlertTriangle className="w-7 h-7" />}
                     </div>
                     <div>
-                        <h2 className="text-sm font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest">
-                            {t('communications.mandatoryNotice', { defaultValue: 'COMUNICADO IMPORTANTE' })}
+                        <h2 className={`text-base font-black uppercase tracking-widest leading-none mb-1 ${bloqueioFatal ? 'text-rose-700 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400'}`}>
+                            {bloqueioFatal ? 'SISTEMA BLOQUEADO' : t('communications.mandatoryNotice', { defaultValue: 'Aviso Operacional Obrigatório' })}
                         </h2>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                            {t('communications.operationalLock', { defaultValue: 'Ação obrigatória requerida' })}
+                            {bloqueioFatal ? 'Você atingiu o limite de tentativas de resposta.' : 'A navegação foi interrompida para leitura deste documento.'}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 bg-white dark:bg-transparent">
-                    {comunicado.imagem_url && (
-                        <img src={comunicado.imagem_url} alt="Comunicado" className="w-full h-auto rounded-2xl mb-6 shadow-md object-cover border border-slate-200 dark:border-white/5" />
-                    )}
-
-                    <h1 className="text-xl md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-4">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 bg-white dark:bg-transparent">
+                    <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">
                         {getTextoLocalizado('titulo')}
                     </h1>
-                    
-                    <div className="text-sm md:text-base font-medium text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-8">
+                    <div className="text-sm md:text-base font-semibold text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-10">
                         {getTextoLocalizado('conteudo')}
                     </div>
 
-                    <div className="bg-slate-50 dark:bg-[#0c101a] p-6 rounded-2xl border border-slate-200 dark:border-white/5">
-                        
-                        {/* Se for Questionário */}
-                        {comunicado.tipo === 'QUESTIONARIO' && (
-                            <div className="space-y-4">
-                                <p className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                                    <HelpCircle className="w-4 h-4" /> {t('communications.quizSelect', {defaultValue: 'Selecione a resposta correta:'})}
-                                </p>
-                                
-                                {comunicado.alternativas?.map((alt, idx) => (
-                                    <label key={idx} className={`flex items-center gap-3 p-4 border rounded-xl cursor-pointer transition-all ${respostaSelecionada === alt ? 'bg-purple-50 border-purple-500 dark:bg-purple-500/10' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 hover:border-purple-300'}`}>
-                                        <input type="radio" name="resposta" value={alt} checked={respostaSelecionada === alt} onChange={() => setRespostaSelecionada(alt)} className="w-4 h-4 text-purple-600 cursor-pointer" />
-                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200">{alt}</span>
-                                    </label>
-                                ))}
+                    <div className="space-y-6 mb-10">
+                        {comunicadoBloqueante.imagem_url && <img src={comunicadoBloqueante.imagem_url} alt="Comunicado" className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
 
-                                {resultado && (
-                                    <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-bold ${resultado.sucesso ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400' : 'bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400'}`}>
-                                        {resultado.sucesso ? <CheckCircle className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
-                                        {resultado.mensagem}
+                        {comunicadoBloqueante.pdf_url && (
+                            <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 rounded-xl flex items-center justify-center">
+                                        <FileText className="w-6 h-6" />
                                     </div>
-                                )}
-
-                                <button 
-                                    onClick={() => submeter(respostaSelecionada)}
-                                    disabled={validando || !respostaSelecionada || resultado?.sucesso}
-                                    className="w-full mt-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50"
-                                >
-                                    {validando ? <Loader2 className="w-4 h-4 animate-spin" /> : resultado?.sucesso ? t('communications.unlocked', {defaultValue: 'Concluído'}) : t('communications.btnSubmit', {defaultValue: 'Responder'})}
-                                </button>
+                                    <div>
+                                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase">Documento Anexo</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Formato PDF</p>
+                                    </div>
+                                </div>
+                                <a href={comunicadoBloqueante.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm">Abrir Documento</a>
                             </div>
                         )}
 
-                        {/* Se for Confirmação ou Informativo Obrigatório */}
-                        {comunicado.tipo !== 'QUESTIONARIO' && (
-                            <div className="text-center">
-                                {resultado?.sucesso ? (
-                                    <div className="p-4 bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-xl font-black uppercase tracking-widest text-xs flex items-center justify-center gap-2">
-                                        <CheckCircle className="w-5 h-5" /> {t('communications.unlocked', {defaultValue: 'Acesso Liberado'})}
+                        {comunicadoBloqueante.video_url && (
+                            <div className="rounded-3xl overflow-hidden border border-slate-200 dark:border-white/10 shadow-md bg-black">
+                                <video controls className="w-full h-auto max-h-[500px]">
+                                    <source src={comunicadoBloqueante.video_url} type="video/mp4" />
+                                </video>
+                            </div>
+                        )}
+
+                        {urlVideoExterno && (
+                            <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 shadow-md bg-black" style={{ paddingTop: '56.25%' }}>
+                                <iframe className="absolute top-0 left-0 w-full h-full" src={urlVideoExterno} title="YouTube video" frameBorder="0" allowFullScreen></iframe>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="bg-slate-50/80 dark:bg-[#121826] p-8 rounded-[32px] border border-slate-200/80 dark:border-white/5 shadow-inner">
+                        
+                        {isQuestionario && (
+                            <div className="space-y-8">
+                                <div className="border-b border-slate-200 dark:border-white/5 pb-4 mb-4">
+                                    <p className="text-sm font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                                        <HelpCircle className="w-5 h-5" /> Responda para liberar o acesso:
+                                    </p>
+                                </div>
+                                
+                                {perguntas.map((perg, pIdx) => {
+                                    const temErro = resultado && !resultado.sucesso && resultado.erros?.includes(perg.id);
+                                    
+                                    return (
+                                        <div key={perg.id} className={`p-6 rounded-2xl border transition-all ${temErro ? 'bg-rose-50/50 border-rose-300 dark:bg-rose-500/5 dark:border-rose-500/50' : 'bg-white dark:bg-white/5 border-slate-200 dark:border-white/10'}`}>
+                                            <p className={`text-sm font-black uppercase tracking-tight mb-5 ${temErro ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                                <span className="opacity-50 mr-2">{pIdx + 1}.</span>{perg.pergunta}
+                                            </p>
+                                            
+                                            <div className="space-y-3">
+                                                {perg.alternativas?.map((alt, aIdx) => {
+                                                    const isSelecionada = respostasSelecionadas[perg.id] === alt;
+                                                    return (
+                                                        <div key={aIdx} onClick={() => toggleResposta(perg.id, alt)} className={`flex items-center gap-4 p-4 border rounded-xl transition-all ${bloqueioFatal ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${isSelecionada ? 'bg-purple-50 border-purple-500 dark:bg-purple-500/10' : 'bg-white dark:bg-transparent border-slate-200 dark:border-white/10 hover:border-purple-300'}`}>
+                                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelecionada ? 'border-purple-600 bg-purple-600 dark:border-purple-500 dark:bg-purple-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                                                                {isSelecionada && <div className="w-2 h-2 bg-white rounded-full"></div>}
+                                                            </div>
+                                                            <span className={`text-sm font-bold ${isSelecionada ? 'text-purple-900 dark:text-purple-300' : 'text-slate-600 dark:text-slate-400'}`}>{alt}</span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+
+                                {resultado && !resultado.sucesso && (
+                                    <div className={`p-5 rounded-2xl flex items-start gap-4 text-sm font-bold border animate-[shake_0.4s_ease-in-out] ${bloqueioFatal ? 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400'}`}>
+                                        <ShieldAlert className="w-6 h-6 shrink-0 mt-0.5" />
+                                        <div className="flex-1 leading-relaxed">
+                                            {resultado.mensagem}
+                                        </div>
                                     </div>
-                                ) : (
+                                )}
+
+                                {!bloqueioFatal && (
                                     <button 
-                                        onClick={() => submeter('CIENTE')}
-                                        disabled={validando}
-                                        className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black uppercase tracking-widest py-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2 text-xs disabled:opacity-50"
+                                        onClick={submeter}
+                                        disabled={validando || !formularioCompleto || resultado?.sucesso}
+                                        className="w-full mt-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
                                     >
-                                        {validando ? <Loader2 className="w-4 h-4 animate-spin" /> : <><CheckCircle className="w-4 h-4" /> {t('communications.btnUnderstand', {defaultValue: 'Li e estou ciente'})}</>}
+                                        {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? 'Acesso Liberado!' : 'Confirmar Respostas'}
                                     </button>
                                 )}
+                            </div>
+                        )}
+
+                        {!isQuestionario && (
+                            <div className="text-center space-y-6">
+                                {resultado && !resultado.sucesso && (
+                                    <div className="p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400">
+                                        <ShieldAlert className="w-5 h-5" /> Erro ao registrar confirmação.
+                                    </div>
+                                )}
+                                
+                                <button 
+                                    onClick={submeter}
+                                    disabled={validando || resultado?.sucesso}
+                                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
+                                >
+                                    {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? <><CheckCircle className="w-5 h-5" /> Acesso Liberado!</> : <><CheckCircle className="w-5 h-5" /> Li e estou ciente</>}
+                                </button>
                             </div>
                         )}
                     </div>
