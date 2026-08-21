@@ -234,7 +234,7 @@ export default {
     "assessment.mma": "Appendicular Muscle Mass (kg)",
     "assessment.smiResult": "SMI Result",
     "assessment.smiFormula": "The calculation is done by dividing the Appendicular Muscle Mass by the Height squared (AMM / Height²).",
-    
+
     // ASSESSMENT FORM
     "assessment.form.title": "New Physical Assessment",
     "assessment.form.cancel": "Cancel",
@@ -328,5 +328,42 @@ export default {
     "students.form.phone": "Phone (WhatsApp)",
     "students.form.birth": "Birthdate",
     "students.form.enrollment": "Enrollment ID",
-    "students.form.unit": "Base Unit"
+    "students.form.unit": "Base Unit",
+
+    // AVISOS E TEXTOS NOVOS DA AVALIAÇÃO FÍSICA E SMART PASTE AVANÇADO
+    "assessment.form.cpf": "Student's SSN/CPF *",
+    "assessment.form.invalidCpf": "Invalid SSN/CPF",
+    "assessment.form.studentFound": "Record found",
+    "assessment.form.studentNotFound": "Student Not Found",
+    "assessment.form.studentError": "Could not retrieve the record",
+    "assessment.form.editData": "Edit Data",
+    "assessment.form.notFoundTitle": "Record Not Found",
+    "assessment.form.notFoundSub": "No record found for the provided SSN/CPF.",
+    "assessment.form.registerStudent": "Register Student",
+    "assessment.form.alertFindStudent": "You must find or register the student first!",
+    "assessment.form.alertUnit": "Session error: Unit not identified. Please log in again.",
+    "assessment.form.alertWeight": "Invalid weight. Please check the data.",
+    "assessment.form.alertHeight": "Invalid height (use real meters or centimeters).",
+    "students.ageYearsText": "years old",
+    "students.table.name": "Student",
+    "students.table.cpf": "SSN/CPF",
+    "students.table.enrollment": "Enrollment ID",
+    "students.table.contact": "Contact",
+    "students.table.created": "Registered",
+    "students.table.actions": "Actions",
+    "students.table.editTitle": "Edit Student Data",
+    "students.pagination.page": "Page",
+    "students.pagination.of": "of",
+    "students.pagination.prev": "Previous",
+    "students.pagination.next": "Next",
+    "students.paste.pattern": "Recognized Pattern",
+    "students.paste.placeholder": "Paste Excel columns here (CTRL+V)...",
+    "students.paste.statusHeader": "Row Status",
+    "students.paste.newCount": "New:",
+    "students.paste.existCount": "Existing:",
+    "students.paste.blockCount": "Blocked/Errors:",
+    "students.paste.errorAnalyze": "Error parsing copied data.",
+    "students.paste.success": "Success! {count} students were registered in the database.",
+    "students.paste.errorImport": "An error occurred during batch import. Check the console.",
+    "students.ageYears": "{age} years"
 };

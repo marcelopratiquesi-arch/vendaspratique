@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Dumbbell, LogOut, BarChart3, ClipboardSignature, Search, PlusCircle, Filter, RefreshCw, Trophy, Users, Activity } from 'lucide-react';
+import { Dumbbell, LogOut, BarChart3, ClipboardSignature, Search, PlusCircle, Filter, RefreshCw, Trophy, Users, Activity, ListChecks } from 'lucide-react';
 import FormAvaliacao from './FormAvaliacao'; 
+import TabPerguntasAvaliacao from './TabPerguntasAvaliacao.jsx'; // 🔥 IMPORT DO CONSTRUTOR
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { getMeses } from '../AnaliseVendas/utils.js';
-import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js'; // 🔥 Nova importação da máscara de CPF
+import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
 
 const getLocalISODate = () => {
     const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 };
 
 const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] }) => {
@@ -42,7 +43,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
     // BUSCA DE DADOS DO BANCO COM BASE NOS FILTROS
     // ==========================================
     useEffect(() => {
-        if (abaAtiva === 'nova') return; 
+        if (abaAtiva === 'nova' || abaAtiva === 'construtor') return; 
 
         const fetchDados = async () => {
             setLoading(true);
@@ -54,7 +55,6 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                     query = query.eq('unidade', usuarioLogado?.unidade);
                 }
 
-                // Lógica de Fuso Horário Local (UTC-3)
                 if (tipoFiltro === 'dia' && diaEspecifico) {
                     const start = new Date(`${diaEspecifico}T00:00:00-03:00`).toISOString();
                     const end = new Date(`${diaEspecifico}T23:59:59-03:00`).toISOString();
@@ -128,7 +128,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
     const tabelaFiltrada = useMemo(() => {
         if (!busca) return dadosFiltrados;
         const b = busca.toLowerCase();
-        const bNumeros = busca.replace(/\D/g, ''); // Para busca rápida de CPF
+        const bNumeros = busca.replace(/\D/g, ''); 
         return dadosFiltrados.filter(a => 
             (a.aluno || '').toLowerCase().includes(b) || 
             (a.professor || '').toLowerCase().includes(b) ||
@@ -142,9 +142,31 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
 
     useEffect(() => { if (window.lucide) window.lucide.createIcons(); }, [professorAtivo, abaAtiva, dadosPaginados]);
 
+    // 🔥 RENDERIZAÇÃO: MODO CONSTRUTOR DE FORMULÁRIO (ADMIN)
+    if (abaAtiva === 'construtor') {
+        return (
+            <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative pb-10">
+                <div className="flex items-center justify-between bg-slate-900 rounded-[24px] p-6 shadow-md">
+                    <div>
+                        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
+                            <ListChecks className="w-6 h-6 text-orange-500" /> Construtor de Anamnese Dinâmica
+                        </h2>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">Acesso restrito: Administradores e Mentores</p>
+                    </div>
+                    <button type="button" onClick={() => setAbaAtiva('relatorio')} className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">
+                        Voltar para o Painel
+                    </button>
+                </div>
+                <TabPerguntasAvaliacao usuarioLogado={usuarioLogado} />
+            </div>
+        );
+    }
+
+    // 🔥 RENDERIZAÇÃO: SELEÇÃO DE PROFESSOR (COM BOTÃO DO CONSTRUTOR)
     if (!professorAtivo) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[70vh] animate-[fadeIn_0.3s_ease-out] px-4">
+            <div className="flex flex-col items-center justify-center min-h-[70vh] animate-[fadeIn_0.3s_ease-out] px-4 relative">
+                
                 <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-orange-200">
                     <Dumbbell className="w-10 h-10" />
                 </div>
@@ -168,6 +190,16 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                                 </div>
                             </button>
                         ))}
+                    </div>
+                )}
+
+                {/* 🔥 BOTÃO DO CONSTRUTOR APENAS PARA ADMINS/MENTORES */}
+                {temVisaoGlobal && (
+                    <div className="mt-16 pt-8 border-t border-slate-200 w-full max-w-md flex flex-col items-center animate-[fadeIn_0.5s_ease-out]">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Acesso Administrativo</p>
+                        <button onClick={() => setAbaAtiva('construtor')} className="flex items-center justify-center gap-2 w-full bg-slate-900 hover:bg-slate-800 text-white px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(15,23,42,0.2)]">
+                            <ListChecks className="w-5 h-5 text-orange-500" /> Configurar Formulário da Anamnese
+                        </button>
                     </div>
                 )}
             </div>
