@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Database, Users, LayoutGrid, Layers } from 'lucide-react';
+import { Database, Users, LayoutGrid, Layers, UserCircle } from 'lucide-react';
 
 import TabEquipe from './TabEquipe.jsx';
 import ModalColaborador from './ModalColaborador.jsx';
@@ -8,9 +8,12 @@ import TabCatalogo from './TabCatalogo.jsx';
 import ModalCatalogo from './ModalCatalogo.jsx';
 import TabSetores from './TabSetores.jsx';
 import ModalSetor from './ModalSetor.jsx';
+import AlunosTab from './AlunosTab.jsx'; // 🔥 NOVO: Aba de Alunos importada
+import { useI18n } from '../../i18n/I18nContext.jsx';
 
 const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
-    const [abaAtiva, setAbaAtiva] = useState('equipe'); 
+    const { t } = useI18n(); // Pegar traduções
+    const [abaAtiva, setAbaAtiva] = useState('alunos'); // Começa na aba de alunos por padrão
     const [listaSetores, setListaSetores] = useState([]);
     
     const [modalColabAberto, setModalColabAberto] = useState(false);
@@ -193,7 +196,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     };
 
     return (
-        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative">
+        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative pb-10">
             <ModalColaborador isOpen={modalColabAberto} onClose={() => setModalColabAberto(false)} onSave={handleSaveColaborador} isSubmitting={isSubmitting} dadosEdicao={colabEditando} listaSetores={listaSetores} unidades={unidades} temVisaoGlobal={temVisaoGlobal} />
             <ModalCatalogo isOpen={modalCatAberto} onClose={() => setModalCatAberto(false)} onSave={handleSaveCatalogo} isSubmitting={isSubmitting} dadosEdicao={catEditando} />
             <ModalSetor isOpen={modalSetorAberto} onClose={() => setModalSetorAberto(false)} onSave={handleSaveSetor} isSubmitting={isSubmitting} dadosEdicao={setorEditando} />
@@ -210,6 +213,9 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                 </div>
 
                 <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full xl:w-auto overflow-x-auto custom-scrollbar">
+                    <button onClick={() => setAbaAtiva('alunos')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'alunos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
+                        <UserCircle className="w-4 h-4" /> {t('management.tabs.students', {defaultValue: 'Alunos'})}
+                    </button>
                     <button onClick={() => setAbaAtiva('equipe')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200' : 'text-slate-500 hover:text-slate-800'}`}>
                         <Users className="w-4 h-4" /> Equipe
                     </button>
@@ -223,6 +229,10 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
             </div>
 
             <div className="w-full">
+                {abaAtiva === 'alunos' && (
+                    <AlunosTab />
+                )}
+
                 {abaAtiva === 'equipe' && (
                     <TabEquipe 
                         colaboradores={colaboradores} 
@@ -239,7 +249,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                     <TabCatalogo 
                         catalogoCompleto={catalogoCompleto} ehAdmin={ehAdmin}
                         onEdit={(item) => { setCatEditando(item); setModalCatAberto(true); }}
-                        onToggleStatus={handleToggleStatusCatalogo} // ✅ Prop passada corretamente
+                        onToggleStatus={handleToggleStatusCatalogo} 
                         onOpenModal={() => { setCatEditando(null); setModalCatAberto(true); }}
                     />
                 )}

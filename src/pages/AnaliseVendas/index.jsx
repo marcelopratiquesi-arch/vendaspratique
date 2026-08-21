@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { meses, safeIsoDate } from './utils.js';
+import { getMeses, safeIsoDate } from './utils.js'; // 🔥 Usando nova função traduzida
 import ModalTextoWhatsapp from './Modais.jsx';
 import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
 import { BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, Bookmark, Package, Briefcase } from 'lucide-react';
 import { SmartFilter } from '../../components/SmartFilter.jsx';
+import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 i18n Injetado
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -16,14 +17,10 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
-const toTitleCase = (str) => {
-    return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-};
-
-// ==========================================
-// MÓDULO PRINCIPAL DE ANÁLISE (DASHBOARD)
-// ==========================================
 const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
+    const { t } = useI18n(); // 🔥 i18n
+    const mesesTraduzidos = getMeses(t); // Puxa o array com as traduções reativas
+
     const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
     const [tipoFiltro, setTipoFiltro] = useState('mes');
     const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -33,7 +30,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const [diaEspecifico, setDiaEspecifico] = useState(getLocalISODate());
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS');
 
-    // ESTADOS DAS CAIXINHAS
     const [vendedoresOcultos, setVendedoresOcultos] = useState([]);
     const [planosOcultos, setPlanosOcultos] = useState([]);
     const [produtosOcultos, setProdutosOcultos] = useState([]);
@@ -72,7 +68,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         return map;
     }, [catalogoGeral]);
 
-    // PREPARA AS LISTAS PARA OS CHECKBOXES
     const { planosVendidos, produtosVendidos, servicosVendidos, vendedoresUnicos } = useMemo(() => {
         const arrPlanos = [];
         const arrProds = [];
@@ -188,7 +183,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const salvarMetasNuvem = async () => {
         const unidadeAlvo = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
         if (!unidadeAlvo || unidadeAlvo === 'TODOS') {
-            alert("Atenção: Selecione uma unidade específica no filtro acima para poder salvar as metas.");
+            alert(t('analytics.alerts.selectUnitSave', { defaultValue: "Atenção: Selecione uma unidade específica no filtro acima para poder salvar as metas." }));
             return;
         }
 
@@ -207,9 +202,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
         if (error) {
             console.error("Erro no banco:", error);
-            alert("Erro ao salvar as metas no banco de dados.");
+            alert(t('analytics.alerts.errorSave', { defaultValue: "Erro ao salvar as metas no banco de dados." }));
         } else {
-            alert("Metas atualizadas com sucesso!");
+            alert(t('analytics.alerts.successSave', { defaultValue: "Metas atualizadas com sucesso!" }));
         }
     };
 
@@ -295,11 +290,11 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     const labelFiltroAtual = (() => {
         if (tipoFiltro === 'mes') {
-            const nomeMes = meses.find(m => m.val === filtroMes)?.label || filtroMes;
+            const nomeMes = mesesTraduzidos.find(m => m.val === filtroMes)?.label || filtroMes;
             return `${nomeMes}/${filtroAno}`;
         }
         if (tipoFiltro === 'dia') return diaEspecifico.split('-').reverse().join('/');
-        return `${dataInicio || '...'} até ${dataFim || '...'}`;
+        return `${dataInicio || '...'} ${t('analytics.filters.dateUntil', { defaultValue: 'até' })} ${dataFim || '...'}`;
     })();
 
     const abrirModalWhatsapp = (texto, config = {}) => {
@@ -346,59 +341,55 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 onEnviar={enviarWhatsApp}
             />
 
-            {/* BARRA DE NAVEGAÇÃO SUPERIOR */}
             <div className="bg-white rounded-[24px] border border-slate-200 p-4 flex flex-col md:flex-row justify-between items-center shadow-sm gap-4">
                 <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
                     <button onClick={() => setAbaPrincipal('dashboard')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <BarChart3 className="w-4 h-4" /> Dashboard
+                        <BarChart3 className="w-4 h-4" /> {t('analytics.tabs.dashboard', { defaultValue: 'Dashboard' })}
                     </button>
                     <button onClick={() => setAbaPrincipal('visaoGeral')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <Target className="w-4 h-4" /> Metas Unidade
+                        <Target className="w-4 h-4" /> {t('analytics.tabs.unitGoals', { defaultValue: 'Metas Unidade' })}
                     </button>
                     <button onClick={() => setAbaPrincipal('relatorio')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <FileText className="w-4 h-4" /> Relatório
+                        <FileText className="w-4 h-4" /> {t('analytics.tabs.report', { defaultValue: 'Relatório' })}
                     </button>
                 </div>
             </div>
 
-            {/* FILTROS GLOBAIS COM UX PREMIUM */}
             <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8">
-                
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6 border-b border-slate-100 pb-6">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-inner">
                             <Filter className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-slate-800 tracking-tight">Filtros Globais Avançados</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Controla os dados do Dashboard e Relatórios</p>
+                            <h2 className="text-xl font-black text-slate-800 tracking-tight">{t('analytics.filters.globalTitle', { defaultValue: 'Filtros Globais Avançados' })}</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('analytics.filters.globalSubtitle', { defaultValue: 'Controla os dados do Dashboard e Relatórios' })}</p>
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
                         <button onClick={limparFiltros} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-slate-50 px-4 py-2.5 rounded-lg border border-slate-200 hover:border-blue-200">
-                            <RefreshCw className="w-4 h-4" /> Limpar Filtros
+                            <RefreshCw className="w-4 h-4" /> {t('analytics.filters.clear', { defaultValue: 'Limpar Filtros' })}
                         </button>
 
                         <div className="flex bg-slate-100 p-1.5 rounded-xl border w-full md:w-auto overflow-x-auto custom-scrollbar">
-                            <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Mês</button>
-                            <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Período</button>
-                            <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Dia</button>
+                            <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>{t('analytics.filters.month', { defaultValue: 'Mês' })}</button>
+                            <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>{t('analytics.filters.period', { defaultValue: 'Período' })}</button>
+                            <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>{t('analytics.filters.day', { defaultValue: 'Dia' })}</button>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-5">
-                    {/* LINHA 1: DATAS E UNIDADE */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
                         {tipoFiltro === 'mes' && (
                             <>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Mês Referência</label>
-                                    <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{meses.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}</select>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.refMonth', { defaultValue: 'Mês Referência' })}</label>
+                                    <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{mesesTraduzidos.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}</select>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ano Referência</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.refYear', { defaultValue: 'Ano Referência' })}</label>
                                     <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}</select>
                                 </div>
                             </>
@@ -406,49 +397,47 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         {tipoFiltro === 'periodo' && (
                             <>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Início</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.startDate', { defaultValue: 'Data Início' })}</label>
                                     <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Fim</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.endDate', { defaultValue: 'Data Fim' })}</label>
                                     <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" />
                                 </div>
                             </>
                         )}
                         {tipoFiltro === 'dia' && (
                             <div className="flex flex-col gap-1.5 sm:col-span-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Dia Específico</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.specificDay', { defaultValue: 'Dia Específico' })}</label>
                                 <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 w-full h-[46px]" />
                             </div>
                         )}
 
                         {temVisaoGlobal && (
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Isolar Unidade</label>
+                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">{t('analytics.filters.isolateUnit', { defaultValue: 'Isolar Unidade' })}</label>
                                 <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="bg-rose-50/30 border border-rose-100 text-rose-700 rounded-xl p-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-rose-500 h-[46px]">
-                                    {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'VISÃO GLOBAL' : u}</option>)}
+                                    {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? t('analytics.filters.globalView', { defaultValue: 'VISÃO GLOBAL' }) : u}</option>)}
                                 </select>
                             </div>
                         )}
 
-                        {/* 🔥 SMART FILTER: CONSULTORES */}
                         <SmartFilter 
                             options={vendedoresUnicos} 
                             ocultos={vendedoresOcultos} 
                             setOcultos={setVendedoresOcultos} 
-                            label="Consultores" 
+                            label={t('analytics.filters.consultants', { defaultValue: 'Consultores' })} 
                             Icone={UserCheck}
                             iconColor="text-slate-500" 
                         />
                     </div>
 
-                    {/* LINHA 2: ISOLAMENTO DE CATÁLOGO COM SMART FILTERS */}
                     <div className="flex flex-col sm:flex-row flex-wrap gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
                         <SmartFilter 
                             options={planosVendidos} 
                             ocultos={planosOcultos} 
                             setOcultos={setPlanosOcultos} 
-                            label="Filtrar Planos" 
+                            label={t('analytics.filters.filterPlans', { defaultValue: 'Filtrar Planos' })} 
                             Icone={Bookmark} 
                             iconColor="text-blue-600" 
                         />
@@ -456,7 +445,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             options={produtosVendidos} 
                             ocultos={produtosOcultos} 
                             setOcultos={setProdutosOcultos} 
-                            label="Filtrar Produtos" 
+                            label={t('analytics.filters.filterProducts', { defaultValue: 'Filtrar Produtos' })} 
                             Icone={Package} 
                             iconColor="text-emerald-600" 
                         />
@@ -464,7 +453,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             options={servicosVendidos} 
                             ocultos={servicosOcultos} 
                             setOcultos={setServicosOcultos} 
-                            label="Filtrar Serviços" 
+                            label={t('analytics.filters.filterServices', { defaultValue: 'Filtrar Serviços' })} 
                             Icone={Briefcase} 
                             iconColor="text-violet-600" 
                         />

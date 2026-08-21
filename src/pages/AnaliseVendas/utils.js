@@ -3,12 +3,20 @@
 // Otimizado para Performance, Segurança e i18n
 // ==========================================
 
-export const meses = [
-    { val: 'TODOS', label: 'Todos os Meses' }, { val: '01', label: 'Janeiro' }, { val: '02', label: 'Fevereiro' },
-    { val: '03', label: 'Março' }, { val: '04', label: 'Abril' }, { val: '05', label: 'Maio' },
-    { val: '06', label: 'Junho' }, { val: '07', label: 'Julho' }, { val: '08', label: 'Agosto' },
-    { val: '09', label: 'Setembro' }, { val: '10', label: 'Outubro' }, { val: '11', label: 'Novembro' },
-    { val: '12', label: 'Dezembro' }
+export const getMeses = (t) => [
+    { val: 'TODOS', label: t('analytics.months.all', { defaultValue: 'Todos os Meses' }) }, 
+    { val: '01', label: t('analytics.months.jan', { defaultValue: 'Janeiro' }) }, 
+    { val: '02', label: t('analytics.months.feb', { defaultValue: 'Fevereiro' }) },
+    { val: '03', label: t('analytics.months.mar', { defaultValue: 'Março' }) }, 
+    { val: '04', label: t('analytics.months.apr', { defaultValue: 'Abril' }) }, 
+    { val: '05', label: t('analytics.months.may', { defaultValue: 'Maio' }) },
+    { val: '06', label: t('analytics.months.jun', { defaultValue: 'Junho' }) }, 
+    { val: '07', label: t('analytics.months.jul', { defaultValue: 'Julho' }) }, 
+    { val: '08', label: t('analytics.months.aug', { defaultValue: 'Agosto' }) },
+    { val: '09', label: t('analytics.months.sep', { defaultValue: 'Setembro' }) }, 
+    { val: '10', label: t('analytics.months.oct', { defaultValue: 'Outubro' }) }, 
+    { val: '11', label: t('analytics.months.nov', { defaultValue: 'Novembro' }) },
+    { val: '12', label: t('analytics.months.dec', { defaultValue: 'Dezembro' }) }
 ];
 
 // 🔥 I18N + PERFORMANCE: Cache de formatadores de Moeda separados por idioma
@@ -17,6 +25,7 @@ export const setGlobalLocale = (locale) => { currentLocale = locale; };
 
 const currencyFormatters = {};
 export const formatMoney = (val) => {
+    // Usando BRL estático por enquanto para faturamento no Brasil, mas pronto para escalar
     if (!currencyFormatters[currentLocale]) {
         currencyFormatters[currentLocale] = new Intl.NumberFormat(currentLocale, { style: 'currency', currency: 'BRL' });
     }
@@ -34,7 +43,6 @@ export const safeNumber = (val) => {
     return parseFloat(str.replace(/[^0-9.-]+/g, '')) || 0;
 };
 
-// 🔥 BLINDAGEM DE DATAS (Resolve o bug do Excel de passar 'new Date()')
 export const safeIsoDate = (dInput) => {
     if (!dInput) return '';
 
@@ -57,9 +65,6 @@ export const safeIsoDate = (dInput) => {
     return dStr;
 };
 
-// ---------------------------------------------------------
-// REGRAS DE NEGÓCIO DA ANÁLISE DE VENDAS (PRESERVADAS)
-// ---------------------------------------------------------
 export const getValorRealDaVenda = (venda, planos, produtos) => {
     const valorBanco = safeNumber(venda.valor);
     if (valorBanco > 0) return valorBanco;
@@ -121,10 +126,6 @@ export const classificarPlanoEmGrupo = (gruposPlanos, prodUpper, qtd) => {
         gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] = (gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] || 0) + qtd;
     }
 };
-
-// ---------------------------------------------------------
-// UTILITÁRIOS EXTRAS DA TABELA DE HISTÓRICO / DUPLICIDADES
-// ---------------------------------------------------------
 
 export const formatDataBR = (dInput) => {
     if (!dInput) return '';

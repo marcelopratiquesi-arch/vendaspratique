@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 Injetado i18n
 
 const CORES = {
     emerald: { badge: 'bg-emerald-500/20', icon: 'text-emerald-400' },
@@ -7,7 +8,7 @@ const CORES = {
 
 const ModalTextoWhatsapp = ({
     isOpen,
-    titulo = 'Mensagem para o WhatsApp',
+    titulo,
     icone = 'send',
     corIcone = 'emerald',
     texto,
@@ -17,8 +18,11 @@ const ModalTextoWhatsapp = ({
     onCopiar,
     onEnviar
 }) => {
+    const { t } = useI18n(); // 🔥 Pegando traduções
     if (!isOpen) return null;
     const cores = CORES[corIcone] || CORES.emerald;
+
+    const modalTitle = titulo || t('analytics.modals.whatsappTitle', { defaultValue: 'Mensagem para o WhatsApp' });
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
@@ -28,7 +32,7 @@ const ModalTextoWhatsapp = ({
                         <div className={`w-10 h-10 ${cores.badge} rounded-full flex items-center justify-center`}>
                             <i data-lucide={icone} className={`w-5 h-5 ${cores.icon}`}></i>
                         </div>
-                        <h3 className="text-lg font-black uppercase tracking-tighter">{titulo}</h3>
+                        <h3 className="text-lg font-black uppercase tracking-tighter">{modalTitle}</h3>
                     </div>
                     <button onClick={onFechar} className="hover:rotate-90 transition-transform"><i data-lucide="x" className="w-6 h-6"></i></button>
                 </div>
@@ -40,12 +44,14 @@ const ModalTextoWhatsapp = ({
                     ></textarea>
                 </div>
                 <div className="p-6 border-t bg-white grid grid-cols-3 gap-3">
-                    <button onClick={onFechar} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">Fechar</button>
+                    <button onClick={onFechar} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">
+                        {t('analytics.modals.close', { defaultValue: 'Fechar' })}
+                    </button>
                     <button onClick={onCopiar} className={`px-4 py-3 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 ${copiado ? 'bg-emerald-500' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                        <i data-lucide={copiado ? "check" : "copy"} className="w-4 h-4"></i> {copiado ? 'Copiado!' : 'Copiar'}
+                        <i data-lucide={copiado ? "check" : "copy"} className="w-4 h-4"></i> {copiado ? t('analytics.modals.copied', { defaultValue: 'Copiado!' }) : t('analytics.modals.copy', { defaultValue: 'Copiar' })}
                     </button>
                     <button onClick={onEnviar} className="px-4 py-3 bg-emerald-500 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-md flex items-center justify-center gap-2">
-                        <i data-lucide="message-circle" className="w-4 h-4"></i> Enviar
+                        <i data-lucide="message-circle" className="w-4 h-4"></i> {t('analytics.modals.send', { defaultValue: 'Enviar' })}
                     </button>
                 </div>
             </div>

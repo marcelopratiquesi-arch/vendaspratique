@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 Injetado
 import {
     formatMoney,
     getCategoriaItem,
     getValorRealDaVenda,
     criarGruposPlanosVazio,
     classificarPlanoEmGrupo,
-    safeIsoDate // 🔥 Adicionando import para a chave de deduplicação
+    safeIsoDate
 } from './utils.js';
 
 const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdutos, planos, produtos, abrirModalWhatsapp }) => {
+    const { t } = useI18n(); // 🔥
     const [grupoExpandido, setGrupoExpandido] = useState(null);
 
     const rankingConsultoresFisicos = {};
@@ -24,7 +26,6 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
     const rankingProdutosFisicos = {};
     const gruposPlanos = criarGruposPlanosVazio();
 
-    // 🚀 MOTOR INVISÍVEL DE DEDUPLICAÇÃO
     const transacoesUnicas = new Set();
 
     vendasFiltradas.forEach(v => {
@@ -35,21 +36,17 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
         const vendUpper = (v.vendedor || '').toUpperCase();
         const categoriaFinal = getCategoriaItem(prodUpper, planos, produtos);
 
-        // 🔥 LOGICA DA MATRÍCULA: Se houver matrícula e for plano, validamos a dupla contagem
         if (categoriaFinal === 'PLANO' && v.matricula && v.matricula.trim() !== '') {
             const dataLimpa = safeIsoDate(v.data || v.created_at);
             const chaveUnica = `${v.matricula.trim()}-${prodUpper}-${dataLimpa}`;
 
             if (transacoesUnicas.has(chaveUnica)) {
-                // Já contamos esse plano para essa matrícula nesta data.
-                // Zeramos a QTD para não inflar o dashboard de Planos, mas o Faturamento abaixo continua somando!
                 qtd = 0;
             } else {
                 transacoesUnicas.add(chaveUnica);
             }
         }
 
-        // Faturamento sempre soma tudo (não é deduplicado, o dinheiro entrou)
         faturamento += valorFaturado;
 
         if (categoriaFinal === 'PLANO') {
@@ -79,8 +76,8 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
     };
 
     const dispararModalCompartilhar = () => {
-        let txt = `*🏆 Ranking de Vendas de Produtos 🏆*\n`;
-        txt += `*Total de Vendas:* ${String(totalVendasProdutos).padStart(2, '0')} / ${String(metaProdutos).padStart(2, '0')}\n\n`;
+        let txt = `${t('analytics.dashboard.wppRankingTitle', { defaultValue: '*🏆 Ranking de Vendas de Produtos 🏆*' })}\n`;
+        txt += `${t('analytics.dashboard.wppTotalSales', { defaultValue: '*Total de Vendas:*' })} ${String(totalVendasProdutos).padStart(2, '0')} / ${String(metaProdutos).padStart(2, '0')}\n\n`;
 
         const vendidos = rankingOrdenado.filter(item => item[1] > 0);
         const zerados = rankingOrdenado.filter(item => item[1] === 0);
@@ -98,9 +95,9 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
 
         if (zerados.length > 0) {
             txt += `\n➖➖➖➖➖➖➖➖➖➖\n`;
-            txt += `*🚨 BORA ACELERAR, GALERA! 🚀*\n`;
-            txt += `_Todos abaixo ainda não pontuaram hoje._\n`;
-            txt += `*SOCORRO, DEUS!!! 🙏*\n\n`;
+            txt += `${t('analytics.dashboard.wppAlertPush', { defaultValue: '*🚨 BORA ACELERAR, GALERA! 🚀*' })}\n`;
+            txt += `${t('analytics.dashboard.wppAlertSub', { defaultValue: '_Todos abaixo ainda não pontuaram hoje._' })}\n`;
+            txt += `${t('analytics.dashboard.wppAlertHelp', { defaultValue: '*SOCORRO, DEUS!!! 🙏*' })}\n\n`;
             zerados.forEach((item) => {
                 const nome = item[0].split(' ')[0];
                 txt += `${posicaoAtual} ❌❌❌ ${nome}\n`;
@@ -108,7 +105,7 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
             });
         }
 
-        abrirModalWhatsapp(txt, { titulo: 'Ranking para Grupo', icone: 'send', cor: 'emerald' });
+        abrirModalWhatsapp(txt, { titulo: t('analytics.dashboard.wppModalTitle', { defaultValue: 'Ranking para Grupo' }), icone: 'send', cor: 'emerald' });
     };
 
     useEffect(() => {
@@ -119,29 +116,29 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
         <div className="space-y-6 animate-[fadeIn_0.2s_ease-out]">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Planos Vendidos</p>
-                    <p className="text-4xl font-black tracking-tight" title="Métrica deduplicada para espelhar número real de alunos">{String(totalPlanos).padStart(2, '0')}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiPlans', { defaultValue: 'Planos Vendidos' })}</p>
+                    <p className="text-4xl font-black tracking-tight" title={t('analytics.dashboard.kpiTooltip', { defaultValue: 'Métrica deduplicada para espelhar número real de alunos' })}>{String(totalPlanos).padStart(2, '0')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Produtos Físicos</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiProducts', { defaultValue: 'Produtos Físicos' })}</p>
                     <p className="text-4xl font-black tracking-tight">{String(totalVendasProdutos).padStart(2, '0')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-violet-500 to-violet-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Serviços Avulsos</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiServices', { defaultValue: 'Serviços Avulsos' })}</p>
                     <p className="text-4xl font-black tracking-tight">{String(totalServicos).padStart(2, '0')}</p>
                 </div>
                 <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
-                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">Faturamento Bruto</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiRevenue', { defaultValue: 'Faturamento Bruto' })}</p>
                     <p className="text-2xl lg:text-3xl font-black tracking-tight mt-1">{formatMoney(faturamento)}</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* 1. VENDAS DE ASSINATURAS (Com Personal Class Isolado) */}
+                {/* 1. VENDAS DE ASSINATURAS */}
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
-                        <i data-lucide="layers" className="w-5 h-5 text-blue-500"></i> Venda de Assinaturas
+                        <i data-lucide="layers" className="w-5 h-5 text-blue-500"></i> {t('analytics.dashboard.plansTitle', { defaultValue: 'Venda de Assinaturas' })}
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
                         {Object.entries(gruposPlanos).filter(([_, data]) => data.total > 0).map(([nomeGrupo, data]) => {
@@ -177,14 +174,14 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
                                 </div>
                             )
                         })}
-                        {Object.keys(gruposPlanos).every(k => gruposPlanos[k].total === 0) && <p className="text-center text-xs font-bold text-slate-400 py-12">Nenhum plano vendido.</p>}
+                        {Object.keys(gruposPlanos).every(k => gruposPlanos[k].total === 0) && <p className="text-center text-xs font-bold text-slate-400 py-12">{t('analytics.dashboard.emptyPlans', { defaultValue: 'Nenhum plano vendido.' })}</p>}
                     </div>
                 </div>
 
                 {/* 2. PRODUTOS / COMPLEMENTOS */}
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
-                        <i data-lucide="box" className="w-5 h-5 text-amber-500"></i> Produtos / Complementos
+                        <i data-lucide="box" className="w-5 h-5 text-amber-500"></i> {t('analytics.dashboard.productsTitle', { defaultValue: 'Produtos / Complementos' })}
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
                         {topProdutosLista.map((item, idx) => (
@@ -193,14 +190,14 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
                                 <span className="bg-white px-3 py-1 rounded-lg border text-[10px] font-black text-amber-600">{String(item[1]).padStart(2, '0')} un</span>
                             </div>
                         ))}
-                        {topProdutosLista.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">Nenhum produto físico vendido.</p>}
+                        {topProdutosLista.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">{t('analytics.dashboard.emptyProducts', { defaultValue: 'Nenhum produto físico vendido.' })}</p>}
                     </div>
                 </div>
 
                 {/* 3. PÓDIO FÍSICO */}
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
-                        <i data-lucide="medal" className="w-5 h-5 text-emerald-500"></i> Pódio Físico (Garrafa/Whey)
+                        <i data-lucide="medal" className="w-5 h-5 text-emerald-500"></i> {t('analytics.dashboard.podiumTitle', { defaultValue: 'Pódio Físico (Garrafa/Whey)' })}
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
                         {rankingOrdenado.map(([nome, qtd], idx) => {
@@ -221,10 +218,10 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
                                 </div>
                             )
                         })}
-                        {rankingOrdenado.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">Nenhum consultor cadastrado na unidade.</p>}
+                        {rankingOrdenado.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">{t('analytics.dashboard.emptyConsultants', { defaultValue: 'Nenhum consultor cadastrado na unidade.' })}</p>}
                     </div>
                     <button onClick={dispararModalCompartilhar} disabled={rankingOrdenado.length === 0} className="mt-4 w-full bg-slate-800 text-white py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center justify-center gap-2 shadow-sm">
-                        <i data-lucide="share-2" className="w-4 h-4"></i> Ranking WhatsApp
+                        <i data-lucide="share-2" className="w-4 h-4"></i> {t('analytics.dashboard.wppButton', { defaultValue: 'Ranking WhatsApp' })}
                     </button>
                 </div>
             </div>

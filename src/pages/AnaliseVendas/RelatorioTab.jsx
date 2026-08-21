@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { safeIsoDate } from './utils.js';
 import { Download, Share2, Trophy, LayoutList, ChevronDown, ChevronUp } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 Cérebro Internacional Injetado
 
 // ==========================================
 // 🧠 MOTOR DE CLASSIFICAÇÃO INTELIGENTE (ADMIN / LÍDER)
@@ -44,7 +45,9 @@ const classificarParaAdmin = (nome) => {
 const ORDEM_CLASSICA = ["NUTRI", "PLUS", "FIT", "PERSONAL CLASS", "PROMO 1200", "FÉRIAS", "OUTROS PLANOS", "PRODUTOS", "SERVIÇOS"];
 
 const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFiltradas = [], temVisaoGlobal, labelFiltroAtual, abrirModalWhatsapp, usuarioLogado }) => {
-    
+    const { t, locale, language } = useI18n(); // 🔥 Pegando o tradutor e o idioma atual
+    const langAtual = locale || language || 'pt-BR';
+
     const [unidadesRecolhidas, setUnidadesRecolhidas] = useState({});
     const [visaoDetalhada, setVisaoDetalhada] = useState(false);
 
@@ -100,7 +103,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                 vendedoresTotal: {},
                 visitantes: [], 
                 avaliacoes: [], 
-                // Estrutura LEGADA (Unidade)
                 grupos: {
                     "NUTRI": { total: 0, itens: {}, cor: "text-emerald-600", bgIcone: "bg-emerald-100 text-emerald-600", icone: "🥗" },
                     "PLUS": { total: 0, itens: {}, cor: "text-blue-600", bgIcone: "bg-blue-100 text-blue-600", icone: "⭐" },
@@ -112,7 +114,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                     "PRODUTOS": { total: 0, itens: {}, cor: "text-amber-600", bgIcone: "bg-amber-100 text-amber-600", icone: "🛍️" },
                     "SERVIÇOS": { total: 0, itens: {}, cor: "text-violet-600", bgIcone: "bg-violet-100 text-violet-600", icone: "🧾" }
                 },
-                // Estrutura GERENCIAL (Admin / Líder)
                 gruposAdmin: {}
             };
         }
@@ -128,7 +129,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         const prodUpper = (v.produto || 'ITEM NÃO IDENTIFICADO').toUpperCase().trim();
         const vendPrimeiroNome = (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').charAt(0).toUpperCase() + (v.vendedor ? v.vendedor.split(' ')[0] : 'SISTEMA').slice(1).toLowerCase();
         
-        // Categoria Legada (Para o Histórico da Unidade)
         let categoriaLegada = 'PLANO';
         if (prodUpper.includes('WHEY') || prodUpper.includes('TREINO') || prodUpper.includes('DRY') || prodUpper.includes('ENERGY') || prodUpper.includes('CREATINA') || prodUpper.includes('PRODUTO') || prodUpper.includes('GATORADE')) {
             categoriaLegada = 'PRODUTO';
@@ -152,9 +152,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         vendasGlobal += qtd;
         registro.vendedoresTotal[vendPrimeiroNome] = (registro.vendedoresTotal[vendPrimeiroNome] || 0) + qtd;
 
-        // ==========================================
-        // 1️⃣ LÓGICA DA UNIDADE / RECEPÇÃO 
-        // ==========================================
         let grupoAlvo = '';
         if (categoriaLegada === 'PLANO') {
             if (prodUpper.includes("NUTRI")) grupoAlvo = "NUTRI";
@@ -179,9 +176,6 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
             registro.grupos[grupoAlvo].itens[prodUpper].vendedores[vendPrimeiroNome] = (registro.grupos[grupoAlvo].itens[prodUpper].vendedores[vendPrimeiroNome] || 0) + qtd;
         }
 
-        // ==========================================
-        // 2️⃣ NOVA LÓGICA GERENCIAL (RANKING E WHATSAPP MACRO)
-        // ==========================================
         const clAdmin = classificarParaAdmin(prodUpper);
         
         if (!registro.gruposAdmin[clAdmin.grupo]) {
@@ -226,16 +220,16 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
     const maxVendasNoRanking = Math.max(...rankingUnidades.map(u => u.vendas), 1);
 
     // ==========================================
-    // 📤 EXPORTAÇÃO PARA CSV (CORRIGIDA)
+    // 📤 EXPORTAÇÃO PARA CSV
     // ==========================================
     const exportarCSV = () => {
         try {
             if (vendasFiltradas.length === 0) {
-                alert("Não há dados para exportar com os filtros atuais.");
+                alert(t('analytics.report.noDataExport', { defaultValue: "Não há dados para exportar com os filtros atuais." }));
                 return;
             }
 
-            let csvContent = ""; // Removido o prefixo 'data:text/csv'
+            let csvContent = ""; 
 
             if (visaoDetalhada) {
                 const cabeçalho = ['ID', 'Data', 'Unidade', 'Matricula', 'Aluno', 'Produto', 'Qtd', 'Vendedor'];
@@ -272,14 +266,12 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                 csvContent = [cabeçalho.join(';'), ...linhas].join('\n');
             }
             
-            // Criação segura da Data atual para o nome do arquivo
             const hojeData = new Date();
             const anoStr = hojeData.getFullYear();
             const mesStr = String(hojeData.getMonth() + 1).padStart(2, '0');
             const diaStr = String(hojeData.getDate()).padStart(2, '0');
             const dataStringSegura = `${anoStr}-${mesStr}-${diaStr}`;
             
-            // Geração via Blob (Robusto e com suporte a acentuação do Excel)
             const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             
@@ -296,7 +288,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
             
         } catch (error) {
             console.error("Erro ao exportar CSV:", error);
-            alert("Ocorreu um erro ao gerar a planilha. Verifique o console para mais detalhes.");
+            alert(t('analytics.report.exportError', { defaultValue: "Ocorreu um erro ao gerar a planilha. Verifique o console para mais detalhes." }));
         }
     };
 
@@ -305,24 +297,23 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
     // ==========================================
     const gerarRelatorioGlobalWhatsapp = () => {
         if (unidadesOrdenadas.length === 0) {
-            alert("Não há dados para gerar relatório com os filtros atuais.");
+            alert(t('analytics.report.noDataWpp', { defaultValue: "Não há dados para gerar relatório com os filtros atuais." }));
             return;
         }
 
         const dataAtual = new Date();
         const dia = String(dataAtual.getDate()).padStart(2, '0');
         const mes = String(dataAtual.getMonth() + 1).padStart(2, '0');
-        const ano = dataAtual.getFullYear();
         const hojeSemAno = `${dia}/${mes}`;
-        const horaAtual = dataAtual.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const horaAtual = dataAtual.toLocaleTimeString(langAtual, { hour: '2-digit', minute: '2-digit' });
 
-        let txt = `📊 *RESUMO EXECUTIVO – PRATIQUE FITNESS* 📊\n`;
-        txt += `📅 *Filtro Ativo:* ${labelFiltroAtual}\n`;
-        txt += `🕐 *Gerado em:* ${hojeSemAno} às ${horaAtual}\n\n`;
+        let txt = `${t('analytics.report.wppGlobalTitle', { defaultValue: '📊 *RESUMO EXECUTIVO – PRATIQUE FITNESS* 📊' })}\n`;
+        txt += `${t('analytics.report.wppActiveFilter', { defaultValue: '📅 *Filtro Ativo:*' })} ${labelFiltroAtual}\n`;
+        txt += `${t('analytics.report.wppGeneratedAt', { defaultValue: '🕐 *Gerado em:*' })} ${hojeSemAno} às ${horaAtual}\n\n`;
 
         rankingUnidades.forEach((uni) => {
             const dados = relatorioPorUnidade[uni.nome];
-            txt += `🏢 *${uni.nome}:* ${uni.vendas} vendas\n\n`;
+            txt += `🏢 *${uni.nome}:* ${uni.vendas} ${t('analytics.report.wppSalesLow', { defaultValue: 'vendas' })}\n\n`;
             
             const gruposOrd = Object.values(dados.gruposAdmin).sort((a,b) => {
                 if(a.order !== b.order) return a.order - b.order;
@@ -344,9 +335,9 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
             });
         });
 
-        txt += `📈 *TOTAL GERAL:* ${vendasGlobal} vendas\n`;
+        txt += `${t('analytics.report.wppTotalGlobal', { defaultValue: '📈 *TOTAL GERAL:*' })} ${vendasGlobal} ${t('analytics.report.wppSalesLow', { defaultValue: 'vendas' })}\n`;
 
-        abrirModalWhatsapp(txt.trim(), { titulo: `Resumo Global`, icone: 'share-2', cor: 'blue' });
+        abrirModalWhatsapp(txt.trim(), { titulo: t('analytics.report.wppGlobalModal', { defaultValue: 'Resumo Global' }), icone: 'share-2', cor: 'blue' });
     };
 
     // ==========================================
@@ -360,7 +351,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         
         const hojeDataBR = `${dia}/${mes}/${ano}`;
         const hojeSemAno = `${dia}/${mes}`;
-        const horaAtual = dataAtual.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const horaAtual = dataAtual.toLocaleTimeString(langAtual, { hour: '2-digit', minute: '2-digit' });
 
         let labelReferencia = labelFiltroAtual;
         let labelEnviado = `${hojeSemAno} às ${horaAtual}`;
@@ -373,12 +364,12 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
         const dados = relatorioPorUnidade[unidadeAlvo];
 
-        let txt = `📊 *RELATÓRIO DE FECHAMENTO – PRATIQUE FITNESS* 📊\n`;
-        txt += `📅 *Referência:* ${labelReferencia}\n`;
-        txt += `🕐 *Enviado em:* ${labelEnviado}\n`;
-        txt += `🏢 *Unidade:* ${unidadeAlvo}\n\n`;
+        let txt = `${t('analytics.report.wppCloseTitle', { defaultValue: '📊 *RELATÓRIO DE FECHAMENTO – PRATIQUE FITNESS* 📊' })}\n`;
+        txt += `${t('analytics.report.wppRef', { defaultValue: '📅 *Referência:*' })} ${labelReferencia}\n`;
+        txt += `${t('analytics.report.wppSentAt', { defaultValue: '🕐 *Enviado em:*' })} ${labelEnviado}\n`;
+        txt += `${t('analytics.report.wppUnit', { defaultValue: '🏢 *Unidade:*' })} ${unidadeAlvo}\n\n`;
         
-        txt += `📌 *RESUMO DAS VENDAS*\n\n`;
+        txt += `${t('analytics.report.wppSalesSummary', { defaultValue: '📌 *RESUMO DAS VENDAS*' })}\n\n`;
 
         const gruposClassicosOrdenados = Object.entries(dados.grupos)
             .sort((a, b) => ORDEM_CLASSICA.indexOf(a[0]) - ORDEM_CLASSICA.indexOf(b[0]))
@@ -387,7 +378,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         gruposClassicosOrdenados.forEach(([nomeGrupo, grupoInfo]) => {
             const icone = grupoInfo.icone || "🔹";
 
-            txt += `${icone} *${nomeGrupo} — ${String(grupoInfo.total).padStart(2, '0')} venda${grupoInfo.total > 1 ? 's' : ''}*\n`;
+            txt += `${icone} *${nomeGrupo} — ${String(grupoInfo.total).padStart(2, '0')} ${grupoInfo.total > 1 ? t('analytics.report.wppSalesLow', { defaultValue: 'vendas' }) : t('analytics.report.wppSaleLow', { defaultValue: 'venda' })}*\n`;
             
             const itensOrdenados = Object.entries(grupoInfo.itens).sort((a,b) => b[1].total - a[1].total);
             itensOrdenados.forEach(([nomeItem, itemData]) => {
@@ -407,7 +398,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
         });
 
         if (dados.totalGeralVendas > 0) {
-            txt += `👥 *VENDAS POR CONSULTOR*\n`;
+            txt += `${t('analytics.report.wppSalesByConsultant', { defaultValue: '👥 *VENDAS POR CONSULTOR*' })}\n`;
             const consultoresOrdenados = Object.entries(dados.vendedoresTotal)
                 .filter(([_, cTotal]) => cTotal > 0)
                 .sort((a,b) => b[1] - a[1]);
@@ -415,16 +406,16 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
             consultoresOrdenados.forEach(([cNome, cTotal]) => {
                 txt += `${cNome} — ${String(cTotal).padStart(2, '0')}\n`;
             });
-            txt += `\n📈 *TOTAL DE VENDAS: ${String(dados.totalGeralVendas).padStart(2, '0')}*\n`;
+            txt += `\n${t('analytics.report.wppTotalSalesUpper', { defaultValue: '📈 *TOTAL DE VENDAS:' })} ${String(dados.totalGeralVendas).padStart(2, '0')}*\n`;
         } else {
-            txt += `Nenhuma venda registrada.\n`;
+            txt += `${t('analytics.report.wppNoSales', { defaultValue: 'Nenhuma venda registrada.' })}\n`;
         }
         
         txt += `\n➖➖➖➖➖➖➖➖➖➖\n\n`;
-        txt += `👥 *VISITANTES (BALCÃO):* ${String(dados.visitantes.length).padStart(2, '0')}\n`;
-        txt += `📋 *AVALIAÇÕES FEITAS:* ${String(dados.avaliacoes.length).padStart(2, '0')}\n`;
+        txt += `${t('analytics.report.wppVisitorsDesk', { defaultValue: '👥 *VISITANTES (BALCÃO):*' })} ${String(dados.visitantes.length).padStart(2, '0')}\n`;
+        txt += `${t('analytics.report.wppAssessmentsDone', { defaultValue: '📋 *AVALIAÇÕES FEITAS:*' })} ${String(dados.avaliacoes.length).padStart(2, '0')}\n`;
 
-        abrirModalWhatsapp(txt.trim(), { titulo: `Relatório: ${unidadeAlvo}`, icone: 'file-text', cor: 'blue' });
+        abrirModalWhatsapp(txt.trim(), { titulo: `${t('analytics.report.reportName', { defaultValue: 'Relatório' })}: ${unidadeAlvo}`, icone: 'file-text', cor: 'blue' });
     };
 
     useEffect(() => {
@@ -451,8 +442,8 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                 <LayoutList className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest">Painel Gerencial</h3>
-                                <p className="text-[11px] font-bold text-slate-400 mt-0.5">Visão Global e Exportação</p>
+                                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest">{t('analytics.report.managerPanel', { defaultValue: 'Painel Gerencial' })}</h3>
+                                <p className="text-[11px] font-bold text-slate-400 mt-0.5">{t('analytics.report.globalExport', { defaultValue: 'Visão Global e Exportação' })}</p>
                             </div>
                         </div>
 
@@ -462,13 +453,13 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                     onClick={() => setVisaoDetalhada(false)}
                                     className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!visaoDetalhada ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
                                 >
-                                    Resumo
+                                    {t('analytics.report.btnResume', { defaultValue: 'Resumo' })}
                                 </button>
                                 <button 
                                     onClick={() => setVisaoDetalhada(true)}
                                     className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visaoDetalhada ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
                                 >
-                                    Detalhado
+                                    {t('analytics.report.btnDetailed', { defaultValue: 'Detalhado' })}
                                 </button>
                             </div>
 
@@ -477,7 +468,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                     onClick={exportarCSV}
                                     className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-slate-200"
                                 >
-                                    <Download className="w-4 h-4" /> Planilha
+                                    <Download className="w-4 h-4" /> {t('analytics.report.btnSheet', { defaultValue: 'Planilha' })}
                                 </button>
                                 <button 
                                     onClick={gerarRelatorioGlobalWhatsapp}
@@ -494,17 +485,17 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                 {permissaoGerencial && rankingUnidades.length > 0 && (
                     <div className="bg-white p-6 rounded-[24px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 no-drag animate-[slideDown_0.4s_ease-out]">
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b border-slate-100 pb-4">
-                            <Trophy className="w-5 h-5 text-amber-500" /> Ranking Global de Vendas
+                            <Trophy className="w-5 h-5 text-amber-500" /> {t('analytics.report.globalRanking', { defaultValue: 'Ranking Global de Vendas' })}
                         </h3>
                         
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left border-collapse min-w-[600px]">
                                 <thead>
                                     <tr className="border-b border-slate-200 bg-slate-50/50">
-                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest rounded-tl-xl w-20">Pos</th>
-                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-40">Unidade</th>
-                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-32">Quantidade</th>
-                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest rounded-tr-xl flex-1">Desempenho & Composição</th>
+                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest rounded-tl-xl w-20">{t('analytics.report.colPos', { defaultValue: 'Pos' })}</th>
+                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-40">{t('analytics.report.colUnit', { defaultValue: 'Unidade' })}</th>
+                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center w-32">{t('analytics.report.colQty', { defaultValue: 'Quantidade' })}</th>
+                                        <th className="py-4 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest rounded-tr-xl flex-1">{t('analytics.report.colPerf', { defaultValue: 'Desempenho & Composição' })}</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -586,7 +577,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
                             <i data-lucide="file-x-2" className="w-8 h-8 text-slate-400"></i>
                         </div>
-                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Nenhum dado neste período.</p>
+                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">{t('analytics.report.emptyData', { defaultValue: 'Nenhum dado neste período.' })}</p>
                     </div>
                 ) : (
                     unidadesOrdenadas.map(unidade => {
@@ -612,7 +603,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                                 {unidade}
                                             </h4>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                Performance Operacional
+                                                {t('analytics.report.perfOps', { defaultValue: 'Performance Operacional' })}
                                             </p>
                                         </div>
                                     </div>
@@ -620,7 +611,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                     <div className="flex flex-wrap items-center gap-3 no-drag">
                                         <div className="bg-emerald-500/10 border border-emerald-500/20 px-4 py-2 rounded-xl flex items-center gap-2" title="Total de Vendas Registradas">
                                             <span className="text-[11px] font-black text-emerald-400 uppercase tracking-widest">
-                                                {String(dados.totalGeralVendas).padStart(2, '0')} Vendas
+                                                {String(dados.totalGeralVendas).padStart(2, '0')} {t('analytics.report.salesUnit', { defaultValue: 'Vendas' })}
                                             </span>
                                         </div>
 
@@ -633,7 +624,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
 
                                         <button 
                                             className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-white/10 text-slate-400 transition-colors shrink-0"
-                                            title={isRecolhido ? "Expandir" : "Recolher"}
+                                            title={isRecolhido ? t('analytics.report.btnExpand', { defaultValue: 'Expandir' }) : t('analytics.report.btnCollapse', { defaultValue: 'Recolher' })}
                                         >
                                             {isRecolhido ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
                                         </button>
@@ -704,7 +695,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                                         👥
                                                     </span>
                                                     <span className={`text-xs font-black uppercase tracking-wider ${hasVisitantes ? 'text-blue-600' : 'text-slate-400'}`}>
-                                                        VISITANTES
+                                                        {t('analytics.report.cardVisitors', { defaultValue: 'VISITANTES' })}
                                                     </span>
                                                 </div>
                                                 <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border ${hasVisitantes ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
@@ -714,13 +705,13 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                             <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px]">
                                                 {hasVisitantes ? (
                                                     <>
-                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Total Capturado</p>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t('analytics.report.totalCaptured', { defaultValue: 'Total Capturado' })}</p>
                                                         <p className="text-4xl md:text-5xl font-black text-slate-800">{dados.visitantes.length}</p>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <p className="text-4xl md:text-5xl font-black text-slate-300 mb-2">00</p>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhuma visita</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('analytics.report.emptyVisitors', { defaultValue: 'Nenhuma visita' })}</p>
                                                     </>
                                                 )}
                                             </div>
@@ -734,7 +725,7 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                                         📋
                                                     </span>
                                                     <span className={`text-xs font-black uppercase tracking-wider ${hasAvaliacoes ? 'text-orange-600' : 'text-slate-400'}`}>
-                                                        AVALIAÇÕES
+                                                        {t('analytics.report.cardAssessments', { defaultValue: 'AVALIAÇÕES' })}
                                                     </span>
                                                 </div>
                                                 <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border ${hasAvaliacoes ? 'bg-orange-50 text-orange-600 border-orange-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
@@ -744,13 +735,13 @@ const RelatorioTab = ({ vendasFiltradas, visitantesFiltrados = [], avaliacoesFil
                                             <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px]">
                                                 {hasAvaliacoes ? (
                                                     <>
-                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Realizadas Hoje</p>
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">{t('analytics.report.doneToday', { defaultValue: 'Realizadas Hoje' })}</p>
                                                         <p className="text-4xl md:text-5xl font-black text-slate-800">{dados.avaliacoes.length}</p>
                                                     </>
                                                 ) : (
                                                     <>
                                                         <p className="text-4xl md:text-5xl font-black text-slate-300 mb-2">00</p>
-                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nenhuma avaliação</p>
+                                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('analytics.report.emptyAssessments', { defaultValue: 'Nenhuma avaliação' })}</p>
                                                     </>
                                                 )}
                                             </div>

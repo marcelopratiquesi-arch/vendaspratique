@@ -41,12 +41,12 @@ export function SidebarDesktop({
             <nav className="flex-1 overflow-y-auto custom-scrollbar py-6 px-3 space-y-1.5">
                 {isCollapsed && (
                      <div className="flex justify-center mb-4">
-                        <button onClick={() => setIsCollapsed(false)} className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" title="Expandir">
+                        <button onClick={() => setIsCollapsed(false)} className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 transition-colors" title={t('sidebar.expand', {defaultValue: 'Expandir'})}>
                             <PanelLeftOpen className="w-5 h-5" />
                         </button>
                      </div>
                 )}
-                {!isCollapsed && <p className="text-[10px] font-bold text-slate-500/80 dark:text-slate-500 uppercase tracking-widest mb-4 ml-3">Módulos</p>}
+                {!isCollapsed && <p className="text-[10px] font-bold text-slate-500/80 dark:text-slate-500 uppercase tracking-widest mb-4 ml-3">{t('sidebar.modules', {defaultValue: 'Módulos'})}</p>}
                 
                 {abasPermitidas.map(tab => {
                     const isActive = activeTab === tab.id;
@@ -57,12 +57,11 @@ export function SidebarDesktop({
                             {isConfig && <div className="h-px bg-slate-200/50 dark:bg-white/5 my-4 mx-3"></div>}
                             <button 
                                 onClick={() => setActiveTab(tab.id)} 
-                                title={isCollapsed ? (tab.badge ? `${tab.label} (${tab.badge} pendentes)` : tab.label) : ''}
+                                title={isCollapsed ? (tab.badge ? `${tab.label} (${tab.badge} ${t('sidebar.pending', {defaultValue: 'pendentes'})})` : tab.label) : ''}
                                 className={`flex items-center relative transition-all duration-200 group ${isCollapsed ? 'justify-center w-12 h-12 mx-auto rounded-xl' : 'gap-3.5 px-4 py-3.5 rounded-xl w-full text-left'} ${isActive ? 'bg-white dark:bg-blue-600/10 shadow-[0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-none border border-slate-200/50 dark:border-white/5 dark:border-l-2 dark:border-l-blue-500' : 'hover:bg-slate-200/50 dark:hover:bg-white/[0.03] border border-transparent'}`}
                             >
                                 <Icone className={`w-[18px] h-[18px] shrink-0 transition-colors ${isActive ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300'}`} strokeWidth={isActive ? 2.5 : 2} />
                                 
-                                {/* Badge quando a Sidebar está RECOLHIDA */}
                                 {isCollapsed && tab.badge && (
                                     <span className="absolute top-2 right-2 flex h-2.5 w-2.5">
                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
@@ -70,7 +69,6 @@ export function SidebarDesktop({
                                     </span>
                                 )}
 
-                                {/* Label + Badge quando a Sidebar está ABERTA */}
                                 {!isCollapsed && (
                                     <div className="flex items-center justify-between flex-1 truncate">
                                         <span className={`text-[13px] font-bold tracking-wide truncate ${isActive ? 'text-blue-900 dark:text-white' : 'text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200'}`}>{tab.label}</span>
@@ -89,14 +87,14 @@ export function SidebarDesktop({
 
             <div className={`p-4 border-t border-slate-200/50 dark:border-white/5 bg-slate-100/50 dark:bg-black/10 shrink-0 flex flex-col gap-3 transition-all`}>
                 <div className="flex justify-center w-full">
-                     <button onClick={toggleTheme} className={`flex items-center transition-all bg-white dark:bg-[#1a1c23] border border-slate-200 dark:border-white/5 shadow-sm rounded-xl overflow-hidden ${isCollapsed ? 'w-10 h-10 p-0 justify-center' : 'w-full p-1'}`} title="Trocar tema">
+                     <button onClick={toggleTheme} className={`flex items-center transition-all bg-white dark:bg-[#1a1c23] border border-slate-200 dark:border-white/5 shadow-sm rounded-xl overflow-hidden ${isCollapsed ? 'w-10 h-10 p-0 justify-center' : 'w-full p-1'}`} title={t('sidebar.toggleTheme', {defaultValue: 'Trocar tema'})}>
                         {!isCollapsed && (
                             <div className="flex w-full relative z-0">
                                 <div className={`w-1/2 flex items-center justify-center py-1.5 rounded-lg z-10 transition-colors ${theme === 'light' ? 'bg-slate-100 text-slate-800 font-bold' : 'text-slate-500 hover:text-white'}`}>
-                                    <Sun className="w-4 h-4 mr-1.5" /> <span className="text-[10px] uppercase tracking-wider">Claro</span>
+                                    <Sun className="w-4 h-4 mr-1.5" /> <span className="text-[10px] uppercase tracking-wider">{t('sidebar.lightMode', {defaultValue: 'Claro'})}</span>
                                 </div>
                                 <div className={`w-1/2 flex items-center justify-center py-1.5 rounded-lg z-10 transition-colors ${theme === 'dark' ? 'bg-slate-800 text-white font-bold' : 'text-slate-500 hover:text-slate-800'}`}>
-                                    <Moon className="w-4 h-4 mr-1.5" /> <span className="text-[10px] uppercase tracking-wider">Escuro</span>
+                                    <Moon className="w-4 h-4 mr-1.5" /> <span className="text-[10px] uppercase tracking-wider">{t('sidebar.darkMode', {defaultValue: 'Escuro'})}</span>
                                 </div>
                             </div>
                         )}
@@ -113,7 +111,7 @@ export function SidebarDesktop({
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest truncate">{usuarioLogado.role}</p>
                         </div>
                     )}
-                    <button onClick={handleLogout} className={`text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors p-2.5 rounded-xl shrink-0 ${isCollapsed ? 'bg-slate-200/50 dark:bg-white/5' : ''}`} title={t('header.signOut')}>
+                    <button onClick={handleLogout} className={`text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors p-2.5 rounded-xl shrink-0 ${isCollapsed ? 'bg-slate-200/50 dark:bg-white/5' : ''}`} title={t('header.signOut', {defaultValue: 'Sair'})}>
                         <LogOut className="w-4 h-4" />
                     </button>
                 </div>
@@ -149,7 +147,7 @@ export function SidebarMobile({
                     <LanguageSwitcher />
                 </div>
                 <nav className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-1.5">
-                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-2">Menu</p>
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-2">{t('sidebar.menu', {defaultValue: 'Menu'})}</p>
                     {abasPermitidas.map(tab => {
                         const isActive = activeTab === tab.id;
                         const Icone = tab.icon;
@@ -169,14 +167,14 @@ export function SidebarMobile({
                     })}
                 </nav>
                 <div className="p-4 border-t border-slate-100 dark:border-white/5 bg-slate-50 dark:bg-[#090b11]/50 flex items-center gap-3">
-                    <button onClick={toggleTheme} className="p-3 bg-white dark:bg-[#1a1c23] border border-slate-200 dark:border-white/5 shadow-sm rounded-xl text-slate-500 hover:text-blue-500 transition-colors">
+                    <button onClick={toggleTheme} className="p-3 bg-white dark:bg-[#1a1c23] border border-slate-200 dark:border-white/5 shadow-sm rounded-xl text-slate-500 hover:text-blue-500 transition-colors" title={t('sidebar.toggleTheme', {defaultValue: 'Trocar tema'})}>
                         {theme === 'light' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                     </button>
                     <div className="flex-1 min-w-0 ml-2">
                         <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{usuarioLogado.nome}</p>
                         <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{usuarioLogado.role}</p>
                     </div>
-                    <button onClick={handleLogout} className="p-3 text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 bg-slate-200 dark:bg-white/5 rounded-xl">
+                    <button onClick={handleLogout} className="p-3 text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 bg-slate-200 dark:bg-white/5 rounded-xl" title={t('header.signOut', {defaultValue: 'Sair'})}>
                         <LogOut className="w-4 h-4" />
                     </button>
                 </div>

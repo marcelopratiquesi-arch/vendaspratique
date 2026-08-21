@@ -45,7 +45,6 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
 
             const dadosEnriquecidos = inboxData.map(item => ({
                 ...item,
-                // 🔥 Se não achar o nome, exibe o próprio e-mail para não ficar em branco
                 nome: mapUsuarios[item.email_usuario]?.nome || item.email_usuario,
                 unidade: mapUsuarios[item.email_usuario]?.unidade || '-',
                 cargo: mapUsuarios[item.email_usuario]?.cargo || '-'
@@ -63,7 +62,6 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
         carregarRelatorio();
     }, [comunicado.id]);
 
-    // 🔥 CORREÇÃO DO ERRO 404: Buscando a identidade direto da sessão do Supabase!
     const handleResetarTentativas = async (inboxId, nome) => {
         if (!window.confirm(`Deseja perdoar as falhas e liberar uma nova chance para ${nome}? O histórico de erros será mantido na auditoria.`)) return;
         
@@ -75,7 +73,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
 
             const { error } = await supabase.rpc('resetar_tentativas_comunicado', {
                 p_inbox_id: inboxId,
-                p_admin_email: user.email // Envia o e-mail absoluto do Supabase Auth
+                p_admin_email: user.email 
             });
             
             if (error) throw error;
@@ -230,7 +228,6 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
 
 export default function CentralComunicados({ usuarioLogado, unidades }) {
     const { t, locale, language } = useI18n(); 
-    
     const langAtual = locale || language || 'pt-BR';
     
     const [modo, setModo] = useState('lista'); 
@@ -278,7 +275,8 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
             }
 
             if (isGestor) {
-                let query = supabase.from('comunicados').select('*').is('deleted_at', null).order('criado_em', { ascending: false });
+                // 🔥 CORREÇÃO FATAL DO ADMIN: Agora a ordenação é por inicio_em e o React nunca mais crasha!
+                let query = supabase.from('comunicados').select('*').is('deleted_at', null).order('inicio_em', { ascending: false });
                 if (usuarioLogado.role === 'MENTOR') query = query.eq('criado_por', emailReal);
                 
                 const { data: authored } = await query;

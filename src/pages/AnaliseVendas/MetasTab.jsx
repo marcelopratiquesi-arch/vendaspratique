@@ -1,5 +1,6 @@
 import React from 'react';
 import { getCategoriaItem } from './utils.js';
+import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 Injetado
 
 const MetasTab = ({
     temVisaoGlobal, vendasFiltradas, unidadesUnicas, usuarioLogado,
@@ -7,6 +8,8 @@ const MetasTab = ({
     setMetaNutri, setMetaProdutos, setMetaPersonal,
     salvarMetasNuvem, isSalvandoMetas, planos, produtos
 }) => {
+    const { t } = useI18n(); // 🔥 i18n ativado
+
     const listaUnidadesMetas = unidadesUnicas.filter(u => u !== 'TODOS' && (temVisaoGlobal ? true : u === usuarioLogado?.unidade));
 
     const dadosMetasPorUnidade = listaUnidadesMetas.map(unidade => {
@@ -39,24 +42,26 @@ const MetasTab = ({
             <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                        <i data-lucide="sliders" className="w-5 h-5 text-blue-600"></i> Painel de Metas Mensais
+                        <i data-lucide="sliders" className="w-5 h-5 text-blue-600"></i> {t('analytics.metas.panelTitle', { defaultValue: 'Painel de Metas Mensais' })}
                     </h3>
                     {temVisaoGlobal && (
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">Selecione uma unidade no filtro para editar</span>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-slate-100 px-3 py-1 rounded-lg">
+                            {t('analytics.metas.selectUnitHint', { defaultValue: 'Selecione uma unidade no filtro para editar' })}
+                        </span>
                     )}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-slate-50 p-6 rounded-[20px] border border-slate-100 mb-6">
                     <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Meta: Planos Nutri</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">{t('analytics.metas.goalNutri', { defaultValue: 'Meta: Planos Nutri' })}</label>
                         <input type="number" min="0" value={metaNutri} onChange={(e) => setMetaNutri(parseInt(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-xl p-4 font-black text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Meta: Produtos Físicos</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">{t('analytics.metas.goalProducts', { defaultValue: 'Meta: Produtos Físicos' })}</label>
                         <input type="number" min="0" value={metaProdutos} onChange={(e) => setMetaProdutos(parseInt(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-xl p-4 font-black text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" />
                     </div>
                     <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Meta: Personal Class</label>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">{t('analytics.metas.goalPersonal', { defaultValue: 'Meta: Personal Class' })}</label>
                         <input type="number" min="0" value={metaPersonal} onChange={(e) => setMetaPersonal(parseInt(e.target.value) || 0)} className="w-full bg-white border border-slate-200 rounded-xl p-4 font-black text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none" />
                     </div>
                 </div>
@@ -64,7 +69,7 @@ const MetasTab = ({
                 <div className="flex justify-end">
                     <button onClick={salvarMetasNuvem} disabled={isSalvandoMetas} className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
                         {isSalvandoMetas ? <i data-lucide="loader-2" className="w-4 h-4 animate-spin"></i> : <i data-lucide="save" className="w-4 h-4"></i>}
-                        Salvar Metas da Unidade
+                        {t('analytics.metas.saveGoals', { defaultValue: 'Salvar Metas da Unidade' })}
                     </button>
                 </div>
             </div>
@@ -74,10 +79,10 @@ const MetasTab = ({
                     <table className="w-full text-left border-collapse min-w-max">
                         <thead>
                             <tr className="bg-slate-50">
-                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">Academia / Unidade</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center border-b border-slate-100">Progresso Nutri</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center border-b border-slate-100">Progresso Produtos</th>
-                                <th className="px-8 py-5 text-[10px] font-black text-indigo-600 uppercase tracking-widest text-center border-b border-slate-100">Progresso Personal</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100">{t('analytics.metas.tableAcademy', { defaultValue: 'Academia / Unidade' })}</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-emerald-600 uppercase tracking-widest text-center border-b border-slate-100">{t('analytics.metas.tableNutri', { defaultValue: 'Progresso Nutri' })}</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-amber-600 uppercase tracking-widest text-center border-b border-slate-100">{t('analytics.metas.tableProducts', { defaultValue: 'Progresso Produtos' })}</th>
+                                <th className="px-8 py-5 text-[10px] font-black text-indigo-600 uppercase tracking-widest text-center border-b border-slate-100">{t('analytics.metas.tablePersonal', { defaultValue: 'Progresso Personal' })}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">

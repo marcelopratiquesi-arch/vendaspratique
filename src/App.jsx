@@ -34,8 +34,8 @@ export default function App() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
     const [isIdle, setIsIdle] = useState(false); 
-    const [unreadCount, setUnreadCount] = useState(0);
     
+    // Removido o unreadCount burro, agora usamos direto o motor global!
     const [triggerSync, setTriggerSync] = useState(0);
     
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('pratique_sidebar') === 'true');
@@ -139,24 +139,7 @@ export default function App() {
         };
     }, [isIdle]);
 
-    useEffect(() => {
-        if (!usuarioLogado) return;
-        let isMounted = true;
-        const fetchBadgeCount = async () => {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user || !isMounted) return;
-            const { count } = await supabase.from('comunicado_inbox').select('id', { count: 'exact', head: true })
-                .eq('email_usuario', user.email).in('status_leitura', ['NAO_LIDO', 'PENDENTE']);
-            if (isMounted) setUnreadCount(count || 0);
-        };
-        fetchBadgeCount();
-        const badgeChannel = supabase.channel('badge-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicado_inbox' }, fetchBadgeCount)
-            .subscribe();
-        return () => { isMounted = false; supabase.removeChannel(badgeChannel); };
-    }, [usuarioLogado, triggerSync]); 
-
-    // 🔥 MOTOR CENTRAL BLINDADO: Usando !inner(*) ele nunca crasha se faltar coluna
+    // 🔥 MOTOR CENTRAL: Agora ele domina sozinho a tela e a Badge!
     useEffect(() => {
         if (!usuarioLogado) return;
         let isMounted = true;
@@ -195,7 +178,7 @@ export default function App() {
                     const inicio = new Date(com.inicio_em);
 
                     if (inicio <= agora) {
-                        ativosPendentes++;
+                        ativosPendentes++; // Só conta para a bolinha se JÁ passou da hora!
                         if (com.obrigatorio && com.bloqueia_operacao) {
                             if (!maisAntigoBloqueante || inicio < new Date(maisAntigoBloqueante.inicio_em)) {
                                 maisAntigoBloqueante = { inbox_id: item.id, ...com };
@@ -277,7 +260,8 @@ export default function App() {
         { id: 'crm', label: t('navigation.crm'), icon: Users, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'cadastros', label: t('navigation.management'), icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'], badge: unreadCount > 0 ? unreadCount : null },
+        // 🔥 A bolinha puxa a verdade absoluta (sem contar agendamentos no futuro)
+        { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'], badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
         { id: 'config', label: t('navigation.settings'), icon: Settings, permissoes: ['ADMIN'] }
     ];
 
