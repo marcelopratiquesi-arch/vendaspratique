@@ -8,12 +8,13 @@ import TabCatalogo from './TabCatalogo.jsx';
 import ModalCatalogo from './ModalCatalogo.jsx';
 import TabSetores from './TabSetores.jsx';
 import ModalSetor from './ModalSetor.jsx';
-import AlunosTab from './AlunosTab.jsx'; // 🔥 NOVO: Aba de Alunos importada
+import AlunosTab from './AlunosTab.jsx'; 
 import { useI18n } from '../../i18n/I18nContext.jsx';
 
-const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
-    const { t } = useI18n(); // Pegar traduções
-    const [abaAtiva, setAbaAtiva] = useState('alunos'); // Começa na aba de alunos por padrão
+// 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
+const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
+    const { t } = useI18n(); 
+    const [abaAtiva, setAbaAtiva] = useState('alunos'); 
     const [listaSetores, setListaSetores] = useState([]);
     
     const [modalColabAberto, setModalColabAberto] = useState(false);
@@ -27,9 +28,11 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
-    const podeEditarEquipe = temVisaoGlobal || usuarioLogado?.role === 'LIDER';
-    const ehAdmin = usuarioLogado?.role === 'ADMIN';
+    // Contexto de Permissão Global
+    const roleBaseApp = usuarioVirtual?.role || usuarioLogado?.role || '';
+    const temVisaoGlobal = roleBaseApp === 'ADMIN' || roleBaseApp === 'MENTOR';
+    const podeEditarEquipe = temVisaoGlobal || roleBaseApp === 'LIDER';
+    const ehAdmin = roleBaseApp === 'ADMIN';
 
     const catalogoCompleto = [...(planos || []), ...(produtos || []), ...(servicos || [])];
 
@@ -45,7 +48,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
     const handleSaveColaborador = async (payload) => {
         setIsSubmitting(true);
         try {
-            const unidadeFinal = temVisaoGlobal ? payload.unidade : usuarioLogado?.unidade;
+            const unidadeFinal = temVisaoGlobal ? payload.unidade : (usuarioVirtual?.unidade || usuarioLogado?.unidade);
             const finalPayload = { ...payload, unidade: unidadeFinal };
 
             if (payload.id) {
@@ -54,7 +57,6 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                 if (data) setColaboradores(colaboradores.map(c => c.id === payload.id ? data[0] : c));
             } else {
                 delete finalPayload.id;
-                // Força o status ativo na criação
                 finalPayload.ativo = true;
                 const { data, error } = await supabase.from('colaboradores').insert([finalPayload]).select();
                 if (error) throw error;
@@ -90,7 +92,7 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
         }
     };
 
-    // --- CRUD: CATÁLOGO (AGORA COM SOFT DELETE / DESCONTINUAÇÃO) ---
+    // --- CRUD: CATÁLOGO ---
     const handleSaveCatalogo = async (payload) => {
         setIsSubmitting(true);
         try {
@@ -107,7 +109,6 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
                 if (data) atualizaArrayLocal(payload.tipo, data[0], 'UPDATE');
             } else {
                 delete payload.id;
-                // Força o status ativo na criação do catálogo
                 payload.ativo = true;
                 const { data, error } = await supabase.from('catalogo').insert([payload]).select();
                 if (error) throw error;
@@ -121,7 +122,6 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
         }
     };
 
-    // 🔥 NOVA FUNÇÃO: Inativação Lógica do Catálogo (Soft Delete)
     const handleToggleStatusCatalogo = async (item) => {
         const statusAtual = item.ativo !== false; 
         const novoStatus = !statusAtual;
@@ -229,8 +229,12 @@ const CadastroGeral = ({ usuarioLogado, unidades = [], planos, setPlanos, produt
             </div>
 
             <div className="w-full">
+                {/* 🔥 CORREÇÃO SINTÁTICA CIRÚRGICA (Parse Error Resolvido) */}
                 {abaAtiva === 'alunos' && (
-                    <AlunosTab />
+                    <AlunosTab 
+                        usuarioLogado={usuarioLogado} 
+                        usuarioVirtual={usuarioVirtual}
+                    />
                 )}
 
                 {abaAtiva === 'equipe' && (
