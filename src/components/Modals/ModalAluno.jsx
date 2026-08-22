@@ -4,17 +4,24 @@ import { UserRoundPen, X, Loader2, Save, UserPlus, AlertTriangle, Link } from 'l
 import { normalizarNome, normalizarNumeros, formatarTelefone, validarEmail, validarTelefone, calcularIdade, mascaraCPF } from '../../pages/CadastroGeral/utilsAlunos.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 
-// 🔥 PROP ADICIONADA: unidadeDestino para saber em qual unidade o aluno está sendo vinculado
 const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogado, unidadeDestino }) => {
     const { t } = useI18n(); 
     
-    // Define a unidade ativa (Prioridade: prop passada > unidade do usuário > fallback de segurança)
-    const unidadeAtiva = unidadeDestino || usuarioLogado?.unidade || 'SANTA INÊS 2';
+    // 🔥 CORREÇÃO 2: DETERMINAÇÃO BLINDADA DA UNIDADE (Fim dos alunos "sem dono")
+    const resolveUnidade = () => {
+        let u = unidadeDestino || alunoInicial?.unidade_vinculo || usuarioLogado?.unidade || '';
+        // Se a unidade vazou como 'TODAS', forçamos a pegar a do aluno ou retornar vazio
+        if (u === 'TODAS' || u === 'GLOBAL') {
+            u = alunoInicial?.unidade_vinculo || '';
+        }
+        return u.toUpperCase().trim();
+    };
+    const unidadeAtiva = resolveUnidade();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({ id: null, nome: '', cpf: '', matricula: '', telefone: '', email: '', data_nascimento: '' });
     const [idade, setIdade] = useState(null);
-    const [isNewLink, setIsNewLink] = useState(false); // 🔥 Detecta se o aluno veio da base global e vai ganhar um vínculo novo
+    const [isNewLink, setIsNewLink] = useState(false); 
 
     // ESTADOS PARA VALIDAÇÃO EM TEMPO REAL
     const [erroMatricula, setErroMatricula] = useState('');
@@ -26,6 +33,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
     const [erroEmail, setErroEmail] = useState('');
     const [verificandoEmail, setVerificandoEmail] = useState(false);
 
+    // 🔥 CORREÇÃO 1: FIM DO BUG "DIGITA E APAGA" (Dependency Array Ajustado)
     useEffect(() => {
         if (isOpen) {
             setFormData({
@@ -48,7 +56,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 setIsNewLink(false);
             }
         }
-    }, [isOpen, alunoInicial]); 
+    }, [isOpen, alunoInicial?.id]); // 👈 A mágica está aqui: não dependemos mais da referência do objeto, apenas do ID.
 
     useEffect(() => {
         setIdade(calcularIdade(formData.data_nascimento));
@@ -125,11 +133,12 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         const matNoZeros = matStr.replace(/^0+/, '');
         const matWithZero = '0' + matNoZeros;
 
+        if (!unidadeAtiva) return; // Proteção extra
+
         setVerificandoMatricula(true);
         try {
-            // 🔥 MULTIUNIDADE: Busca a matrícula apenas na unidade ativa
             let query = supabase.from('alunos_unidades').select('id, aluno_id, alunos(nome)')
-                .eq('unidade', unidadeAtiva.toUpperCase())
+                .eq('unidade', unidadeAtiva)
                 .or(`matricula.eq.${matStr},matricula.eq.${matNoZeros},matricula.eq.${matWithZero}`);
             
             if (formData.id) query = query.neq('aluno_id', formData.id);
@@ -215,11 +224,15 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             return alert("Corrija os erros apontados em vermelho antes de salvar.");
         }
         
+        // 🔥 BARREIRA CONTRA ALUNO "FANTASMA" SEM UNIDADE
+        if (!unidadeAtiva) {
+            return alert("🚨 ERRO CRÍTICO: Selecione uma unidade específica no topo da tela antes de cadastrar. Não é possível salvar um aluno na visão 'TODAS'.");
+        }
+        
         const rawEmail = formData.email || '';
         const rawMatricula = formData.matricula || '';
         const rawPhone = formData.telefone || '';
 
-        // BARREIRAS INTRANSPONÍVEIS PRÉ-SUPABASE
         if (/\s/.test(rawEmail)) return alert(t('validation.emailWhitespace', {defaultValue: "🚨 BLOQUEADO: Remova os espaços em branco do E-MAIL."}));
         if (/\s/.test(rawMatricula)) return alert("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA.");
         
@@ -242,7 +255,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
 
         setIsSubmitting(true);
         try {
-            // 🔥 PRE-FLIGHT 1: VERIFICA PESSOA GLOBAL (TELEFONE E EMAIL)
+            // 🔥 PRE-FLIGHT 1: VERIFICA PESSOA GLOBAL
             const telSemNove = telefoneLimpo.length === 11 ? telefoneLimpo.slice(0,2) + telefoneLimpo.slice(3) : telefoneLimpo;
             const telComNove = telefoneLimpo.length === 10 ? telefoneLimpo.slice(0,2) + '9' + telefoneLimpo.slice(2) : telefoneLimpo;
             
@@ -261,7 +274,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 }
             }
 
-            // 🔥 PRE-FLIGHT 2: VERIFICA MATRÍCULA LOCAL (NA UNIDADE ATIVA)
+            // 🔥 PRE-FLIGHT 2: VERIFICA MATRÍCULA LOCAL
             if (rawMatricula.toUpperCase() !== 'VISITANTE') {
                 const matNoZeros = rawMatricula.replace(/^0+/, '');
                 const matWithZero = '0' + matNoZeros;
@@ -269,7 +282,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 
                 const { data: dupLocal, error: errLocal } = await supabase.from('alunos_unidades')
                     .select('id, aluno_id, matricula')
-                    .eq('unidade', unidadeAtiva.toUpperCase())
+                    .eq('unidade', unidadeAtiva)
                     .or(queryLocal);
                 
                 if (errLocal) throw errLocal;
@@ -288,14 +301,14 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             const auditNome = usuarioLogado?.nome || 'SISTEMA';
             const auditEmail = usuarioLogado?.email || '';
 
-            // PAYLOAD DA IDENTIDADE (Tabela 'alunos')
+            // PAYLOAD DA IDENTIDADE
             const payloadPessoa = {
                 nome: nomeLimpo,
                 cpf: cpfLimpo,
                 telefone: telefoneLimpo, 
                 email: rawEmail,
                 data_nascimento: dataNasc,
-                matricula: rawMatricula // Mantido temporariamente por compatibilidade com relatórios velhos
+                matricula: rawMatricula 
             };
 
             let alunoIdDestino = formData.id;
@@ -319,7 +332,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             // 2. SALVAR/ATUALIZAR VÍNCULO (Tabela 'alunos_unidades')
             const payloadVinculo = {
                 aluno_id: alunoIdDestino,
-                unidade: unidadeAtiva.toUpperCase(),
+                unidade: unidadeAtiva, // Garantidamente limpa e filtrada
                 matricula: rawMatricula,
                 status: 'ATIVO',
                 updated_at: new Date().toISOString()
@@ -328,7 +341,6 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             const { error: errVinculo } = await supabase.from('alunos_unidades').upsert(payloadVinculo, { onConflict: 'aluno_id, unidade' });
             if (errVinculo) {
                 console.error("Erro de vínculo:", errVinculo);
-                // Não bloqueamos a tela se o vínculo der erro secundário, a pessoa já foi salva.
             }
 
             onSaveSuccess(dataResultPessoa);
@@ -358,7 +370,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 tracking-tight">{formData.id ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}</h3>
                             <p className="text-xs font-semibold text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                Vínculo: <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">{unidadeAtiva}</span>
+                                Vínculo: <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">{unidadeAtiva || 'NENHUMA'}</span>
                             </p>
                         </div>
                     </div>

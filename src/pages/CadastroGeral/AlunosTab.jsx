@@ -6,24 +6,26 @@ import { parseSmartPaste, mascaraCPF, formatarTelefone } from './utilsAlunos.js'
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 
 const AlunosTab = (props) => {
-    const { usuarioLogado } = props;
+    // 🔥 CORREÇÃO: Lendo o usuarioVirtual que vem do CadastroGeral
+    const { usuarioLogado, usuarioVirtual } = props;
     const { t, locale, language } = useI18n();
     const langAtual = locale || language || 'pt-BR';
 
     // ==========================================
-    // 1. A FONTE ÚNICA DE VERDADE (SSOT)
+    // 1. A FONTE ÚNICA DE VERDADE (SSOT) CORRIGIDA
     // ==========================================
     const propUnidade = props.unidadeAtiva || props.unidadeSelecionada || props.unidade || '';
     const storageUnidade = localStorage.getItem('unidadeAtiva') || localStorage.getItem('unidadeSelecionada') || localStorage.getItem('unidade') || '';
     
-    const unidadeRaw = propUnidade || usuarioLogado?.unidade || storageUnidade || '';
+    // 🔥 CORREÇÃO MÁXIMA: Prioridade total para o usuarioVirtual (TopBar), depois props, depois usuário logado.
+    const unidadeRaw = usuarioVirtual?.unidade || propUnidade || usuarioLogado?.unidade || storageUnidade || '';
     const unidadeAtiva = unidadeRaw.toUpperCase().trim();
 
     // ==========================================
     // 2. REGRAS DE PERMISSÃO
     // ==========================================
-    const role = (usuarioLogado?.role || '').toUpperCase().trim();
-    const temPermissaoGlobal = role === 'ADMIN' || role === 'MENTOR';
+    const roleBaseApp = (usuarioVirtual?.role || usuarioLogado?.role || '').toUpperCase().trim();
+    const temPermissaoGlobal = roleBaseApp === 'ADMIN' || roleBaseApp === 'MENTOR';
     
     // Visão Global
     const isVisaoGlobal = temPermissaoGlobal && (!unidadeAtiva || unidadeAtiva === 'TODAS' || unidadeAtiva.includes('GLOBAL'));
@@ -60,7 +62,7 @@ const AlunosTab = (props) => {
     }, [busca]);
 
     // ==========================================
-    // 3. BUSCA BLINDADA (VOLTANDO AO PADRÃO SEGURO)
+    // 3. BUSCA BLINDADA
     // ==========================================
     const carregarAlunos = async () => {
         if (erroUnidadePerdida) {
@@ -69,22 +71,18 @@ const AlunosTab = (props) => {
 
         setLoading(true);
         try {
-            // Tratamento de acentuação da unidade
             const uniAcento = unidadeAtiva.replace('INES', 'INÊS');
             const uniSemAcento = unidadeAtiva.replace('INÊS', 'INES');
 
             let query = supabase.from('alunos');
 
             if (isVisaoGlobal) {
-                // VISAO GLOBAL
                 query = query.select(`*, alunos_unidades(unidade, matricula, status)`, { count: 'exact' });
             } else {
-                // VISAO LOCAL: A tabela mãe é "alunos", filtramos garantindo que tenha o vínculo da unidade
                 query = query.select(`*, alunos_unidades!inner(unidade, matricula, status)`, { count: 'exact' })
                              .in('alunos_unidades.unidade', [unidadeAtiva, uniAcento, uniSemAcento]);
             }
 
-            // Filtro de busca na tabela mãe
             if (termoBusca) {
                 const bNumeros = termoBusca.replace(/\D/g, '');
                 if (bNumeros) {
@@ -107,13 +105,11 @@ const AlunosTab = (props) => {
                 throw error;
             }
 
-            // Planificamos para renderizar na tabela perfeitamente
             const alunosPlanificados = (data || []).map(item => {
                 const vinculoArray = item.alunos_unidades || [];
                 let vinculoLocal = vinculoArray[0] || {};
                 
                 if (!isVisaoGlobal) {
-                    // Na visão local, pegamos o vínculo exato para renderizar a matrícula correta
                     vinculoLocal = vinculoArray.find(v => {
                         const uni = v.unidade?.toUpperCase().trim() || '';
                         return uni === unidadeAtiva || uni === uniAcento || uni === uniSemAcento;
@@ -170,7 +166,6 @@ const AlunosTab = (props) => {
                     const { data: globalData } = await supabase.from('alunos').select('cpf').in('cpf', chunk);
                     if (globalData) existentesGlobais = [...existentesGlobais, ...globalData];
 
-                    // Busca segura de vínculos
                     const { data: localData } = await supabase.from('alunos')
                         .select('cpf, alunos_unidades!inner(unidade)')
                         .in('cpf', chunk)
@@ -262,9 +257,6 @@ const AlunosTab = (props) => {
 
     const totalPaginas = Math.ceil(totalItems / ITENS_POR_PAGINA);
 
-    // ==========================================
-    // RENDERIZAÇÃO DE SEGURANÇA
-    // ==========================================
     if (erroUnidadePerdida) {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] bg-rose-50 border-2 border-dashed border-rose-200 rounded-[32px] p-8 text-center animate-[fadeIn_0.3s_ease-out]">
@@ -296,7 +288,9 @@ const AlunosTab = (props) => {
                     <div>
                         <h2 className="text-xl font-black text-slate-800 tracking-tight">{t('students.title', {defaultValue: 'Banco de Alunos'})}</h2>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">UNIDADE ATUAL: <span className="text-blue-600">{isVisaoGlobal ? 'VISÃO GLOBAL' : unidadeAtiva}</span></p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                UNIDADE ATUAL: <span className="text-blue-600">{isVisaoGlobal ? 'VISÃO GLOBAL' : unidadeAtiva}</span>
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -322,7 +316,7 @@ const AlunosTab = (props) => {
                         <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={t('students.search', {defaultValue: 'Buscar por Nome ou CPF...'})} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all" />
                     </div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest self-end sm:self-center">
-                        {totalItems} {isVisaoGlobal ? 'ALUNOS NA REDE' : `ALUNOS REGISTRADOS`}
+                        {totalItems} {isVisaoGlobal ? 'ALUNOS NA REDE' : `ALUNOS REGISTRADOS EM ${unidadeAtiva}`}
                     </div>
                 </div>
                 
