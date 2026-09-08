@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { getMeses, safeIsoDate } from './utils.js'; // 🔥 Usando nova função traduzida
+import { getMeses, safeIsoDate } from './utils.js';
 import ModalTextoWhatsapp from './Modais.jsx';
 import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
 import { BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, Bookmark, Package, Briefcase } from 'lucide-react';
 import { SmartFilter } from '../../components/SmartFilter.jsx';
-import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 i18n Injetado
+import { useI18n } from '../../i18n/I18nContext.jsx'; 
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -18,8 +18,8 @@ const getLocalISODate = () => {
 };
 
 const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
-    const { t } = useI18n(); // 🔥 i18n
-    const mesesTraduzidos = getMeses(t); // Puxa o array com as traduções reativas
+    const { t } = useI18n(); 
+    const mesesTraduzidos = getMeses(t); 
 
     const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
     const [tipoFiltro, setTipoFiltro] = useState('mes');
@@ -36,11 +36,16 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const [servicosOcultos, setServicosOcultos] = useState([]);
     const [catalogoGeral, setCatalogoGeral] = useState([]);
 
-    const [metaNutri, setMetaNutri] = useState(50);
-    const [metaProdutos, setMetaProdutos] = useState(100);
+    const [metaNutri, setMetaNutri] = useState(0);
+    const [metaProdutos, setMetaProdutos] = useState(0);
     const [metaPersonal, setMetaPersonal] = useState(0);
-    const [isSalvandoMetas, setIsSalvandoMetas] = useState(false);
+    const [metaAtivosMensal, setMetaAtivosMensal] = useState(0);
+    const [metaNutriMensal, setMetaNutriMensal] = useState(0);
+    const [metaPlusMensal, setMetaPlusMensal] = useState(0);
+    const [metaPersMensal, setMetaPersMensal] = useState(0);
+    const [ativosAtual, setAtivosAtual] = useState(0);
 
+    const [isSalvandoMetas, setIsSalvandoMetas] = useState(false);
     const [isModalTextoOpen, setIsModalTextoOpen] = useState(false);
     const [textoEditavel, setTextoEditavel] = useState('');
     const [copiadoSucesso, setCopiadoSucesso] = useState(false);
@@ -78,7 +83,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         const vendasBase = vendas.filter(v => {
             if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
             if (!temVisaoGlobal && v.unidade !== usuarioLogado?.unidade) return false;
-            
             if (!v.data && !v.created_at) return false;
 
             const dataRef = v.data || v.created_at;
@@ -95,7 +99,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             if (tipoFiltro === 'mes') return (filtroMes === 'TODOS' || m === filtroMes) && (filtroAno === 'TODOS' || y === filtroAno);
             if (tipoFiltro === 'periodo') return (!dataInicio || dataFormatada >= dataInicio) && (!dataFim || dataFormatada <= dataFim);
             if (tipoFiltro === 'dia') return !diaEspecifico || dataFormatada === diaEspecifico;
-            
             return true;
         });
 
@@ -158,7 +161,12 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     useEffect(() => {
         const fetchMetas = async () => {
             const unidadeAlvo = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
-            if (!unidadeAlvo || unidadeAlvo === 'TODOS') return;
+            if (!unidadeAlvo || unidadeAlvo === 'TODOS') {
+                setMetaNutri(0); setMetaProdutos(0); setMetaPersonal(0);
+                setMetaAtivosMensal(0); setMetaNutriMensal(0); setMetaPlusMensal(0); setMetaPersMensal(0);
+                setAtivosAtual(0);
+                return;
+            }
 
             const { data } = await supabase
                 .from('metas_unidades')
@@ -172,8 +180,15 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 setMetaNutri(data.meta_nutri || 0);
                 setMetaProdutos(data.meta_produtos || 0);
                 setMetaPersonal(data.meta_personal || 0);
+                setMetaAtivosMensal(data.meta_ativos_mensal || 0);
+                setMetaNutriMensal(data.meta_nutri_mensal || 0);
+                setMetaPlusMensal(data.meta_plus_mensal || 0);
+                setMetaPersMensal(data.meta_pers_mensal || 0);
+                setAtivosAtual(data.ativos_atual || 0);
             } else {
-                setMetaNutri(50); setMetaProdutos(100); setMetaPersonal(0);
+                setMetaNutri(0); setMetaProdutos(0); setMetaPersonal(0);
+                setMetaAtivosMensal(0); setMetaNutriMensal(0); setMetaPlusMensal(0); setMetaPersMensal(0);
+                setAtivosAtual(0);
             }
         };
 
@@ -194,7 +209,12 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             ano: filtroAno,
             meta_nutri: metaNutri,
             meta_produtos: metaProdutos,
-            meta_personal: metaPersonal
+            meta_personal: metaPersonal,
+            meta_ativos_mensal: metaAtivosMensal,
+            meta_nutri_mensal: metaNutriMensal,
+            meta_plus_mensal: metaPlusMensal,
+            meta_pers_mensal: metaPersMensal,
+            ativos_atual: ativosAtual
         };
 
         const { error } = await supabase.from('metas_unidades').upsert(payload, { onConflict: 'unidade,mes,ano' });
@@ -202,12 +222,13 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
         if (error) {
             console.error("Erro no banco:", error);
-            alert(t('analytics.alerts.errorSave', { defaultValue: "Erro ao salvar as metas no banco de dados." }));
+            alert("Erro ao salvar as metas no banco de dados.");
         } else {
-            alert(t('analytics.alerts.successSave', { defaultValue: "Metas atualizadas com sucesso!" }));
+            alert("Metas atualizadas com sucesso!");
         }
     };
 
+    // 🔥 O BLOCO VENDASFILTRADAS QUE EU TINHA ESQUECIDO ESTÁ DE VOLTA AQUI
     const vendasFiltradas = useMemo(() => {
         return vendas.filter(v => {
             if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
@@ -299,21 +320,14 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     const abrirModalWhatsapp = (texto, config = {}) => {
         setTextoEditavel(texto);
-        setModalConfig({
-            titulo: config.titulo || 'Mensagem para o WhatsApp',
-            icone: config.icone || 'send',
-            cor: config.cor || 'emerald'
-        });
+        setModalConfig({ titulo: config.titulo || 'Mensagem', icone: config.icone || 'send', cor: config.cor || 'emerald' });
         setIsModalTextoOpen(true);
     };
 
     const copiarTextoFinalDoModal = () => {
         navigator.clipboard.writeText(textoEditavel).then(() => {
             setCopiadoSucesso(true);
-            setTimeout(() => {
-                setCopiadoSucesso(false);
-                setIsModalTextoOpen(false);
-            }, 2000);
+            setTimeout(() => { setCopiadoSucesso(false); setIsModalTextoOpen(false); }, 2000);
         });
     };
 
@@ -344,13 +358,13 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             <div className="bg-white rounded-[24px] border border-slate-200 p-4 flex flex-col md:flex-row justify-between items-center shadow-sm gap-4">
                 <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
                     <button onClick={() => setAbaPrincipal('dashboard')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <BarChart3 className="w-4 h-4" /> {t('analytics.tabs.dashboard', { defaultValue: 'Dashboard' })}
+                        <BarChart3 className="w-4 h-4" /> Dashboard
                     </button>
                     <button onClick={() => setAbaPrincipal('visaoGeral')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <Target className="w-4 h-4" /> {t('analytics.tabs.unitGoals', { defaultValue: 'Metas Unidade' })}
+                        <Target className="w-4 h-4" /> Metas Unidade
                     </button>
                     <button onClick={() => setAbaPrincipal('relatorio')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <FileText className="w-4 h-4" /> {t('analytics.tabs.report', { defaultValue: 'Relatório' })}
+                        <FileText className="w-4 h-4" /> Relatório
                     </button>
                 </div>
             </div>
@@ -362,20 +376,20 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             <Filter className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-black text-slate-800 tracking-tight">{t('analytics.filters.globalTitle', { defaultValue: 'Filtros Globais Avançados' })}</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{t('analytics.filters.globalSubtitle', { defaultValue: 'Controla os dados do Dashboard e Relatórios' })}</p>
+                            <h2 className="text-xl font-black text-slate-800 tracking-tight">Filtros Globais Avançados</h2>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Controla os dados do Dashboard e Relatórios</p>
                         </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
                         <button onClick={limparFiltros} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-slate-50 px-4 py-2.5 rounded-lg border border-slate-200 hover:border-blue-200">
-                            <RefreshCw className="w-4 h-4" /> {t('analytics.filters.clear', { defaultValue: 'Limpar Filtros' })}
+                            <RefreshCw className="w-4 h-4" /> Limpar Filtros
                         </button>
 
                         <div className="flex bg-slate-100 p-1.5 rounded-xl border w-full md:w-auto overflow-x-auto custom-scrollbar">
-                            <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>{t('analytics.filters.month', { defaultValue: 'Mês' })}</button>
-                            <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>{t('analytics.filters.period', { defaultValue: 'Período' })}</button>
-                            <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>{t('analytics.filters.day', { defaultValue: 'Dia' })}</button>
+                            <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Mês</button>
+                            <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Período</button>
+                            <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Dia</button>
                         </div>
                     </div>
                 </div>
@@ -385,11 +399,11 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         {tipoFiltro === 'mes' && (
                             <>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.refMonth', { defaultValue: 'Mês Referência' })}</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Mês Referência</label>
                                     <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{mesesTraduzidos.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}</select>
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.refYear', { defaultValue: 'Ano Referência' })}</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ano Referência</label>
                                     <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}</select>
                                 </div>
                             </>
@@ -397,66 +411,38 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         {tipoFiltro === 'periodo' && (
                             <>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.startDate', { defaultValue: 'Data Início' })}</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Início</label>
                                     <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" />
                                 </div>
                                 <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.endDate', { defaultValue: 'Data Fim' })}</label>
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Fim</label>
                                     <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" />
                                 </div>
                             </>
                         )}
                         {tipoFiltro === 'dia' && (
                             <div className="flex flex-col gap-1.5 sm:col-span-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('analytics.filters.specificDay', { defaultValue: 'Dia Específico' })}</label>
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Dia Específico</label>
                                 <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 w-full h-[46px]" />
                             </div>
                         )}
 
                         {temVisaoGlobal && (
                             <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">{t('analytics.filters.isolateUnit', { defaultValue: 'Isolar Unidade' })}</label>
+                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Isolar Unidade</label>
                                 <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="bg-rose-50/30 border border-rose-100 text-rose-700 rounded-xl p-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-rose-500 h-[46px]">
-                                    {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? t('analytics.filters.globalView', { defaultValue: 'VISÃO GLOBAL' }) : u}</option>)}
+                                    {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'VISÃO GLOBAL' : u}</option>)}
                                 </select>
                             </div>
                         )}
 
-                        <SmartFilter 
-                            options={vendedoresUnicos} 
-                            ocultos={vendedoresOcultos} 
-                            setOcultos={setVendedoresOcultos} 
-                            label={t('analytics.filters.consultants', { defaultValue: 'Consultores' })} 
-                            Icone={UserCheck}
-                            iconColor="text-slate-500" 
-                        />
+                        <SmartFilter options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} label="Consultores" Icone={UserCheck} iconColor="text-slate-500" />
                     </div>
 
                     <div className="flex flex-col sm:flex-row flex-wrap gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
-                        <SmartFilter 
-                            options={planosVendidos} 
-                            ocultos={planosOcultos} 
-                            setOcultos={setPlanosOcultos} 
-                            label={t('analytics.filters.filterPlans', { defaultValue: 'Filtrar Planos' })} 
-                            Icone={Bookmark} 
-                            iconColor="text-blue-600" 
-                        />
-                        <SmartFilter 
-                            options={produtosVendidos} 
-                            ocultos={produtosOcultos} 
-                            setOcultos={setProdutosOcultos} 
-                            label={t('analytics.filters.filterProducts', { defaultValue: 'Filtrar Produtos' })} 
-                            Icone={Package} 
-                            iconColor="text-emerald-600" 
-                        />
-                        <SmartFilter 
-                            options={servicosVendidos} 
-                            ocultos={servicosOcultos} 
-                            setOcultos={setServicosOcultos} 
-                            label={t('analytics.filters.filterServices', { defaultValue: 'Filtrar Serviços' })} 
-                            Icone={Briefcase} 
-                            iconColor="text-violet-600" 
-                        />
+                        <SmartFilter options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} label="Filtrar Planos" Icone={Bookmark} iconColor="text-blue-600" />
+                        <SmartFilter options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} label="Filtrar Produtos" Icone={Package} iconColor="text-emerald-600" />
+                        <SmartFilter options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} label="Filtrar Serviços" Icone={Briefcase} iconColor="text-violet-600" />
                     </div>
                 </div>
             </div>
@@ -469,6 +455,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     colaboradores={colaboradores}
                     unidadeAtual={unidadeAtual}
                     metaProdutos={metaProdutos}
+                    metaNutri={metaNutri}       
+                    metaPersonal={metaPersonal} 
                     planos={planos}
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
@@ -478,19 +466,28 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             {abaPrincipal === 'visaoGeral' && (
                 <MetasTab
                     temVisaoGlobal={temVisaoGlobal}
+                    filtroUnidade={filtroUnidade}
+                    filtroMes={filtroMes}
+                    filtroAno={filtroAno}
                     vendasFiltradas={vendasFiltradas}
                     unidadesUnicas={unidadesUnicas}
                     usuarioLogado={usuarioLogado}
-                    metaNutri={metaNutri}
-                    metaProdutos={metaProdutos}
-                    metaPersonal={metaPersonal}
-                    setMetaNutri={setMetaNutri}
-                    setMetaProdutos={setMetaProdutos}
-                    setMetaPersonal={setMetaPersonal}
+                    // Start
+                    metaNutri={metaNutri} setMetaNutri={setMetaNutri}
+                    metaProdutos={metaProdutos} setMetaProdutos={setMetaProdutos}
+                    metaPersonal={metaPersonal} setMetaPersonal={setMetaPersonal}
+                    // Mensal
+                    metaAtivosMensal={metaAtivosMensal} setMetaAtivosMensal={setMetaAtivosMensal}
+                    metaNutriMensal={metaNutriMensal} setMetaNutriMensal={setMetaNutriMensal}
+                    metaPlusMensal={metaPlusMensal} setMetaPlusMensal={setMetaPlusMensal}
+                    metaPersMensal={metaPersMensal} setMetaPersMensal={setMetaPersMensal}
+                    
+                    ativosAtual={ativosAtual} setAtivosAtual={setAtivosAtual}
                     salvarMetasNuvem={salvarMetasNuvem}
                     isSalvandoMetas={isSalvandoMetas}
                     planos={planos}
                     produtos={produtos}
+                    abrirModalWhatsapp={abrirModalWhatsapp}
                 />
             )}
 
