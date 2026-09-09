@@ -1,5 +1,5 @@
 import React from 'react';
-import { useI18n } from '../../i18n/I18nContext.jsx'; // 🔥 Injetado i18n
+import { useI18n } from '../../i18n/I18nContext.jsx'; 
 
 const CORES = {
     emerald: { badge: 'bg-emerald-500/20', icon: 'text-emerald-400' },
@@ -18,14 +18,15 @@ const ModalTextoWhatsapp = ({
     onCopiar,
     onEnviar
 }) => {
-    const { t } = useI18n(); // 🔥 Pegando traduções
+    const { t } = useI18n(); 
     if (!isOpen) return null;
     const cores = CORES[corIcone] || CORES.emerald;
 
     const modalTitle = titulo || t('analytics.modals.whatsappTitle', { defaultValue: 'Mensagem para o WhatsApp' });
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
+        // 🔥 Z-INDEX NO MÁXIMO (9999) PARA COBRIR MENU LATERAL E TOPBAR
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
             <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col h-[600px] border border-slate-200">
                 <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
                     <div className="flex items-center gap-3">

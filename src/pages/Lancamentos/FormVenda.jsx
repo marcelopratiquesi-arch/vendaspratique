@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { safeNumber, formatMoney, getLocalDateISO } from './utils.js';
 import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
-import { User, Package, BookOpen, Box, Briefcase, LayoutGrid, Trash2, Plus, MessageSquare, Receipt, Loader2, Check, CheckCircle2, Search, AlertTriangle, UserRoundPen, UserPlus, CreditCard } from 'lucide-react';
+import { User, Package, BookOpen, Box, Briefcase, LayoutGrid, Trash2, Plus, MessageSquare, Receipt, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard } from 'lucide-react';
 
 const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, servicos, colaboradores, voltarHub }) => {
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
@@ -167,7 +167,8 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     unidade: formData.unidade.toUpperCase(), 
                     data: formData.data, 
                     matricula: alunoEncontrado.matricula || '', 
-                    nome_aluno: alunoEncontrado.nome.toUpperCase(), 
+                    nome_aluno: alunoEncontrado.nome.toUpperCase(),
+                    cpf: alunoEncontrado.cpf.replace(/\D/g, ''), // 🔥 AQUI ESTÁ A MÁGICA GRAVANDO DIRETO NO BANCO!
                     produto: item.nomeItem, 
                     vendedor: item.vendedor.toUpperCase(), 
                     valor: valorPuro, 
@@ -201,7 +202,6 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
 
     return (
         <>
-            {/* 🔥 CONEXÃO CIRÚRGICA: unidadeDestino adicionada */}
             <ModalAluno 
                 isOpen={modalAlunoAberto} 
                 onClose={() => setModalAlunoAberto(false)} 

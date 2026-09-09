@@ -1,7 +1,59 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { safeNumber, safeIsoDate, formatMoney, formatDataBR, extrairHoraCriacao, toTitleCase, buildCatalogoMap, gerarChaveDuplicidade } from './utils.js';
+import { safeNumber, safeIsoDate, formatMoney, formatDataBR, formatarCPF, extrairHoraCriacao, toTitleCase, buildCatalogoMap, gerarChaveDuplicidade, normalizeString } from './utils.js';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy, AlertTriangle, Clock } from 'lucide-react';
+
+// ==========================================
+// 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia
+// ==========================================
+const CopyButton = ({ textToCopy, label }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (!textToCopy) return;
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(String(textToCopy).trim());
+            } else {
+                // Fallback seguro para navegadores legados ou contextos sem HTTPS
+                const textArea = document.createElement("textarea");
+                textArea.value = String(textToCopy).trim();
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                textArea.remove();
+            }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            console.error('Falha ao copiar conteúdo', err);
+        }
+    };
+
+    if (!textToCopy) return null;
+
+    return (
+        <button
+            type="button"
+            onClick={handleCopy}
+            onMouseDown={(e) => e.stopPropagation()} 
+            onPointerDown={(e) => e.stopPropagation()} 
+            className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded transition-all flex-shrink-0"
+            title={copied ? "Copiado!" : label}
+            aria-label={copied ? "Copiado" : label}
+        >
+            {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+        </button>
+    );
+};
 
 const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [] }) => {
     const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
@@ -28,7 +80,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const gruposDuplicados = useMemo(() => {
         const mapa = new Map();
 
-        // Agrupa as vendas que passaram pelo filtro atual
         vendasFiltradas.forEach(venda => {
             const chave = gerarChaveDuplicidade(venda);
             if (!chave) return;
@@ -42,10 +93,8 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             mapa.get(chave).linhas.push(venda);
         });
 
-        // Filtra apenas os grupos que têm mais de 1 linha
         const duplicidadesDetectadas = Array.from(mapa.values()).filter(grupo => grupo.linhas.length > 1);
 
-        // Ordena os grupos (Os com maior quantidade de duplicatas primeiro, depois pela data de criação do último)
         return duplicidadesDetectadas.sort((a, b) => {
             if (b.linhas.length !== a.linhas.length) return b.linhas.length - a.linhas.length;
             const dataA = a.linhas[a.linhas.length - 1].created_at ? new Date(a.linhas[a.linhas.length - 1].created_at).getTime() : 0;
@@ -96,7 +145,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             setIsSubmitting(true);
             const backupDados = [...data];
             
-            // Otimista: Atualiza a tela na hora
             setData(data.filter(v => v.id !== id));
             
             let query = supabase.from('vendas').delete().eq('id', id);
@@ -121,15 +169,16 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         const qtd = parseInt(venda.quantidade) || 1;
         let unitario = 0;
         
-        const itemCatalogo = mapCatalogo.get(venda.produto?.toUpperCase());
+        const itemCatalogo = mapCatalogo.get(normalizeString(venda.produto));
         if (itemCatalogo) unitario = safeNumber(itemCatalogo.valor);
         else unitario = valorNumericoBanco / qtd;
 
         setEditandoId(venda.id);
         setDadosEdicao({
-            data: safeIsoDate(venda.data),
+            data: safeIsoDate(venda.data || venda.created_at),
             matricula: venda.matricula || '',
             nome_aluno: venda.nome_aluno || venda.nome || '',
+            cpf: venda.cpf || '', 
             produto: venda.produto || '',
             vendedor: venda.vendedor || '',
             unidade: venda.unidade || 'MATRIZ',
@@ -142,7 +191,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const handleEdicaoChange = (field, value) => {
         let novosDados = { ...dadosEdicao, [field]: value };
         if (field === 'produto') {
-            const item = mapCatalogo.get(value.toUpperCase());
+            const item = mapCatalogo.get(normalizeString(value));
             if (item) {
                 const novoUnitario = safeNumber(item.valor);
                 novosDados.valorUnitario = novoUnitario;
@@ -172,6 +221,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             data: dadosEdicao.data, 
             matricula: dadosEdicao.matricula,
             nome_aluno: dadosEdicao.nome_aluno.toUpperCase(),
+            cpf: dadosEdicao.cpf ? dadosEdicao.cpf.replace(/\D/g, '') : null,
             produto: dadosEdicao.produto.toUpperCase(),
             vendedor: dadosEdicao.vendedor.toUpperCase(),
             quantidade: parseInt(dadosEdicao.quantidade) || 1,
@@ -299,7 +349,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     {temVisaoGlobal && <th className="px-5 py-4 text-xs font-black text-rose-600 uppercase tracking-widest">Unidade</th>}
                                     
                                     <th onClick={() => handleOrdenar('nome_aluno')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                        <div className="flex items-center gap-2">Aluno / Matrícula <RenderSortIcon coluna="nome_aluno" /></div>
+                                        <div className="flex items-center gap-2">Aluno / CPF <RenderSortIcon coluna="nome_aluno" /></div>
                                     </th>
                                     
                                     <th onClick={() => handleOrdenar('produto')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
@@ -335,6 +385,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         }
                                     }
 
+                                    // Lógica para exibição na visualização normal
+                                    const rawCpf = row.cpf || row.cpf_aluno;
+                                    const rawMatricula = row.matricula ? String(row.matricula).trim() : '';
+                                    const rawName = row.nome_aluno || row.nome || '';
+                                    
+                                    const nomeExibicao = toTitleCase(rawName);
+                                    const cpfExibicao = formatarCPF(rawCpf);
+
                                     return (
                                         <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
                                             <td className="px-5 py-4 align-middle">
@@ -342,7 +400,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                     <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                                 ) : (
                                                     <div>
-                                                        <p className="text-sm font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data)}</p>
+                                                        <p className="text-sm font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data || row.created_at)}</p>
                                                         {row.created_at && (
                                                             <div className="flex items-center gap-1.5 mt-1.5 text-slate-500 w-max">
                                                                 <User className="w-3.5 h-3.5 text-slate-400" />
@@ -365,14 +423,37 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 {isEditing ? (
                                                     <div className="flex flex-col gap-2">
                                                         <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm" />
-                                                        <input type="text" placeholder="Matrícula" value={dadosEdicao.matricula} onChange={e => handleEdicaoChange('matricula', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
+                                                        <input type="text" placeholder="CPF (Apenas números)" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                                     </div>
                                                 ) : (
-                                                    <div>
-                                                        <p className="text-sm font-bold text-slate-800 max-w-[220px] truncate" title={row.nome_aluno || row.nome}>
-                                                            {toTitleCase(row.nome_aluno || row.nome)}
-                                                        </p>
-                                                        <p className="text-xs font-bold text-slate-400 uppercase mt-1 tracking-wider">MAT: {row.matricula || '-'}</p>
+                                                    <div className="flex flex-col gap-1.5">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <p className="text-sm font-bold text-slate-800 max-w-[200px] truncate" title={rawName}>
+                                                                {nomeExibicao}
+                                                            </p>
+                                                            {rawName && <CopyButton textToCopy={nomeExibicao} label="Copiar nome do aluno" />}
+                                                        </div>
+
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                                    CPF: <span className="text-slate-500">{cpfExibicao}</span>
+                                                                </span>
+                                                                {rawCpf && <CopyButton textToCopy={cpfExibicao} label="Copiar CPF do aluno" />}
+                                                            </div>
+
+                                                            {rawMatricula && (
+                                                                <>
+                                                                    <span className="text-slate-300">|</span>
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                                            MAT: <span className="text-slate-500">{rawMatricula}</span>
+                                                                        </span>
+                                                                        <CopyButton textToCopy={rawMatricula} label="Copiar matrícula do aluno" />
+                                                                    </div>
+                                                                </>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 )}
                                             </td>
@@ -527,13 +608,11 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     ) : (
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
                             {gruposDuplicados.map((grupo, index) => {
-                                // Puxa os dados da primeira linha para montar o cabeçalho do Card
                                 const amostra = grupo.linhas[0];
                                 
                                 return (
                                     <div key={grupo.chaveBase + index} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md hover:border-amber-300">
                                         
-                                        {/* HEADER DO CARD (Informações Comuns do Grupo) */}
                                         <div className="bg-amber-50/50 border-b border-amber-100 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                             <div className="flex items-start gap-4 w-full">
                                                 <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
@@ -563,7 +642,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             </div>
                                         </div>
 
-                                        {/* CORPO DO CARD (Linhas Conflitantes com Ações) */}
                                         <div className="p-5 flex flex-col gap-4 flex-1">
                                             {grupo.linhas.map((row) => {
                                                 const isEditing = editandoId === row.id;
@@ -584,18 +662,16 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                     <div key={row.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-xl transition-colors ${isEditing ? 'bg-blue-50/50 border-blue-300 shadow-md' : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'}`}>
                                                         
                                                         <div className="flex items-center gap-4 flex-1 w-full">
-                                                            {/* BLOCO DE HORA E CRIADOR */}
                                                             <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg p-2 min-w-[70px] shadow-sm shrink-0">
                                                                 <Clock className="w-3.5 h-3.5 text-slate-400 mb-1" />
                                                                 <span className="text-xs font-black text-slate-700">{extrairHoraCriacao(row.created_at) || '--:--'}</span>
                                                             </div>
                                                             
-                                                            {/* DETALHES DO LANÇAMENTO OU EDIÇÃO */}
                                                             <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                                                                 {isEditing ? (
                                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
                                                                         <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-[11px] shadow-sm" />
-                                                                        <input type="text" placeholder="Matrícula" value={dadosEdicao.matricula} onChange={e => handleEdicaoChange('matricula', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm" />
+                                                                        <input type="text" placeholder="CPF" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm" />
                                                                         <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-[11px] shadow-sm">
                                                                             <option value="" disabled>Selecione...</option>
                                                                             {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
@@ -624,7 +700,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                             </div>
                                                         </div>
                                                         
-                                                        {/* AÇÕES DE GESTÃO DA LINHA */}
                                                         {podeEditar && (
                                                             <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0 mt-3 sm:mt-0">
                                                                 {isEditing ? (
@@ -648,7 +723,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                 )}
                                                             </div>
                                                         )}
-
                                                     </div>
                                                 );
                                             })}

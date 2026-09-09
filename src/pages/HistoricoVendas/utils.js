@@ -76,6 +76,20 @@ export const toTitleCase = (str) => {
     return str.toLowerCase().replace(/(?:^|\s)\w/g, match => match.toUpperCase());
 };
 
+// 🔥 NORMALIZAÇÃO RIGOROSA PARA COMPARAR COM O CATÁLOGO
+export const normalizeString = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+};
+
+// 🔥 FORMATAÇÃO VISUAL DO CPF
+export const formatarCPF = (cpf) => {
+    if (!cpf) return 'Não informado';
+    const nums = String(cpf).replace(/\D/g, '');
+    if (nums.length === 11) return nums.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    return cpf;
+};
+
 // Transformação de Array do Catálogo em Dicionário O(1) de alta performance
 export const buildCatalogoMap = (catalogoArray) => {
     const map = new Map();
@@ -83,7 +97,8 @@ export const buildCatalogoMap = (catalogoArray) => {
 
     catalogoArray.forEach(item => {
         if (item && item.nome && typeof item.nome === 'string') {
-            map.set(item.nome.toUpperCase().trim(), item);
+            // Usando a normalização nova para garantir o match perfeito
+            map.set(normalizeString(item.nome), item);
         }
     });
     return map;
@@ -97,7 +112,7 @@ export const gerarChaveDuplicidade = (venda) => {
 
     const unidade = (venda.unidade || 'MATRIZ').toUpperCase().trim();
     const dataVenda = safeIsoDate(venda.data || venda.created_at);
-    const produto = (venda.produto || '').toUpperCase().trim();
+    const produto = normalizeString(venda.produto || '');
     
     let identificadorAluno = '';
     
@@ -107,7 +122,7 @@ export const gerarChaveDuplicidade = (venda) => {
     } else {
         // Fallback cauteloso para o nome
         const nomeSujo = venda.nome_aluno || venda.nome || 'ALUNO_NAO_IDENTIFICADO';
-        identificadorAluno = `NOME_${nomeSujo.toUpperCase().trim().replace(/\s+/g, ' ')}`;
+        identificadorAluno = `NOME_${normalizeString(nomeSujo)}`;
     }
 
     return `${unidade}|${dataVenda}|${identificadorAluno}|${produto}`;

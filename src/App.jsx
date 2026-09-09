@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabaseClient.js';
 import { useI18n } from './i18n/I18nContext.jsx'; 
 import LanguageSwitcher from './components/LanguageSwitcher.jsx'; 
@@ -26,6 +26,17 @@ import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
 
+// 🔥 FUNÇÃO BLINDADA: Remove acentos e espaços duplos
+const normalizarNomeBusca = (nome) => {
+    if (!nome) return '';
+    return String(nome)
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") 
+        .replace(/\s+/g, ' ')            
+        .trim()
+        .toUpperCase();
+};
+
 export default function App() {
     const { t } = useI18n(); 
 
@@ -35,7 +46,6 @@ export default function App() {
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
     const [isIdle, setIsIdle] = useState(false); 
     
-    // Removido o unreadCount burro, agora usamos direto o motor global!
     const [triggerSync, setTriggerSync] = useState(0);
     
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('pratique_sidebar') === 'true');
@@ -54,6 +64,9 @@ export default function App() {
     const [servicos, setServicos] = useState([]); 
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
+
+    // 🔥 DICIONÁRIO HÍBRIDO (Busca por Matrícula E por Nome)
+    const [alunosMap, setAlunosMap] = useState({ porNome: new Map(), porMatricula: new Map() });
 
     const [comunicadosGlobais, setComunicadosGlobais] = useState({
         pendentesTotais: 0, 
@@ -139,7 +152,6 @@ export default function App() {
         };
     }, [isIdle]);
 
-    // 🔥 MOTOR CENTRAL: Agora ele domina sozinho a tela e a Badge!
     useEffect(() => {
         if (!usuarioLogado) return;
         let isMounted = true;
@@ -178,7 +190,7 @@ export default function App() {
                     const inicio = new Date(com.inicio_em);
 
                     if (inicio <= agora) {
-                        ativosPendentes++; // Só conta para a bolinha se JÁ passou da hora!
+                        ativosPendentes++; 
                         if (com.obrigatorio && com.bloqueia_operacao) {
                             if (!maisAntigoBloqueante || inicio < new Date(maisAntigoBloqueante.inicio_em)) {
                                 maisAntigoBloqueante = { inbox_id: item.id, ...com };
@@ -217,17 +229,100 @@ export default function App() {
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
     const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado?.unidade;
 
+    // 🔥 SMART FETCHING CIRÚRGICO: Dribla o limite da API do Supabase!
+    const fetchAlunosEspecificos = useCallback(async (registrosArray, isMounted = true) => {
+        if (!registrosArray || registrosArray.length === 0) return;
+
+        const nomesBuscados = new Set();
+        const matriculasBuscadas = new Set();
+
+        registrosArray.forEach(reg => {
+            // Se o CPF não existir na venda/avaliação, nós anotamos para buscar no banco!
+            if (!reg.cpf) {
+                if (reg.matricula && String(reg.matricula).trim() !== '') {
+                    matriculasBuscadas.add(String(reg.matricula).trim());
+                }
+                if (reg.nome_aluno || reg.nome) {
+                    nomesBuscados.add(normalizarNomeBusca(reg.nome_aluno || reg.nome));
+                }
+            }
+        });
+
+        if (nomesBuscados.size === 0 && matriculasBuscadas.size === 0) return;
+
+        try {
+            const arrNomes = Array.from(nomesBuscados);
+            const arrMats = Array.from(matriculasBuscadas);
+            
+            // Separamos a requisição em lotes de 100 para a API nunca travar
+            const chunkSize = 100;
+            const dataResult = [];
+
+            // Buscando por Nomes
+            for (let i = 0; i < arrNomes.length; i += chunkSize) {
+                const chunkNomes = arrNomes.slice(i, i + chunkSize);
+                const { data } = await supabase.from('alunos').select('nome, cpf, matricula').in('nome', chunkNomes);
+                if (data) dataResult.push(...data);
+            }
+
+            // Buscando por Matrículas
+            for (let i = 0; i < arrMats.length; i += chunkSize) {
+                const chunkMats = arrMats.slice(i, i + chunkSize);
+                const { data } = await supabase.from('alunos').select('nome, cpf, matricula').in('matricula', chunkMats);
+                if (data) dataResult.push(...data);
+            }
+
+            if (isMounted && dataResult.length > 0) {
+                setAlunosMap(prev => {
+                    const novoNomeMap = new Map(prev.porNome);
+                    const novoMatMap = new Map(prev.porMatricula);
+                    
+                    dataResult.forEach(a => {
+                        if (a.cpf) {
+                            if (a.nome) novoNomeMap.set(normalizarNomeBusca(a.nome), a.cpf);
+                            if (a.matricula && String(a.matricula).trim() !== '') novoMatMap.set(String(a.matricula).trim(), a.cpf);
+                        }
+                    });
+                    return { porNome: novoNomeMap, porMatricula: novoMatMap };
+                });
+            }
+        } catch (err) {
+            console.error("Erro no Smart Fetching de alunos:", err);
+        }
+    }, []);
+
     const fetchUnidades = useCallback(async (isMounted = true) => { const { data } = await supabase.from('unidades').select('*').order('nome', { ascending: true }); if (isMounted && data) setUnidades(data); }, []);
     const fetchColaboradores = useCallback(async (isMounted = true) => { let query = supabase.from('colaboradores').select('*'); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setColaboradores(data); }, [deveFiltrar, unidadeFiltro]);
     const fetchCatalogo = useCallback(async (isMounted = true) => { const { data } = await supabase.from('catalogo').select('*'); if (isMounted && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); } }, []);
-    const fetchVendas = useCallback(async (isMounted = true) => { let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(10000); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setDadosAssinaturas(data); }, [deveFiltrar, unidadeFiltro]);
+    
+    // 🔥 Modificado para chamar o Smart Fetching logo após carregar as Vendas
+    const fetchVendas = useCallback(async (isMounted = true) => { 
+        let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(10000); 
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
+        const { data } = await query; 
+        if (isMounted && data) {
+            setDadosAssinaturas(data);
+            fetchAlunosEspecificos(data, isMounted);
+        }
+    }, [deveFiltrar, unidadeFiltro, fetchAlunosEspecificos]);
+
     const fetchLeads = useCallback(async (isMounted = true) => { let query = supabase.from('leads').select('*').order('id', { ascending: false }).limit(10000); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setDadosVisitantes(data); }, [deveFiltrar, unidadeFiltro]);
-    const fetchAvaliacoes = useCallback(async (isMounted = true) => { let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(10000); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setDadosAvaliacoes(data); }, [deveFiltrar, unidadeFiltro]);
+    
+    // 🔥 Modificado para chamar o Smart Fetching logo após carregar as Avaliações
+    const fetchAvaliacoes = useCallback(async (isMounted = true) => { 
+        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(10000); 
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
+        const { data } = await query; 
+        if (isMounted && data) {
+            setDadosAvaliacoes(data);
+            fetchAlunosEspecificos(data, isMounted);
+        }
+    }, [deveFiltrar, unidadeFiltro, fetchAlunosEspecificos]);
 
     useEffect(() => {
         if (!usuarioLogado) return;
         let isMounted = true; 
-        fetchUnidades(isMounted); fetchColaboradores(isMounted); fetchCatalogo(isMounted); fetchVendas(isMounted); fetchLeads(isMounted); fetchAvaliacoes(isMounted); 
+        fetchUnidades(isMounted); fetchColaboradores(isMounted); fetchCatalogo(isMounted); fetchVendas(isMounted); fetchLeads(isMounted); fetchAvaliacoes(isMounted);
 
         const realtimeChannel = supabase.channel('sistema-pratique-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => fetchVendas(isMounted))
@@ -240,6 +335,39 @@ export default function App() {
 
         return () => { isMounted = false; supabase.removeChannel(realtimeChannel); };
     }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
+
+    // 🔥 O "Frontend JOIN" Enriquecido: Busca 1º pela Matrícula e 2º pelo Nome Normalizado
+    const vendasEnriquecidas = useMemo(() => {
+        return dadosAssinaturas.map(v => {
+            let cpfAchado = v.cpf || v.cpf_aluno || '';
+            
+            if (!cpfAchado && alunosMap) {
+                if (v.matricula && alunosMap.porMatricula.has(String(v.matricula).trim())) {
+                    cpfAchado = alunosMap.porMatricula.get(String(v.matricula).trim());
+                } else {
+                    const nomeBusca = normalizarNomeBusca(v.nome_aluno || v.nome);
+                    cpfAchado = alunosMap.porNome.get(nomeBusca) || '';
+                }
+            }
+            return { ...v, cpf: cpfAchado };
+        });
+    }, [dadosAssinaturas, alunosMap]);
+
+    const avaliacoesEnriquecidas = useMemo(() => {
+        return dadosAvaliacoes.map(a => {
+            let cpfAchado = a.cpf || a.cpf_aluno || '';
+            
+            if (!cpfAchado && alunosMap) {
+                if (a.matricula && alunosMap.porMatricula.has(String(a.matricula).trim())) {
+                    cpfAchado = alunosMap.porMatricula.get(String(a.matricula).trim());
+                } else {
+                    const nomeBusca = normalizarNomeBusca(a.nome_aluno || a.nome);
+                    cpfAchado = alunosMap.porNome.get(nomeBusca) || '';
+                }
+            }
+            return { ...a, cpf: cpfAchado };
+        });
+    }, [dadosAvaliacoes, alunosMap]);
 
     const handleAddLancamentos = (novos) => setDadosAssinaturas([...novos, ...dadosAssinaturas]);
     const handleLogout = () => { setUsuarioLogado(null); setIsMobileMenuOpen(false); };
@@ -260,7 +388,6 @@ export default function App() {
         { id: 'crm', label: t('navigation.crm'), icon: Users, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'cadastros', label: t('navigation.management'), icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        // 🔥 A bolinha puxa a verdade absoluta (sem contar agendamentos no futuro)
         { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'], badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
         { id: 'config', label: t('navigation.settings'), icon: Settings, permissoes: ['ADMIN'] }
     ];
@@ -305,11 +432,11 @@ export default function App() {
 
                 <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative z-0">
                     {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
-                    {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={dadosAssinaturas} setData={setDadosAssinaturas} colaboradores={colaboradores} />}
-                    {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
-                    {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={dadosAssinaturas} visitantes={dadosVisitantes} avaliacoes={dadosAvaliacoes} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
+                    {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} />}
+                    {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
+                    {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
                     {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
-                    {activeTab === 'avaliacao' && <AvaliacaoFisica usuarioLogado={usuarioVirtual} avaliacoes={dadosAvaliacoes} colaboradores={colaboradores} setAvaliacoes={setDadosAvaliacoes} />}
+                    {activeTab === 'avaliacao' && <AvaliacaoFisica usuarioLogado={usuarioVirtual} avaliacoes={avaliacoesEnriquecidas} colaboradores={colaboradores} setAvaliacoes={setDadosAvaliacoes} />}
                     {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
                     {activeTab === 'comunicados' && <CentralComunicados usuarioLogado={usuarioLogado} unidades={unidades} />}
                     {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}

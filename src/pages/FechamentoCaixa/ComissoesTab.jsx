@@ -1,5 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import { formatMoney } from './utils.js'; // Ajuste o caminho se necessário
+import { formatMoney } from './utils.js'; 
+import { Check, Copy } from 'lucide-react'; 
+
+// ==========================================
+// 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia Individual
+// ==========================================
+const CopyButton = ({ textToCopy, label }) => {
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        if (!textToCopy) return;
+
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(String(textToCopy).trim());
+            } else {
+                const textArea = document.createElement("textarea");
+                textArea.value = String(textToCopy).trim();
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.style.top = "-999999px";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                document.execCommand('copy');
+                textArea.remove();
+            }
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        } catch (err) {
+            // Silenciado por segurança/privacidade
+        }
+    };
+
+    if (!textToCopy) return null;
+
+    return (
+        <button
+            type="button"
+            onClick={handleCopy}
+            onMouseDown={(e) => e.stopPropagation()} 
+            onPointerDown={(e) => e.stopPropagation()} 
+            className="p-1 text-slate-300 hover:text-emerald-500 focus:outline-none rounded transition-all flex-shrink-0"
+            title={copied ? "Copiado!" : label}
+            aria-label={label}
+        >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+    );
+};
 
 const ComissoesTab = ({ dadosTabelaComissoes }) => {
     const [expandedRow, setExpandedRow] = useState(null);
@@ -7,7 +59,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
     const [copiadoTudo, setCopiadoTudo] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
     
-    // Motor de Ordenação (Padrão: Maior comissão primeiro)
     const [sortConfig, setSortConfig] = useState({ key: 'totalComissao', direction: 'desc' });
 
     useEffect(() => {
@@ -24,7 +75,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
             .join(' ; ');
     };
 
-    // Ordenação Dinâmica
     const requestSort = (key) => {
         let direction = 'asc';
         if (sortConfig.key === key && sortConfig.direction === 'asc') direction = 'desc';
@@ -52,28 +102,21 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
         return 0;
     });
 
-    // ==========================================
-    // EXPORTAÇÃO NÍVEL ENTERPRISE (Google Sheets / Excel)
-    // ==========================================
     const handleExportarCSV = () => {
         setIsExporting(true);
         try {
-            // Cabeçalhos padronizados
             const cabecalhos = ['Consultor', 'CPF', 'Forma Pagamento', 'Chave/Conta', 'Valor Comissao', 'Detalhes das Vendas'];
             
-            // Montagem das Linhas
             const linhas = sortedData.map(row => {
-                const itensString = gerarStringItens(row.itens).replace(/"/g, '""'); // Escapa aspas
+                const itensString = gerarStringItens(row.itens).replace(/"/g, '""'); 
                 const cpfFormatado = row.cpf || 'Nao informado';
                 const formaPgto = row.tipo_conta === 'PIX_CPF' ? 'PIX' : (row.tipo_conta === 'INTER' ? 'BANCO INTER' : 'Nao informado');
                 const conta = row.tipo_conta === 'INTER' ? row.conta_inter : (row.tipo_conta === 'PIX_CPF' ? cpfFormatado : 'Nao informada');
-                const valorFormatado = formatMoney(row.totalComissao).replace('R$', '').trim(); // Deixa o valor limpo
+                const valorFormatado = formatMoney(row.totalComissao).replace('R$', '').trim(); 
 
-                // Envolve cada campo em aspas duplas para o Excel não quebrar em vírgulas
                 return `"${row.vendedor}","${cpfFormatado}","${formaPgto}","${conta}","${valorFormatado}","${itensString}"`;
             });
 
-            // \uFEFF força o Excel a ler em UTF-8 (Preserva acentos como ã, ç)
             const csvContent = "\uFEFF" + cabecalhos.join(',') + '\n' + linhas.join('\n');
             
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -92,7 +135,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
         }
     };
 
-    // COPIAR INDIVIDUAL
     const handleCopiarLinha = (vendedor, valorTotalComissao, itensObj, e) => {
         e.stopPropagation(); 
         const textoRaw = gerarStringItens(itensObj);
@@ -105,7 +147,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
         });
     };
 
-    // COPIAR TUDO
     const handleCopiarTudoExcel = () => {
         let textoExcel = "";
         sortedData.forEach(row => {
@@ -125,7 +166,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
     return (
         <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden animate-[fadeIn_0.3s_ease-out]">
             
-            {/* CABEÇALHO COM BOTÕES DE EXPORTAÇÃO */}
             <div className="p-6 border-b border-slate-100 bg-white flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 uppercase tracking-widest">
                     <i data-lucide="users" className="w-5 h-5 text-emerald-600"></i> Relatório Financeiro (Fechamento)
@@ -144,7 +184,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                         {copiadoTudo ? <><i data-lucide="check-check" className="w-3.5 h-3.5"></i> Copiado!</> : <><i data-lucide="copy" className="w-3.5 h-3.5"></i> Copiar Valores</>}
                     </button>
 
-                    {/* ✅ BOTÃO NOVO: EXPORTAR GOOGLE SHEETS / EXCEL */}
                     <button 
                         onClick={handleExportarCSV}
                         disabled={isExporting}
@@ -159,7 +198,6 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                 </div>
             </div>
             
-            {/* TABELA PRINCIPAL DE FECHAMENTO */}
             <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead>
@@ -190,6 +228,11 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                             const isExpanded = expandedRow === row.vendedor;
                             const stringItens = gerarStringItens(row.itens); 
                             
+                            const cpfExibicao = row.cpf || '';
+                            const temPixCpf = row.tipo_conta === 'PIX_CPF';
+                            const temInter = row.tipo_conta === 'INTER';
+                            const chaveContaExibicao = temInter ? row.conta_inter : (temPixCpf ? cpfExibicao : '');
+
                             return (
                                 <React.Fragment key={idx}>
                                     <tr 
@@ -202,35 +245,47 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                         
                                         {/* COLUNA: CONSULTOR */}
                                         <td className="px-4 py-5 align-middle">
-                                            <div className="flex items-center gap-3">
+                                            <div className="flex items-center gap-2">
                                                 <div className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center text-xs font-black shrink-0">
                                                     {row.vendedor.charAt(0)}
                                                 </div>
                                                 <span className="text-sm font-black text-slate-800 uppercase tracking-tight">{row.vendedor}</span>
+                                                <CopyButton textToCopy={row.vendedor} label={`Copiar nome de ${row.vendedor}`} />
                                             </div>
                                         </td>
 
                                         {/* COLUNA: CPF */}
                                         <td className="px-4 py-5 align-middle">
-                                            <span className="text-[11px] font-mono font-bold text-slate-500 tracking-wider bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
-                                                {row.cpf || 'Não Cadastrado'}
-                                            </span>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-[11px] font-mono font-bold text-slate-500 tracking-wider bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                                                    {cpfExibicao || 'Não Cadastrado'}
+                                                </span>
+                                                {cpfExibicao && <CopyButton textToCopy={cpfExibicao} label={`Copiar CPF de ${row.vendedor}`} />}
+                                            </div>
                                         </td>
 
                                         {/* COLUNA: CONTA / BANCO */}
                                         <td className="px-4 py-5 align-middle">
-                                            {row.tipo_conta === 'PIX_CPF' ? (
-                                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase tracking-widest shadow-sm">
-                                                    <i data-lucide="zap" className="w-3.5 h-3.5"></i> PIX (CPF)
-                                                </span>
-                                            ) : row.tipo_conta === 'INTER' ? (
+                                            {temPixCpf ? (
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase tracking-widest shadow-sm">
+                                                        <i data-lucide="zap" className="w-3.5 h-3.5"></i> PIX (CPF)
+                                                    </span>
+                                                    {chaveContaExibicao && <CopyButton textToCopy={chaveContaExibicao} label={`Copiar chave PIX de ${row.vendedor}`} />}
+                                                </div>
+                                            ) : temInter ? (
                                                 <div className="flex flex-col gap-1.5">
-                                                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit rounded bg-orange-50 text-orange-700 border border-orange-200 text-[8px] font-black uppercase tracking-widest">
-                                                        <i data-lucide="building" className="w-3 h-3"></i> Banco Inter
-                                                    </span>
-                                                    <span className="text-[11px] font-mono font-bold text-slate-700">
-                                                        {row.conta_inter || 'Sem conta'}
-                                                    </span>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit rounded bg-orange-50 text-orange-700 border border-orange-200 text-[8px] font-black uppercase tracking-widest">
+                                                            <i data-lucide="building" className="w-3 h-3"></i> Banco Inter
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="text-[11px] font-mono font-bold text-slate-700">
+                                                            {chaveContaExibicao || 'Sem conta'}
+                                                        </span>
+                                                        {chaveContaExibicao && <CopyButton textToCopy={chaveContaExibicao} label={`Copiar dados bancários de ${row.vendedor}`} />}
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <span className="text-[10px] font-bold text-slate-400 uppercase">Não Definido</span>
@@ -239,9 +294,12 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
 
                                         {/* COLUNA: VALOR TOTAL */}
                                         <td className="px-4 py-5 align-middle">
-                                            <span className="text-base font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
-                                                {formatMoney(row.totalComissao)}
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-base font-black text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 shadow-sm">
+                                                    {formatMoney(row.totalComissao)}
+                                                </span>
+                                                <CopyButton textToCopy={formatMoney(row.totalComissao)} label={`Copiar comissão de ${row.vendedor}`} />
+                                            </div>
                                         </td>
                                         
                                         {/* COLUNA: RESUMO & AÇÕES */}
@@ -254,18 +312,18 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                                     <span className="text-xs text-slate-500 font-medium truncate max-w-[200px] xl:max-w-[300px]" title={stringItens}>
                                                         {stringItens}
                                                     </span>
+                                                    <CopyButton textToCopy={stringItens} label={`Copiar resumo de vendas de ${row.vendedor}`} />
                                                 </div>
                                                 
-                                                {/* BOTÃO DE COPIAR INDIVIDUAL */}
                                                 <button 
                                                     onClick={(e) => handleCopiarLinha(row.vendedor, row.totalComissao, row.itens, e)}
-                                                    title="Copiar Valor e Descrição"
+                                                    title="Copiar Relatório do Consultor"
                                                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all border shrink-0 text-[10px] font-black uppercase tracking-wider ${copiadoId === row.vendedor ? 'bg-slate-100 text-slate-500 border-slate-300 shadow-inner' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50 shadow-sm'}`}
                                                 >
                                                     {copiadoId === row.vendedor ? (
                                                         <><i data-lucide="check" className="w-3.5 h-3.5"></i> Copiado</>
                                                     ) : (
-                                                        <><i data-lucide="copy" className="w-3.5 h-3.5"></i> Copiar</>
+                                                        <><i data-lucide="copy" className="w-3.5 h-3.5"></i> Copiar Tudo</>
                                                     )}
                                                 </button>
                                             </div>

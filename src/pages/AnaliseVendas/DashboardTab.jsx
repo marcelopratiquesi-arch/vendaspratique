@@ -53,7 +53,6 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
         faturamento += valorFaturado;
 
         if (categoriaFinal === 'PLANO') {
-            // 🔥 CORREÇÃO: O Nutri (e todos os outros planos) voltam a somar normalmente no Total de Entradas
             totalPlanos += qtd;
             classificarPlanoEmGrupo(gruposPlanos, prodUpper, qtd);
         } else if (categoriaFinal === 'PRODUTO') {
@@ -113,26 +112,38 @@ const DashboardTab = ({ vendasFiltradas, colaboradores, unidadeAtual, metaProdut
         const faltaProd = Math.max(mProd - produtosRealizado, 0);
         const faltaPers = Math.max(mPers - personalRealizado, 0);
 
-        const iconNutri = (faltaNutri === 0 && mNutri > 0) ? '✅' : '🔴';
-        const iconProd = (faltaProd === 0 && mProd > 0) ? '✅' : '🔴';
-        const iconPers = (faltaPers === 0 && mPers > 0) ? '✅' : '🔴';
+        const batidaNutri = nutriRealizado >= mNutri && mNutri > 0;
+        const batidaProd = produtosRealizado >= mProd && mProd > 0;
+        const batidaPers = personalRealizado >= mPers && mPers > 0;
+
+        const iconNutri = batidaNutri ? '🟢' : '🔴';
+        const iconProd = batidaProd ? '🟢' : '🔴';
+        const iconPers = batidaPers ? '🟢' : '🔴';
 
         let txt = `✅ Meta Start - ${mesAtual} ✅\n\n`;
+        const faltam = [];
         
+        // 🔥 Nutri e Produto SEMPRE aparecem, independentemente de a meta ser 0
         txt += `👉 Nutri: ${nutriRealizado} / ${mNutri} ${iconNutri}\n`;
+        if (!batidaNutri && mNutri > 0) faltam.push(`❌ Falta ${faltaNutri} Nutri - para liberar gratificação`);
+
         txt += `👉 Produto: ${produtosRealizado} / ${mProd} ${iconProd}\n`;
-        txt += `👉 Personal Class: ${personalRealizado} / ${mPers} ${iconPers}\n\n`;
+        if (!batidaProd && mProd > 0) faltam.push(`❌ Falta ${faltaProd} Produto - para liberar gratificação`);
+        
+        // 🔥 Apenas o Personal Class some se a meta for 0 (Igual configuramos no MetasTab)
+        if (mPers > 0) {
+            txt += `👉 Personal Class: ${personalRealizado} / ${mPers} ${iconPers}\n`;
+            if (!batidaPers) faltam.push(`❌ Falta ${faltaPers} Class - para liberar gratificação`);
+        }
 
-        if (faltaNutri > 0) txt += `❌ Falta ${faltaNutri} Nutri - para liberar gratificação\n`;
-        else if (mNutri > 0) txt += `🎉 Meta Nutri BATIDA!\n`;
+        txt += `\n`;
+        if (faltam.length > 0) {
+            txt += faltam.join('\n');
+        } else {
+            txt += `🎉 PARABÉNS! Vocês bateram todas as metas Start! Gratificação da recepção liberada! 🚀`;
+        }
 
-        if (faltaProd > 0) txt += `❌ Falta ${faltaProd} Produto - para liberar gratificação\n`;
-        else if (mProd > 0) txt += `🎉 Meta Produto BATIDA!\n`;
-
-        if (faltaPers > 0) txt += `❌ Falta ${faltaPers} Class - para liberar gratificação\n`;
-        else if (mPers > 0) txt += `🎉 Meta Personal Class BATIDA!\n`;
-
-        abrirModalWhatsapp(txt, { titulo: 'Status das Metas', icone: 'target', cor: 'blue' });
+        abrirModalWhatsapp(txt, { titulo: `Status das Metas`, icone: 'target', cor: 'blue' });
     };
 
     const dispararModalCompartilhar = () => {

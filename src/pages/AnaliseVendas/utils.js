@@ -19,13 +19,11 @@ export const getMeses = (t) => [
     { val: '12', label: t('analytics.months.dec', { defaultValue: 'Dezembro' }) }
 ];
 
-// 🔥 I18N + PERFORMANCE: Cache de formatadores de Moeda separados por idioma
 let currentLocale = 'pt-BR';
 export const setGlobalLocale = (locale) => { currentLocale = locale; };
 
 const currencyFormatters = {};
 export const formatMoney = (val) => {
-    // Usando BRL estático por enquanto para faturamento no Brasil, mas pronto para escalar
     if (!currencyFormatters[currentLocale]) {
         currencyFormatters[currentLocale] = new Intl.NumberFormat(currentLocale, { style: 'currency', currency: 'BRL' });
     }
@@ -65,13 +63,28 @@ export const safeIsoDate = (dInput) => {
     return dStr;
 };
 
+// 🔥 NORMALIZAÇÃO RIGOROSA PARA COMPARAR COM O CATÁLOGO
+export const normalizeString = (str) => {
+    if (!str || typeof str !== 'string') return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+};
+
+// 🔥 FORMATAÇÃO VISUAL DO CPF
+export const formatarCPF = (cpf) => {
+    if (!cpf) return 'Não informado';
+    const nums = String(cpf).replace(/\D/g, '');
+    if (nums.length === 11) return nums.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    return cpf;
+};
+
 export const getValorRealDaVenda = (venda, planos, produtos) => {
     const valorBanco = safeNumber(venda.valor);
     if (valorBanco > 0) return valorBanco;
 
     let precoUnitario = 0;
-    const planoMatch = planos.find(p => p.nome?.toUpperCase() === venda.produto?.toUpperCase());
-    const produtoMatch = produtos.find(p => p.nome?.toUpperCase() === venda.produto?.toUpperCase());
+    const nomeNorm = normalizeString(venda.produto);
+    const planoMatch = (planos || []).find(p => normalizeString(p.nome) === nomeNorm);
+    const produtoMatch = (produtos || []).find(p => normalizeString(p.nome) === nomeNorm);
 
     if (planoMatch) precoUnitario = safeNumber(planoMatch.valor);
     else if (produtoMatch) precoUnitario = safeNumber(produtoMatch.valor);
@@ -80,24 +93,36 @@ export const getValorRealDaVenda = (venda, planos, produtos) => {
     return precoUnitario * qtd;
 };
 
+// 🔥 CÉREBRO CORRIGIDO: O Catálogo é a ÚNICA fonte de verdade.
 export const getCategoriaItem = (nomeProduto, planos, produtos) => {
-    const nome = (nomeProduto || '').toUpperCase();
+    const nomeNorm = normalizeString(nomeProduto);
 
-    if (nome.includes('DIÁRIA') || nome.includes('DIARIA') ||
-        nome.includes('AVALIAÇÃO') || nome.includes('AVALIACAO') ||
-        nome.includes('REAVALIAÇÃO') || nome.includes('TAXA') ||
-        nome.includes('MULTA') || nome.includes('DAY USE')) {
-        return 'SERVICO';
-    }
-
-    if (planos && planos.length > 0 && planos.some(p => p.nome?.toUpperCase() === nome)) return 'PLANO';
-    if (produtos && produtos.length > 0 && produtos.some(p => p.nome?.toUpperCase() === nome)) return 'PRODUTO';
-
-    if (nome.includes('NUTRI') || nome.includes('PLUS') || nome.includes('FIT') || nome.includes('PLANO') || nome.includes('MENSAL') || nome.includes('ANUAL') || nome.includes('SSP') || nome.includes('PERSONAL')) {
+    // 1. Busca estrita no catálogo de Planos
+    if (planos && planos.length > 0 && planos.some(p => normalizeString(p.nome) === nomeNorm)) {
         return 'PLANO';
     }
 
-    return 'PRODUTO';
+    // 2. Busca estrita no catálogo de Produtos
+    if (produtos && produtos.length > 0) {
+        const matchProd = produtos.find(p => normalizeString(p.nome) === nomeNorm);
+        if (matchProd) {
+            const tipoProd = normalizeString(matchProd.tipo || '');
+            if (tipoProd === 'SERVICO' || tipoProd === 'SERVIÇO') return 'SERVICO';
+            return 'PRODUTO'; // Se não tiver tipo explícito "Serviço", no cadastro de produtos ele é Produto físico.
+        }
+    }
+
+    // 3. Fallback Seguro (A pedido da Regra 3, se não achar não chuta plano)
+    // Para não quebrar lançamentos antigos que eram serviços óbvios que ficaram sem catálogo
+    if (nomeNorm.includes('DIÁRIA') || nomeNorm.includes('DIARIA') ||
+        nomeNorm.includes('AVALIAÇÃO') || nomeNorm.includes('AVALIACAO') ||
+        nomeNorm.includes('REAVALIAÇÃO') || nomeNorm.includes('TAXA') ||
+        nomeNorm.includes('MULTA') || nomeNorm.includes('DAY USE')) {
+        return 'SERVICO';
+    }
+
+    // Caiu aqui? Não existe no catálogo nem como plano nem como produto.
+    return 'NAO_CLASSIFICADO';
 };
 
 export const criarGruposPlanosVazio = () => ({
@@ -109,16 +134,17 @@ export const criarGruposPlanosVazio = () => ({
 });
 
 export const classificarPlanoEmGrupo = (gruposPlanos, prodUpper, qtd) => {
-    if (prodUpper.includes("NUTRI")) {
+    const nomeNorm = normalizeString(prodUpper);
+    if (nomeNorm.includes("NUTRI")) {
         gruposPlanos["NUTRI"].total += qtd;
         gruposPlanos["NUTRI"].detalhes[prodUpper] = (gruposPlanos["NUTRI"].detalhes[prodUpper] || 0) + qtd;
-    } else if (prodUpper.includes("PLUS")) {
+    } else if (nomeNorm.includes("PLUS")) {
         gruposPlanos["PLUS"].total += qtd;
         gruposPlanos["PLUS"].detalhes[prodUpper] = (gruposPlanos["PLUS"].detalhes[prodUpper] || 0) + qtd;
-    } else if (prodUpper.includes("FIT")) {
+    } else if (nomeNorm.includes("FIT")) {
         gruposPlanos["FIT"].total += qtd;
         gruposPlanos["FIT"].detalhes[prodUpper] = (gruposPlanos["FIT"].detalhes[prodUpper] || 0) + qtd;
-    } else if (prodUpper.includes("PERSONAL")) {
+    } else if (nomeNorm.includes("PERSONAL")) {
         gruposPlanos["PERSONAL CLASS"].total += qtd;
         gruposPlanos["PERSONAL CLASS"].detalhes[prodUpper] = (gruposPlanos["PERSONAL CLASS"].detalhes[prodUpper] || 0) + qtd;
     } else {
@@ -159,7 +185,7 @@ export const buildCatalogoMap = (catalogoArray) => {
     if (!Array.isArray(catalogoArray)) return map;
     catalogoArray.forEach(item => {
         if (item && item.nome && typeof item.nome === 'string') {
-            map.set(item.nome.toUpperCase().trim(), item);
+            map.set(normalizeString(item.nome), item);
         }
     });
     return map;
