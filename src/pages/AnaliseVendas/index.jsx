@@ -5,7 +5,11 @@ import ModalTextoWhatsapp from './Modais.jsx';
 import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
-import { BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, Bookmark, Package, Briefcase } from 'lucide-react';
+import { 
+    BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, 
+    Bookmark, Package, Briefcase, Building2, ChevronDown, 
+    CalendarDays, CalendarRange, Calendar, Info, Lightbulb, Users, Layers
+} from 'lucide-react';
 import { SmartFilter } from '../../components/SmartFilter.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 
@@ -228,7 +232,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         }
     };
 
-    // 🔥 O BLOCO VENDASFILTRADAS QUE EU TINHA ESQUECIDO ESTÁ DE VOLTA AQUI
     const vendasFiltradas = useMemo(() => {
         return vendas.filter(v => {
             if (temVisaoGlobal && filtroUnidade !== 'TODOS' && v.unidade !== filtroUnidade) return false;
@@ -312,10 +315,10 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const labelFiltroAtual = (() => {
         if (tipoFiltro === 'mes') {
             const nomeMes = mesesTraduzidos.find(m => m.val === filtroMes)?.label || filtroMes;
-            return `${nomeMes}/${filtroAno}`;
+            return `${nomeMes} de ${filtroAno}`;
         }
         if (tipoFiltro === 'dia') return diaEspecifico.split('-').reverse().join('/');
-        return `${dataInicio || '...'} ${t('analytics.filters.dateUntil', { defaultValue: 'até' })} ${dataFim || '...'}`;
+        return `${dataInicio ? dataInicio.split('-').reverse().join('/') : '...'} até ${dataFim ? dataFim.split('-').reverse().join('/') : '...'}`;
     })();
 
     const abrirModalWhatsapp = (texto, config = {}) => {
@@ -355,98 +358,209 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 onEnviar={enviarWhatsApp}
             />
 
-            <div className="bg-white rounded-[24px] border border-slate-200 p-4 flex flex-col md:flex-row justify-between items-center shadow-sm gap-4">
-                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full md:w-auto overflow-x-auto custom-scrollbar">
-                    <button onClick={() => setAbaPrincipal('dashboard')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
+            {/* ========================================== */}
+            {/* 🚀 BARRA DE NAVEGAÇÃO DAS ABAS */}
+            {/* ========================================== */}
+            <div className="bg-white rounded-[24px] border border-slate-200 p-3 flex justify-start items-center shadow-sm relative z-20">
+                
+                {/* Abas de Navegação */}
+                <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-100 w-full lg:w-auto overflow-x-auto custom-scrollbar shadow-inner">
+                    <button onClick={() => setAbaPrincipal('dashboard')} className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
                         <BarChart3 className="w-4 h-4" /> Dashboard
                     </button>
-                    <button onClick={() => setAbaPrincipal('visaoGeral')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <Target className="w-4 h-4" /> Metas Unidade
+                    <button onClick={() => setAbaPrincipal('visaoGeral')} className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                        <Target className="w-4 h-4" /> Metas da Unidade
                     </button>
-                    <button onClick={() => setAbaPrincipal('relatorio')} className={`flex-1 md:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}>
-                        <FileText className="w-4 h-4" /> Relatório
+                    <button onClick={() => setAbaPrincipal('relatorio')} className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                        <FileText className="w-4 h-4" /> Relatórios
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6 border-b border-slate-100 pb-6">
+            {/* ========================================== */}
+            {/* 🚀 PAINEL CENTRAL DE FILTROS GLOBAIS AVANÇADOS */}
+            {/* ========================================== */}
+            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 relative z-10">
+                
+                {/* HEADER DOS FILTROS */}
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-inner">
-                            <Filter className="w-5 h-5" />
+                        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-[18px] border border-blue-100 shadow-inner flex items-center justify-center shrink-0">
+                            {/* Ícone muda dinamicamente conforme a aba */}
+                            {abaPrincipal === 'dashboard' && <BarChart3 className="w-6 h-6" />}
+                            {abaPrincipal === 'visaoGeral' && <Target className="w-6 h-6" />}
+                            {abaPrincipal === 'relatorio' && <FileText className="w-6 h-6" />}
                         </div>
-                        <div>
-                            <h2 className="text-xl font-black text-slate-800 tracking-tight">Filtros Globais Avançados</h2>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Controla os dados do Dashboard e Relatórios</p>
+                        <div className="flex flex-col">
+                            {/* Título dinâmico conforme a aba */}
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">
+                                {abaPrincipal === 'dashboard' ? 'Dashboard' : 
+                                 abaPrincipal === 'visaoGeral' ? 'Metas da Unidade' : 
+                                 'Relatórios'}
+                            </h2>
+                            <p className="text-[13px] font-medium text-slate-500 mt-0.5">Controle os dados exibidos no painel e relatórios</p>
                         </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                        <button onClick={limparFiltros} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-slate-50 px-4 py-2.5 rounded-lg border border-slate-200 hover:border-blue-200">
-                            <RefreshCw className="w-4 h-4" /> Limpar Filtros
+                    <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
+                        <button onClick={limparFiltros} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 transition-colors bg-slate-50 px-5 py-3 rounded-xl border border-slate-200 hover:border-slate-300 shadow-sm">
+                            <RefreshCw className="w-4 h-4" /> 
+                            <div className="flex flex-col text-left">
+                                <span>Limpar Filtros</span>
+                                <span className="text-[8px] font-medium text-slate-400 normal-case tracking-normal mt-0.5">Resetar todas as opções</span>
+                            </div>
                         </button>
 
-                        <div className="flex bg-slate-100 p-1.5 rounded-xl border w-full md:w-auto overflow-x-auto custom-scrollbar">
-                            <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Mês</button>
-                            <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Período</button>
-                            <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[80px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}>Dia</button>
+                        <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto shadow-inner">
+                            <button onClick={() => setTipoFiltro('mes')} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-blue-600 shadow-md text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}><CalendarDays className="w-4 h-4"/> Mês</button>
+                            <button onClick={() => setTipoFiltro('periodo')} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-blue-600 shadow-md text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}><CalendarRange className="w-4 h-4"/> Período</button>
+                            <button onClick={() => setTipoFiltro('dia')} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-blue-600 shadow-md text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}><Calendar className="w-4 h-4"/> Dia</button>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-5">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                {/* BANNER DE INFORMAÇÃO */}
+                <div className="flex flex-col md:flex-row items-center gap-4 bg-blue-50/50 border border-blue-100/80 rounded-xl p-3.5 mb-8 shadow-sm">
+                    <div className="flex items-center gap-2.5 text-blue-600 flex-1 px-2">
+                        <Info className="w-4 h-4 shrink-0" />
+                        <span className="text-xs font-medium text-blue-800/80 leading-snug">Selecione os filtros abaixo para visualizar os dados desejados. As informações do dashboard e relatórios serão atualizadas automaticamente.</span>
+                    </div>
+                    <div className="hidden md:block w-px h-6 bg-blue-200"></div>
+                    <div className="flex items-center gap-2.5 text-amber-600 px-2 shrink-0">
+                        <Lightbulb className="w-4 h-4 shrink-0" />
+                        <span className="text-xs font-medium text-amber-800/80">Dica: utilize os filtros para uma análise mais precisa</span>
+                    </div>
+                </div>
+
+                {/* SEÇÃO 1: PERÍODO DE REFERÊNCIA */}
+                <div className="mb-10 relative z-10">
+                    <div className="flex items-center gap-2.5 mb-5">
+                        <Calendar className="w-5 h-5 text-blue-600" />
+                        <div className="flex flex-col">
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Período de Referência</h3>
+                            <p className="text-[10px] font-medium text-slate-500">Defina o mês e o ano para análise dos dados</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {tipoFiltro === 'mes' && (
                             <>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Mês Referência</label>
-                                    <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{mesesTraduzidos.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}</select>
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Mês de Referência</label>
+                                    <div className="relative">
+                                        <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3.5 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none pr-10 shadow-sm cursor-pointer hover:border-slate-300 transition-colors">
+                                            {mesesTraduzidos.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Ano Referência</label>
-                                    <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]">{anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}</select>
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-slate-400"/> Ano de Referência</label>
+                                    <div className="relative">
+                                        <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3.5 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none pr-10 shadow-sm cursor-pointer hover:border-slate-300 transition-colors">
+                                            {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    </div>
                                 </div>
                             </>
                         )}
                         {tipoFiltro === 'periodo' && (
                             <>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Início</label>
-                                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" />
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Data Início</label>
+                                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[52px]" />
                                 </div>
-                                <div className="flex flex-col gap-1.5">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Data Fim</label>
-                                    <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" />
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Data Fim</label>
+                                    <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[52px]" />
                                 </div>
                             </>
                         )}
                         {tipoFiltro === 'dia' && (
-                            <div className="flex flex-col gap-1.5 sm:col-span-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Dia Específico</label>
-                                <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 w-full h-[46px]" />
+                            <div className="flex flex-col gap-2 sm:col-span-2">
+                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Dia Específico</label>
+                                <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[52px]" />
                             </div>
                         )}
 
-                        {temVisaoGlobal && (
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] font-black text-rose-500 uppercase tracking-widest ml-1">Isolar Unidade</label>
-                                <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="bg-rose-50/30 border border-rose-100 text-rose-700 rounded-xl p-3 text-xs font-black uppercase outline-none focus:ring-2 focus:ring-rose-500 h-[46px]">
-                                    {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'VISÃO GLOBAL' : u}</option>)}
-                                </select>
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-400"/> Consultores</label>
+                            <div className="relative">
+                                {/* Passando label="TODOS" faz o SmartFilter exibir a palavra de forma amigável no lugar do Placeholder, respeitando a imagem! */}
+                                <SmartFilter options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} label="TODOS" Icone={null} />
+                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
-                        )}
+                        </div>
 
-                        <SmartFilter options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} label="Consultores" Icone={UserCheck} iconColor="text-slate-500" />
-                    </div>
-
-                    <div className="flex flex-col sm:flex-row flex-wrap gap-4 bg-slate-50/50 p-5 rounded-2xl border border-slate-100">
-                        <SmartFilter options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} label="Filtrar Planos" Icone={Bookmark} iconColor="text-blue-600" />
-                        <SmartFilter options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} label="Filtrar Produtos" Icone={Package} iconColor="text-emerald-600" />
-                        <SmartFilter options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} label="Filtrar Serviços" Icone={Briefcase} iconColor="text-violet-600" />
+                        {/* CARD RESUMO AZUL: FILTRO ATIVO */}
+                        <div className="bg-blue-50/60 border border-blue-100 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
+                            <div className="w-12 h-12 bg-blue-100/80 text-blue-600 rounded-full flex items-center justify-center shrink-0">
+                                <BarChart3 className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Filtro Ativo</span>
+                                <span className="text-base font-black text-blue-700 leading-tight">{labelFiltroAtual}</span>
+                                <span className="text-[10px] font-medium text-slate-500 mt-1">{vendedoresOcultos.length > 0 ? `${vendedoresUnicos.length - vendedoresOcultos.length} consultores visíveis` : 'Todos os consultores'}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {/* SEÇÃO 2: FILTROS POR CATEGORIA */}
+                <div className="pt-8 border-t border-slate-100 relative z-0">
+                    <div className="flex items-center gap-2.5 mb-5">
+                        <Layers className="w-5 h-5 text-indigo-600" />
+                        <div className="flex flex-col">
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Filtros por Categoria</h3>
+                            <p className="text-[10px] font-medium text-slate-500">Refine os dados por tipo de venda</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Bookmark className="w-3.5 h-3.5 text-blue-500"/> Filtrar Planos</label>
+                            <div className="relative">
+                                <SmartFilter options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} label="TODOS" Icone={null} />
+                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-emerald-500"/> Filtrar Produtos</label>
+                            <div className="relative">
+                                <SmartFilter options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} label="TODOS" Icone={null} />
+                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                        </div>
+                        
+                        <div className="flex flex-col gap-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 text-violet-500"/> Filtrar Serviços</label>
+                            <div className="relative">
+                                <SmartFilter options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} label="VAZIO" Icone={null} />
+                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                        </div>
+
+                        {/* CARD RESUMO VERDE: FILTROS APLICADOS */}
+                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
+                            <div className="w-12 h-12 bg-emerald-100/80 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
+                                <Filter className="w-5 h-5" />
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Filtros Aplicados</span>
+                                <span className="text-base font-black text-emerald-700 leading-tight">Personalize sua visão</span>
+                                <span className="text-[10px] font-medium text-slate-500 mt-1">Selecione os filtros desejados</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
+            {/* ========================================== */}
+            {/* RENDERIZAÇÃO DAS ABAS (MANTIDAS INTACTAS) */}
+            {/* ========================================== */}
             {abaPrincipal === 'dashboard' && (
                 <DashboardTab
                     vendasFiltradas={vendasFiltradas}
@@ -457,6 +571,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     metaProdutos={metaProdutos}
                     metaNutri={metaNutri}       
                     metaPersonal={metaPersonal} 
+                    filtroMes={filtroMes}
+                    filtroAno={filtroAno}
                     planos={planos}
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
@@ -472,16 +588,13 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     vendasFiltradas={vendasFiltradas}
                     unidadesUnicas={unidadesUnicas}
                     usuarioLogado={usuarioLogado}
-                    // Start
                     metaNutri={metaNutri} setMetaNutri={setMetaNutri}
                     metaProdutos={metaProdutos} setMetaProdutos={setMetaProdutos}
                     metaPersonal={metaPersonal} setMetaPersonal={setMetaPersonal}
-                    // Mensal
                     metaAtivosMensal={metaAtivosMensal} setMetaAtivosMensal={setMetaAtivosMensal}
                     metaNutriMensal={metaNutriMensal} setMetaNutriMensal={setMetaNutriMensal}
                     metaPlusMensal={metaPlusMensal} setMetaPlusMensal={setMetaPlusMensal}
                     metaPersMensal={metaPersMensal} setMetaPersMensal={setMetaPersMensal}
-                    
                     ativosAtual={ativosAtual} setAtivosAtual={setAtivosAtual}
                     salvarMetasNuvem={salvarMetasNuvem}
                     isSalvandoMetas={isSalvandoMetas}
