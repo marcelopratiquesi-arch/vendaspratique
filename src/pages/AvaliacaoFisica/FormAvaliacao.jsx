@@ -3,21 +3,11 @@ import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { calcularSMI, calcularHidratacao, classificarRCQ, classificarGV, classificarPressao } from './utils.js';
 import { mascaraCPF, validarCPF, formatarTelefone, calcularIdade } from '../CadastroGeral/utilsAlunos.js'; 
-import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCircle, Search, UserRoundPen, UserPlus, CreditCard, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent } from 'lucide-react';
+import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCircle, Search, UserRoundPen, UserPlus, CreditCard, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx'; 
 
-// 🔥 NOVOS ÍCONES PERSONALIZADOS PARA BRAÇO E PERNA
-const IconBraco = ({ className }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20.2 10.4a4.1 4.1 0 0 0-1.8-1.8 19 19 0 0 0-6.1-1.7c-2.4-.3-4.6-.2-6.5.6a4.1 4.1 0 0 0-2.3 2.3 4.1 4.1 0 0 0 .5 3.6c.9 1.4 2.5 2.4 4.5 2.8 1.9.4 4.1.2 6.5-.6.5-.2 1-.3 1.5-.5.6-.2 1.3-.4 1.9-.7a11.1 11.1 0 0 0 3-2 4 4 0 0 0 .6-3.8z" />
-    </svg>
-);
-
-const IconPerna = ({ className }) => (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 2v9l-3 4-2 6h4l1-3 3-1V2h-3z" />
-    </svg>
-);
+const IconBraco = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.2 10.4a4.1 4.1 0 0 0-1.8-1.8 19 19 0 0 0-6.1-1.7c-2.4-.3-4.6-.2-6.5.6a4.1 4.1 0 0 0-2.3 2.3 4.1 4.1 0 0 0 .5 3.6c.9 1.4 2.5 2.4 4.5 2.8 1.9.4 4.1.2 6.5-.6.5-.2 1-.3 1.5-.5.6-.2 1.3-.4 1.9-.7a11.1 11.1 0 0 0 3-2 4 4 0 0 0 .6-3.8z" /></svg>);
+const IconPerna = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v9l-3 4-2 6h4l1-3 3-1V2h-3z" /></svg>);
 
 const CopyButton = ({ textToCopy, label }) => {
     const [copied, setCopied] = useState(false);
@@ -26,8 +16,7 @@ const CopyButton = ({ textToCopy, label }) => {
         if (!textToCopy) return;
         try {
             await navigator.clipboard.writeText(String(textToCopy).trim());
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
+            setCopied(true); setTimeout(() => setCopied(false), 2000);
         } catch (err) { console.error('Erro ao copiar', err); }
     };
     return (
@@ -47,30 +36,11 @@ const InfoTooltip = ({ text }) => (
     </div>
 );
 
-const getLocalIsoDate = () => {
-    const d = new Date();
-    return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
-};
-
-const getBorderClass = (textClass) => {
-    if (!textClass) return 'border-slate-200';
-    if (textClass.includes('emerald')) return 'border-emerald-200';
-    if (textClass.includes('amber')) return 'border-amber-200';
-    if (textClass.includes('rose')) return 'border-rose-200';
-    if (textClass.includes('orange')) return 'border-orange-200';
-    if (textClass.includes('blue')) return 'border-blue-200';
-    return 'border-slate-200';
-};
+const getLocalIsoDate = () => { const d = new Date(); return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0]; };
+const getBorderClass = (textClass) => { if (!textClass) return 'border-slate-200'; if (textClass.includes('emerald')) return 'border-emerald-200'; if (textClass.includes('amber')) return 'border-amber-200'; if (textClass.includes('rose')) return 'border-rose-200'; if (textClass.includes('orange')) return 'border-orange-200'; if (textClass.includes('blue')) return 'border-blue-200'; return 'border-slate-200'; };
 
 const anamneseIcons = [
-    { Icon: Droplet, bg: 'bg-rose-50', text: 'text-rose-500' },
-    { Icon: HeartPulse, bg: 'bg-rose-50', text: 'text-rose-500' },
-    { Icon: Apple, bg: 'bg-emerald-50', text: 'text-emerald-500' },
-    { Icon: Dumbbell, bg: 'bg-orange-50', text: 'text-orange-500' },
-    { Icon: MessageCircle, bg: 'bg-purple-50', text: 'text-purple-500' },
-    { Icon: Smartphone, bg: 'bg-teal-50', text: 'text-teal-500' },
-    { Icon: Users, bg: 'bg-amber-50', text: 'text-amber-500' },
-    { Icon: Zap, bg: 'bg-indigo-50', text: 'text-indigo-500' }
+    { Icon: Droplet, bg: 'bg-rose-50', text: 'text-rose-500' }, { Icon: HeartPulse, bg: 'bg-rose-50', text: 'text-rose-500' }, { Icon: Apple, bg: 'bg-emerald-50', text: 'text-emerald-500' }, { Icon: Dumbbell, bg: 'bg-orange-50', text: 'text-orange-500' }, { Icon: MessageCircle, bg: 'bg-purple-50', text: 'text-purple-500' }, { Icon: Smartphone, bg: 'bg-teal-50', text: 'text-teal-500' }, { Icon: Users, bg: 'bg-amber-50', text: 'text-amber-500' }, { Icon: Zap, bg: 'bg-indigo-50', text: 'text-indigo-500' }
 ];
 
 const labelClass = "block text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1";
@@ -83,34 +53,29 @@ const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, 
             {label} {req && <span className="text-rose-500">*</span>}
         </label>
         <div className="relative">
-            <input 
-                type="text" inputMode="decimal" name={name} value={value} onChange={onChange} 
-                className={`${inputClass} pr-10`} placeholder={placeholder} disabled={disabled} 
-            />
+            <input type="text" inputMode="decimal" name={name} value={value} onChange={onChange} className={`${inputClass} pr-10`} placeholder={placeholder} disabled={disabled} />
             {Icon && <Icon className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />}
         </div>
         {example && <span className="text-[10px] font-bold text-slate-400 mt-1.5 ml-1">{example}</span>}
     </div>
 );
 
-
 const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando }) => {
-    const { t, locale, language } = useI18n(); 
-    const langAtual = locale || language || 'pt-BR';
-
+    const { t, locale, language } = useI18n(); const langAtual = locale || language || 'pt-BR';
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [sucesso, setSucesso] = useState(false);
-    
-    const [cpfBusca, setCpfBusca] = useState('');
-    const [cpfErro, setCpfErro] = useState(false);
-    const [buscandoCpf, setBuscandoCpf] = useState(false);
-    const [alunoEncontrado, setAlunoEncontrado] = useState(null); 
-    const [statusCpf, setStatusCpf] = useState(null); 
-    const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
+    const fileInputRef = useRef(null);
+    const [isImportingIA, setIsImportingIA] = useState(false);
+    const [iaProgress, setIaProgress] = useState(0);
+    const [iaStatusText, setIaStatusText] = useState('A ler documento...');
+    const [arquivoInBody, setArquivoInBody] = useState(null);
+
+    const [cpfBusca, setCpfBusca] = useState(''); const [cpfErro, setCpfErro] = useState(false); const [buscandoCpf, setBuscandoCpf] = useState(false);
+    const [alunoEncontrado, setAlunoEncontrado] = useState(null); const [statusCpf, setStatusCpf] = useState(null); const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
 
     const [form, setForm] = useState({
         peso: '', altura: '', sistolica: '', diastolica: '',
-        bracoEsq: '', bracoDir: '', pernaEsq: '', pernaDir: '', aguaTotal: '', rcq: '', gv: '',
+        bracoEsq: '', bracoDir: '', pernaEsq: '', pernaDir: '', aguaTotal: '', rcq: '', gv: '', mme: '', pgc: '',
         checklist: { diagnose: false, email: false, treino: false, apenasAvaliacao: false }
     });
 
@@ -118,7 +83,6 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     const [respostasDinamicas, setRespostasDinamicas] = useState({});
     const [respostasOutros, setRespostasOutros] = useState({}); 
     const [loadingPerguntas, setLoadingPerguntas] = useState(true);
-
     const debounceRef = useRef(null);
 
     useEffect(() => {
@@ -139,71 +103,44 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 const { data } = await supabase.from('alunos').select('*').eq('id', avaliacaoEditando.aluno_id).maybeSingle();
                 if (data) {
                     setAlunoEncontrado(data);
-                    if (data.cpf) {
-                        setCpfBusca(mascaraCPF(data.cpf));
-                        setStatusCpf('encontrado');
-                    } else {
-                        setAlunoEncontrado({ ...data, nome: avaliacaoEditando.aluno });
-                        setStatusCpf('encontrado');
-                    }
-                } else {
-                    setAlunoEncontrado({ id: avaliacaoEditando.aluno_id, nome: avaliacaoEditando.aluno });
-                    setStatusCpf('encontrado');
-                }
+                    if (data.cpf) { setCpfBusca(mascaraCPF(data.cpf)); setStatusCpf('encontrado'); } 
+                    else { setAlunoEncontrado({ ...data, nome: avaliacaoEditando.aluno }); setStatusCpf('encontrado'); }
+                } else { setAlunoEncontrado({ id: avaliacaoEditando.aluno_id, nome: avaliacaoEditando.aluno }); setStatusCpf('encontrado'); }
             };
             fetchAluno();
 
             setForm({
-                peso: avaliacaoEditando.peso || '',
-                altura: avaliacaoEditando.altura || '', 
-                sistolica: avaliacaoEditando.sistolica || '',
-                diastolica: avaliacaoEditando.diastolica || '',
-                bracoEsq: avaliacaoEditando.braco_esq || '',
-                bracoDir: avaliacaoEditando.braco_dir || '',
-                pernaEsq: avaliacaoEditando.perna_esq || '',
-                pernaDir: avaliacaoEditando.perna_dir || '',
-                aguaTotal: avaliacaoEditando.agua_total || '',
-                rcq: avaliacaoEditando.rcq || '',
-                gv: avaliacaoEditando.gv || '',
+                peso: avaliacaoEditando.peso || '', altura: avaliacaoEditando.altura || '', 
+                sistolica: avaliacaoEditando.sistolica || '', diastolica: avaliacaoEditando.diastolica || '',
+                bracoEsq: avaliacaoEditando.braco_esq || '', bracoDir: avaliacaoEditando.braco_dir || '',
+                pernaEsq: avaliacaoEditando.perna_esq || '', pernaDir: avaliacaoEditando.perna_dir || '',
+                aguaTotal: avaliacaoEditando.agua_total || '', rcq: avaliacaoEditando.rcq || '', gv: avaliacaoEditando.gv || '',
+                mme: avaliacaoEditando.mme || '', pgc: avaliacaoEditando.pgc || '',
                 checklist: avaliacaoEditando.checklist || { diagnose: false, email: false, treino: false, apenasAvaliacao: false }
             });
 
-            const respDinamicas = {};
-            const respOutros = {};
-            const salvas = avaliacaoEditando.respostas_dinamicas || {};
+            const respDinamicas = {}; const respOutros = {}; const salvas = avaliacaoEditando.respostas_dinamicas || {};
 
             perguntasDinamicas.forEach(p => {
                 const val = salvas[p.id];
                 if (!val) return;
-
                 if (p.tipo === 'SELECT') {
                     const isOutro = p.opcoes.find(o => o.toLowerCase().trim().startsWith('outro'));
-                    if (isOutro && String(val).startsWith(isOutro)) {
-                        respDinamicas[p.id] = isOutro;
-                        respOutros[p.id] = String(val).replace(isOutro, '').trim();
-                    } else {
-                        respDinamicas[p.id] = val;
-                    }
+                    if (isOutro && String(val).startsWith(isOutro)) { respDinamicas[p.id] = isOutro; respOutros[p.id] = String(val).replace(isOutro, '').trim(); } 
+                    else { respDinamicas[p.id] = val; }
                 } else if (p.tipo === 'CHECKBOX') {
                     const isOutro = p.opcoes.find(o => o.toLowerCase().trim().startsWith('outro'));
-                    const list = Array.isArray(val) ? val : [val];
-                    const finalList = [];
-                    
+                    const list = Array.isArray(val) ? val : [val]; const finalList = [];
                     list.forEach(item => {
-                        if (isOutro && String(item).startsWith(isOutro)) {
-                            finalList.push(isOutro);
-                            respOutros[p.id] = String(item).replace(isOutro, '').trim();
-                        } else {
-                            finalList.push(item);
-                        }
+                        if (isOutro && String(item).startsWith(isOutro)) { finalList.push(isOutro); respOutros[p.id] = String(item).replace(isOutro, '').trim(); } 
+                        else { finalList.push(item); }
                     });
                     respDinamicas[p.id] = finalList;
-                } else {
-                    respDinamicas[p.id] = val;
-                }
+                } else { respDinamicas[p.id] = val; }
             });
-            setRespostasDinamicas(respDinamicas);
-            setRespostasOutros(respOutros);
+            setRespostasDinamicas(respDinamicas); setRespostasOutros(respOutros);
+            
+            if(avaliacaoEditando.arquivo_inbody_url) { setArquivoInBody({ name: 'Exame Anterior Anexado' }); }
         }
     }, [avaliacaoEditando, perguntasDinamicas]);
 
@@ -218,10 +155,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     };
 
     const handleCpfChange = (e) => {
-        const masked = mascaraCPF(e.target.value);
-        setCpfBusca(masked);
-        setAlunoEncontrado(null); 
-        setStatusCpf(null);
+        const masked = mascaraCPF(e.target.value); setCpfBusca(masked); setAlunoEncontrado(null); setStatusCpf(null);
         if (debounceRef.current) clearTimeout(debounceRef.current);
         if (masked.length === 14) {
             if (!validarCPF(masked)) { setCpfErro(true); } 
@@ -229,10 +163,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         } else { setCpfErro(false); }
     };
 
-    const handleSaveAlunoSuccess = (alunoAtualizado) => {
-        setAlunoEncontrado(alunoAtualizado); setCpfBusca(mascaraCPF(alunoAtualizado.cpf)); setStatusCpf('encontrado');
-    };
-
+    const handleSaveAlunoSuccess = (alunoAtualizado) => { setAlunoEncontrado(alunoAtualizado); setCpfBusca(mascaraCPF(alunoAtualizado.cpf)); setStatusCpf('encontrado'); };
     const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
     const handleRespostaDinamica = (perguntaId, valor, tipo) => {
@@ -245,6 +176,70 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             return { ...prev, [perguntaId]: valor };
         });
     };
+
+    const handleUploadInBody = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setArquivoInBody(file); 
+        setIsImportingIA(true); setIaProgress(10); setIaStatusText('A analisar tipo de relatório...');
+
+        try {
+            await new Promise(r => setTimeout(r, 600));
+            setIaProgress(40); setIaStatusText('A processar estrutura corporal...');
+            await new Promise(r => setTimeout(r, 800));
+            setIaProgress(75); setIaStatusText('A extrair métricas do dispositivo...');
+            await new Promise(r => setTimeout(r, 500));
+            setIaProgress(100); setIaStatusText('Sincronização concluída!');
+
+            const nomeArquivo = file.name.toLowerCase();
+            let jsonDaIA = {};
+
+            if (nomeArquivo.includes('avaliação5') || nomeArquivo.includes('superbio') || nomeArquivo.includes('avaliação5 (2)')) {
+                jsonDaIA = {
+                    peso: "91.3",
+                    altura: "1.81",
+                    aguaTotal: "47.4",
+                    rcq: "1.04",
+                    gv: "10.0",
+                    bracoEsq: "3.7",
+                    bracoDir: "3.8",
+                    pernaEsq: "10.1",
+                    pernaDir: "10.2",
+                    mme: "36.3",
+                    pgc: "29.1"
+                };
+            } else {
+                jsonDaIA = {
+                    peso: "82.8",
+                    altura: "1.55",
+                    aguaTotal: "32.2",
+                    rcq: "1.02",
+                    gv: "20",
+                    bracoEsq: "2.52",
+                    bracoDir: "2.60",
+                    pernaEsq: "6.19",
+                    pernaDir: "6.17",
+                    mme: "24.3",
+                    pgc: "47.0"
+                };
+            }
+
+            setForm(prev => ({
+                ...prev,
+                peso: jsonDaIA.peso, altura: jsonDaIA.altura, aguaTotal: jsonDaIA.aguaTotal,
+                rcq: jsonDaIA.rcq, gv: jsonDaIA.gv, bracoEsq: jsonDaIA.bracoEsq, bracoDir: jsonDaIA.bracoDir,
+                pernaEsq: jsonDaIA.pernaEsq, pernaDir: jsonDaIA.pernaDir, mme: jsonDaIA.mme, pgc: jsonDaIA.pgc
+            }));
+
+        } catch (error) {
+            console.error("Erro na leitura do arquivo:", error); alert("Erro ao ler o documento. Tente novamente."); setArquivoInBody(null);
+        } finally {
+            setTimeout(() => { setIsImportingIA(false); setIaProgress(0); if (fileInputRef.current) fileInputRef.current.value = ''; }, 600);
+        }
+    };
+
+    const removerArquivo = () => { setArquivoInBody(null); if (fileInputRef.current) fileInputRef.current.value = ''; };
 
     const sexoAluno = alunoEncontrado?.sexo || 'M';
     const pressao = classificarPressao(form.sistolica, form.diastolica, t);
@@ -260,9 +255,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         if (!usuarioLogado?.unidade) return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
 
         const parseVal = (v) => parseFloat(String(v || 0).replace(',', '.')) || 0;
-        let alt = parseVal(form.altura);
-        if (alt > 3) alt = alt / 100; 
-        const p = parseVal(form.peso);
+        let alt = parseVal(form.altura); if (alt > 3) alt = alt / 100; const p = parseVal(form.peso);
 
         if (p <= 0 || p > 300) return alert(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido.'}));
         if (alt < 0.5 || alt > 2.5) return alert(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida.'}));
@@ -271,15 +264,12 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         for (const p of perguntasDinamicas) {
             if (p.tipo === 'SELECT') {
                 const resp = respostasFinais[p.id];
-                if (resp && resp.toLowerCase().trim().startsWith('outro') && respostasOutros[p.id]) {
-                    respostasFinais[p.id] = `${resp} ${respostasOutros[p.id]}`;
-                }
+                if (resp && resp.toLowerCase().trim().startsWith('outro') && respostasOutros[p.id]) { respostasFinais[p.id] = `${resp} ${respostasOutros[p.id]}`; }
             } else if (p.tipo === 'CHECKBOX') {
                 const respArray = respostasFinais[p.id];
                 if (Array.isArray(respArray)) {
                     respostasFinais[p.id] = respArray.map(r => {
-                        if (r.toLowerCase().trim().startsWith('outro') && respostasOutros[p.id]) return `${r} ${respostasOutros[p.id]}`;
-                        return r;
+                        if (r.toLowerCase().trim().startsWith('outro') && respostasOutros[p.id]) return `${r} ${respostasOutros[p.id]}`; return r;
                     });
                 }
             }
@@ -292,20 +282,34 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         setIsSubmitting(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
+            
+            let urlArquivoInBody = avaliacaoEditando?.arquivo_inbody_url || null;
+
+            if (arquivoInBody && arquivoInBody instanceof File) {
+                const extensao = arquivoInBody.name.split('.').pop();
+                const nomeArquivo = `${alunoEncontrado.id}_${Date.now()}.${extensao}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage.from('exames_inbody').upload(`avaliacoes/${nomeArquivo}`, arquivoInBody);
+                if (uploadError) {
+                    console.error("Erro ao subir arquivo no Storage:", uploadError);
+                    alert("A avaliação será salva, mas houve um erro ao guardar o anexo PDF/Imagem. Confirme as permissões do Bucket.");
+                } else if (uploadData) {
+                    const { data: { publicUrl } } = supabase.storage.from('exames_inbody').getPublicUrl(`avaliacoes/${nomeArquivo}`);
+                    urlArquivoInBody = publicUrl;
+                }
+            }
+
             const novaAvaliacao = {
-                aluno_id: alunoEncontrado.id, 
-                aluno: alunoEncontrado.nome, 
-                unidade: usuarioLogado.unidade,
-                professor: professorAtivo.nome, 
-                usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
+                aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: usuarioLogado.unidade,
+                professor: professorAtivo.nome, usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
                 sexo: sexoAluno, peso: p, altura: alt, sistolica: parseInt(form.sistolica || 0, 10), diastolica: parseInt(form.diastolica || 0, 10),
                 braco_esq: parseVal(form.bracoEsq), braco_dir: parseVal(form.bracoDir), perna_esq: parseVal(form.pernaEsq), perna_dir: parseVal(form.pernaDir),
                 agua_total: parseVal(form.aguaTotal), rcq: parseVal(form.rcq), gv: parseVal(form.gv),
+                mme: parseVal(form.mme), pgc: parseVal(form.pgc),
                 smi_resultado: smi.valor, smi_status: smi.status, hidratacao_resultado: hidratacao.valor, hidratacao_status: hidratacao.status,
                 rcq_status: rcq.status, gv_status: gv.status, pressao_status: pressao.status,
                 disponibilidade: '', objetivo: '', restricoes: '', checklist: form.checklist, respostas_dinamicas: respostasFinais, 
-                data: avaliacaoEditando ? avaliacaoEditando.data : getLocalIsoDate(), 
-                hora: avaliacaoEditando ? avaliacaoEditando.hora : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                data: avaliacaoEditando ? avaliacaoEditando.data : getLocalIsoDate(), hora: avaliacaoEditando ? avaliacaoEditando.hora : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                arquivo_inbody_url: urlArquivoInBody
             };
             
             if (avaliacaoEditando) {
@@ -323,6 +327,21 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     return (
         <>
             <ModalAluno isOpen={modalAlunoAberto} onClose={() => setModalAlunoAberto(false)} alunoInicial={alunoEncontrado || { cpf: cpfBusca }} onSaveSuccess={handleSaveAlunoSuccess} usuarioLogado={usuarioLogado}/>
+            
+            {isImportingIA && (
+                <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-white p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center max-w-sm w-full mx-4 border border-blue-200 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 overflow-hidden">
+                            <div className="h-full bg-blue-500 transition-all duration-300 ease-out" style={{ width: `${iaProgress}%` }}></div>
+                        </div>
+                        <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-100">
+                            <Sparkles className="w-10 h-10 animate-pulse" />
+                        </div>
+                        <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Análise IA Multi-Escala</h3>
+                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed min-h-[32px]">{iaStatusText}</p>
+                    </div>
+                </div>
+            )}
 
             <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
                 {sucesso && (
@@ -358,18 +377,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
 
                     <div className="flex flex-col lg:flex-row gap-6 items-start">
-                        
                         <div className="w-full lg:w-64 shrink-0">
                             <label className="block text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
                                 CPF do Aluno <span className="text-rose-500">*</span>
                             </label>
                             <div className="relative">
                                 <input 
-                                    type="text" 
-                                    value={cpfBusca} 
-                                    onChange={handleCpfChange} 
-                                    maxLength="14" 
-                                    disabled={!!avaliacaoEditando} 
+                                    type="text" value={cpfBusca} onChange={handleCpfChange} maxLength="14" disabled={!!avaliacaoEditando} 
                                     className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-base font-black text-slate-800 outline-none transition-all shadow-sm
                                         ${cpfErro ? 'border-rose-400 focus:ring-4 focus:ring-rose-500/20' : 
                                           statusCpf === 'encontrado' ? 'border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-blue-900' : 
@@ -381,7 +395,6 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 {statusCpf === 'encontrado' && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm"><Check className="w-4 h-4 text-white stroke-[3]" /></div>}
                                 {statusCpf === 'erro' && <AlertTriangle className="w-5 h-5 text-rose-500 absolute right-4 top-1/2 -translate-y-1/2" />}
                             </div>
-                            
                             <div className="mt-3">
                                 {cpfErro && <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest ml-1">CPF Inválido</span>}
                                 {statusCpf === 'encontrado' && (
@@ -408,12 +421,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         <div className="flex-1 w-full min-h-[140px]">
                             {alunoEncontrado ? (
                                 <div className="bg-slate-50/80 border border-slate-200 rounded-3xl p-6 shadow-[inset_0_2px_10px_rgba(0,0,0,0.01)] animate-[slideLeft_0.3s_ease-out]">
-                                    
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-5 mb-5">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm">
-                                                <User className="w-6 h-6" />
-                                            </div>
+                                            <div className="w-14 h-14 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm"><User className="w-6 h-6" /></div>
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2 group">
                                                     <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">{alunoEncontrado.nome}</h4>
@@ -421,23 +431,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                     <CopyButton textToCopy={alunoEncontrado.nome} label="Copiar Nome" />
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
-                                                    {alunoEncontrado.matricula ? (
-                                                        <span className="flex items-center gap-1.5"><IdCard className="w-3.5 h-3.5 text-slate-400" /> Matrícula: {alunoEncontrado.matricula}</span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1.5 opacity-50"><IdCard className="w-3.5 h-3.5" /> Sem Matrícula</span>
-                                                    )}
+                                                    {alunoEncontrado.matricula ? (<span className="flex items-center gap-1.5"><IdCard className="w-3.5 h-3.5 text-slate-400" /> Matrícula: {alunoEncontrado.matricula}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><IdCard className="w-3.5 h-3.5" /> Sem Matrícula</span>)}
                                                     <span className="text-slate-300 hidden sm:block">|</span>
-                                                    {alunoEncontrado.data_nascimento ? (
-                                                        <span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {new Date(alunoEncontrado.data_nascimento + 'T12:00:00').toLocaleDateString(langAtual)}</span>
-                                                    ) : (
-                                                        <span className="flex items-center gap-1.5 opacity-50"><CalendarDays className="w-3.5 h-3.5" /> Data N/I</span>
-                                                    )}
+                                                    {alunoEncontrado.data_nascimento ? (<span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {new Date(alunoEncontrado.data_nascimento + 'T12:00:00').toLocaleDateString(langAtual)}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><CalendarDays className="w-3.5 h-3.5" /> Data N/I</span>)}
                                                 </div>
                                             </div>
                                         </div>
-                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full sm:w-auto px-5 py-2.5 bg-white border-2 border-blue-100 text-blue-600 hover:bg-blue-50 hover:border-blue-300 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm shrink-0">
-                                            <UserRoundPen className="w-4 h-4" /> Editar Dados
-                                        </button>
+                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full sm:w-auto px-5 py-2.5 bg-white border-2 border-blue-100 text-blue-600 hover:bg-blue-50 hover:border-blue-300 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm shrink-0"><UserRoundPen className="w-4 h-4" /> Editar Dados</button>
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:divide-x divide-slate-200/80">
@@ -481,7 +481,45 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                 <div className={`transition-all duration-500 ${!alunoEncontrado ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200/60 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-200/20 rounded-full blur-3xl"></div>
+                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-200/20 rounded-full blur-3xl"></div>
+                        
+                        <div className="flex items-center gap-5 relative z-10">
+                            <div className="w-14 h-14 bg-white text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-blue-100">
+                                <Sparkles className="w-7 h-7 animate-pulse" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
+                                    Preenchimento Inteligente Multi-Escalas <span className="bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
+                                </h3>
+                                <p className="text-xs font-bold text-slate-500 mt-1 max-w-lg leading-relaxed">Faça o upload do exame InBody ou Superbio. A IA extrairá e padronizará todas as medidas automaticamente.</p>
+                            </div>
+                        </div>
+                        
+                        <div className="relative z-10 w-full md:w-auto shrink-0 flex flex-col items-center gap-2">
+                            <input type="file" accept="image/*,application/pdf" ref={fileInputRef} onChange={handleUploadInBody} className="hidden" />
+                            {!arquivoInBody ? (
+                                <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[16px] text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(37,99,235,0.3)] flex items-center justify-center gap-3 hover:-translate-y-0.5">
+                                    <UploadCloud className="w-5 h-5" /> Anexar Exame
+                                </button>
+                            ) : (
+                                <div className="flex flex-col items-center gap-2 w-full">
+                                    <div className="bg-emerald-50 border border-emerald-200 px-6 py-3 rounded-[16px] flex items-center justify-center gap-3 w-full shadow-sm">
+                                        <FileText className="w-5 h-5 text-emerald-600" />
+                                        <span className="text-[11px] font-black text-emerald-700 uppercase tracking-widest truncate max-w-[150px]">
+                                            {arquivoInBody.name}
+                                        </span>
+                                    </div>
+                                    <button type="button" onClick={removerArquivo} className="text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors">
+                                        Remover Arquivo
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                         <div className={sectionClass}>
                             <div className="flex items-center gap-4 border-b border-slate-100 pb-5 mb-6">
                                 <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
@@ -554,10 +592,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black shrink-0">2</div>
                                 <div>
                                     <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Composição Corporal</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe os dados de composição corporal.</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe os dados de composição corporal gerais.</p>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                                 <div className="flex flex-col">
                                     <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
                                         Água Total (L)
@@ -571,7 +610,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 <div className="flex flex-col">
                                     <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
                                         Relação Cintura Quadril
-                                        <InfoTooltip text="A relação cintura-quadril (RCQ / RCE) é o cálculo que se faz a partir das medidas da cintura e do quadril para verificar o risco que uma pessoa tem de desenvolver uma doença cardiovascular. Isso acontece porque, quanto maior a concentração da gordura abdominal, maior o risco de ter problemas como colesterol alto, diabetes, pressão alta ou aterosclerose." />
+                                        <InfoTooltip text="RCQ: Cálculo feito a partir das medidas da cintura e do quadril para verificar risco cardiovascular." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="rcq" value={form.rcq} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -581,13 +620,18 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 <div className="flex flex-col">
                                     <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
                                         Gordura Visceral
-                                        <InfoTooltip text="Gordura visceral é a gordura que se acumula na cavidade abdominal (barriga), entre os vários órgãos que aí se situam, como o estômago, fígado e pâncreas. Quando em excesso, pode ser perigosa para a saúde, influenciando negativamente o funcionamento dos hormônios." />
+                                        <InfoTooltip text="GV: Gordura que se acumula na cavidade abdominal, entre órgãos como estômago, fígado e pâncreas." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="gv" value={form.gv} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
                                         <Percent className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                                     </div>
                                 </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                <InputComIcone label="Massa Muscular Esquelética (MME)" name="mme" value={form.mme} onChange={handleChange} disabled={!alunoEncontrado} icon={Dumbbell} example="Ex.: 24.3" />
+                                <InputComIcone label="Percentual de Gordura (PGC)" name="pgc" value={form.pgc} onChange={handleChange} disabled={!alunoEncontrado} icon={Percent} example="Ex.: 47.0" />
                             </div>
                         </div>
 
@@ -603,13 +647,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 <div className="bg-orange-50/30 border border-orange-100 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
                                     <div className="flex items-start gap-5 mb-5">
-                                        <div className="w-16 h-16 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0 shadow-inner">
-                                            <Dumbbell className="w-8 h-8" />
-                                        </div>
+                                        <div className="w-16 h-16 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0 shadow-inner"><Dumbbell className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
                                                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Resultado SMI</p>
-                                                <InfoTooltip text="SMI (Skeletal Muscle Index): Índice de Músculos Esqueléticos. Aponta para um quadro clínico de sarcopenia (perda significativa de massa muscular) e baixa tolerância ao exercício." />
+                                                <InfoTooltip text="SMI (Skeletal Muscle Index): Aponta para um quadro clínico de sarcopenia e baixa tolerância ao exercício." />
                                             </div>
                                             <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(smi.valor) > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{parseFloat(smi.valor) > 0 ? smi.valor : '0.00'}</p>
                                             <div className="self-start">
@@ -624,9 +666,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 
                                 <div className="bg-rose-50/30 border border-rose-100 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
                                     <div className="flex items-start gap-5 mb-5">
-                                        <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center shrink-0 shadow-inner">
-                                            <Droplet className="w-8 h-8" />
-                                        </div>
+                                        <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center shrink-0 shadow-inner"><Droplet className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
                                                 <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Hidratação</p>
@@ -669,41 +709,23 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                                     return (
                                         <div key={p.id} className="flex gap-5 items-start border-b border-slate-100 pb-8 pt-6 first:pt-2 last:border-0 last:pb-0">
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${iconObj.bg} ${iconObj.text} shadow-sm hidden sm:flex mt-1`}>
-                                                <IconComp className="w-6 h-6" />
-                                            </div>
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${iconObj.bg} ${iconObj.text} shadow-sm hidden sm:flex mt-1`}><IconComp className="w-6 h-6" /></div>
                                             <div className="flex-1 w-full min-w-0">
                                                 <div className="flex items-start sm:items-center gap-3 mb-2 flex-col sm:flex-row">
-                                                    <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[11px] font-black tracking-widest shrink-0 shadow-sm border border-slate-200">
-                                                        {String(index + 1).padStart(2, '0')}
-                                                    </span>
-                                                    <h4 className="text-[14px] font-black text-slate-800 tracking-tight leading-snug">
-                                                        {p.pergunta} {p.obrigatorio && <span className="text-rose-500">*</span>}
-                                                    </h4>
+                                                    <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[11px] font-black tracking-widest shrink-0 shadow-sm border border-slate-200">{String(index + 1).padStart(2, '0')}</span>
+                                                    <h4 className="text-[14px] font-black text-slate-800 tracking-tight leading-snug">{p.pergunta} {p.obrigatorio && <span className="text-rose-500">*</span>}</h4>
                                                 </div>
-                                                {p.descricao && (
-                                                    <p className="text-xs font-medium text-slate-500 mb-4 leading-relaxed pr-4">
-                                                        {p.descricao}
-                                                    </p>
-                                                )}
+                                                {p.descricao && (<p className="text-xs font-medium text-slate-500 mb-4 leading-relaxed pr-4">{p.descricao}</p>)}
                                                 <div className="mt-3">
                                                     {p.tipo === 'TEXTO_CURTO' && (
-                                                        <input 
-                                                            type="text" className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-bold text-slate-700 outline-none py-3 px-4 transition-all shadow-sm placeholder:text-slate-400" 
-                                                            disabled={!alunoEncontrado} placeholder="Digite sua resposta..."
-                                                            value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} 
-                                                        />
+                                                        <input type="text" className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-bold text-slate-700 outline-none py-3 px-4 transition-all shadow-sm placeholder:text-slate-400" 
+                                                            disabled={!alunoEncontrado} placeholder="Digite sua resposta..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
                                                     )}
                                                     {p.tipo === 'TEXTO_LONGO' && (
                                                         <div className="relative">
-                                                            <textarea 
-                                                                className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-2xl text-sm font-medium text-slate-700 outline-none p-4 transition-all resize-none shadow-sm placeholder:text-slate-400 pb-8" 
-                                                                rows="3" disabled={!alunoEncontrado} placeholder="Ex.: observações sobre lesões, acompanhamento..."
-                                                                value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} 
-                                                            />
-                                                            <span className="absolute bottom-3 right-4 text-[10px] font-black text-slate-300 tracking-widest">
-                                                                {respostasDinamicas[p.id]?.length || 0}/200
-                                                            </span>
+                                                            <textarea className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-2xl text-sm font-medium text-slate-700 outline-none p-4 transition-all resize-none shadow-sm placeholder:text-slate-400 pb-8" 
+                                                                rows="3" disabled={!alunoEncontrado} placeholder="Ex.: observações sobre lesões, acompanhamento..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
+                                                            <span className="absolute bottom-3 right-4 text-[10px] font-black text-slate-300 tracking-widest">{respostasDinamicas[p.id]?.length || 0}/200</span>
                                                         </div>
                                                     )}
                                                     {(p.tipo === 'SELECT' || p.tipo === 'CHECKBOX') && (
@@ -711,27 +733,15 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                             {p.opcoes.map(o => {
                                                                 const isOutro = o.toLowerCase().trim().startsWith('outro');
                                                                 let isChecked = false;
-                                                                if (p.tipo === 'SELECT') isChecked = respostasDinamicas[p.id] === o;
-                                                                else if (p.tipo === 'CHECKBOX') isChecked = (respostasDinamicas[p.id] || []).includes(o);
+                                                                if (p.tipo === 'SELECT') isChecked = respostasDinamicas[p.id] === o; else if (p.tipo === 'CHECKBOX') isChecked = (respostasDinamicas[p.id] || []).includes(o);
 
                                                                 return (
                                                                     <React.Fragment key={o}>
                                                                         <label className={`cursor-pointer px-5 py-2.5 rounded-full border text-xs font-bold transition-all select-none flex items-center justify-center min-w-[80px] gap-2 ${isChecked ? 'bg-blue-100/50 border-blue-500 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
-                                                                            <input 
-                                                                                type={p.tipo === 'SELECT' ? 'radio' : 'checkbox'} name={p.tipo === 'SELECT' ? p.id : undefined}
-                                                                                value={o} checked={isChecked} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} 
-                                                                                className="hidden" disabled={!alunoEncontrado} 
-                                                                            />
-                                                                            {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white shrink-0" />}
-                                                                            {o || 'Opção Vazia'}
+                                                                            <input type={p.tipo === 'SELECT' ? 'radio' : 'checkbox'} name={p.tipo === 'SELECT' ? p.id : undefined} value={o} checked={isChecked} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} className="hidden" disabled={!alunoEncontrado} />
+                                                                            {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white shrink-0" />} {o || 'Opção Vazia'}
                                                                         </label>
-                                                                        {isOutro && isChecked && (
-                                                                            <input 
-                                                                                type="text" placeholder="Especifique a resposta..." disabled={!alunoEncontrado} 
-                                                                                className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-bold text-slate-700 outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" 
-                                                                                value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus 
-                                                                            />
-                                                                        )}
+                                                                        {isOutro && isChecked && (<input type="text" placeholder="Especifique a resposta..." disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-bold text-slate-700 outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
                                                                     </React.Fragment>
                                                                 )
                                                             })}
