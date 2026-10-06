@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { calcularSMI, calcularHidratacao, classificarRCQ, classificarGV, classificarPressao } from './utils.js';
 import { mascaraCPF, validarCPF, formatarTelefone, calcularIdade } from '../CadastroGeral/utilsAlunos.js'; 
+import { processarExameBioimpedancia } from './bioimpedancia/index.js'; // INJEÇÃO DO PARSER
 import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCircle, Search, UserRoundPen, UserPlus, CreditCard, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx'; 
 
@@ -177,71 +178,76 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         });
     };
 
+    // 🔥 LÓGICA DE EXTRAÇÃO SUBSTITUÍDA PELO CÓDIGO REAL
     const handleUploadInBody = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
 
         setArquivoInBody(file); 
-        setIsImportingIA(true); setIaProgress(10); setIaStatusText('A analisar tipo de relatório...');
+        setIsImportingIA(true); 
+        setIaProgress(20); 
+        setIaStatusText('A ler estrutura do ficheiro PDF...');
 
         try {
-            await new Promise(r => setTimeout(r, 600));
-            setIaProgress(40); setIaStatusText('A processar estrutura corporal...');
-            await new Promise(r => setTimeout(r, 800));
-            setIaProgress(75); setIaStatusText('A extrair métricas do dispositivo...');
-            await new Promise(r => setTimeout(r, 500));
-            setIaProgress(100); setIaStatusText('Sincronização concluída!');
+            const resultado = await processarExameBioimpedancia(file);
+            setIaProgress(60);
 
-            const nomeArquivo = file.name.toLowerCase();
-            let jsonDaIA = {};
-
-            if (nomeArquivo.includes('avaliação5') || nomeArquivo.includes('superbio') || nomeArquivo.includes('avaliação5 (2)')) {
-                jsonDaIA = {
-                    peso: "91.3",
-                    altura: "1.81",
-                    aguaTotal: "47.4",
-                    rcq: "1.04",
-                    gv: "10.0",
-                    bracoEsq: "3.7",
-                    bracoDir: "3.8",
-                    pernaEsq: "10.1",
-                    pernaDir: "10.2",
-                    mme: "36.3",
-                    pgc: "29.1"
-                };
-            } else {
-                jsonDaIA = {
-                    peso: "82.8",
-                    altura: "1.55",
-                    aguaTotal: "32.2",
-                    rcq: "1.02",
-                    gv: "20",
-                    bracoEsq: "2.52",
-                    bracoDir: "2.60",
-                    pernaEsq: "6.19",
-                    pernaDir: "6.17",
-                    mme: "24.3",
-                    pgc: "47.0"
-                };
+            if (!resultado.success) {
+                alert(resultado.error);
+                setArquivoInBody(null);
+                if (fileInputRef.current) fileInputRef.current.value = '';
+                setIsImportingIA(false);
+                return;
             }
 
-            setForm(prev => ({
-                ...prev,
-                peso: jsonDaIA.peso, altura: jsonDaIA.altura, aguaTotal: jsonDaIA.aguaTotal,
-                rcq: jsonDaIA.rcq, gv: jsonDaIA.gv, bracoEsq: jsonDaIA.bracoEsq, bracoDir: jsonDaIA.bracoDir,
-                pernaEsq: jsonDaIA.pernaEsq, pernaDir: jsonDaIA.pernaDir, mme: jsonDaIA.mme, pgc: jsonDaIA.pgc
-            }));
+            setIaStatusText(`Layout ${resultado.reportType} identificado. A extrair métricas...`);
+            setIaProgress(90);
+
+            console.log('[Bioimpedancia] tipo:', resultado.reportType);
+            console.log('[Bioimpedancia] campos encontrados:', Object.keys(resultado.data));
+            if (resultado.warnings?.length > 0) console.log('[Bioimpedancia] warnings:', resultado.warnings);
+
+            // Preenchimento Seguro: Ignora nulls para não apagar dados já preenchidos
+            setForm(prev => {
+                const newData = { ...prev };
+                Object.entries(resultado.data).forEach(([key, value]) => {
+                    if (value !== null && value !== undefined) {
+                        newData[key] = String(value); // Mantemos string para compatibilidade
+                    }
+                });
+                return newData;
+            });
+
+            setIaProgress(100);
+            setIaStatusText('Extração concluída com sucesso!');
 
         } catch (error) {
-            console.error("Erro na leitura do arquivo:", error); alert("Erro ao ler o documento. Tente novamente."); setArquivoInBody(null);
+            console.error("Erro na leitura do arquivo:", error);
+            alert("Falha inesperada ao ler o documento. Verifique a consola.");
+            setArquivoInBody(null);
         } finally {
-            setTimeout(() => { setIsImportingIA(false); setIaProgress(0); if (fileInputRef.current) fileInputRef.current.value = ''; }, 600);
+            setTimeout(() => { 
+                setIsImportingIA(false); 
+                setIaProgress(0); 
+                if (fileInputRef.current) fileInputRef.current.value = ''; 
+            }, 800);
         }
     };
 
     const removerArquivo = () => { setArquivoInBody(null); if (fileInputRef.current) fileInputRef.current.value = ''; };
 
+    const parseVal = (v) => {
+        if (v === null || v === undefined || v === '') return null;
+        const num = parseFloat(String(v).replace(',', '.'));
+        return isNaN(num) ? null : num;
+    };
+
     const sexoAluno = alunoEncontrado?.sexo || 'M';
+    
+    let alt = parseVal(form.altura); 
+    if (alt !== null && alt > 3) alt = alt / 100; 
+    const p = parseVal(form.peso);
+
     const pressao = classificarPressao(form.sistolica, form.diastolica, t);
     const smi = calcularSMI(form.bracoEsq, form.bracoDir, form.pernaEsq, form.pernaDir, form.altura, sexoAluno, t);
     const hidratacao = calcularHidratacao(form.aguaTotal, form.peso, sexoAluno, t);
@@ -254,11 +260,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         if (!alunoEncontrado) return alert(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
         if (!usuarioLogado?.unidade) return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
 
-        const parseVal = (v) => parseFloat(String(v || 0).replace(',', '.')) || 0;
-        let alt = parseVal(form.altura); if (alt > 3) alt = alt / 100; const p = parseVal(form.peso);
-
-        if (p <= 0 || p > 300) return alert(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido.'}));
-        if (alt < 0.5 || alt > 2.5) return alert(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida.'}));
+        if (p === null || p <= 0 || p > 300) return alert(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
+        if (alt === null || alt < 0.5 || alt > 2.5) return alert(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida ou não informada.'}));
 
         const respostasFinais = { ...respostasDinamicas };
         for (const p of perguntasDinamicas) {
@@ -301,8 +304,10 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             const novaAvaliacao = {
                 aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: usuarioLogado.unidade,
                 professor: professorAtivo.nome, usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
-                sexo: sexoAluno, peso: p, altura: alt, sistolica: parseInt(form.sistolica || 0, 10), diastolica: parseInt(form.diastolica || 0, 10),
-                braco_esq: parseVal(form.bracoEsq), braco_dir: parseVal(form.bracoDir), perna_esq: parseVal(form.pernaEsq), perna_dir: parseVal(form.pernaDir),
+                sexo: sexoAluno, peso: p, altura: alt, 
+                sistolica: parseInt(form.sistolica || 0, 10), diastolica: parseInt(form.diastolica || 0, 10),
+                braco_esq: parseVal(form.bracoEsq), braco_dir: parseVal(form.bracoDir), 
+                perna_esq: parseVal(form.pernaEsq), perna_dir: parseVal(form.pernaDir),
                 agua_total: parseVal(form.aguaTotal), rcq: parseVal(form.rcq), gv: parseVal(form.gv),
                 mme: parseVal(form.mme), pgc: parseVal(form.pgc),
                 smi_resultado: smi.valor, smi_status: smi.status, hidratacao_resultado: hidratacao.valor, hidratacao_status: hidratacao.status,

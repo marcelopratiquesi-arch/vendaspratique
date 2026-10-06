@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Dumbbell, LogOut, BarChart3, ClipboardSignature, Search, PlusCircle, Filter, RefreshCw, Trophy, Users, Activity, ListChecks, Edit3, Trash2, FileText, Eye, Building2, MousePointerClick, User, ArrowUpDown } from 'lucide-react';
+import { Dumbbell, LogOut, BarChart3, ClipboardSignature, Search, PlusCircle, Filter, RefreshCw, Trophy, Users, Activity, ListChecks, Edit3, Trash2, FileText, Eye, Building2, MousePointerClick, User, ArrowUpDown, LineChart } from 'lucide-react';
 import FormAvaliacao from './FormAvaliacao'; 
 import TabPerguntasAvaliacao from './TabPerguntasAvaliacao.jsx';
+import ModalEvolucaoAluno from './ModalEvolucaoAluno.jsx'; 
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { getMeses } from '../AnaliseVendas/utils.js';
 import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
@@ -21,6 +22,8 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
     const [abaAtiva, setAbaAtiva] = useState('relatorio');
     const [avaliacaoEditando, setAvaliacaoEditando] = useState(null);
     const [modoExibicao, setModoExibicao] = useState('resumo');
+
+    const [alunoEvolucaoModal, setAlunoEvolucaoModal] = useState(null);
 
     const [perguntasBase, setPerguntasBase] = useState([]);
 
@@ -287,7 +290,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 w-full">
                         {profsDaUnidade.map(c => (
                             <button key={c.id} onClick={() => setProfessorAtivo({ ...c, unidade: usuarioLogado?.unidade })} className="bg-white border border-slate-200 p-5 rounded-[24px] shadow-sm hover:border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all group flex flex-col items-center gap-4">
-                                <div className="w-14 h-14 bg-slate-100 text-slate-500 group-hover:bg-blue-500 group-hover:text-white rounded-full flex items-center justify-center font-black text-xl transition-colors shadow-inner">
+                                <div className="w-12 h-12 bg-slate-100 text-slate-500 group-hover:bg-blue-500 group-hover:text-white rounded-full flex items-center justify-center font-black text-lg transition-colors shadow-inner">
                                     {c.nome.charAt(0)}
                                 </div>
                                 <div className="text-center">
@@ -321,6 +324,10 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1600px] mx-auto relative pb-10">
             
+            {alunoEvolucaoModal && (
+                <ModalEvolucaoAluno aluno={alunoEvolucaoModal} onClose={() => setAlunoEvolucaoModal(null)} />
+            )}
+
             <div className="bg-white rounded-[24px] border border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm flex-wrap gap-4">
                 <div className="flex items-center gap-4 flex-1 min-w-[300px]">
                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shrink-0 shadow-inner ${professorAtivo.id === 'GLOBAL' ? 'bg-indigo-100 text-indigo-600' : professorAtivo.id === 'GERAL' ? 'bg-slate-100 text-slate-600' : 'bg-blue-100 text-blue-600'}`}>
@@ -349,7 +356,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
             </div>
 
             {abaAtiva === 'nova' ? (
-                <FormAvaliacao usuarioLogado={usuarioLogado} professorAtivo={professorAtivo} voltar={handleVoltar} avaliacaoEditando={avaliacaoEditando} />
+                <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} />
             ) : (
                 <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
                     
@@ -394,6 +401,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                     </div>
 
                     <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+                        
                         <div className="xl:col-span-1 flex flex-col gap-4">
                             <div className="bg-white border border-slate-200 p-6 rounded-[24px] shadow-sm flex flex-col justify-center relative overflow-hidden group hover:border-blue-300 transition-colors h-full min-h-[140px]">
                                 <div className="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-50 rounded-full group-hover:scale-[2] transition-transform duration-500"></div>
@@ -476,7 +484,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                                 <div className="flex items-center gap-3 w-full sm:w-auto">
                                     <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm w-full sm:w-auto">
                                         <button onClick={() => setModoExibicao('resumo')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${modoExibicao === 'resumo' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}>Resumo</button>
-                                        <button onClick={() => setModoExibicao('detalhado')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'}`}><Eye className="w-3.5 h-3.5"/> Detalhado</button>
+                                        <button onClick={() => setModoExibicao('detalhado')} className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 text-blue-700' : 'text-slate-500 hover:bg-slate-100'}`}><Eye className="w-3.5 h-3.5" /> Detalhado</button>
                                     </div>
                                 </div>
                             </div>
@@ -590,7 +598,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                                             <th onClick={() => handleSort('avaliador')} className="cursor-pointer hover:bg-slate-50 group px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">Avaliador <ArrowUpDown className={`w-3.5 h-3.5 transition-colors ${sortConfig.key === 'avaliador' ? 'text-blue-500' : 'text-slate-300 group-hover:text-blue-400'}`} /></div>
                                             </th>
-                                            <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-white shadow-[-5px_0_10px_rgba(0,0,0,0.02)]">Anexo IA</th>
+                                            <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap sticky right-0 bg-white shadow-[-5px_0_10px_rgba(0,0,0,0.02)]">Anexo</th>
                                             {podeEditar && <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center whitespace-nowrap">Ações</th>}
                                         </tr>
                                     </thead>
@@ -610,8 +618,15 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                                                             </div>
                                                         </td>
                                                         <td className="px-5 py-4 whitespace-nowrap align-top">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-sm font-black text-slate-800 uppercase tracking-tight">{a.aluno || 'NÃO INFORMADO'}</span>
+                                                            <div className="flex flex-col items-start">
+                                                                <button
+                                                                    onClick={() => setAlunoEvolucaoModal({ id: a.aluno_id, nome: a.aluno, cpf: a.cpf })}
+                                                                    className="flex items-center gap-1.5 text-[13px] font-black text-slate-800 uppercase tracking-tight hover:text-blue-600 transition-colors text-left"
+                                                                    title="Ver evolução e gráficos do aluno"
+                                                                >
+                                                                    {a.aluno || 'NÃO INFORMADO'}
+                                                                    <LineChart className="w-3.5 h-3.5 text-slate-300 group-hover:text-blue-500 transition-colors" />
+                                                                </button>
                                                                 {a.cpf && <span className="text-[10px] font-bold text-slate-500 tracking-widest mt-1 font-mono">CPF: {mascaraCPF(a.cpf)}</span>}
                                                             </div>
                                                         </td>
@@ -705,7 +720,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                                                 <td colSpan={modoExibicao === 'detalhado' ? (professorAtivo.id === 'GLOBAL' ? (10 + perguntasBase.length + (podeEditar?1:0)) : (9 + perguntasBase.length + (podeEditar?1:0))) : (professorAtivo.id === 'GLOBAL' ? (podeEditar ? "8" : "7") : (podeEditar ? "7" : "6"))} className="text-center py-24">
                                                     <div className="flex flex-col items-center">
                                                         <Search className="w-10 h-10 text-slate-200 mb-3" />
-                                                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Nenhum registro encontrado.</p>
+                                                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Nenhum registo encontrado.</p>
                                                     </div>
                                                 </td>
                                             </tr>
