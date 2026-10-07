@@ -141,7 +141,7 @@ export default function App() {
         let timeoutId;
         const resetTimer = () => {
             clearTimeout(timeoutId);
-            if (!isIdle) timeoutId = setTimeout(() => setIsIdle(true), 15 * 60 * 1000);
+            if (!isIdle) timeoutId = setTimeout(() => setIsIdle(true), 30 * 60 * 1000);
         };
         const eventos = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
         eventos.forEach(evento => window.addEventListener(evento, resetTimer));
