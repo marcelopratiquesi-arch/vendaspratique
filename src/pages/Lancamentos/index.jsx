@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import HubSelecao from './HubSelecao.jsx';
 import FormVenda from './FormVenda.jsx';
 import FormVisitante from './FormVisitante.jsx';
-import FormAvaliacao from './FormAvaliacao.jsx';
 import { ArrowLeft } from 'lucide-react';
 
 const Lancamentos = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, servicos, colaboradores }) => {
@@ -42,15 +41,6 @@ const Lancamentos = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos,
 
             {modalidade === 'visitante' && (
                 <FormVisitante 
-                    usuarioLogado={usuarioLogado} 
-                    unidades={unidades} 
-                    colaboradores={colaboradores} 
-                    voltarHub={() => setModalidade('selecao')}
-                />
-            )}
-
-            {modalidade === 'avaliacao' && (
-                <FormAvaliacao 
                     usuarioLogado={usuarioLogado} 
                     unidades={unidades} 
                     colaboradores={colaboradores} 

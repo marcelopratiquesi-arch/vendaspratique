@@ -9,16 +9,14 @@ export async function processarExameBioimpedancia(file) {
 
   try {
     const linhasFisicas = await extrairLinhasPDF(file);
-    
-    // Regra 2: Console.log do Texto Bruto
+    const textoBase = linhasFisicas.join(' ').toUpperCase();
+
     console.log("===== TEXTO BRUTO EXTRAÍDO (LINHAS FÍSICAS RECONSTRUÍDAS) =====");
     linhasFisicas.forEach((linha, index) => console.log(`Linha ${index}: ${linha}`));
     console.log("===== FIM TEXTO BRUTO =====");
 
-    const textoBase = linhasFisicas.join(' ').toUpperCase();
-
-    // Detecção
-    if (textoBase.includes('PRATIQUE') || textoBase.includes('ANÁLISE SEGMENTAR') || textoBase.includes('SUPERBIO') || textoBase.includes('WHR')) {
+    // Detecção Bilíngue: Adicionado "SEGMENTAL ANALYSIS" e "ANOVATOR"
+    if (textoBase.includes('PRATIQUE') || textoBase.includes('ANÁLISE SEGMENTAR') || textoBase.includes('SEGMENTAL ANALYSIS') || textoBase.includes('SUPERBIO') || textoBase.includes('ANOVATOR') || textoBase.includes('WHR')) {
        return parseSuperbio(linhasFisicas);
     } else if (textoBase.includes('INBODY') || textoBase.includes('MASSA MAGRA SEGMENTAR')) {
        return parseInBody(linhasFisicas);

@@ -2,8 +2,34 @@ import React from 'react';
 import { ShoppingCart, UserPlus, ClipboardSignature } from 'lucide-react';
 
 const HubSelecao = ({ setModalidade }) => {
+    
+    // Função Ninja: Simula um clique real no botão do Menu Lateral (Sidebar)
+    const irParaAvaliacao = () => {
+        // Pega todos os elementos da tela que podem ser botões do menu
+        const elementos = document.querySelectorAll('button, a, li, div, span');
+        let conseguiuClicar = false;
+
+        for (let el of elementos) {
+            const textoVisivel = el.textContent?.trim().toLowerCase() || '';
+            
+            // Se o texto do elemento for "avaliação" ou "avaliação física"
+            if (textoVisivel === 'avaliação' || textoVisivel === 'avaliação física' || textoVisivel === 'avaliacoes' || textoVisivel === 'avaliações') {
+                
+                // Evita que o código clique no PRÓPRIO botão grandão que estamos criando agora
+                if (!el.innerHTML.includes('Módulo completo')) {
+                    el.click(); // BINGO! Dispara o clique no menu lateral.
+                    conseguiuClicar = true;
+                    break;
+                }
+            }
+        }
+
+        if (!conseguiuClicar) {
+            alert('Não foi possível encontrar o botão no menu lateral. Vamos precisar do arquivo principal (App.jsx ou Dashboard.jsx).');
+        }
+    };
+
     return (
-        // Mudamos para grid-cols-3 para caberem os 3 botões bonitinhos
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 animate-[fadeIn_0.2s_ease-out]">
             
             <button onClick={() => setModalidade('venda')} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-400 transition-all duration-300 min-h-[240px] relative overflow-hidden">
@@ -28,14 +54,15 @@ const HubSelecao = ({ setModalidade }) => {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>
 
-            {/* === NOVO BOTÃO DE AVALIAÇÃO FÍSICA === */}
-            <button onClick={() => setModalidade('avaliacao')} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-orange-400 transition-all duration-300 min-h-[240px] relative overflow-hidden">
+            {/* === BOTÃO COM A LÓGICA NINJA DE CLIQUE === */}
+            <button onClick={irParaAvaliacao} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-orange-400 transition-all duration-300 min-h-[240px] relative overflow-hidden">
                 <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-orange-100 shadow-inner">
                     <ClipboardSignature className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
                     <h2 className="text-xl font-bold text-slate-900 mb-2">Avaliação Física</h2>
-                    <p className="text-sm text-slate-500 leading-relaxed">Confirmar a execução da avaliação e bioimpedância de um aluno.</p>
+                    {/* A frase "Módulo completo" abaixo é usada como trava de segurança no código, não mude ela! */}
+                    <p className="text-sm text-slate-500 leading-relaxed">Módulo completo para gerenciar avaliações e importar exames.</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-orange-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>
