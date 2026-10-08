@@ -5,7 +5,8 @@ import { Zap, PanelLeftClose, PanelLeftOpen, Sun, Moon, LogOut, X } from 'lucide
 
 export function SidebarDesktop({
     isCollapsed, setIsCollapsed, theme, toggleTheme,
-    usuarioLogado, handleLogout, abasPermitidas, activeTab, setActiveTab
+    usuarioLogado, handleLogout, abasPermitidas, activeTab, setActiveTab,
+    ehChefe, unidadeGlobal, setUnidadeGlobal, unidades // Nossas novas props para a unidade
 }) {
     const { t } = useI18n();
 
@@ -34,8 +35,35 @@ export function SidebarDesktop({
                 )}
             </div>
 
-            <div className={`pt-2 pb-5 border-b border-slate-200/50 dark:border-white/5 flex shrink-0 ${isCollapsed ? 'justify-center px-0' : 'px-5'}`}>
-                <LanguageSwitcher compact={isCollapsed} placement={isCollapsed ? 'right-top' : 'bottom-right'} />
+            <div className={`pt-2 pb-5 border-b border-slate-200/50 dark:border-white/5 flex flex-col shrink-0 ${isCollapsed ? 'items-center px-2' : 'px-5'}`}>
+                <div className={`flex w-full ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+                    <LanguageSwitcher compact={isCollapsed} placement={isCollapsed ? 'right-top' : 'bottom-right'} />
+                </div>
+                
+                {/* === NOVO SELETOR DE UNIDADE INTEGRADO NO SIDEBAR === */}
+                {ehChefe ? (
+                    <div 
+                        className={`flex items-center gap-2 mt-4 bg-slate-100 dark:bg-[#0c101a] py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 transition-all ${isCollapsed ? 'px-0 justify-center w-10 cursor-pointer' : 'px-3 w-full'}`} 
+                        title={isCollapsed ? (unidadeGlobal === 'TODAS' ? t('header.globalView', {defaultValue: 'Visão Global'}) : unidadeGlobal) : ''}
+                    >
+                        <span className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${unidadeGlobal === 'TODAS' ? 'bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.6)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'}`}></span>
+                        {!isCollapsed && (
+                            <select 
+                                value={unidadeGlobal} 
+                                onChange={(e) => setUnidadeGlobal(e.target.value)}
+                                className="bg-transparent text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest outline-none cursor-pointer hover:text-slate-900 dark:hover:text-slate-200 transition-colors w-full truncate"
+                            >
+                                <option value="TODAS" className="bg-white dark:bg-slate-900 font-bold">{t('header.globalView', {defaultValue: 'VISÃO GLOBAL (TODAS)'})}</option>
+                                {unidades?.map(u => <option key={u.id} value={u.nome} className="bg-white dark:bg-slate-900">{u.nome}</option>)}
+                            </select>
+                        )}
+                    </div>
+                ) : (
+                    <div className={`flex items-center gap-2 mt-4 w-full ${isCollapsed ? 'justify-center' : 'justify-start px-1'}`} title={isCollapsed ? usuarioLogado?.unidade : ''}>
+                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.8)] shrink-0"></span>
+                         {!isCollapsed && <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest truncate">{usuarioLogado?.unidade}</p>}
+                    </div>
+                )}
             </div>
 
             <nav className="flex-1 overflow-y-auto custom-scrollbar py-6 px-3 space-y-1.5">
@@ -122,7 +150,8 @@ export function SidebarDesktop({
 
 export function SidebarMobile({
     isMobileMenuOpen, setIsMobileMenuOpen, theme, toggleTheme,
-    usuarioLogado, handleLogout, abasPermitidas, activeTab, setActiveTab
+    usuarioLogado, handleLogout, abasPermitidas, activeTab, setActiveTab,
+    ehChefe, unidadeGlobal, setUnidadeGlobal, unidades // Nossas novas props para a unidade
 }) {
     const { t } = useI18n();
 
@@ -143,9 +172,31 @@ export function SidebarMobile({
                         <X className="w-4 h-4" />
                     </button>
                 </div>
-                <div className="px-4 pt-4 pb-2">
+                
+                <div className="px-4 pt-4 pb-4 border-b border-slate-100 dark:border-white/5">
                     <LanguageSwitcher />
+                    
+                    {/* === NOVO SELETOR DE UNIDADE NO SIDEBAR MOBILE === */}
+                    {ehChefe ? (
+                        <div className="flex items-center gap-2 mt-4 bg-slate-100 dark:bg-[#0c101a] py-2 px-3 rounded-xl border border-slate-200 dark:border-slate-800 w-full">
+                            <span className={`w-2 h-2 rounded-full animate-pulse shrink-0 ${unidadeGlobal === 'TODAS' ? 'bg-amber-500' : 'bg-emerald-500'}`}></span>
+                            <select 
+                                value={unidadeGlobal} 
+                                onChange={(e) => setUnidadeGlobal(e.target.value)}
+                                className="bg-transparent text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest outline-none cursor-pointer w-full truncate"
+                            >
+                                <option value="TODAS" className="bg-white dark:bg-slate-900">{t('header.globalView', {defaultValue: 'VISÃO GLOBAL'})}</option>
+                                {unidades?.map(u => <option key={u.id} value={u.nome} className="bg-white dark:bg-slate-900">{u.nome}</option>)}
+                            </select>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2 mt-4 px-2 w-full">
+                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.8)] shrink-0"></span>
+                             <p className="text-[11px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest truncate">{usuarioLogado?.unidade}</p>
+                        </div>
+                    )}
                 </div>
+
                 <nav className="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-1.5">
                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-4 ml-2">{t('sidebar.menu', {defaultValue: 'Menu'})}</p>
                     {abasPermitidas.map(tab => {
@@ -172,7 +223,7 @@ export function SidebarMobile({
                     </button>
                     <div className="flex-1 min-w-0 ml-2">
                         <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{usuarioLogado.nome}</p>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{usuarioLogado.role}</p>
+                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest truncate">{usuarioLogado.role}</p>
                     </div>
                     <button onClick={handleLogout} className="p-3 text-slate-500 hover:text-rose-500 dark:hover:text-rose-400 bg-slate-200 dark:bg-white/5 rounded-xl" title={t('header.signOut', {defaultValue: 'Sair'})}>
                         <LogOut className="w-4 h-4" />

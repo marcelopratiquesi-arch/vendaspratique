@@ -11,7 +11,6 @@ import {
 } from 'lucide-react';
 
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
-import Topbar from './components/layout/Topbar.jsx';
 import IdleCurtain from './components/layout/IdleCurtain.jsx';
 import BlockingGate from './components/BlockingGate/index.jsx';
 
@@ -229,7 +228,7 @@ export default function App() {
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
     const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado?.unidade;
 
-    // 🔥 SMART FETCHING CIRÚRGICO: Dribla o limite da API do Supabase!
+    // 🔥 SMART FETCHING CIRÚRGICO
     const fetchAlunosEspecificos = useCallback(async (registrosArray, isMounted = true) => {
         if (!registrosArray || registrosArray.length === 0) return;
 
@@ -237,7 +236,6 @@ export default function App() {
         const matriculasBuscadas = new Set();
 
         registrosArray.forEach(reg => {
-            // Se o CPF não existir na venda/avaliação, nós anotamos para buscar no banco!
             if (!reg.cpf) {
                 if (reg.matricula && String(reg.matricula).trim() !== '') {
                     matriculasBuscadas.add(String(reg.matricula).trim());
@@ -254,18 +252,15 @@ export default function App() {
             const arrNomes = Array.from(nomesBuscados);
             const arrMats = Array.from(matriculasBuscadas);
             
-            // Separamos a requisição em lotes de 100 para a API nunca travar
             const chunkSize = 100;
             const dataResult = [];
 
-            // Buscando por Nomes
             for (let i = 0; i < arrNomes.length; i += chunkSize) {
                 const chunkNomes = arrNomes.slice(i, i + chunkSize);
                 const { data } = await supabase.from('alunos').select('nome, cpf, matricula').in('nome', chunkNomes);
                 if (data) dataResult.push(...data);
             }
 
-            // Buscando por Matrículas
             for (let i = 0; i < arrMats.length; i += chunkSize) {
                 const chunkMats = arrMats.slice(i, i + chunkSize);
                 const { data } = await supabase.from('alunos').select('nome, cpf, matricula').in('matricula', chunkMats);
@@ -295,7 +290,6 @@ export default function App() {
     const fetchColaboradores = useCallback(async (isMounted = true) => { let query = supabase.from('colaboradores').select('*'); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setColaboradores(data); }, [deveFiltrar, unidadeFiltro]);
     const fetchCatalogo = useCallback(async (isMounted = true) => { const { data } = await supabase.from('catalogo').select('*'); if (isMounted && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); } }, []);
     
-    // 🔥 Modificado para chamar o Smart Fetching logo após carregar as Vendas
     const fetchVendas = useCallback(async (isMounted = true) => { 
         let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(10000); 
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
@@ -308,7 +302,6 @@ export default function App() {
 
     const fetchLeads = useCallback(async (isMounted = true) => { let query = supabase.from('leads').select('*').order('id', { ascending: false }).limit(10000); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setDadosVisitantes(data); }, [deveFiltrar, unidadeFiltro]);
     
-    // 🔥 Modificado para chamar o Smart Fetching logo após carregar as Avaliações
     const fetchAvaliacoes = useCallback(async (isMounted = true) => { 
         let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(10000); 
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
@@ -336,11 +329,10 @@ export default function App() {
         return () => { isMounted = false; supabase.removeChannel(realtimeChannel); };
     }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
 
-    // 🔥 O "Frontend JOIN" Enriquecido: Busca 1º pela Matrícula e 2º pelo Nome Normalizado
+    // 🔥 O "Frontend JOIN"
     const vendasEnriquecidas = useMemo(() => {
         return dadosAssinaturas.map(v => {
             let cpfAchado = v.cpf || v.cpf_aluno || '';
-            
             if (!cpfAchado && alunosMap) {
                 if (v.matricula && alunosMap.porMatricula.has(String(v.matricula).trim())) {
                     cpfAchado = alunosMap.porMatricula.get(String(v.matricula).trim());
@@ -356,7 +348,6 @@ export default function App() {
     const avaliacoesEnriquecidas = useMemo(() => {
         return dadosAvaliacoes.map(a => {
             let cpfAchado = a.cpf || a.cpf_aluno || '';
-            
             if (!cpfAchado && alunosMap) {
                 if (a.matricula && alunosMap.porMatricula.has(String(a.matricula).trim())) {
                     cpfAchado = alunosMap.porMatricula.get(String(a.matricula).trim());
@@ -393,11 +384,10 @@ export default function App() {
     ];
 
     const abasPermitidas = todasAbas.filter(aba => aba.permissoes.includes(usuarioLogado.role));
-    const tabAtual = todasAbas.find(t => t.id === activeTab) || todasAbas[0];
-    const ActiveIcon = tabAtual.icon;
 
     return (
-        <div className="flex h-dvh w-full bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
+        <div className="flex h-dvh w-full bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500 relative">
+            
             <div className="absolute top-[-25%] left-[-15%] w-[600px] h-[600px] bg-blue-500/5 dark:bg-blue-600/10 rounded-full blur-[140px] pointer-events-none z-0"></div>
             <div className="absolute bottom-[-25%] right-[-15%] w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-600/5 rounded-full blur-[140px] pointer-events-none z-0" style={{ animationDelay: '3s' }}></div>
 
@@ -408,6 +398,7 @@ export default function App() {
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
                 abasPermitidas={abasPermitidas} activeTab={activeTab} 
                 setActiveTab={handleNavigation}
+                ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades}
             />
 
             <SidebarMobile 
@@ -415,22 +406,24 @@ export default function App() {
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
                 abasPermitidas={abasPermitidas} activeTab={activeTab} 
                 setActiveTab={handleNavigation}
+                ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades}
             />
 
+            <button 
+                onClick={() => setIsMobileMenuOpen(true)} 
+                className="xl:hidden fixed top-4 right-4 z-40 p-3 rounded-[14px] bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 shadow-[0_4px_20px_rgba(0,0,0,0.08)] active:scale-95 transition-all"
+            >
+                <Menu className="w-5 h-5" />
+            </button>
+
             <div className="flex-1 flex flex-col h-full relative z-10 w-full min-w-0 overflow-hidden">
-                
                 <BlockingGate 
                     comunicadoBloqueante={activeGateComm} 
                     onConcluido={() => setTriggerSync(prev => prev + 1)}
                 />
 
-                <Topbar 
-                    setIsMobileMenuOpen={setIsMobileMenuOpen} ActiveIcon={ActiveIcon} tabAtual={tabAtual}
-                    ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal}
-                    unidades={unidades} usuarioLogado={usuarioLogado}
-                />
-
-                <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative z-0">
+                {/* 🔥 AQUI ESTÁ A CORREÇÃO: O padding-4 a padding-8 voltaram para dar respiro aos módulos! */}
+                <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative z-0 h-full w-full">
                     {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
                     {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} />}
                     {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
