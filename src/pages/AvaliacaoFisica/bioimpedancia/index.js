@@ -15,8 +15,17 @@ export async function processarExameBioimpedancia(file) {
     linhasFisicas.forEach((linha, index) => console.log(`Linha ${index}: ${linha}`));
     console.log("===== FIM TEXTO BRUTO =====");
 
-    // Detecção Bilíngue: Adicionado "SEGMENTAL ANALYSIS" e "ANOVATOR"
-    if (textoBase.includes('PRATIQUE') || textoBase.includes('ANÁLISE SEGMENTAR') || textoBase.includes('SEGMENTAL ANALYSIS') || textoBase.includes('SUPERBIO') || textoBase.includes('ANOVATOR') || textoBase.includes('WHR')) {
+    // 🔥 ATUALIZADO: Adicionado 'VIS-GORDURA' e 'ESCANEAR CÓDIGO' para garantir a leitura do novo modelo
+    if (
+        textoBase.includes('PRATIQUE') || 
+        textoBase.includes('ANÁLISE SEGMENTAR') || 
+        textoBase.includes('SEGMENTAL ANALYSIS') || 
+        textoBase.includes('SUPERBIO') || 
+        textoBase.includes('ANOVATOR') || 
+        textoBase.includes('WHR') ||
+        textoBase.includes('VIS-GORDURA') || 
+        textoBase.includes('ESCANEAR CÓDIGO')
+    ) {
        return parseSuperbio(linhasFisicas);
     } else if (textoBase.includes('INBODY') || textoBase.includes('MASSA MAGRA SEGMENTAR')) {
        return parseInBody(linhasFisicas);

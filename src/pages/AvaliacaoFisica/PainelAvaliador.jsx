@@ -4,7 +4,7 @@ import {
     ArrowLeft, Building2, BarChart3, LogOut, PlusCircle, Filter, Calendar as CalendarIcon, 
     RefreshCw, FileDigit, TrendingUp, ArrowUpDown, CalendarDays, Trophy, MousePointerClick, 
     ClipboardSignature, ListChecks, Activity, Search, Download, Scale, Ruler, LineChart, 
-    FileText, Eye, Edit3, Trash2 
+    FileText, Eye, Edit3, Trash2, Send, Check, Copy, X, UserRoundPen
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { getMeses } from '../AnaliseVendas/utils.js';
@@ -28,7 +28,7 @@ const getStatusDot = (status) => {
 const PainelAvaliador = ({ 
     usuarioLogado, professorAtivo, setProfessorAtivo, 
     abaAtiva, setAbaAtiva, avaliacaoEditando, setAvaliacaoEditando, 
-    handleVoltar, setAlunoEvolucaoModal, avaliacoes = []
+    handleVoltar, setAlunoEvolucaoModal, avaliacoes = [], colaboradores = []
 }) => {
     const { t, locale, language } = useI18n(); 
     const langAtual = locale || language || 'pt-BR';
@@ -56,6 +56,12 @@ const PainelAvaliador = ({
     const [buscaAnamnese, setBuscaAnamnese] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'data', direction: 'desc' });
 
+    const [modalRelatorioAberto, setModalRelatorioAberto] = useState(false);
+    const [copiado, setCopiado] = useState(false);
+    
+    // 🔥 NOVO ESTADO: Controla qual linha está com o Avaliador em modo de edição
+    const [editingAvaliadorId, setEditingAvaliadorId] = useState(null);
+
     const topScrollRef = useRef(null);
     const tableScrollRef = useRef(null);
     const [tableScrollWidth, setTableScrollWidth] = useState(0);
@@ -66,6 +72,17 @@ const PainelAvaliador = ({
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
     const anosUnicos = ['TODOS', ...new Set(avaliacoes.map(v => (v.data || v.created_at || '').split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if (anosUnicos.length === 1) anosUnicos.push(new Date().getFullYear().toString());
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Escape') {
+                setModalRelatorioAberto(false);
+                setEditingAvaliadorId(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     useEffect(() => {
         const fetchPerguntas = async () => {
@@ -139,6 +156,33 @@ const PainelAvaliador = ({
 
     const handleEditar = (avaliacao) => { setAvaliacaoEditando(avaliacao); setAbaAtiva('nova'); };
 
+    // 🔥 NOVA FUNÇÃO: Salvar a edição inline do Avaliador
+    const handleSalvarNovoAvaliador = async (avaliacaoId, novoAvaliadorNome) => {
+        if (!novoAvaliadorNome) {
+            setEditingAvaliadorId(null);
+            return;
+        }
+        
+        try {
+            const { error } = await supabase
+                .from('avaliacoes_realizadas')
+                .update({ professor: novoAvaliadorNome })
+                .eq('id', avaliacaoId);
+            
+            if (error) throw error;
+            
+            // Atualiza na tela instantaneamente
+            setDadosFiltrados(prev => prev.map(item => 
+                item.id === avaliacaoId ? { ...item, professor: novoAvaliadorNome } : item
+            ));
+        } catch (err) {
+            console.error("Erro ao alterar avaliador:", err);
+            alert("Erro ao alterar o avaliador. Verifique a conexão.");
+        } finally {
+            setEditingAvaliadorId(null);
+        }
+    };
+
     const metricas = useMemo(() => {
         const ranking = {}; let total = 0;
         dadosFiltrados.forEach(aval => {
@@ -149,6 +193,48 @@ const PainelAvaliador = ({
         const rankingOrdenado = Object.entries(ranking).sort((a, b) => b[1] - a[1]).map(([nome, qtd]) => ({ nome, qtd, percentual: total > 0 ? ((qtd / total) * 100).toFixed(1) : 0 }));
         return { total, ranking: rankingOrdenado, totalEntidades: rankingOrdenado.length };
     }, [dadosFiltrados, professorAtivo]);
+
+    const textoRelatorioFormatado = useMemo(() => {
+        const hoje = new Date();
+        const horaStr = hoje.toLocaleTimeString(langAtual, { hour: '2-digit', minute: '2-digit' });
+        const dataHojeStr = hoje.toLocaleDateString(langAtual, { day: '2-digit', month: '2-digit' });
+
+        let filtroDesc = '';
+        if (tipoFiltro === 'dia') {
+            const [anoD, mesD, diaD] = diaEspecifico.split('-');
+            filtroDesc = `${diaD}/${mesD}/${anoD}`;
+        } else if (tipoFiltro === 'mes') {
+            filtroDesc = `${filtroMes}/${filtroAno}`;
+        } else {
+            filtroDesc = `${dataInicio ? dataInicio.split('-').reverse().join('/') : ''} até ${dataFim ? dataFim.split('-').reverse().join('/') : ''}`;
+        }
+
+        let texto = `📊 *RESUMO EXECUTIVO - PRATIQUE FITNESS* 📊\n`;
+        texto += `📅 *Filtro Ativo:* ${filtroDesc}\n`;
+        texto += `🕒 *Gerado em:* ${dataHojeStr} às ${horaStr}\n\n`;
+
+        if (metricas.ranking.length > 0) {
+            metricas.ranking.forEach(item => {
+                texto += `🏢 *${item.nome.toUpperCase()}:* ${item.qtd} avaliações\n`;
+            });
+        } else {
+            texto += `Nenhuma avaliação registrada no período.\n`;
+        }
+
+        texto += `\n📈 *TOTAL GERAL:* ${metricas.total} avaliações`;
+        return texto;
+    }, [metricas, tipoFiltro, diaEspecifico, filtroMes, filtroAno, dataInicio, dataFim, langAtual]);
+
+    const handleCopiarRelatorio = () => {
+        navigator.clipboard.writeText(textoRelatorioFormatado);
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 2000);
+    };
+
+    const handleEnviarWhatsApp = () => {
+        const url = `https://wa.me/?text=${encodeURIComponent(textoRelatorioFormatado)}`;
+        window.open(url, '_blank');
+    };
 
     const tabelaFiltrada = useMemo(() => {
         let filtrados = dadosFiltrados;
@@ -259,10 +345,54 @@ const PainelAvaliador = ({
     return (
         <div className="max-w-[1500px] mx-auto space-y-4 relative z-10 animate-[fadeIn_0.3s_ease-out]">
             
-            {/* CABEÇALHO DO AVALIADOR PREMIUM - COMPACTO */}
+            {/* MODAL PADRÃO EXECUTIVO PRATIQUE - RELATÓRIO DO WHATSAPP */}
+            {modalRelatorioAberto && (
+                <div className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onClick={(e) => { if (e.target === e.currentTarget) setModalRelatorioAberto(false); }}>
+                    <div className="bg-white dark:bg-[#111827] rounded-[28px] shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-lg overflow-hidden flex flex-col animate-[slideDown_0.3s_ease-out]">
+                        
+                        <div className="bg-[#0f172a] dark:bg-[#090d16] px-6 py-5 flex items-center justify-between border-b border-slate-800">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/20">
+                                    <BarChart3 className="w-5 h-5" />
+                                </div>
+                                <h3 className="text-base font-black text-white uppercase tracking-wider">
+                                    {professorAtivo.id === 'GLOBAL' ? 'RESUMO GLOBAL' : `RESUMO - ${professorAtivo.nome.toUpperCase()}`}
+                                </h3>
+                            </div>
+                            <button onClick={() => setModalRelatorioAberto(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 bg-slate-50 dark:bg-[#0c101a]">
+                            <div className="bg-white dark:bg-[#151c2e] p-5 rounded-2xl border border-slate-200/80 dark:border-white/5 shadow-inner">
+                                <pre className="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all">
+                                    {textoRelatorioFormatado}
+                                </pre>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-3">
+                            <button onClick={() => setModalRelatorioAberto(false)} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                                FECHAR
+                            </button>
+                            <button onClick={handleCopiarRelatorio} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5 active:scale-95">
+                                {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                                {copiado ? 'COPIADO!' : 'COPIAR'}
+                            </button>
+                            <button onClick={handleEnviarWhatsApp} className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 active:scale-95">
+                                <Send className="w-3.5 h-3.5" />
+                                ENVIAR
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* CABEÇALHO DO AVALIADOR */}
             <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
                 <div className="flex items-center w-full xl:w-auto gap-4">
-                    <button onClick={handleVoltar} className="px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 shadow-sm transition-all shrink-0">
+                    <button onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 shadow-sm transition-all shrink-0">
                         <ArrowLeft className="w-3.5 h-3.5"/> Voltar
                     </button>
                     
@@ -295,13 +425,12 @@ const PainelAvaliador = ({
 
             {abaAtiva === 'nova' ? (
                 <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 dark:border-slate-700/50 p-4 lg:p-6">
-                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} />
+                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} />
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {/* BARRA DE FILTROS PREMIUM COMPACTA */}
+                    {/* BARRA DE FILTROS */}
                     <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
-                        
                         <div className="flex items-center gap-3 shrink-0">
                             <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400">
                                 <Filter className="w-4 h-4" />
@@ -343,19 +472,12 @@ const PainelAvaliador = ({
                                 )}
                                 
                                 <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                                
-                                <button onClick={limparFiltros} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors" title="Limpar Filtros">
-                                    <RefreshCw className="w-3.5 h-3.5" />
-                                </button>
+                                <button onClick={limparFiltros} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors" title="Limpar Filtros"><RefreshCw className="w-3.5 h-3.5" /></button>
                             </div>
-
-                            <button className="px-5 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 text-[10px] font-black uppercase tracking-widest rounded-xl hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors border border-blue-200 dark:border-blue-800 shadow-sm w-full lg:w-auto">
-                                Aplicar
-                            </button>
                         </div>
                     </div>
 
-                    {/* 4 CARTÕES DE INDICADORES (KPIs) - REDUZIDOS */}
+                    {/* INDICADORES */}
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                         <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-white/50 dark:border-slate-700/50 flex items-center justify-between relative overflow-hidden group hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
                             <div className="flex items-center gap-4 relative z-10">
@@ -423,7 +545,7 @@ const PainelAvaliador = ({
                         </div>
                     </div>
 
-                    {/* RANKING GLOBAL (Se for Visão Gestão) */}
+                    {/* RANKING GLOBAL */}
                     {(professorAtivo.id === 'GERAL' || professorAtivo.id === 'GLOBAL') && metricas.ranking.length > 0 && (
                         <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm overflow-hidden">
                             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
@@ -432,7 +554,12 @@ const PainelAvaliador = ({
                                         <Trophy className="w-3.5 h-3.5 text-orange-500" /> {professorAtivo.id === 'GLOBAL' ? 'Ranking de Unidades' : 'Ranking de Avaliadores'}
                                     </h3>
                                 </div>
-                                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades} Ativos</span>
+                                <div className="flex items-center gap-3">
+                                    <button onClick={() => setModalRelatorioAberto(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
+                                        <Send className="w-3 h-3" /> Relatório WPP
+                                    </button>
+                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades} Ativos</span>
+                                </div>
                             </div>
                             <div className="p-4 flex gap-4 overflow-x-auto custom-scrollbar">
                                 {metricas.ranking.map((item, index) => (
@@ -455,11 +582,9 @@ const PainelAvaliador = ({
                         </div>
                     )}
 
-                    {/* HISTÓRICO E TABELA COMPACTA */}
+                    {/* HISTÓRICO E TABELA */}
                     <div id="tabela-historico" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm overflow-hidden flex flex-col relative">
-                        
                         <div className="px-5 py-5 border-b border-slate-100 dark:border-slate-800/50 flex flex-col gap-5 shrink-0">
-                            {/* Título e Resumo/Avançado */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-800">
@@ -470,36 +595,23 @@ const PainelAvaliador = ({
                                         <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Acompanhe os registros deste avaliador.</p>
                                     </div>
                                 </div>
-                                
                                 <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-                                        <ListChecks className="w-3.5 h-3.5" /> Resumo
-                                    </button>
-                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
-                                        <Activity className="w-3.5 h-3.5" /> Avançado
-                                    </button>
+                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" /> Resumo</button>
+                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" /> Avançado</button>
                                 </div>
                             </div>
-
-                            {/* Barra de Busca */}
                             <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
                                 <div className="relative w-full lg:flex-1">
                                     <Search className="w-4 h-4 text-blue-500 absolute left-4 top-1/2 -translate-y-1/2" />
                                     <input type="text" value={busca} onChange={(e) => {setBusca(e.target.value); setPaginaAtual(1);}} placeholder="Buscar: Nome, CPF..." className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                                 </div>
-                                
                                 <div className="flex gap-2 w-full lg:w-auto">
-                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
-                                        <Filter className="w-3.5 h-3.5" /> Filtros
-                                    </button>
-                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors">
-                                        <Download className="w-3.5 h-3.5" /> Exportar
-                                    </button>
+                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><Filter className="w-3.5 h-3.5" /> Filtros</button>
+                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" /> Exportar</button>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Tabela Redimensionada e Dark Mode */}
                         <div ref={tableScrollRef} className="flex-1 overflow-x-auto custom-scrollbar relative min-h-[350px]">
                             {loading ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm z-10">
@@ -525,9 +637,7 @@ const PainelAvaliador = ({
                                                     <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">Bioimpedância</th>
                                                     <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">Gordura</th>
                                                     {perguntasBase.map(p => (
-                                                        <th key={p.id} className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest min-w-[150px] max-w-[250px]">
-                                                            {p.pergunta}
-                                                        </th>
+                                                        <th key={p.id} className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest min-w-[150px] max-w-[250px]">{p.pergunta}</th>
                                                     ))}
                                                 </>
                                             )}
@@ -597,7 +707,6 @@ const PainelAvaliador = ({
                                                                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-16">GV: <strong className="text-slate-900 dark:text-slate-100 text-xs">{a.gv || '-'}</strong></span>
                                                                     </div>
                                                                 </td>
-                                                                
                                                                 {perguntasBase.map(p => {
                                                                     const rawResp = a.respostas_dinamicas?.[p.id];
                                                                     const textoResposta = rawResp ? (Array.isArray(rawResp) ? rawResp.join(', ') : String(rawResp)) : '-';
@@ -626,11 +735,40 @@ const PainelAvaliador = ({
                                                                 </div>
                                                             </div>
                                                         </td>
+                                                        
+                                                        {/* 🔥 COLUNA DO AVALIADOR COM EDIÇÃO INLINE */}
                                                         <td className="px-4 py-3 whitespace-nowrap align-middle">
-                                                            <div className="flex flex-col">
-                                                                <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.professor || 'SISTEMA'}</span>
-                                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase">REG: {a.registrado_por_nome || 'SISTEMA'}</span>
-                                                            </div>
+                                                            {editingAvaliadorId === a.id ? (
+                                                                <div className="flex flex-col animate-[fadeIn_0.2s_ease-out]">
+                                                                    <select
+                                                                        autoFocus
+                                                                        onChange={(e) => handleSalvarNovoAvaliador(a.id, e.target.value)}
+                                                                        defaultValue={a.professor}
+                                                                        className="w-full min-w-[140px] bg-white dark:bg-slate-800 border border-blue-400 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/30 shadow-sm cursor-pointer"
+                                                                    >
+                                                                        <option value="" disabled>Selecione...</option>
+                                                                        {colaboradores.map(c => (
+                                                                            <option key={c.id} value={c.nome}>{c.nome}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex items-center gap-2 group/edit">
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.professor || 'SISTEMA'}</span>
+                                                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase">REG: {a.registrado_por_nome || 'SISTEMA'}</span>
+                                                                    </div>
+                                                                    {podeEditar && (
+                                                                        <button 
+                                                                            onClick={() => setEditingAvaliadorId(a.id)}
+                                                                            className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-all opacity-0 group-hover/edit:opacity-100"
+                                                                            title="Alterar Avaliador"
+                                                                        >
+                                                                            <UserRoundPen className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            )}
                                                         </td>
                                                         
                                                         <td className="px-4 py-3 text-center whitespace-nowrap align-middle">
@@ -676,7 +814,6 @@ const PainelAvaliador = ({
                             )}
                         </div>
                         
-                        {/* Footer Paginação Moderno */}
                         {totalPaginas > 0 && (
                             <div className="px-4 py-4 border-t border-slate-100 dark:border-slate-700/50 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
                                 <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Mostrando {(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosOrdenados.length)} de {dadosOrdenados.length} avaliações</span>

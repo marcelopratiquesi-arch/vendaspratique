@@ -17,8 +17,13 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     const [metricasCards, setMetricasCards] = useState({});
 
     const isAdmin = usuarioLogado?.role === 'ADMIN';
-    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR' || usuarioLogado?.role === 'LIDER';
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
+
+    // 🔥 CORREÇÃO CIRÚRGICA AQUI:
+    // Removemos o "filtro fantasma" que procurava a palavra na coluna errada.
+    // O arquivo 'index.jsx' pai já envia a propriedade 'colaboradores' apenas com os ativos e savers/líderes.
+    // Aqui só precisamos filtrar para exibir apenas os profissionais da unidade selecionada.
     const profsDaUnidade = colaboradores.filter(c => c.unidade === usuarioLogado?.unidade);
 
     useEffect(() => {

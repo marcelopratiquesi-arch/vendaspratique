@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ListChecks } from 'lucide-react';
 import TabPerguntasAvaliacao from './TabPerguntasAvaliacao.jsx';
 import ModalEvolucaoAluno from './ModalEvolucaoAluno.jsx';
@@ -13,6 +13,22 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
     const [alunoEvolucaoModal, setAlunoEvolucaoModal] = useState(null);
 
     const handleVoltar = () => { setAvaliacaoEditando(null); setAbaAtiva('relatorio'); };
+
+    // 🔥 FILTRO BLINDADO CORRIGIDO: Lê a coluna "role" (onde o setor é salvo) e ajusta o status
+    const colaboradoresValidos = useMemo(() => {
+        return (colaboradores || []).filter(c => {
+            // 1. Status: Se vier vazio do banco, assumimos 'ATIVO'. Só excluímos se for explicitamente inativo/desligado.
+            const statusStr = String(c.status || c.situacao || c.situacao_cadastral || 'ATIVO').toUpperCase();
+            const isInativo = statusStr.includes('INATIVO') || statusStr.includes('DESLIGADO') || statusStr === 'FALSE';
+            
+            // 2. Setor/Cargo: No ModalColaborador, o setor é salvo na coluna 'role'
+            const cargoStr = String(c.role || c.setor || c.cargo || '').toUpperCase();
+            const isSaverOuLider = cargoStr.includes('SAVER') || cargoStr.includes('LIDER') || cargoStr.includes('LÍDER');
+            
+            // Retorna apenas se NÃO for inativo E for Saver ou Líder
+            return !isInativo && isSaverOuLider;
+        });
+    }, [colaboradores]);
 
     if (abaAtiva === 'construtor') {
         return (
@@ -46,7 +62,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
             {!professorAtivo ? (
                 <PainelInicial 
                     usuarioLogado={usuarioLogado} 
-                    colaboradores={colaboradores} 
+                    colaboradores={colaboradoresValidos} 
                     setProfessorAtivo={setProfessorAtivo} 
                     setAbaAtiva={setAbaAtiva} 
                 />
@@ -62,6 +78,7 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                     handleVoltar={handleVoltar}
                     setAlunoEvolucaoModal={setAlunoEvolucaoModal}
                     avaliacoes={avaliacoes}
+                    colaboradores={colaboradoresValidos} 
                 />
             )}
         </div>

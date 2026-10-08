@@ -98,7 +98,7 @@ const DraggableWindow = ({ isOpen, onClose, title, subtitle, icon: Icon, iconCol
 
 const DashboardTab = ({ 
     vendasFiltradas, colaboradores, unidadeAtual, 
-    filtroMes, filtroAno, // Usado na consulta segura dos Ativos
+    filtroMes, filtroAno, 
     metaProdutos, metaNutri, metaPersonal, planos, produtos, abrirModalWhatsapp 
 }) => {
     const { t, locale } = useI18n(); 
@@ -210,10 +210,27 @@ const DashboardTab = ({
     // CÁLCULOS DO DASHBOARD
     // ==========================================
     const rankingConsultoresFisicos = {};
-    const equipeLocal = (colaboradores || []).filter(c =>
-        unidadeAtual === 'TODOS' ? true : c.unidade?.toUpperCase() === unidadeAtual?.toUpperCase()
-    );
-    equipeLocal.forEach(colab => { rankingConsultoresFisicos[colab.nome.toUpperCase()] = 0; });
+    
+    // 🔥 FILTRO BLINDADO PARA COBRANÇA (Apenas Ativos + SAVER/RECEPÇÃO)
+    const equipeCobrada = (colaboradores || []).filter(c => {
+        // Verifica unidade
+        const matchUnidade = unidadeAtual === 'TODOS' ? true : c.unidade?.toUpperCase() === unidadeAtual?.toUpperCase();
+        
+        // Verifica se está ativo
+        const statusStr = String(c.status || c.situacao || c.situacao_cadastral || 'ATIVO').toUpperCase();
+        const isAtivo = !statusStr.includes('INATIVO') && !statusStr.includes('DESLIGADO') && statusStr !== 'FALSE';
+        
+        // Verifica se o setor é alvo da cobrança diária
+        const cargoStr = String(c.role || c.setor || c.cargo || '').toUpperCase();
+        const isAlvoCobranca = cargoStr.includes('SAVER') || cargoStr.includes('RECEP');
+        
+        return matchUnidade && isAtivo && isAlvoCobranca;
+    });
+
+    // Inicia o placar com ZERO apenas para a equipe que deve ser cobrada
+    equipeCobrada.forEach(colab => { 
+        rankingConsultoresFisicos[colab.nome.toUpperCase()] = 0; 
+    });
 
     let totalVendasProdutos = 0;
     let totalPlanos = 0;
@@ -251,6 +268,8 @@ const DashboardTab = ({
         } else if (categoriaFinal === 'PRODUTO') {
             totalVendasProdutos += qtd;
             rankingProdutosFisicos[prodUpper] = (rankingProdutosFisicos[prodUpper] || 0) + qtd;
+            
+            // Computa a venda para qualquer um que vender (mesmo que não seja Saver/Recepção)
             if (rankingConsultoresFisicos[vendUpper] !== undefined) {
                 rankingConsultoresFisicos[vendUpper] += qtd;
             } else {
@@ -334,8 +353,11 @@ const DashboardTab = ({
         let txt = `${t('analytics.dashboard.wppRankingTitle', { defaultValue: '*🏆 Ranking de Vendas de Produtos 🏆*' })}\n`;
         txt += `${t('analytics.dashboard.wppTotalSales', { defaultValue: '*Total de Vendas:*' })} ${String(totalVendasProdutos).padStart(2, '0')} / ${String(metaProdutos || 0).padStart(2, '0')}\n\n`;
 
+        // Quem vendeu aparece na parte superior
         const vendidos = rankingOrdenado.filter(item => item[1] > 0);
+        // Quem está com 0 são os ativos (Savers e Recepção) que configuramos no início
         const zerados = rankingOrdenado.filter(item => item[1] === 0);
+        
         let posicaoAtual = 1;
 
         vendidos.forEach((item) => {

@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { calcularSMI, calcularHidratacao, classificarRCQ, classificarGV, classificarPressao } from './utils.js';
 import { mascaraCPF, validarCPF, formatarTelefone, calcularIdade } from '../CadastroGeral/utilsAlunos.js'; 
-import { processarExameBioimpedancia } from './bioimpedancia/index.js'; // INJEÇÃO DO PARSER
+import { processarExameBioimpedancia } from './bioimpedancia/index.js';
 import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCircle, Search, UserRoundPen, UserPlus, CreditCard, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx'; 
 
@@ -21,7 +21,7 @@ const CopyButton = ({ textToCopy, label }) => {
         } catch (err) { console.error('Erro ao copiar', err); }
     };
     return (
-        <button type="button" onClick={handleCopy} className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title={label}>
+        <button type="button" onClick={handleCopy} className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title={label}>
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
     );
@@ -38,15 +38,15 @@ const InfoTooltip = ({ text }) => (
 );
 
 const getLocalIsoDate = () => { const d = new Date(); return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0]; };
-const getBorderClass = (textClass) => { if (!textClass) return 'border-slate-200'; if (textClass.includes('emerald')) return 'border-emerald-200'; if (textClass.includes('amber')) return 'border-amber-200'; if (textClass.includes('rose')) return 'border-rose-200'; if (textClass.includes('orange')) return 'border-orange-200'; if (textClass.includes('blue')) return 'border-blue-200'; return 'border-slate-200'; };
+const getBorderClass = (textClass) => { if (!textClass) return 'border-slate-200 dark:border-slate-700'; if (textClass.includes('emerald')) return 'border-emerald-200 dark:border-emerald-800'; if (textClass.includes('amber')) return 'border-amber-200 dark:border-amber-800'; if (textClass.includes('rose')) return 'border-rose-200 dark:border-rose-800'; if (textClass.includes('orange')) return 'border-orange-200 dark:border-orange-800'; if (textClass.includes('blue')) return 'border-blue-200 dark:border-blue-800'; return 'border-slate-200 dark:border-slate-700'; };
 
 const anamneseIcons = [
-    { Icon: Droplet, bg: 'bg-rose-50', text: 'text-rose-500' }, { Icon: HeartPulse, bg: 'bg-rose-50', text: 'text-rose-500' }, { Icon: Apple, bg: 'bg-emerald-50', text: 'text-emerald-500' }, { Icon: Dumbbell, bg: 'bg-orange-50', text: 'text-orange-500' }, { Icon: MessageCircle, bg: 'bg-purple-50', text: 'text-purple-500' }, { Icon: Smartphone, bg: 'bg-teal-50', text: 'text-teal-500' }, { Icon: Users, bg: 'bg-amber-50', text: 'text-amber-500' }, { Icon: Zap, bg: 'bg-indigo-50', text: 'text-indigo-500' }
+    { Icon: Droplet, bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-500 dark:text-rose-400' }, { Icon: HeartPulse, bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-500 dark:text-rose-400' }, { Icon: Apple, bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-500 dark:text-emerald-400' }, { Icon: Dumbbell, bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-500 dark:text-orange-400' }, { Icon: MessageCircle, bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-500 dark:text-purple-400' }, { Icon: Smartphone, bg: 'bg-teal-50 dark:bg-teal-900/30', text: 'text-teal-500 dark:text-teal-400' }, { Icon: Users, bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-500 dark:text-amber-400' }, { Icon: Zap, bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-500 dark:text-indigo-400' }
 ];
 
-const labelClass = "block text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1";
-const inputClass = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm";
-const sectionClass = "bg-white p-6 md:p-8 rounded-[24px] border border-slate-200 shadow-sm relative";
+const labelClass = "block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1";
+const inputClass = "w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm";
+const sectionClass = "bg-white dark:bg-slate-900/50 p-6 md:p-8 rounded-[24px] border border-slate-200 dark:border-slate-700 shadow-sm relative";
 
 const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, disabled, req, example }) => (
     <div className="flex flex-col relative">
@@ -61,7 +61,7 @@ const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, 
     </div>
 );
 
-const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando }) => {
+const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando, colaboradores = [] }) => {
     const { t, locale, language } = useI18n(); const langAtual = locale || language || 'pt-BR';
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [sucesso, setSucesso] = useState(false);
@@ -73,6 +73,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
     const [cpfBusca, setCpfBusca] = useState(''); const [cpfErro, setCpfErro] = useState(false); const [buscandoCpf, setBuscandoCpf] = useState(false);
     const [alunoEncontrado, setAlunoEncontrado] = useState(null); const [statusCpf, setStatusCpf] = useState(null); const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
+
+    // 🔥 NOVO: Estado para armazenar quem é o avaliador responsável real
+    const [avaliadorResponsavel, setAvaliadorResponsavel] = useState(() => {
+        if (avaliacaoEditando?.professor) return avaliacaoEditando.professor;
+        if (professorAtivo?.id !== 'GLOBAL' && professorAtivo?.id !== 'GERAL') return professorAtivo?.nome || '';
+        return '';
+    });
 
     const [form, setForm] = useState({
         peso: '', altura: '', sistolica: '', diastolica: '',
@@ -178,7 +185,6 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         });
     };
 
-    // 🔥 LÓGICA DE EXTRAÇÃO SUBSTITUÍDA PELO CÓDIGO REAL
     const handleUploadInBody = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
@@ -203,16 +209,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             setIaStatusText(`Layout ${resultado.reportType} identificado. A extrair métricas...`);
             setIaProgress(90);
 
-            console.log('[Bioimpedancia] tipo:', resultado.reportType);
-            console.log('[Bioimpedancia] campos encontrados:', Object.keys(resultado.data));
-            if (resultado.warnings?.length > 0) console.log('[Bioimpedancia] warnings:', resultado.warnings);
-
-            // Preenchimento Seguro: Ignora nulls para não apagar dados já preenchidos
             setForm(prev => {
                 const newData = { ...prev };
                 Object.entries(resultado.data).forEach(([key, value]) => {
                     if (value !== null && value !== undefined) {
-                        newData[key] = String(value); // Mantemos string para compatibilidade
+                        newData[key] = String(value);
                     }
                 });
                 return newData;
@@ -259,6 +260,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         
         if (!alunoEncontrado) return alert(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
         if (!usuarioLogado?.unidade) return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
+        if (!avaliadorResponsavel) return alert("Selecione o Avaliador Responsável."); // 🔥 Validação do avaliador
 
         if (p === null || p <= 0 || p > 300) return alert(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
         if (alt === null || alt < 0.5 || alt > 2.5) return alert(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida ou não informada.'}));
@@ -303,7 +305,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
             const novaAvaliacao = {
                 aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: usuarioLogado.unidade,
-                professor: professorAtivo.nome, usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
+                professor: avaliadorResponsavel || professorAtivo.nome, // 🔥 Atribuição do avaliador
+                usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
                 sexo: sexoAluno, peso: p, altura: alt, 
                 sistolica: parseInt(form.sistolica || 0, 10), diastolica: parseInt(form.diastolica || 0, 10),
                 braco_esq: parseVal(form.bracoEsq), braco_dir: parseVal(form.bracoDir), 
@@ -335,15 +338,15 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             
             {isImportingIA && (
                 <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-slate-900/80 backdrop-blur-md animate-[fadeIn_0.2s_ease-out]">
-                    <div className="bg-white p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center max-w-sm w-full mx-4 border border-blue-200 relative overflow-hidden">
-                        <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 overflow-hidden">
+                    <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center max-w-sm w-full mx-4 border border-blue-200 dark:border-blue-900 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 dark:bg-slate-800 overflow-hidden">
                             <div className="h-full bg-blue-500 transition-all duration-300 ease-out" style={{ width: `${iaProgress}%` }}></div>
                         </div>
-                        <div className="w-20 h-20 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-100">
+                        <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-100 dark:border-blue-800">
                             <Sparkles className="w-10 h-10 animate-pulse" />
                         </div>
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Análise IA Multi-Escala</h3>
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest leading-relaxed min-h-[32px]">{iaStatusText}</p>
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Análise IA Multi-Escala</h3>
+                        <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-relaxed min-h-[32px]">{iaStatusText}</p>
                     </div>
                 </div>
             )}
@@ -351,16 +354,16 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] z-[9999]">
-                        <div className="bg-white p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200">
-                            <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-emerald-200"><CheckCircle2 className="w-10 h-10" /></div>
-                            <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">
+                        <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200 dark:border-slate-700">
+                            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-inner border border-emerald-200 dark:border-emerald-800"><CheckCircle2 className="w-10 h-10" /></div>
+                            <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight mb-2">
                                 {avaliacaoEditando ? 'Avaliação Atualizada!' : t('assessment.form.savedTitle')}
                             </h3>
                         </div>
                     </div>
                 )}
 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 rounded-[24px] p-6 shadow-md gap-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700/50 rounded-[24px] p-6 shadow-md gap-4">
                     <div>
                         <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
                             {avaliacaoEditando ? 'Editar Avaliação Física' : t('assessment.form.title')}
@@ -371,113 +374,133 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 </div>
 
                 <div className={sectionClass}>
-                    <div className="flex items-center gap-4 border-b border-slate-100 pb-5 mb-6">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                    <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 pb-5 mb-6">
+                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                             <User className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Dados do Aluno</h3>
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Digite o CPF para localizar o aluno no sistema</p>
+                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Dados do Aluno</h3>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Localize o aluno e defina o responsável</p>
                         </div>
                     </div>
 
                     <div className="flex flex-col lg:flex-row gap-6 items-start">
-                        <div className="w-full lg:w-64 shrink-0">
-                            <label className="block text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
-                                CPF do Aluno <span className="text-rose-500">*</span>
-                            </label>
-                            <div className="relative">
-                                <input 
-                                    type="text" value={cpfBusca} onChange={handleCpfChange} maxLength="14" disabled={!!avaliacaoEditando} 
-                                    className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-base font-black text-slate-800 outline-none transition-all shadow-sm
-                                        ${cpfErro ? 'border-rose-400 focus:ring-4 focus:ring-rose-500/20' : 
-                                          statusCpf === 'encontrado' ? 'border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-blue-900' : 
-                                          'border-slate-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20'}
-                                          ${avaliacaoEditando ? 'opacity-70 cursor-not-allowed' : ''}`} 
-                                    placeholder="000.000.000-00" 
-                                />
-                                {buscandoCpf && <Loader2 className="w-5 h-5 text-blue-500 animate-spin absolute right-4 top-1/2 -translate-y-1/2" />}
-                                {statusCpf === 'encontrado' && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm"><Check className="w-4 h-4 text-white stroke-[3]" /></div>}
-                                {statusCpf === 'erro' && <AlertTriangle className="w-5 h-5 text-rose-500 absolute right-4 top-1/2 -translate-y-1/2" />}
-                            </div>
-                            <div className="mt-3">
-                                {cpfErro && <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest ml-1">CPF Inválido</span>}
-                                {statusCpf === 'encontrado' && (
-                                    <div className="flex items-center gap-2 bg-emerald-50 text-emerald-600 px-4 py-2.5 rounded-xl border border-emerald-100 animate-[fadeIn_0.2s_ease-out]">
-                                        <CheckCircle2 className="w-4 h-4" />
-                                        <span className="text-[11px] font-black uppercase tracking-widest">Cadastro localizado</span>
-                                    </div>
-                                )}
-                                {statusCpf === 'novo' && (
-                                    <div className="flex flex-col gap-3 bg-amber-50 border border-amber-200 p-4 rounded-xl animate-[fadeIn_0.2s_ease-out]">
-                                        <div className="flex items-start gap-2 text-amber-700">
-                                            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                                            <div>
-                                                <span className="text-[11px] font-black uppercase tracking-widest block">Aluno não encontrado</span>
-                                                <span className="text-[10px] font-bold opacity-80 leading-tight">Proceda com o cadastro rápido.</span>
-                                            </div>
+                        {/* 🔥 BLOCA SEÇÃO: CPF E AVALIADOR LADO A LADO/EMPILHADO */}
+                        <div className="w-full lg:w-64 shrink-0 flex flex-col gap-5">
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
+                                    CPF do Aluno <span className="text-rose-500">*</span>
+                                </label>
+                                <div className="relative">
+                                    <input 
+                                        type="text" value={cpfBusca} onChange={handleCpfChange} maxLength="14" disabled={!!avaliacaoEditando} 
+                                        className={`w-full bg-white dark:bg-slate-800 border-2 rounded-2xl px-4 py-3 text-base font-black text-slate-800 dark:text-white outline-none transition-all shadow-sm
+                                            ${cpfErro ? 'border-rose-400 focus:ring-4 focus:ring-rose-500/20' : 
+                                              statusCpf === 'encontrado' ? 'border-blue-500 focus:ring-4 focus:ring-blue-500/20 text-blue-900 dark:text-blue-100' : 
+                                              'border-slate-200 dark:border-slate-700 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/20'}
+                                            ${avaliacaoEditando ? 'opacity-70 cursor-not-allowed' : ''}`} 
+                                        placeholder="000.000.000-00" 
+                                    />
+                                    {buscandoCpf && <Loader2 className="w-5 h-5 text-blue-500 animate-spin absolute right-4 top-1/2 -translate-y-1/2" />}
+                                    {statusCpf === 'encontrado' && <div className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-sm"><Check className="w-4 h-4 text-white stroke-[3]" /></div>}
+                                    {statusCpf === 'erro' && <AlertTriangle className="w-5 h-5 text-rose-500 absolute right-4 top-1/2 -translate-y-1/2" />}
+                                </div>
+                                <div className="mt-2">
+                                    {cpfErro && <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest ml-1">CPF Inválido</span>}
+                                    {statusCpf === 'encontrado' && (
+                                        <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800 animate-[fadeIn_0.2s_ease-out]">
+                                            <CheckCircle2 className="w-4 h-4" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Cadastro localizado</span>
                                         </div>
-                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">Cadastrar Aluno</button>
-                                    </div>
-                                )}
+                                    )}
+                                    {statusCpf === 'novo' && (
+                                        <div className="flex flex-col gap-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-4 rounded-xl animate-[fadeIn_0.2s_ease-out]">
+                                            <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
+                                                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="text-[11px] font-black uppercase tracking-widest block">Não encontrado</span>
+                                                    <span className="text-[9px] font-bold opacity-80 leading-tight">Proceda com o cadastro.</span>
+                                                </div>
+                                            </div>
+                                            <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">Cadastrar</button>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
+                                    Avaliador Responsável <span className="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    value={avaliadorResponsavel}
+                                    onChange={(e) => setAvaliadorResponsavel(e.target.value)}
+                                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm cursor-pointer"
+                                    required
+                                >
+                                    <option value="" disabled>Selecione...</option>
+                                    {colaboradores.map(c => (
+                                        <option key={c.id} value={c.nome}>{c.nome}</option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
                         <div className="flex-1 w-full min-h-[140px]">
                             {alunoEncontrado ? (
-                                <div className="bg-slate-50/80 border border-slate-200 rounded-3xl p-6 shadow-[inset_0_2px_10px_rgba(0,0,0,0.01)] animate-[slideLeft_0.3s_ease-out]">
-                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 pb-5 mb-5">
+                                <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-[inset_0_2px_10px_rgba(0,0,0,0.01)] animate-[slideLeft_0.3s_ease-out]">
+                                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 dark:border-slate-700/80 pb-5 mb-5">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-14 h-14 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center shrink-0 border-2 border-white shadow-sm"><User className="w-6 h-6" /></div>
+                                            <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/50 text-blue-500 dark:text-blue-400 rounded-full flex items-center justify-center shrink-0 border-2 border-white dark:border-slate-800 shadow-sm"><User className="w-6 h-6" /></div>
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center gap-2 group">
-                                                    <h4 className="text-base font-black text-slate-800 uppercase tracking-tight">{alunoEncontrado.nome}</h4>
+                                                    <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">{alunoEncontrado.nome}</h4>
                                                     <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shrink-0"><Check className="w-3 h-3 text-white stroke-[3]" /></div>
                                                     <CopyButton textToCopy={alunoEncontrado.nome} label="Copiar Nome" />
                                                 </div>
-                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-1">
+                                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
                                                     {alunoEncontrado.matricula ? (<span className="flex items-center gap-1.5"><IdCard className="w-3.5 h-3.5 text-slate-400" /> Matrícula: {alunoEncontrado.matricula}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><IdCard className="w-3.5 h-3.5" /> Sem Matrícula</span>)}
-                                                    <span className="text-slate-300 hidden sm:block">|</span>
+                                                    <span className="text-slate-300 dark:text-slate-600 hidden sm:block">|</span>
                                                     {alunoEncontrado.data_nascimento ? (<span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {new Date(alunoEncontrado.data_nascimento + 'T12:00:00').toLocaleDateString(langAtual)}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><CalendarDays className="w-3.5 h-3.5" /> Data N/I</span>)}
                                                 </div>
                                             </div>
                                         </div>
-                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full sm:w-auto px-5 py-2.5 bg-white border-2 border-blue-100 text-blue-600 hover:bg-blue-50 hover:border-blue-300 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm shrink-0"><UserRoundPen className="w-4 h-4" /> Editar Dados</button>
+                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-slate-800 border-2 border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm shrink-0"><UserRoundPen className="w-4 h-4" /> Editar Dados</button>
                                     </div>
 
-                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:divide-x divide-slate-200/80">
+                                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:divide-x divide-slate-200/80 dark:divide-slate-700">
                                         <div className="flex items-center gap-3 sm:pr-5 shrink-0">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center shrink-0"><Phone className="w-4 h-4" /></div>
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><Phone className="w-4 h-4" /></div>
                                             <div className="flex flex-col group">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Telefone</span>
+                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Telefone</span>
                                                 <div className="flex items-center gap-1">
-                                                    <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">{alunoEncontrado.telefone ? formatarTelefone(alunoEncontrado.telefone) : 'N/I'}</span>
+                                                    <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.telefone ? formatarTelefone(alunoEncontrado.telefone) : 'N/I'}</span>
                                                     {alunoEncontrado.telefone && <CopyButton textToCopy={alunoEncontrado.telefone} label="Copiar Telefone" />}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 sm:px-5 flex-1 min-w-0">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center shrink-0"><Mail className="w-4 h-4" /></div>
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><Mail className="w-4 h-4" /></div>
                                             <div className="flex flex-col min-w-0 group">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">E-mail</span>
+                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">E-mail</span>
                                                 <div className="flex items-center gap-1">
-                                                    <span className="text-[13px] font-bold text-slate-700 truncate">{alunoEncontrado.email || 'N/I'}</span>
+                                                    <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">{alunoEncontrado.email || 'N/I'}</span>
                                                     {alunoEncontrado.email && <CopyButton textToCopy={alunoEncontrado.email} label="Copiar E-mail" />}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 sm:pl-5 shrink-0">
-                                            <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center shrink-0"><User className="w-4 h-4" /></div>
+                                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><User className="w-4 h-4" /></div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Idade</span>
-                                                <span className="text-[13px] font-bold text-slate-700 whitespace-nowrap">{alunoEncontrado.data_nascimento ? `${calcularIdade(alunoEncontrado.data_nascimento)} anos` : 'N/I'}</span>
+                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Idade</span>
+                                                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.data_nascimento ? `${calcularIdade(alunoEncontrado.data_nascimento)} anos` : 'N/I'}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             ) : (
-                                <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 rounded-3xl bg-slate-50/50">
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest text-center px-4">Localize o aluno para iniciar a avaliação</p>
+                                <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl bg-slate-50/50 dark:bg-slate-800/30">
+                                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-4">Localize o aluno para iniciar</p>
                                 </div>
                             )}
                         </div>
@@ -486,19 +509,19 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                 <div className={`transition-all duration-500 ${!alunoEncontrado ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200/60 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-200/20 rounded-full blur-3xl"></div>
-                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-200/20 rounded-full blur-3xl"></div>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border-2 border-blue-200/60 dark:border-blue-900/50 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                        <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-200/20 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
+                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-200/20 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
                         
                         <div className="flex items-center gap-5 relative z-10">
-                            <div className="w-14 h-14 bg-white text-blue-600 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-blue-100">
+                            <div className="w-14 h-14 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-blue-100 dark:border-slate-700">
                                 <Sparkles className="w-7 h-7 animate-pulse" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2">
-                                    Preenchimento Inteligente Multi-Escalas <span className="bg-blue-600 text-white text-[9px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
+                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                                    Preenchimento Inteligente <span className="bg-blue-600 dark:bg-blue-500 text-white text-[9px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
                                 </h3>
-                                <p className="text-xs font-bold text-slate-500 mt-1 max-w-lg leading-relaxed">Faça o upload do exame InBody ou Superbio. A IA extrairá e padronizará todas as medidas automaticamente.</p>
+                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-lg leading-relaxed">Faça o upload do exame InBody ou Superbio. A IA extrairá as medidas automaticamente.</p>
                             </div>
                         </div>
                         
@@ -510,9 +533,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 </button>
                             ) : (
                                 <div className="flex flex-col items-center gap-2 w-full">
-                                    <div className="bg-emerald-50 border border-emerald-200 px-6 py-3 rounded-[16px] flex items-center justify-center gap-3 w-full shadow-sm">
-                                        <FileText className="w-5 h-5 text-emerald-600" />
-                                        <span className="text-[11px] font-black text-emerald-700 uppercase tracking-widest truncate max-w-[150px]">
+                                    <div className="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-6 py-3 rounded-[16px] flex items-center justify-center gap-3 w-full shadow-sm">
+                                        <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                                        <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-widest truncate max-w-[150px]">
                                             {arquivoInBody.name}
                                         </span>
                                     </div>
@@ -526,12 +549,12 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
                         <div className={sectionClass}>
-                            <div className="flex items-center gap-4 border-b border-slate-100 pb-5 mb-6">
-                                <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                            <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
+                                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                                     <Ruler className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Medidas Iniciais</h3>
+                                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Medidas Iniciais</h3>
                                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registre o peso e a altura atual do aluno.</p>
                                 </div>
                             </div>
@@ -542,20 +565,20 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         </div>
 
                         <div className={sectionClass}>
-                            <div className="flex items-center justify-between border-b border-slate-100 pb-5 mb-6">
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                                    <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                                         <HeartPulse className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Pressão Arterial</h3>
-                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registre a pressão arterial do aluno.</p>
+                                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Pressão Arterial</h3>
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registre a pressão arterial.</p>
                                     </div>
                                 </div>
                                 {form.sistolica && form.diastolica ? (
                                     <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border shadow-sm transition-colors ${pressao.bg} ${pressao.cor} ${getBorderClass(pressao.cor)} shrink-0`}>{pressao.status}</span>
                                 ) : (
-                                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-slate-50 text-slate-400 border-slate-200 shrink-0">Não Aferida</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 shrink-0">Não Aferida</span>
                                 )}
                             </div>
                             <div className="grid grid-cols-2 gap-5">
@@ -566,22 +589,22 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
 
                     <div className={`${sectionClass} mt-6`}>
-                        <div className="flex items-center gap-4 border-b border-slate-100 pb-5 mb-8">
-                            <div className="w-12 h-12 bg-indigo-50 text-indigo-500 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                        <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-8">
+                            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                                 <Activity className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-800 uppercase tracking-tight">Bioimpedância (Massa e Gordura)</h3>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Preencha os valores obtidos na avaliação de bioimpedância.</p>
+                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Bioimpedância (Massa e Gordura)</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Preencha os valores obtidos na avaliação.</p>
                             </div>
                         </div>
                         
                         <div className="mb-10">
-                            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 pb-3">
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black shrink-0">1</div>
+                            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 dark:border-slate-800 pb-3">
+                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-black shrink-0">1</div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Massa Segmentar</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe a massa (kg) de cada segmento corporal.</p>
+                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Massa Segmentar</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe a massa (kg) de cada segmento.</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -593,19 +616,18 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         </div>
 
                         <div className="mb-10">
-                            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 pb-3">
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black shrink-0">2</div>
+                            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 dark:border-slate-800 pb-3">
+                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-black shrink-0">2</div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Composição Corporal</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe os dados de composição corporal gerais.</p>
+                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Composição Corporal</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe os dados gerais.</p>
                                 </div>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                                 <div className="flex flex-col">
-                                    <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
-                                        Água Total (L)
-                                        <InfoTooltip text="Água Corporal Total: Pode sinalizar tanto para um quadro de desidratação quanto de retenção de líquidos." />
+                                    <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
+                                        Água Total (L) <InfoTooltip text="Água Corporal Total: Pode sinalizar tanto para um quadro de desidratação quanto de retenção de líquidos." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="aguaTotal" value={form.aguaTotal} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -613,9 +635,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     </div>
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
-                                        Relação Cintura Quadril
-                                        <InfoTooltip text="RCQ: Cálculo feito a partir das medidas da cintura e do quadril para verificar risco cardiovascular." />
+                                    <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
+                                        Relação Cintura Quadril <InfoTooltip text="RCQ: Cálculo feito a partir das medidas da cintura e do quadril para verificar risco cardiovascular." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="rcq" value={form.rcq} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -623,9 +644,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     </div>
                                 </div>
                                 <div className="flex flex-col">
-                                    <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 uppercase tracking-widest mb-2 ml-1">
-                                        Gordura Visceral
-                                        <InfoTooltip text="GV: Gordura que se acumula na cavidade abdominal, entre órgãos como estômago, fígado e pâncreas." />
+                                    <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
+                                        Gordura Visceral <InfoTooltip text="GV: Gordura abdominal profunda." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="gv" value={form.gv} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -641,49 +661,47 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         </div>
 
                         <div>
-                            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 pb-3">
-                                <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black shrink-0">3</div>
+                            <div className="flex items-center gap-3 mb-5 border-b border-slate-50 dark:border-slate-800 pb-3">
+                                <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-black shrink-0">3</div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-slate-800 uppercase tracking-widest">Resultados Calculados</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Os resultados são calculados automaticamente com base nos dados informados.</p>
+                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Resultados Calculados</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Baseados nos dados informados.</p>
                                 </div>
                             </div>
                             
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-orange-50/30 border border-orange-100 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
+                                <div className="bg-orange-50/30 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-800/50 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
                                     <div className="flex items-start gap-5 mb-5">
-                                        <div className="w-16 h-16 rounded-full bg-orange-100 text-orange-500 flex items-center justify-center shrink-0 shadow-inner"><Dumbbell className="w-8 h-8" /></div>
+                                        <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 flex items-center justify-center shrink-0 shadow-inner"><Dumbbell className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
-                                                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Resultado SMI</p>
-                                                <InfoTooltip text="SMI (Skeletal Muscle Index): Aponta para um quadro clínico de sarcopenia e baixa tolerância ao exercício." />
+                                                <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Resultado SMI</p>
                                             </div>
-                                            <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(smi.valor) > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{parseFloat(smi.valor) > 0 ? smi.valor : '0.00'}</p>
+                                            <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(smi.valor) > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-300 dark:text-slate-600'}`}>{parseFloat(smi.valor) > 0 ? smi.valor : '0.00'}</p>
                                             <div className="self-start">
                                                 <span className={`px-3 py-1 rounded-md border font-black uppercase text-[10px] tracking-widest shadow-sm ${smi.bg} ${smi.cor} ${getBorderClass(smi.cor)}`}>{smi.status}</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mt-auto">
+                                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-auto">
                                         <div className={`h-full ${smi.valor > 0 ? 'bg-orange-500' : 'bg-transparent'} transition-all duration-700`} style={{ width: `${Math.min((parseFloat(smi.valor || 0) / 10) * 100, 100)}%` }}></div>
                                     </div>
                                 </div>
                                 
-                                <div className="bg-rose-50/30 border border-rose-100 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
+                                <div className="bg-rose-50/30 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
                                     <div className="flex items-start gap-5 mb-5">
-                                        <div className="w-16 h-16 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center shrink-0 shadow-inner"><Droplet className="w-8 h-8" /></div>
+                                        <div className="w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-inner"><Droplet className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
-                                                <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Hidratação</p>
-                                                <InfoTooltip text="Níveis ideais de água corporal garantem a correta função metabólica. Avalie retenção ou desidratação." />
+                                                <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Hidratação</p>
                                             </div>
-                                            <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(hidratacao.valor) > 0 ? 'text-slate-800' : 'text-slate-300'}`}>{parseFloat(hidratacao.valor) > 0 ? `${hidratacao.valor}%` : '0.0%'}</p>
+                                            <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(hidratacao.valor) > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-300 dark:text-slate-600'}`}>{parseFloat(hidratacao.valor) > 0 ? `${hidratacao.valor}%` : '0.0%'}</p>
                                             <div className="self-start">
                                                 <span className={`px-3 py-1 rounded-md border font-black uppercase text-[10px] tracking-widest shadow-sm ${hidratacao.bg} ${hidratacao.cor} ${getBorderClass(hidratacao.cor)}`}>{hidratacao.status}</span>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mt-auto">
+                                    <div className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mt-auto">
                                         <div className={`h-full ${hidratacao.valor > 0 ? 'bg-rose-500' : 'bg-transparent'} transition-all duration-700`} style={{ width: `${Math.min(parseFloat(hidratacao.valor || 0), 100)}%` }}></div>
                                     </div>
                                 </div>
@@ -692,20 +710,20 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
 
                     <div className={`${sectionClass} mt-6 !p-8`}>
-                        <div className="flex items-center gap-4 border-b border-slate-100 pb-5 mb-6">
-                            <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                        <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
+                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                                 <ListChecks className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Questionário de Anamnese</h3>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Responda as perguntas abaixo para conhecermos melhor o perfil e a saúde do aluno.</p>
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Questionário de Anamnese</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Responda as perguntas abaixo.</p>
                             </div>
                         </div>
 
                         {loadingPerguntas ? (
                             <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>
                         ) : perguntasDinamicas.length === 0 ? (
-                            <p className="text-xs font-bold text-slate-400 text-center py-6">Nenhuma pergunta configurada pelo administrador.</p>
+                            <p className="text-xs font-bold text-slate-400 text-center py-6">Nenhuma pergunta configurada.</p>
                         ) : (
                             <div className="flex flex-col">
                                 {perguntasDinamicas.map((p, index) => {
@@ -713,24 +731,24 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     const IconComp = iconObj.Icon;
 
                                     return (
-                                        <div key={p.id} className="flex gap-5 items-start border-b border-slate-100 pb-8 pt-6 first:pt-2 last:border-0 last:pb-0">
-                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${iconObj.bg} ${iconObj.text} shadow-sm hidden sm:flex mt-1`}><IconComp className="w-6 h-6" /></div>
+                                        <div key={p.id} className="flex gap-5 items-start border-b border-slate-100 dark:border-slate-800 pb-8 pt-6 first:pt-2 last:border-0 last:pb-0">
+                                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${iconObj.bg} ${iconObj.text} border border-white/5 shadow-sm hidden sm:flex mt-1`}><IconComp className="w-6 h-6" /></div>
                                             <div className="flex-1 w-full min-w-0">
                                                 <div className="flex items-start sm:items-center gap-3 mb-2 flex-col sm:flex-row">
-                                                    <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md text-[11px] font-black tracking-widest shrink-0 shadow-sm border border-slate-200">{String(index + 1).padStart(2, '0')}</span>
-                                                    <h4 className="text-[14px] font-black text-slate-800 tracking-tight leading-snug">{p.pergunta} {p.obrigatorio && <span className="text-rose-500">*</span>}</h4>
+                                                    <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md text-[11px] font-black tracking-widest shrink-0 shadow-sm border border-slate-200 dark:border-slate-700">{String(index + 1).padStart(2, '0')}</span>
+                                                    <h4 className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight leading-snug">{p.pergunta} {p.obrigatorio && <span className="text-rose-500">*</span>}</h4>
                                                 </div>
-                                                {p.descricao && (<p className="text-xs font-medium text-slate-500 mb-4 leading-relaxed pr-4">{p.descricao}</p>)}
+                                                {p.descricao && (<p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-4 leading-relaxed pr-4">{p.descricao}</p>)}
                                                 <div className="mt-3">
                                                     {p.tipo === 'TEXTO_CURTO' && (
-                                                        <input type="text" className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-bold text-slate-700 outline-none py-3 px-4 transition-all shadow-sm placeholder:text-slate-400" 
+                                                        <input type="text" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-3 px-4 transition-all shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500" 
                                                             disabled={!alunoEncontrado} placeholder="Digite sua resposta..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
                                                     )}
                                                     {p.tipo === 'TEXTO_LONGO' && (
                                                         <div className="relative">
-                                                            <textarea className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-2xl text-sm font-medium text-slate-700 outline-none p-4 transition-all resize-none shadow-sm placeholder:text-slate-400 pb-8" 
-                                                                rows="3" disabled={!alunoEncontrado} placeholder="Ex.: observações sobre lesões, acompanhamento..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
-                                                            <span className="absolute bottom-3 right-4 text-[10px] font-black text-slate-300 tracking-widest">{respostasDinamicas[p.id]?.length || 0}/200</span>
+                                                            <textarea className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-2xl text-sm font-medium text-slate-700 dark:text-white outline-none p-4 transition-all resize-none shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 pb-8" 
+                                                                rows="3" disabled={!alunoEncontrado} placeholder="Ex.: observações sobre lesões..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
+                                                            <span className="absolute bottom-3 right-4 text-[10px] font-black text-slate-300 dark:text-slate-600 tracking-widest">{respostasDinamicas[p.id]?.length || 0}/200</span>
                                                         </div>
                                                     )}
                                                     {(p.tipo === 'SELECT' || p.tipo === 'CHECKBOX') && (
@@ -742,11 +760,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                                                                 return (
                                                                     <React.Fragment key={o}>
-                                                                        <label className={`cursor-pointer px-5 py-2.5 rounded-full border text-xs font-bold transition-all select-none flex items-center justify-center min-w-[80px] gap-2 ${isChecked ? 'bg-blue-100/50 border-blue-500 text-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'}`}>
+                                                                        <label className={`cursor-pointer px-5 py-2.5 rounded-full border text-xs font-bold transition-all select-none flex items-center justify-center min-w-[80px] gap-2 ${isChecked ? 'bg-blue-100/50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-400' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}>
                                                                             <input type={p.tipo === 'SELECT' ? 'radio' : 'checkbox'} name={p.tipo === 'SELECT' ? p.id : undefined} value={o} checked={isChecked} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} className="hidden" disabled={!alunoEncontrado} />
-                                                                            {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white shrink-0" />} {o || 'Opção Vazia'}
+                                                                            {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white dark:text-slate-900 shrink-0" />} {o || 'Opção Vazia'}
                                                                         </label>
-                                                                        {isOutro && isChecked && (<input type="text" placeholder="Especifique a resposta..." disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 border border-slate-200 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 rounded-xl text-sm font-bold text-slate-700 outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
+                                                                        {isOutro && isChecked && (<input type="text" placeholder="Especifique a resposta..." disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
                                                                     </React.Fragment>
                                                                 )
                                                             })}
