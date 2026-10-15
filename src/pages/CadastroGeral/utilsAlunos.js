@@ -10,7 +10,7 @@ export const normalizarNumeros = (str) => {
 // --- NOME ---
 export const normalizarNome = (str) => {
     if (!str) return '';
-    return String(str).toUpperCase().trim().replace(/\s+/g, ' '); // Remove espaços duplos
+    return String(str).toUpperCase().trim().replace(/\s+/g, ' '); 
 };
 
 // --- CPF ---
@@ -41,7 +41,6 @@ export const validarCPF = (cpf) => {
 // --- TELEFONE ---
 export const validarTelefone = (tel) => {
     const limpo = normalizarNumeros(tel);
-    // Brasil: DDD (2) + Numero (8 ou 9) = 10 ou 11 digitos. Pode ter DDI 55.
     if (limpo.length >= 10 && limpo.length <= 13) return true;
     return false;
 };
@@ -52,7 +51,7 @@ export const formatarTelefone = (tel) => {
     if (limpo.length === 10) return limpo.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
     if (limpo.length === 13 && limpo.startsWith('55')) return limpo.replace(/55(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
     if (limpo.length === 12 && limpo.startsWith('55')) return limpo.replace(/55(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
-    return tel; // Retorna original se não bater o formato BR
+    return tel; 
 };
 
 // --- EMAIL ---
@@ -79,7 +78,6 @@ export const parseDataBrParaIso = (dataStr) => {
             ano = parseInt(ano, 10) > 50 ? '19' + ano : '20' + ano;
         }
         
-        // Validação básica de data absurda (Ex: 31/02 ou Ano 9999)
         const anoNum = parseInt(ano, 10);
         const mesNum = parseInt(mes, 10);
         const diaNum = parseInt(dia, 10);
@@ -97,7 +95,7 @@ export const parseDataBrParaIso = (dataStr) => {
 
 export const calcularIdade = (dataNascimentoIso, dataReferencia = new Date()) => {
     if (!dataNascimentoIso) return null;
-    const nasc = new Date(dataNascimentoIso + 'T00:00:00'); // T00:00:00 evita bug de fuso horário voltando 1 dia
+    const nasc = new Date(dataNascimentoIso + 'T00:00:00'); 
     if (isNaN(nasc)) return null;
     
     let idade = dataReferencia.getFullYear() - nasc.getFullYear();
@@ -110,24 +108,22 @@ export const calcularIdade = (dataNascimentoIso, dataReferencia = new Date()) =>
 };
 
 // ==========================================
-// PARSER DO EXCEL (SMART PASTE) - BLINDADO
+// PARSER DO EXCEL (SMART PASTE) - BLINDADO TECACE
 // ==========================================
 export const parseSmartPaste = (rawText) => {
     if (!rawText) return [];
     
-    // Quebra por linha, ignorando linhas vazias do Excel
     const lines = rawText.split(/\r?\n/).filter(line => line.trim() !== '');
     if (lines.length === 0) return [];
 
     let startIndex = 0;
-    // Mapa padrão caso não tenha cabeçalho na cópia (Matrícula | Nome | Doc | Tel | Email | Nasc)
-    let colMap = { matricula: 0, nome: 1, cpf: 2, telefone: 3, email: 4, nascimento: 5 }; 
+    // Mapa padrão TECACE caso não tenha cabeçalho na cópia 
+    let colMap = { matricula: 0, nome: 1, email: 2, telefone: 3, status: 4, cpf: 5, nascimento: -1 }; 
 
     const firstLine = lines[0].toUpperCase();
     
-    // Auto-identifica se a primeira linha copiada foi o cabeçalho
-    if (firstLine.includes('NOME') || firstLine.includes('DOCUMENTO') || firstLine.includes('CPF')) {
-        startIndex = 1; // Pula o cabeçalho na importação
+    if (firstLine.includes('NOME') || firstLine.includes('DOCUMENTO') || firstLine.includes('CPF') || firstLine.includes('MATRÍCULA') || firstLine.includes('MATRICULA')) {
+        startIndex = 1; 
         const headers = firstLine.split('\t');
         
         colMap = {
@@ -136,30 +132,29 @@ export const parseSmartPaste = (rawText) => {
             matricula: headers.findIndex(h => h.includes('MATRÍCULA') || h.includes('MATRICULA') || h.includes('ID')),
             telefone: headers.findIndex(h => h.includes('TELEFONE') || h.includes('CELULAR')),
             email: headers.findIndex(h => h.includes('EMAIL') || h.includes('E-MAIL')),
-            nascimento: headers.findIndex(h => h.includes('NASCIMENTO') || h.includes('DATA'))
+            nascimento: headers.findIndex(h => h === 'NASCIMENTO' || h === 'DATA DE NASCIMENTO')
         };
     }
 
     const parsedData = [];
-    const cpfSet = new Set(); // Para checar duplicatas nativas na própria colagem
+    const cpfSet = new Set(); 
 
     for (let i = startIndex; i < lines.length; i++) {
         const cols = lines[i].split('\t');
         
-        // Pega as colunas mapeadas (ou usa fallback numérico padrão se não tiver header)
-        const rawCpf = colMap.cpf >= 0 ? cols[colMap.cpf] : cols[2];
+        const rawCpf = colMap.cpf >= 0 ? cols[colMap.cpf] : cols[5];
         const cleanCpf = normalizarNumeros(rawCpf || '');
         
         const rawNome = colMap.nome >= 0 ? cols[colMap.nome] : cols[1];
         const nome = normalizarNome(rawNome);
 
-        if (!nome && !cleanCpf) continue; // Pula a linha se for puro lixo em branco
+        if (!nome && !cleanCpf) continue; 
 
-        // Extração Bruta
+        // Extração Bruta baseada no TECACE
         const matricula = (colMap.matricula >= 0 ? cols[colMap.matricula] : cols[0])?.trim() || '';
         const telBruto = colMap.telefone >= 0 ? cols[colMap.telefone] : cols[3];
-        const emailBruto = colMap.email >= 0 ? cols[colMap.email] : cols[4];
-        const nascBruto = colMap.nascimento >= 0 ? cols[colMap.nascimento] : cols[5];
+        const emailBruto = colMap.email >= 0 ? cols[colMap.email] : cols[2];
+        const nascBruto = colMap.nascimento >= 0 ? cols[colMap.nascimento] : '';
 
         let telefone = normalizarNumeros(telBruto || '');
         let email = normalizarEmail(emailBruto);
@@ -168,7 +163,6 @@ export const parseSmartPaste = (rawText) => {
         let status = 'NOVO';
         let avisos = [];
 
-        // VALIDAÇÕES CRÍTICAS (A linha fica vermelha e bloqueia importação)
         if (!cleanCpf || !validarCPF(cleanCpf)) {
             status = 'CPF INVÁLIDO';
         } else if (cpfSet.has(cleanCpf)) {
@@ -177,7 +171,6 @@ export const parseSmartPaste = (rawText) => {
 
         if (cleanCpf) cpfSet.add(cleanCpf);
 
-        // VALIDAÇÕES NÃO CRÍTICAS (A linha entra, mas os dados errados são descartados para não sujar o banco)
         if (telefone && !validarTelefone(telefone)) {
             avisos.push('Telefone');
             telefone = ''; 
@@ -192,16 +185,16 @@ export const parseSmartPaste = (rawText) => {
 
         parsedData.push({
             status,
-            avisos, // Mostra badge 🟠 na UI se tiver erros menores
+            avisos, 
             cpf: cleanCpf,
             cpf_mascarado: mascaraCPF(cleanCpf),
             nome: nome,
-            matricula: matricula, // TEXT puro. O zero à esquerda é preservado.
+            matricula: matricula, 
             telefone: telefone,
             telefone_formatado: telefone ? formatarTelefone(telefone) : '',
             email: email,
             data_nascimento: dataNascimento,
-            idade: calcularIdade(dataNascimento) // Usado apenas na UI, nunca salvo no banco
+            idade: calcularIdade(dataNascimento) 
         });
     }
     

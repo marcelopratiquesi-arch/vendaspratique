@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { formatMoney, formatDataBR, formatarDataHora } from './utils.js';
-import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle } from 'lucide-react';
+import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle, User } from 'lucide-react';
 
 // ==========================================
-// 🧩 FORMATADOR SEGURO DE CPF E NOME (INLINE)
+// 🧩 FORMATADOR SEGURO DE CPF E NOME
 // ==========================================
 const maskCPF = (val) => {
     let v = String(val).replace(/\D/g, '');
@@ -15,10 +15,20 @@ const maskCPF = (val) => {
     return v;
 };
 
+// Pega apenas o 1º e 2º nome, ignorando "de", "da", "do"
+const shortName = (name) => {
+    if (!name || name === '-') return '-';
+    const parts = String(name).trim().split(/\s+/);
+    if (parts.length <= 1) return name;
+    const filtered = parts.filter(p => !['de', 'da', 'do', 'dos', 'das'].includes(p.toLowerCase()));
+    if (filtered.length >= 2) return `${filtered[0]} ${filtered[1]}`;
+    return name;
+};
+
 // ==========================================
-// 🧩 SUB-COMPONENTE: Célula Copiável (CPF e NOME)
+// 🧩 SUB-COMPONENTE: Célula Copiável
 // ==========================================
-const CopiableCell = ({ text, isCpf }) => {
+const CopiableCell = ({ text, isCpf, customClass }) => {
     const [copied, setCopied] = useState(false);
     
     const handleCopy = () => {
@@ -38,17 +48,17 @@ const CopiableCell = ({ text, isCpf }) => {
     const displayText = formatTexto();
     
     return (
-        <div className="flex items-center gap-2 group/copy">
-            <span className={`truncate max-w-[150px] ${isCpf ? 'font-mono font-bold tracking-tight text-slate-700' : 'font-black text-slate-800 uppercase'}`} title={displayText}>
+        <div className={`flex items-center gap-2 group/copy w-fit ${isCpf ? 'mt-0.5' : ''}`}>
+            <span className={`truncate max-w-[180px] ${customClass}`} title={displayText}>
                 {displayText}
             </span>
             {text && text !== '-' && (
                 <button 
                     onClick={handleCopy} 
-                    className="opacity-0 group-hover/copy:opacity-100 p-1.5 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded-md transition-all shadow-sm border border-transparent hover:border-blue-200"
+                    className="opacity-0 group-hover/copy:opacity-100 p-1 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded transition-all shadow-sm border border-transparent hover:border-blue-200"
                     title="Copiar dado"
                 >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                 </button>
             )}
         </div>
@@ -152,7 +162,9 @@ const ConferenciaTab = ({
 
     const valorTotalFiltrado = vendasFiltradas.reduce((acc, v) => acc + (Number(v.valor) || 0), 0);
 
+    // ==========================================
     // 3. MOTOR DE ORDENAÇÃO
+    // ==========================================
     const [sortConfig, setSortConfig] = useState({ key: 'data', direction: 'desc' });
 
     const requestSort = (key) => {
@@ -168,26 +180,60 @@ const ConferenciaTab = ({
             : <ChevronDown className="w-3 h-3 text-indigo-600" />;
     };
 
-    const sortedVendas = [...vendasFiltradas].sort((a, b) => {
-        if (!sortConfig.key) return 0;
-        let valA = a[sortConfig.key];
-        let valB = b[sortConfig.key];
+    const sortedVendas = useMemo(() => {
+        let itemsSort = [...vendasFiltradas];
+        itemsSort.sort((a, b) => {
+            if (!sortConfig.key) return 0;
+            let valA, valB;
 
-        if (sortConfig.key === 'data') {
-            valA = new Date(valA).getTime() || 0;
-            valB = new Date(valB).getTime() || 0;
-        } else if (sortConfig.key === 'valor' || sortConfig.key === 'quantidade') {
-            valA = Number(valA) || 0;
-            valB = Number(valB) || 0;
-        } else {
-            valA = String(valA || '').toLowerCase();
-            valB = String(valB || '').toLowerCase();
-        }
+            switch (sortConfig.key) {
+                case 'data':
+                    valA = new Date(a.data || 0).getTime();
+                    valB = new Date(b.data || 0).getTime();
+                    break;
+                case 'nome':
+                    valA = String(a.nome_aluno || a.nome || '').toLowerCase();
+                    valB = String(b.nome_aluno || b.nome || '').toLowerCase();
+                    break;
+                case 'cpf':
+                    valA = String(a.cpf || '').replace(/\D/g, '');
+                    valB = String(b.cpf || '').replace(/\D/g, '');
+                    break;
+                case 'produto':
+                    valA = String(a.produto || '').toLowerCase();
+                    valB = String(b.produto || '').toLowerCase();
+                    break;
+                case 'vendedor':
+                    valA = String(a.vendedor || '').toLowerCase();
+                    valB = String(b.vendedor || '').toLowerCase();
+                    break;
+                case 'unidade':
+                    valA = String(a.unidade || 'MATRIZ').toLowerCase();
+                    valB = String(b.unidade || 'MATRIZ').toLowerCase();
+                    break;
+                case 'valor':
+                    valA = Number(a.valor) || 0;
+                    valB = Number(b.valor) || 0;
+                    break;
+                case 'quantidade':
+                    valA = Number(a.quantidade) || 0;
+                    valB = Number(b.quantidade) || 0;
+                    break;
+                case 'conferiu':
+                    valA = a.conferiu ? 1 : 0;
+                    valB = b.conferiu ? 1 : 0;
+                    break;
+                default:
+                    valA = String(a[sortConfig.key] || '').toLowerCase();
+                    valB = String(b[sortConfig.key] || '').toLowerCase();
+            }
 
-        if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
-        if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
-        return 0;
-    });
+            if (valA < valB) return sortConfig.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return sortConfig.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+        return itemsSort;
+    }, [vendasFiltradas, sortConfig]);
 
     // 4. MOTOR DE DRAG-TO-SCROLL (MÃOZINHA)
     const scrollRef = useRef(null);
@@ -220,7 +266,7 @@ const ConferenciaTab = ({
         scrollRef.current.scrollLeft = scrollLeft.current - walk;
     };
 
-    // 5. EXPORTAÇÃO EXCEL (CPF formatado como Texto, e Colunas Ajustadas)
+    // 5. EXPORTAÇÃO EXCEL
     const exportarParaExcel = () => {
         if (sortedVendas.length === 0) {
             alert("Não há dados para exportar com os filtros atuais.");
@@ -233,14 +279,14 @@ const ConferenciaTab = ({
         const rows = sortedVendas.map(v => [
             formatDataBR(v.data),
             v.unidade || 'MATRIZ',
-            v.cpf ? maskCPF(v.cpf) : '-', // Mantém a máscara para o Excel não excluir o zero
+            v.cpf ? maskCPF(v.cpf) : '-',
             v.nome_aluno || v.nome || '',
             v.produto || '',
             String(v.categoriaReal).toUpperCase(),
             v.vendedor || '',
             v.quantidade,
-            formatMoney(v.valor), // Formato R$ para ficar correto no relatório
-            String(v.observacao || '').replace(/(\r\n|\n|\r)/gm, " "), // Limpa quebras de linha
+            formatMoney(v.valor), 
+            String(v.observacao || '').replace(/(\r\n|\n|\r)/gm, " "),
             v.conferiu ? 'CONFERIDO' : 'PENDENTE'
         ]);
 
@@ -259,10 +305,7 @@ const ConferenciaTab = ({
         document.body.removeChild(link);
     };
 
-    // ==========================================
-    // 🧠 MOTOR INTELIGENTE DO MODAL POP-UP
-    // ==========================================
-
+    // MOTOR DO MODAL POP-UP
     const buscarAlunoPorCpf = async (cpfLimpo) => {
         setBuscandoCpf(true);
         try {
@@ -291,7 +334,6 @@ const ConferenciaTab = ({
     const handleEdicaoChange = (field, value) => {
         let updated = { ...vendaEmEdicao, [field]: value };
         
-        // 1. Ao trocar o Produto
         if (field === 'produto') {
             const itemCat = catalogoCompleto.find(c => c.nome?.toUpperCase().trim() === value?.toUpperCase().trim());
             if (itemCat) {
@@ -300,7 +342,6 @@ const ConferenciaTab = ({
                 updated.valor = preco * qtd;
             }
         } 
-        // 2. Ao trocar a Quantidade
         else if (field === 'quantidade') {
             const itemCat = catalogoCompleto.find(c => c.nome?.toUpperCase().trim() === updated.produto?.toUpperCase().trim());
             let precoUnitario = 0;
@@ -313,7 +354,6 @@ const ConferenciaTab = ({
             const qtd = Number(value) || 1;
             updated.valor = precoUnitario * qtd;
         }
-        // 3. Ao digitar o CPF
         else if (field === 'cpf') {
             const masked = maskCPF(value);
             updated.cpf = masked;
@@ -330,12 +370,10 @@ const ConferenciaTab = ({
 
     const handleSalvarEdicao = async (e) => {
         e.preventDefault();
-        
         if (vendaEmEdicao.nome_aluno === 'CPF NÃO LOCALIZADO NA BASE') {
             alert('Não é possível salvar. Por favor, insira um CPF válido e cadastrado no sistema.');
             return;
         }
-
         setIsSaving(true);
         try {
             if (onSalvarEdicao) await onSalvarEdicao(vendaEmEdicao);
@@ -357,12 +395,12 @@ const ConferenciaTab = ({
         }
     };
 
-    const thClass = "px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 cursor-pointer hover:bg-slate-100 transition-colors select-none group whitespace-nowrap";
+    const thClass = "px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 select-none group whitespace-nowrap align-top";
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] relative">
             
-            {/* 🔥 MODAL POP-UP FLUTUANTE (BLINDADO E VALOR AUTOMÁTICO) */}
+            {/* 🔥 MODAL POP-UP FLUTUANTE */}
             {vendaEmEdicao && (
                 <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 pointer-events-none bg-transparent">
                     <div className="bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-300 w-full max-w-2xl overflow-hidden relative z-10 animate-[zoomIn_0.15s_ease-out] pointer-events-auto">
@@ -394,7 +432,6 @@ const ConferenciaTab = ({
                                     </select>
                                 </div>
                                 
-                                {/* BLOCO ALUNO BLINDADO */}
                                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl border border-indigo-100 bg-indigo-50/30">
                                     <div className="relative">
                                         <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1.5 ml-1">CPF (Auto-Busca)</label>
@@ -404,13 +441,10 @@ const ConferenciaTab = ({
                                     <div className="sm:col-span-2 relative">
                                         <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-1.5 ml-1 flex items-center justify-between">
                                             Nome do Aluno
-                                            <span className="text-slate-400 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>Automático via CPF</span>
+                                            <span className="text-slate-400 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>Automático</span>
                                         </label>
-                                        {/* 🔒 NOME BLOQUEADO READ-ONLY */}
                                         <input 
-                                            type="text" 
-                                            required 
-                                            readOnly 
+                                            type="text" required readOnly 
                                             value={vendaEmEdicao.nome_aluno || vendaEmEdicao.nome || ''} 
                                             className={`w-full border rounded-lg px-3 py-2 text-xs font-bold outline-none uppercase shadow-inner cursor-not-allowed ${vendaEmEdicao.nome_aluno === 'CPF NÃO LOCALIZADO NA BASE' ? 'bg-rose-50 border-rose-200 text-rose-500' : 'bg-slate-100 border-slate-200 text-slate-600'}`} 
                                         />
@@ -427,16 +461,13 @@ const ConferenciaTab = ({
                                     >
                                         <option value="" disabled>Selecione no catálogo...</option>
                                         {catalogoCompleto && catalogoCompleto.length > 0 ? (
-                                            catalogoCompleto
-                                                .slice()
-                                                .sort((a, b) => a.nome.localeCompare(b.nome))
-                                                .map(c => (
-                                                    <option key={c.id} value={c.nome.toUpperCase()}>
-                                                        {c.nome.toUpperCase()} - {formatMoney(c.valor)}
-                                                    </option>
-                                                ))
+                                            catalogoCompleto.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => (
+                                                <option key={c.id} value={c.nome.toUpperCase()}>
+                                                    {c.nome.toUpperCase()} - {formatMoney(c.valor)}
+                                                </option>
+                                            ))
                                         ) : (
-                                            <option value={(vendaEmEdicao.produto || '').toUpperCase()}>{(vendaEmEdicao.produto || '').toUpperCase()} (Catálogo carregando...)</option>
+                                            <option value={(vendaEmEdicao.produto || '').toUpperCase()}>{(vendaEmEdicao.produto || '').toUpperCase()} (Carregando...)</option>
                                         )}
                                     </select>
                                 </div>
@@ -446,14 +477,12 @@ const ConferenciaTab = ({
                                     <input type="number" required min="1" value={vendaEmEdicao.quantidade || 1} onChange={(e) => handleEdicaoChange('quantidade', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none" />
                                 </div>
                                 <div className="relative">
-                                    {/* 🔒 VALOR BLINDADO READ-ONLY E FORMATADO EM REAIS */}
                                     <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 ml-1 flex items-center justify-between">
                                         Valor Final Total
                                         <span className="text-emerald-500/70 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>Automático</span>
                                     </label>
                                     <input 
-                                        type="text" 
-                                        readOnly 
+                                        type="text" readOnly 
                                         value={formatMoney(vendaEmEdicao.valor || 0)} 
                                         className="w-full bg-emerald-50/50 border border-emerald-200 rounded-xl px-4 py-2.5 text-sm font-black text-emerald-700 outline-none shadow-inner cursor-not-allowed" 
                                     />
@@ -520,15 +549,7 @@ const ConferenciaTab = ({
                             <span className="text-3xl font-black text-indigo-700 tracking-tight leading-none mt-1">{formatMoney(valorTotalFiltrado)}</span>
                         </div>
                         
-                        <div className="flex gap-2 w-full sm:w-auto h-full">
-                            <button 
-                                onClick={exportarParaExcel} 
-                                disabled={sortedVendas.length === 0} 
-                                className="flex-1 sm:flex-none bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-600 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest px-4 py-3 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 h-full"
-                            >
-                                <FileSpreadsheet className="w-4 h-4" /> Exportar
-                            </button>
-
+                        <div className="flex flex-col gap-2 w-full sm:w-36 shrink-0 h-full justify-end">
                             {usuarioLogado?.role === 'ADMIN' && (
                                 <button 
                                     onClick={() => {
@@ -536,17 +557,24 @@ const ConferenciaTab = ({
                                         marcarTodosConferidos(ids);
                                     }} 
                                     disabled={vendasFiltradas.length === 0} 
-                                    className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 h-full"
+                                    className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
                                 >
-                                    <CheckSquare className="w-4 h-4" /> Conferir Tela
+                                    <CheckSquare className="w-3.5 h-3.5" /> Conferir Tela
                                 </button>
                             )}
+                            <button 
+                                onClick={exportarParaExcel} 
+                                disabled={sortedVendas.length === 0} 
+                                className="w-full bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-600 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest py-2 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <FileSpreadsheet className="w-3.5 h-3.5" /> Exportar
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
             
-            {/* TABELA DE CONFERÊNCIA */}
+            {/* TABELA DE CONFERÊNCIA OTIMIZADA */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6">
                 <div className="bg-slate-100 text-slate-600 px-4 py-2 border-b border-slate-200 shadow-inner text-right text-[10px] font-black uppercase tracking-widest">
                     {sortedVendas.length} de {vendasParaConferencia.length} Registros
@@ -562,114 +590,138 @@ const ConferenciaTab = ({
                     <table className="w-full text-left border-collapse min-w-max">
                         <thead>
                             <tr>
-                                <th onClick={() => requestSort('data')} className={thClass}>
-                                    <div className="flex items-center gap-1.5">Data {getSortIcon('data')}</div>
+                                <th className={thClass}>
+                                    <div className="flex flex-col gap-2">
+                                        <div onClick={() => requestSort('data')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                            DATA {getSortIcon('data')}
+                                        </div>
+                                        {temVisaoGlobal && (
+                                            <div onClick={() => requestSort('unidade')} className="flex items-center gap-1 cursor-pointer hover:text-rose-500 text-[9px] w-fit transition-colors">
+                                                UNIDADE {getSortIcon('unidade')}
+                                            </div>
+                                        )}
+                                    </div>
                                 </th>
-                                {temVisaoGlobal && (
-                                    <th onClick={() => requestSort('unidade')} className={`${thClass} !bg-rose-50/20 !text-rose-500`}>
-                                        <div className="flex items-center gap-1.5">Unidade {getSortIcon('unidade')}</div>
-                                    </th>
-                                )}
-                                <th onClick={() => requestSort('cpf')} className={thClass}>
-                                    <div className="flex items-center gap-1.5">CPF {getSortIcon('cpf')}</div>
+                                <th className={thClass}>
+                                    <div className="flex flex-col gap-2">
+                                        <div onClick={() => requestSort('nome')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                            ALUNO {getSortIcon('nome')}
+                                        </div>
+                                        <div onClick={() => requestSort('cpf')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[9px] w-fit transition-colors">
+                                            CPF {getSortIcon('cpf')}
+                                        </div>
+                                    </div>
                                 </th>
-                                <th onClick={() => requestSort('nome')} className={thClass}>
-                                    <div className="flex items-center gap-1.5">Aluno {getSortIcon('nome')}</div>
+                                <th className={thClass}>
+                                    <div className="flex flex-col gap-2">
+                                        <div onClick={() => requestSort('produto')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                            ITEM VENDIDO (QTD) {getSortIcon('produto')}
+                                        </div>
+                                        <div onClick={() => requestSort('vendedor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[9px] w-fit transition-colors">
+                                            VENDEDOR {getSortIcon('vendedor')}
+                                        </div>
+                                    </div>
                                 </th>
-                                <th onClick={() => requestSort('produto')} className={thClass}>
-                                    <div className="flex items-center gap-1.5">Item {getSortIcon('produto')}</div>
+                                <th className={thClass}>
+                                    <div className="flex flex-col gap-2">
+                                        <div onClick={() => requestSort('valor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                            VALOR {getSortIcon('valor')}
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[9px]">
+                                            OBSERVAÇÃO
+                                        </div>
+                                    </div>
                                 </th>
-                                <th onClick={() => requestSort('vendedor')} className={thClass}>
-                                    <div className="flex items-center gap-1.5">Vendedor {getSortIcon('vendedor')}</div>
-                                </th>
-                                <th onClick={() => requestSort('quantidade')} className={`${thClass} text-center`}>
-                                    <div className="flex items-center justify-center gap-1.5">Qtd {getSortIcon('quantidade')}</div>
-                                </th>
-                                <th onClick={() => requestSort('valor')} className={`${thClass} text-right`}>
-                                    <div className="flex items-center justify-end gap-1.5">Valor {getSortIcon('valor')}</div>
-                                </th>
-                                <th className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 w-48 whitespace-nowrap">
-                                    Observação de Caixa
-                                </th>
-                                <th onClick={() => requestSort('conferiu')} className={`${thClass} text-center`}>
-                                    <div className="flex items-center justify-center gap-1.5">Status {getSortIcon('conferiu')}</div>
-                                </th>
-                                <th className={`${thClass} text-center border-l border-slate-200 sticky right-0 bg-white z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]`}>
-                                    Ações
+                                <th className={`${thClass} sticky right-0 z-20 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] border-l border-slate-200`}>
+                                    <div onClick={() => requestSort('conferiu')} className="flex items-center justify-center gap-1 cursor-pointer hover:text-blue-500 w-full transition-colors">
+                                        STATUS & AÇÕES {getSortIcon('conferiu')}
+                                    </div>
                                 </th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
                             {sortedVendas.length > 0 ? sortedVendas.map((v) => (
                                 <tr key={v.id} className={`transition-colors ${v.conferiu ? 'bg-emerald-50/20' : 'hover:bg-slate-50'}`}>
-                                    <td className="px-5 py-4 text-xs font-semibold text-slate-500 whitespace-nowrap align-middle">
-                                        {formatDataBR(v.data)}
-                                    </td>
-                                    {temVisaoGlobal && (
-                                        <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/5 whitespace-nowrap uppercase align-middle">
-                                            {v.unidade || 'MATRIZ'}
-                                        </td>
-                                    )}
-                                    <td className="px-5 py-4 align-middle no-drag">
-                                        <CopiableCell text={v.cpf} isCpf={true} />
-                                    </td>
-                                    <td className="px-5 py-4 align-middle no-drag">
-                                        <CopiableCell text={v.nome_aluno || v.nome} isCpf={false} />
-                                    </td>
-                                    <td className="px-5 py-4 text-xs font-bold text-indigo-600 uppercase align-middle whitespace-nowrap">
-                                        {v.produto}
-                                    </td>
-                                    <td className="px-5 py-4 text-xs font-bold text-slate-600 uppercase align-middle whitespace-nowrap">
-                                        {v.vendedor}
-                                    </td>
-                                    <td className="px-5 py-4 text-xs font-black text-slate-700 text-center align-middle">
-                                        {v.quantidade}
-                                    </td>
-                                    <td className="px-5 py-4 text-xs font-black text-slate-800 text-right whitespace-nowrap align-middle">
-                                        {formatMoney(v.valor)}
-                                    </td>
                                     
-                                    <td className="px-5 py-2 align-middle no-drag">
+                                    {/* DATA E UNIDADE */}
+                                    <td className="px-5 py-3 align-middle whitespace-nowrap">
+                                        <div className="text-xs font-semibold text-slate-700">
+                                            {formatDataBR(v.data)}
+                                        </div>
+                                        {temVisaoGlobal && (
+                                            <div className="text-[10px] font-black text-rose-500 uppercase mt-1">
+                                                {v.unidade || 'MATRIZ'}
+                                            </div>
+                                        )}
+                                    </td>
+
+                                    {/* ALUNO E CPF */}
+                                    <td className="px-5 py-3 align-middle no-drag">
+                                        <CopiableCell text={v.nome_aluno || v.nome} isCpf={false} customClass="text-xs font-black text-slate-800 uppercase" />
+                                        <CopiableCell text={v.cpf} isCpf={true} customClass="text-[10px] font-mono font-bold text-slate-500" />
+                                    </td>
+
+                                    {/* PRODUTO, QTD E VENDEDOR */}
+                                    <td className="px-5 py-3 align-middle whitespace-nowrap">
+                                        <div className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1.5">
+                                            <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[10px]">{v.quantidade}x</span>
+                                            {v.produto}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-2 bg-slate-100 w-fit px-2 py-1 rounded-md border border-slate-200" title={v.vendedor}>
+                                            <User className="w-3 h-3 text-slate-400" />
+                                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{shortName(v.vendedor)}</span>
+                                        </div>
+                                    </td>
+
+                                    {/* VALOR E OBSERVAÇÃO */}
+                                    <td className="px-5 py-3 align-middle no-drag whitespace-nowrap w-48">
+                                        <div className="text-sm font-black text-slate-800">
+                                            {formatMoney(v.valor)}
+                                        </div>
                                         <input 
                                             type="text"
                                             value={v.observacao || ''}
                                             onChange={(e) => handleObsLocalChange(v.id, e.target.value)}
                                             onBlur={(e) => handleObsSaveDb(v.id, e.target.value)}
-                                            placeholder="Digitar nota..."
-                                            className={`w-full text-xs font-medium px-3 py-2 rounded-lg outline-none transition-all ${v.observacao ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-transparent hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-indigo-500 border border-transparent focus:border-indigo-200'}`}
+                                            placeholder="+ Add Obs"
+                                            className={`w-full max-w-[200px] text-[10px] font-medium px-2.5 py-1.5 mt-1.5 rounded-md outline-none transition-all placeholder:text-slate-400 ${v.observacao ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-50 hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-indigo-500 border border-slate-200 focus:border-indigo-200'}`}
                                         />
                                     </td>
                                     
-                                    <td className="px-5 py-4 text-center align-middle no-drag">
-                                        <button 
-                                            onClick={() => toggleConferido(v.id, v.conferiu)}
-                                            className={`px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-1.5 w-24 mx-auto ${v.conferiu ? 'bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600' : 'bg-white text-slate-400 border border-slate-200 hover:bg-slate-100 hover:text-slate-600'}`}
-                                        >
-                                            {v.conferiu ? <><Check className="w-3 h-3"/> OK</> : <><Clock className="w-3 h-3"/> Pendente</>}
-                                        </button>
-                                    </td>
-                                    
-                                    {/* AÇÕES DE EDITAR/EXCLUIR */}
-                                    <td className={`px-5 py-4 text-center align-middle no-drag border-l border-slate-100 sticky right-0 z-10 ${v.conferiu ? 'bg-emerald-50/90' : 'bg-white'}`}>
-                                        <div className="flex items-center justify-center gap-2">
+                                    {/* BLOCO DE STATUS E AÇÕES CONSOLIDADAS */}
+                                    <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] ${v.conferiu ? 'bg-emerald-50/90' : 'bg-white'}`}>
+                                        <div className="flex items-center justify-center gap-3">
+                                            
+                                            {/* BOTÃO STATUS */}
                                             <button 
-                                                onClick={() => setVendaEmEdicao(v)} 
-                                                title="Editar Registro"
-                                                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-600 hover:text-white rounded-lg transition-all border border-indigo-200 hover:border-indigo-600 text-[9px] font-black uppercase tracking-widest shadow-sm"
+                                                onClick={() => toggleConferido(v.id, v.conferiu)}
+                                                className={`px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex flex-col items-center justify-center w-28 h-12 ${v.conferiu ? 'bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 hover:shadow-md' : 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200 hover:text-amber-800'}`}
                                             >
-                                                <Edit3 className="w-3.5 h-3.5" /> Editar
+                                                {v.conferiu ? <><Check className="w-4 h-4 mb-0.5"/> OK</> : <><Clock className="w-4 h-4 mb-0.5"/> PENDENTE</>}
                                             </button>
-                                            <button 
-                                                onClick={() => {
-                                                    if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda do sistema? Esta ação não pode ser desfeita.')) {
-                                                        if(onExcluirVenda) onExcluirVenda(v.id);
-                                                    }
-                                                }} 
-                                                title="Excluir Registro"
-                                                className="flex items-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-lg transition-all border border-rose-200 hover:border-rose-600 text-[9px] font-black uppercase tracking-widest shadow-sm"
-                                            >
-                                                <Trash2 className="w-3.5 h-3.5" /> Excluir
-                                            </button>
+
+                                            {/* BOTÕES DE EDITAR / EXCLUIR EMPILHADOS */}
+                                            <div className="flex flex-col gap-1.5">
+                                                <button 
+                                                    onClick={() => setVendaEmEdicao(v)} 
+                                                    title="Editar Registro"
+                                                    className="flex items-center justify-center gap-1 w-20 py-1 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded transition-all border border-blue-200 hover:border-blue-600 text-[9px] font-black uppercase tracking-widest"
+                                                >
+                                                    Editar
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda do sistema? Esta ação não pode ser desfeita.')) {
+                                                            if(onExcluirVenda) onExcluirVenda(v.id);
+                                                        }
+                                                    }} 
+                                                    title="Excluir Registro"
+                                                    className="flex items-center justify-center gap-1 w-20 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded transition-all border border-rose-200 hover:border-rose-600 text-[9px] font-black uppercase tracking-widest"
+                                                >
+                                                    Apagar
+                                                </button>
+                                            </div>
+                                            
                                         </div>
                                     </td>
                                 </tr>

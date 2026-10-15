@@ -19,7 +19,6 @@ const CopyButton = ({ textToCopy, label }) => {
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 await navigator.clipboard.writeText(String(textToCopy).trim());
             } else {
-                // Fallback seguro para navegadores legados ou contextos sem HTTPS
                 const textArea = document.createElement("textarea");
                 textArea.value = String(textToCopy).trim();
                 textArea.style.position = "fixed";
@@ -53,6 +52,18 @@ const CopyButton = ({ textToCopy, label }) => {
             {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
         </button>
     );
+};
+
+// ==========================================
+// 🧩 FORMATADOR SEGURO DE NOME CURTO
+// ==========================================
+const shortName = (name) => {
+    if (!name || name === '-') return '-';
+    const parts = String(name).trim().split(/\s+/);
+    if (parts.length <= 1) return name;
+    const filtered = parts.filter(p => !['de', 'da', 'do', 'dos', 'das'].includes(p.toLowerCase()));
+    if (filtered.length >= 2) return `${filtered[0]} ${filtered[1]}`;
+    return name;
 };
 
 const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [] }) => {
@@ -262,6 +273,9 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             if (ordenacao.coluna === 'nome_aluno') {
                 valorA = (a.nome_aluno || a.nome || '').toUpperCase();
                 valorB = (b.nome_aluno || b.nome || '').toUpperCase();
+            } else if (ordenacao.coluna === 'cpf') {
+                valorA = String(a.cpf || '').replace(/\D/g, '');
+                valorB = String(b.cpf || '').replace(/\D/g, '');
             } else if (ordenacao.coluna === 'data') {
                 valorA = a.created_at ? new Date(a.created_at).getTime() : new Date(safeIsoDate(a.data)).getTime();
                 valorB = b.created_at ? new Date(b.created_at).getTime() : new Date(safeIsoDate(b.data)).getTime();
@@ -290,6 +304,8 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         if (ordenacao.coluna !== coluna) return <ChevronsUpDown className="w-3 h-3 text-slate-300 group-hover:text-slate-400" />;
         return ordenacao.direcao === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-500" /> : <ChevronDown className="w-3 h-3 text-blue-500" />;
     };
+    
+    const thClass = "px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 select-none group whitespace-nowrap align-top";
 
     return (
         <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-[fadeIn_0.3s_ease-out]">
@@ -342,31 +358,50 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         <table className="w-full text-left border-collapse min-w-max">
                             <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm border-b border-slate-200">
                                 <tr>
-                                    <th onClick={() => handleOrdenar('data')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                        <div className="flex items-center gap-2">Data / Lançamento <RenderSortIcon coluna="data" /></div>
+                                    <th className={thClass}>
+                                        <div className="flex flex-col gap-2">
+                                            <div onClick={() => handleOrdenar('data')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                                DATA {<RenderSortIcon coluna="data" />}
+                                            </div>
+                                            {temVisaoGlobal && (
+                                                <div onClick={() => handleOrdenar('unidade')} className="flex items-center gap-1 cursor-pointer hover:text-rose-500 text-[9px] w-fit transition-colors">
+                                                    UNIDADE {<RenderSortIcon coluna="unidade" />}
+                                                </div>
+                                            )}
+                                        </div>
                                     </th>
                                     
-                                    {temVisaoGlobal && <th className="px-5 py-4 text-xs font-black text-rose-600 uppercase tracking-widest">Unidade</th>}
-                                    
-                                    <th onClick={() => handleOrdenar('nome_aluno')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                        <div className="flex items-center gap-2">Aluno / CPF <RenderSortIcon coluna="nome_aluno" /></div>
+                                    <th className={thClass}>
+                                        <div className="flex flex-col gap-2">
+                                            <div onClick={() => handleOrdenar('nome_aluno')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                                ALUNO {<RenderSortIcon coluna="nome_aluno" />}
+                                            </div>
+                                            <div onClick={() => handleOrdenar('cpf')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[9px] w-fit transition-colors">
+                                                CPF {<RenderSortIcon coluna="cpf" />}
+                                            </div>
+                                        </div>
                                     </th>
                                     
-                                    <th onClick={() => handleOrdenar('produto')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                        <div className="flex items-center gap-2">Plano/Produto <RenderSortIcon coluna="produto" /></div>
+                                    <th className={thClass}>
+                                        <div className="flex flex-col gap-2">
+                                            <div onClick={() => handleOrdenar('produto')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                                ITEM VENDIDO (QTD) {<RenderSortIcon coluna="produto" />}
+                                            </div>
+                                            <div onClick={() => handleOrdenar('vendedor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[9px] w-fit transition-colors">
+                                                VENDEDOR {<RenderSortIcon coluna="vendedor" />}
+                                            </div>
+                                        </div>
                                     </th>
                                     
-                                    <th onClick={() => handleOrdenar('vendedor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                        <div className="flex items-center gap-2">Vendedor <RenderSortIcon coluna="vendedor" /></div>
+                                    <th className={`${thClass} w-32`}>
+                                        <div className="flex flex-col gap-2">
+                                            <div onClick={() => handleOrdenar('valor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
+                                                VALOR {<RenderSortIcon coluna="valor" />}
+                                            </div>
+                                        </div>
                                     </th>
                                     
-                                    <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right">Qtd</th>
-                                    
-                                    <th onClick={() => handleOrdenar('valor')} className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-right cursor-pointer hover:bg-slate-100 transition-colors group select-none">
-                                        <div className="flex items-center justify-end gap-2">Valor Total <RenderSortIcon coluna="valor" /></div>
-                                    </th>
-                                    
-                                    {podeEditar && <th className="px-5 py-4 text-xs font-black text-slate-600 uppercase tracking-widest text-center">Gestão</th>}
+                                    {podeEditar && <th className={`${thClass} sticky right-0 z-20 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] border-l border-slate-200 text-center w-28`}>Gestão</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
@@ -385,7 +420,6 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         }
                                     }
 
-                                    // Lógica para exibição na visualização normal
                                     const rawCpf = row.cpf || row.cpf_aluno;
                                     const rawMatricula = row.matricula ? String(row.matricula).trim() : '';
                                     const rawName = row.nome_aluno || row.nome || '';
@@ -395,58 +429,60 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
                                     return (
                                         <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
-                                            <td className="px-5 py-4 align-middle">
+                                            
+                                            {/* COLUNA 1: DATA E UNIDADE */}
+                                            <td className="px-5 py-3 align-middle whitespace-nowrap">
                                                 {isEditing ? (
                                                     <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                                 ) : (
                                                     <div>
-                                                        <p className="text-sm font-black text-slate-800 whitespace-nowrap">{formatDataBR(row.data || row.created_at)}</p>
+                                                        <p className="text-xs font-semibold text-slate-700 whitespace-nowrap">{formatDataBR(row.data || row.created_at)}</p>
                                                         {row.created_at && (
-                                                            <div className="flex items-center gap-1.5 mt-1.5 text-slate-500 w-max">
-                                                                <User className="w-3.5 h-3.5 text-slate-400" />
-                                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                            <div className="flex items-center gap-1.5 mt-1 text-slate-500 w-max">
+                                                                <User className="w-3 h-3 text-slate-400" />
+                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
                                                                     {toTitleCase(row.criado_por ? row.criado_por.split(' ')[0] : 'Sistema')} • {extrairHoraCriacao(row.created_at)}
                                                                 </span>
+                                                            </div>
+                                                        )}
+                                                        {temVisaoGlobal && (
+                                                            <div className="text-[10px] font-black text-rose-500 uppercase mt-2">
+                                                                {row.unidade || 'MATRIZ'}
                                                             </div>
                                                         )}
                                                     </div>
                                                 )}
                                             </td>
                                             
-                                            {temVisaoGlobal && (
-                                                <td className="px-5 py-4 text-xs font-black text-rose-600 bg-rose-50/20 whitespace-nowrap uppercase align-middle">
-                                                    {row.unidade || 'MATRIZ'}
-                                                </td>
-                                            )}
-
-                                            <td className="px-5 py-4 align-middle">
+                                            {/* COLUNA 2: ALUNO E CPF */}
+                                            <td className="px-5 py-3 align-middle no-drag">
                                                 {isEditing ? (
                                                     <div className="flex flex-col gap-2">
                                                         <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm" />
                                                         <input type="text" placeholder="CPF (Apenas números)" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
                                                     </div>
                                                 ) : (
-                                                    <div className="flex flex-col gap-1.5">
+                                                    <div className="flex flex-col gap-1">
                                                         <div className="flex items-center gap-1.5">
-                                                            <p className="text-sm font-bold text-slate-800 max-w-[200px] truncate" title={rawName}>
+                                                            <p className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase" title={rawName}>
                                                                 {nomeExibicao}
                                                             </p>
                                                             {rawName && <CopyButton textToCopy={nomeExibicao} label="Copiar nome do aluno" />}
                                                         </div>
 
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-2 mt-0.5">
                                                             <div className="flex items-center gap-1">
-                                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                                                                    CPF: <span className="text-slate-500">{cpfExibicao}</span>
+                                                                <span className="text-[10px] font-mono font-bold text-slate-500">
+                                                                    {cpfExibicao}
                                                                 </span>
                                                                 {rawCpf && <CopyButton textToCopy={cpfExibicao} label="Copiar CPF do aluno" />}
                                                             </div>
 
                                                             {rawMatricula && (
                                                                 <>
-                                                                    <span className="text-slate-300">|</span>
+                                                                    <span className="text-slate-300 text-[10px]">|</span>
                                                                     <div className="flex items-center gap-1">
-                                                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                                             MAT: <span className="text-slate-500">{rawMatricula}</span>
                                                                         </span>
                                                                         <CopyButton textToCopy={rawMatricula} label="Copiar matrícula do aluno" />
@@ -458,52 +494,56 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 )}
                                             </td>
 
-                                            <td className="px-5 py-4 text-sm whitespace-nowrap uppercase font-black text-blue-600 align-middle">
+                                            {/* COLUNA 3: ITEM VENDIDO E VENDEDOR */}
+                                            <td className="px-5 py-3 align-middle whitespace-nowrap">
                                                 {isEditing ? (
-                                                    <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm">
-                                                        <option value="" disabled>Selecione...</option>
-                                                        {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                                                    </select>
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="flex gap-2">
+                                                            <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
+                                                            <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm">
+                                                                <option value="" disabled>Selecione...</option>
+                                                                {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                                                            </select>
+                                                        </div>
+                                                        <select 
+                                                            value={(dadosEdicao.vendedor || '').toUpperCase()} 
+                                                            onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
+                                                            className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
+                                                        >
+                                                            <option value="" disabled>Selecione o Vendedor...</option>
+                                                            {vendedoresDaUnidade.sort().map(v => (
+                                                                <option key={v} value={v}>{toTitleCase(v)}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
                                                 ) : (
-                                                    row.produto
+                                                    <div>
+                                                        <div className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1.5">
+                                                            <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[10px]">{row.quantidade || '1'}x</span>
+                                                            {row.produto}
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 mt-2 bg-slate-100 w-fit px-2 py-1 rounded-md border border-slate-200" title={row.vendedor}>
+                                                            <User className="w-3 h-3 text-slate-400" />
+                                                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{shortName(row.vendedor)}</span>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </td>
 
-                                            <td className="px-5 py-4 text-sm whitespace-nowrap font-bold text-slate-700 align-middle">
+                                            {/* COLUNA 4: VALOR */}
+                                            <td className="px-5 py-3 align-middle no-drag whitespace-nowrap">
                                                 {isEditing ? (
-                                                    <select 
-                                                        value={(dadosEdicao.vendedor || '').toUpperCase()} 
-                                                        onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
-                                                        className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
-                                                    >
-                                                        <option value="" disabled>Selecione o Vendedor...</option>
-                                                        {vendedoresDaUnidade.sort().map(v => (
-                                                            <option key={v} value={v}>{toTitleCase(v)}</option>
-                                                        ))}
-                                                    </select>
+                                                    <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-left bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner" title="O valor calcula sozinho" />
                                                 ) : (
-                                                    toTitleCase(row.vendedor)
+                                                    <div className="text-sm font-black text-slate-800">
+                                                        {formatMoney(row.valor)}
+                                                    </div>
                                                 )}
                                             </td>
 
-                                            <td className="px-5 py-4 text-sm text-right font-black text-slate-800 align-middle">
-                                                {isEditing ? (
-                                                    <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
-                                                ) : (
-                                                    row.quantidade || '1'
-                                                )}
-                                            </td>
-
-                                            <td className="px-5 py-4 text-sm font-black text-slate-900 whitespace-nowrap text-right align-middle">
-                                                {isEditing ? (
-                                                    <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-right bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner" title="O valor calcula sozinho" />
-                                                ) : (
-                                                    formatMoney(row.valor)
-                                                )}
-                                            </td>
-
+                                            {/* COLUNA 5: GESTÃO */}
                                             {podeEditar && (
-                                                <td className="px-5 py-4 text-center align-middle w-32">
+                                                <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] bg-white`}>
                                                     {isEditing ? (
                                                         <div className="flex flex-col gap-2 items-center justify-center">
                                                             <button disabled={isSubmitting} onClick={() => salvarEdicao(row)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
@@ -514,12 +554,20 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex flex-col items-center justify-center gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                                                            <button disabled={isSubmitting} onClick={() => iniciarEdicao(row)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                                <Edit3 className="w-4 h-4" /> Editar
+                                                        <div className="flex flex-col gap-1.5">
+                                                            <button 
+                                                                onClick={() => iniciarEdicao(row)} 
+                                                                title="Editar Registro"
+                                                                className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-blue-50 text-blue-600 rounded transition-all border border-blue-200 hover:border-blue-400 text-[9px] font-black uppercase tracking-widest shadow-sm"
+                                                            >
+                                                                <Edit3 className="w-3 h-3" /> Editar
                                                             </button>
-                                                            <button disabled={isSubmitting} onClick={() => removerLancamento(row.id)} className="flex items-center justify-center gap-1.5 px-3 py-2 w-full bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                                <Trash2 className="w-4 h-4" /> Excluir
+                                                            <button 
+                                                                onClick={() => removerLancamento(row.id)} 
+                                                                title="Excluir Registro"
+                                                                className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-rose-50 text-rose-500 rounded transition-all border border-rose-200 hover:border-rose-400 text-[9px] font-black uppercase tracking-widest shadow-sm"
+                                                            >
+                                                                <Trash2 className="w-3 h-3" /> Apagar
                                                             </button>
                                                         </div>
                                                     )}
@@ -530,7 +578,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 })}
                                 {vendasOrdenadas.length === 0 && (
                                     <tr>
-                                        <td colSpan={temVisaoGlobal ? "8" : "7"} className="px-5 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
+                                        <td colSpan="100%" className="px-5 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
                                             <FilterX className="w-12 h-12 mx-auto text-slate-300 mb-4 opacity-60" />
                                             Nenhuma venda encontrada para estes filtros.
                                         </td>
@@ -610,13 +658,25 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                             {gruposDuplicados.map((grupo, index) => {
                                 const amostra = grupo.linhas[0];
                                 
+                                // --- NOVA LÓGICA DE DETECÇÃO DE PLANO PARA COR VERMELHA ---
+                                const itemCatalogo = mapCatalogo.get(normalizeString(amostra.produto || ''));
+                                const tipoItem = itemCatalogo && itemCatalogo.tipo ? itemCatalogo.tipo.toLowerCase().trim() : 'plano';
+                                const isPlano = tipoItem === 'plano' || (!['produto', 'servico', 'serviço'].includes(tipoItem));
+                                
+                                // --- CORES DINÂMICAS ---
+                                const corBordaHover = isPlano ? 'hover:border-rose-400' : 'hover:border-amber-300';
+                                const corFundoCabecalho = isPlano ? 'bg-rose-50/50 border-rose-100' : 'bg-amber-50/50 border-amber-100';
+                                const corIconeTopo = isPlano ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600';
+                                const corTagLanzamentos = isPlano ? 'bg-rose-600' : 'bg-amber-500';
+                                const AlertIcon = isPlano ? AlertTriangle : Copy;
+                                
                                 return (
-                                    <div key={grupo.chaveBase + index} className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md hover:border-amber-300">
+                                    <div key={grupo.chaveBase + index} className={`bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${corBordaHover}`}>
                                         
-                                        <div className="bg-amber-50/50 border-b border-amber-100 p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                        <div className={`border-b p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${corFundoCabecalho}`}>
                                             <div className="flex items-start gap-4 w-full">
-                                                <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0 shadow-inner">
-                                                    <Copy className="w-6 h-6" />
+                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${corIconeTopo}`}>
+                                                    <AlertIcon className="w-6 h-6" />
                                                 </div>
                                                 <div className="flex-1 overflow-hidden">
                                                     <h4 className="text-base font-black text-slate-800 uppercase tracking-tight truncate" title={amostra.nome_aluno || amostra.nome}>
@@ -637,7 +697,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="bg-amber-500 text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest whitespace-nowrap shadow-sm">
+                                            <div className={`${corTagLanzamentos} text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest whitespace-nowrap shadow-sm`}>
                                                 {grupo.linhas.length} Lançamentos
                                             </div>
                                         </div>
