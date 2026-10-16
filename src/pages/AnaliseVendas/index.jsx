@@ -1,3 +1,4 @@
+// src/pages/AnaliseVendas/index.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { getMeses, safeIsoDate } from './utils.js';
@@ -5,9 +6,10 @@ import ModalTextoWhatsapp from './Modais.jsx';
 import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
+import RankingGlobalTab from './RankingGlobalTab.jsx';
 import { 
-    BarChart3, Target, FileText, Filter, RefreshCw, UserCheck, 
-    Bookmark, Package, Briefcase, Building2, ChevronDown, 
+    BarChart3, Target, FileText, Trophy, Filter, RefreshCw,
+    Bookmark, Package, Briefcase, ChevronDown, 
     CalendarDays, CalendarRange, Calendar, Info, Lightbulb, Users, Layers
 } from 'lucide-react';
 import { SmartFilter } from '../../components/SmartFilter.jsx';
@@ -152,7 +154,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     useEffect(() => {
         const hoje = new Date();
-        if (abaPrincipal === 'relatorio') {
+        if (abaPrincipal === 'relatorio' || abaPrincipal === 'rankingGlobal') {
             setTipoFiltro('dia');
             setDiaEspecifico(getLocalISODate());
         } else {
@@ -161,6 +163,13 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             setFiltroAno(hoje.getFullYear().toString());
         }
     }, [abaPrincipal]);
+
+    // Segurança extra: se o utilizador perder visão global e estiver na aba rankingGlobal, volta ao dashboard
+    useEffect(() => {
+        if (!temVisaoGlobal && abaPrincipal === 'rankingGlobal') {
+            setAbaPrincipal('dashboard');
+        }
+    }, [temVisaoGlobal, abaPrincipal]);
 
     useEffect(() => {
         const fetchMetas = async () => {
@@ -362,18 +371,37 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             {/* 🚀 BARRA DE NAVEGAÇÃO DAS ABAS */}
             {/* ========================================== */}
             <div className="bg-white rounded-[24px] border border-slate-200 p-3 flex justify-start items-center shadow-sm relative z-20">
-                
-                {/* Abas de Navegação */}
-                <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-100 w-full lg:w-auto overflow-x-auto custom-scrollbar shadow-inner">
-                    <button onClick={() => setAbaPrincipal('dashboard')} className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-100 w-full lg:w-auto overflow-x-auto custom-scrollbar shadow-inner gap-1">
+                    <button
+                        onClick={() => setAbaPrincipal('dashboard')}
+                        className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                    >
                         <BarChart3 className="w-4 h-4" /> Dashboard
                     </button>
-                    <button onClick={() => setAbaPrincipal('visaoGeral')} className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+
+                    <button
+                        onClick={() => setAbaPrincipal('visaoGeral')}
+                        className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                    >
                         <Target className="w-4 h-4" /> Metas da Unidade
                     </button>
-                    <button onClick={() => setAbaPrincipal('relatorio')} className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+
+                    <button
+                        onClick={() => setAbaPrincipal('relatorio')}
+                        className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                    >
                         <FileText className="w-4 h-4" /> Relatórios
                     </button>
+
+                    {/* 🏆 4ª ABA EXCLUSIVA PARA ADMIN E MENTOR */}
+                    {temVisaoGlobal && (
+                        <button
+                            onClick={() => setAbaPrincipal('rankingGlobal')}
+                            className={`flex-1 min-w-[160px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'rankingGlobal' ? 'bg-slate-900 shadow-md text-amber-400 border border-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-amber-50/60'}`}
+                        >
+                            <Trophy className="w-4 h-4 text-amber-500" /> Ranking Global
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -381,24 +409,25 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             {/* 🚀 PAINEL CENTRAL DE FILTROS GLOBAIS AVANÇADOS */}
             {/* ========================================== */}
             <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 relative z-10">
-                
                 {/* HEADER DOS FILTROS */}
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-[18px] border border-blue-100 shadow-inner flex items-center justify-center shrink-0">
-                            {/* Ícone muda dinamicamente conforme a aba */}
                             {abaPrincipal === 'dashboard' && <BarChart3 className="w-6 h-6" />}
                             {abaPrincipal === 'visaoGeral' && <Target className="w-6 h-6" />}
                             {abaPrincipal === 'relatorio' && <FileText className="w-6 h-6" />}
+                            {abaPrincipal === 'rankingGlobal' && <Trophy className="w-6 h-6 text-amber-500" />}
                         </div>
                         <div className="flex flex-col">
-                            {/* Título dinâmico conforme a aba */}
                             <h2 className="text-2xl font-black text-slate-800 tracking-tight">
                                 {abaPrincipal === 'dashboard' ? 'Dashboard' : 
                                  abaPrincipal === 'visaoGeral' ? 'Metas da Unidade' : 
-                                 'Relatórios'}
+                                 abaPrincipal === 'rankingGlobal' ? 'Ranking Global da Rede' :
+                                 'Relatórios Operacionais'}
                             </h2>
-                            <p className="text-[13px] font-medium text-slate-500 mt-0.5">Controle os dados exibidos no painel e relatórios</p>
+                            <p className="text-[13px] font-medium text-slate-500 mt-0.5">
+                                Controle os dados exibidos no painel e relatórios
+                            </p>
                         </div>
                     </div>
 
@@ -487,7 +516,6 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         <div className="flex flex-col gap-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-400"/> Consultores</label>
                             <div className="relative">
-                                {/* Passando label="TODOS" faz o SmartFilter exibir a palavra de forma amigável no lugar do Placeholder, respeitando a imagem! */}
                                 <SmartFilter options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} label="TODOS" Icone={null} />
                                 <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
@@ -555,11 +583,10 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         </div>
                     </div>
                 </div>
-
             </div>
 
             {/* ========================================== */}
-            {/* RENDERIZAÇÃO DAS ABAS (MANTIDAS INTACTAS) */}
+            {/* RENDERIZAÇÃO DAS 4 ABAS */}
             {/* ========================================== */}
             {abaPrincipal === 'dashboard' && (
                 <DashboardTab
@@ -615,6 +642,19 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
                     usuarioLogado={usuarioLogado}
+                />
+            )}
+
+            {abaPrincipal === 'rankingGlobal' && temVisaoGlobal && (
+                <RankingGlobalTab
+                    vendasFiltradas={vendasFiltradas}
+                    visitantesFiltrados={visitantesFiltrados}
+                    avaliacoesFiltradas={avaliacoesFiltradas}
+                    temVisaoGlobal={temVisaoGlobal}
+                    labelFiltroAtual={labelFiltroAtual}
+                    planos={planos}
+                    produtos={produtos}
+                    abrirModalWhatsapp={abrirModalWhatsapp}
                 />
             )}
         </div>
