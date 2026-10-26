@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Search, X, Loader2, Clock } from 'lucide-react';
+import { Search, X, Loader2 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { buscarAlunosPaginado } from '../../pages/Alunos/utils.js';
 import { getRecentes, addRecente, removerRecente, limparRecentes } from './recentesAlunos.js';
@@ -14,7 +14,7 @@ const HighlightedText = ({ text, query }) => {
     );
 };
 
-export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuarioLogado }) {
+export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuarioLogado, unidadeGlobal }) {
     const { t } = useI18n();
     
     const safeT = useCallback((chave, padrao) => {
@@ -37,9 +37,9 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
     const emailUsuario = usuarioLogado?.email || usuarioLogado?.user?.email || usuarioLogado?.id || 'local_user';
     const roleUsuario = String(usuarioLogado?.role || '').toUpperCase().trim();
     
-    // 🔥 Mantém a inteligência de filtro de unidade que fizemos juntos!
-    const unidadeFiltroAtivo = usuarioLogado?.unidade || 'TODAS'; 
+    // 🔥 CORREÇÃO DA VISÃO GLOBAL: Se for chefe, respeita o filtro global do TopBar.
     const ehChefe = roleUsuario === 'ADMIN' || roleUsuario === 'MENTOR';
+    const unidadeFiltroAtivo = ehChefe ? (unidadeGlobal || 'TODAS') : (usuarioLogado?.unidade || 'TODAS');
     const exibirBaloesUnidade = ehChefe && unidadeFiltroAtivo === 'TODAS';
 
     useEffect(() => {
@@ -94,12 +94,8 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
             abortRef.current = controller;
 
             try {
-                const termoLimpo = termoReal.replace(/[\.\-\(\)\s]/g, '');
-                const isNumeric = /^\d+$/.test(termoLimpo);
-                const queryTerm = isNumeric ? termoLimpo : termoReal;
-
                 const { alunos: rows } = await buscarAlunosPaginado({
-                    busca: queryTerm,
+                    busca: termoReal,
                     unidade: unidadeFiltroAtivo, 
                     plano: 'TODOS', dataInicio: '', dataFim: '', ordemColuna: 'nome', ordemDirecao: 'ASC', pagina: 1, limite: 8,
                     roleUsuario, unidadeUsuario: unidadeFiltroAtivo, signal: controller.signal
@@ -121,7 +117,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
             }
         };
 
-        const timer = setTimeout(buscarBD, 150);
+        const timer = setTimeout(buscarBD, 200);
         return () => clearTimeout(timer);
     }, [termo, isOpen, unidadeFiltroAtivo, roleUsuario, safeT]);
 
@@ -161,7 +157,6 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
     };
 
     const executarAcao = (item) => {
-        // 🔥 A MÁGICA RESTAURADA: Salva o aluno no histórico de 15 recentes assim que você clica nele!
         addRecente(emailUsuario, item.data, 'Visitado recentemente');
         onSelectAluno(item.data);
         onClose();
@@ -173,12 +168,6 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
             if (el) el.scrollIntoView({ block: 'nearest' });
         }
     }, [indexFocado, itensNavegaveis]);
-
-    const handleLimparRecentes = (e) => {
-        e.stopPropagation();
-        limparRecentes(emailUsuario); 
-        setRecentes([]);
-    };
 
     const handleRemoverRecente = (e, id) => {
         e.stopPropagation();

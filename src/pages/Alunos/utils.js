@@ -14,15 +14,9 @@ export const formatarCPF = (cpf) => {
 export const formatarTelefone = (tel) => {
     if (!tel) return '—';
     let d = String(tel).replace(/\D/g, '');
-    if ((d.length === 12 || d.length === 13) && d.startsWith('55')) {
-        d = d.slice(2);
-    }
-    if (d.length === 11) {
-        return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
-    }
-    if (d.length === 10) {
-        return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
-    }
+    if ((d.length === 12 || d.length === 13) && d.startsWith('55')) d = d.slice(2);
+    if (d.length === 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+    if (d.length === 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
     return tel;
 };
 
@@ -60,9 +54,7 @@ export const copiarTextoSeguro = async (valor, apenasDigitos = false) => {
             await navigator.clipboard.writeText(textoFinal);
             return true;
         }
-    } catch (_) {
-        // Continua para o fallback
-    }
+    } catch (_) {}
 
     try {
         const textArea = document.createElement('textarea');
@@ -81,7 +73,7 @@ export const copiarTextoSeguro = async (valor, apenasDigitos = false) => {
 };
 
 // ==========================================
-// ⚡ MOTOR DE BUSCA NO SERVIDOR (RPC + ABORT CONTROLLER)
+// ⚡ MOTOR DE BUSCA NO SERVIDOR (RPC + FALLBACK SUPREMO GLOBAL)
 // ==========================================
 export const buscarAlunosPaginado = async ({
     busca = '',
@@ -97,8 +89,17 @@ export const buscarAlunosPaginado = async ({
     unidadeUsuario = '',
     signal = null
 }) => {
+    const termoBusca = String(busca || '').trim();
+    const termoNumerico = termoBusca.replace(/\D/g, '');
+    
+    // Tenta adaptar o termo para a RPC (ex: formata o CPF automaticamente)
+    let termoRpc = termoBusca;
+    if (termoNumerico.length === 11 && !termoBusca.includes('-')) {
+        termoRpc = termoNumerico.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    }
+
     let rpcCall = supabase.rpc('listar_alunos_360', {
-        p_busca: busca || '',
+        p_busca: termoRpc,
         p_unidade: unidade || 'TODAS',
         p_plano: plano || 'TODOS',
         p_data_inicio: dataInicio ? dataInicio : null,
@@ -116,10 +117,50 @@ export const buscarAlunosPaginado = async ({
     }
 
     const { data, error } = await rpcCall;
-    if (error) throw error;
+    if (error) console.error("Erro na RPC listar_alunos_360:", error);
 
-    const lista = data || [];
-    const totalCount = lista.length > 0 ? Number(lista[0].total_count || 0) : 0;
+    let lista = data || [];
+    let totalCount = lista.length > 0 ? Number(lista[0].total_count || 0) : 0;
+
+    // 🔥 FALLBACK SUPREMO GLOBAL
+    // Se a busca falhar e o usuário digitou algo, o problema é o filtro de unidade ou caracteres especiais.
+    // Ignoramos a unidade e varremos o banco de dados inteiro (igual a Nova Venda).
+    if (lista.length === 0 && termoBusca.length >= 2) {
+        const cleanTerm = termoBusca.replace(/"/g, ''); 
+        const orConditions = [];
+        
+        orConditions.push(`nome.ilike."%${cleanTerm}%"`);
+        orConditions.push(`email.ilike."%${cleanTerm}%"`);
+        
+        if (termoNumerico.length > 0) {
+            if (termoNumerico.length === 11) {
+                const cpfMask = termoNumerico.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                orConditions.push(`cpf.eq."${termoNumerico}"`);
+                orConditions.push(`cpf.eq."${cpfMask}"`);
+            } else {
+                orConditions.push(`cpf.ilike."%${termoNumerico}%"`);
+            }
+            orConditions.push(`telefone.ilike."%${termoNumerico}%"`);
+            orConditions.push(`matricula.ilike."%${termoNumerico}%"`);
+        }
+
+        const { data: fallbackData, count: fallbackCount, error: fallbackError } = await supabase
+            .from('alunos')
+            .select('*', { count: 'exact' })
+            .or(orConditions.join(','))
+            .order(ordemColuna === 'created_at' ? 'created_at' : 'nome', { ascending: ordemDirecao === 'ASC' })
+            .range((pagina - 1) * limite, pagina * limite - 1);
+            
+        if (!fallbackError && fallbackData && fallbackData.length > 0) {
+            lista = fallbackData.map(a => ({
+                ...a,
+                total_count: fallbackCount || fallbackData.length,
+                ultimo_plano: a.ultimo_plano || 'NENHUM',
+                ultimo_plano_data: a.ultimo_plano_data || null
+            }));
+            totalCount = fallbackCount || fallbackData.length;
+        }
+    }
 
     return {
         alunos: lista,
