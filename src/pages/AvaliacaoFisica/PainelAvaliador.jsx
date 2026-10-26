@@ -28,7 +28,8 @@ const getStatusDot = (status) => {
 const PainelAvaliador = ({ 
     usuarioLogado, professorAtivo, setProfessorAtivo, 
     abaAtiva, setAbaAtiva, avaliacaoEditando, setAvaliacaoEditando, 
-    handleVoltar, setAlunoEvolucaoModal, avaliacoes = [], colaboradores = []
+    handleVoltar, setAlunoEvolucaoModal, avaliacoes = [], colaboradores = [],
+    alunoParaAvaliar = null, unidadeAvaliacao = ''
 }) => {
     const { t, locale, language } = useI18n(); 
     const langAtual = locale || language || 'pt-BR';
@@ -425,7 +426,7 @@ const PainelAvaliador = ({
 
             {abaAtiva === 'nova' ? (
                 <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 dark:border-slate-700/50 p-4 lg:p-6">
-                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} />
+                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} alunoInicial={alunoParaAvaliar} unidadeDestino={unidadeAvaliacao} />
                 </div>
             ) : (
                 <div className="space-y-4">

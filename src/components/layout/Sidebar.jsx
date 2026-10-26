@@ -57,7 +57,7 @@ const SeletorUnidade = ({ unidadeGlobal, setUnidadeGlobal, unidades, recolhido, 
     const IconeAtual = ehGlobal ? Globe : Building2;
 
     return (
-        <div className="relative mb-6" ref={ref}>
+        <div className="relative mb-4" ref={ref}>
             {recolhido ? (
                 <button
                     onClick={() => { esconderDica(); setAberto(!aberto); }}
@@ -123,14 +123,14 @@ const ItemMenu = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderDica })
             onMouseLeave={esconderDica} 
             className={`relative flex items-center transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                 recolhido 
-                ? 'justify-center w-11 h-11 mx-auto rounded-xl' 
-                : `w-full gap-3 pl-[9px] pr-3 py-2.5 text-left border-l-[3px] ${ativo ? 'rounded-r-xl border-blue-600 dark:border-blue-400' : 'rounded-xl border-transparent'}`
+                ? 'justify-center w-10 h-10 mx-auto rounded-xl' 
+                : `w-full gap-3 pl-[9px] pr-3 py-2 text-left border-l-[3px] ${ativo ? 'rounded-r-xl border-blue-600 dark:border-blue-400' : 'rounded-xl border-transparent'}`
             } ${ativo ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'}`}
         >
             <Icone className="w-[18px] h-[18px] shrink-0" strokeWidth={ativo ? 2.4 : 2} />
             {!recolhido && (
                 <>
-                    <span className="flex-1 truncate text-[13.5px] font-semibold">{tab.label}</span>
+                    <span className="flex-1 truncate text-[13px] font-semibold">{tab.label}</span>
                     {temBadge && <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">{textoBadge}</span>}
                 </>
             )}
@@ -144,8 +144,8 @@ const BotaoNovaVenda = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderD
         onClick={onClick} 
         onMouseEnter={(e) => mostrarDica(e, tab.label)} 
         onMouseLeave={esconderDica} 
-        className={`flex items-center justify-center gap-2 mb-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:focus-visible:ring-offset-slate-900 ${
-            recolhido ? 'w-11 h-11 mx-auto rounded-xl' : 'w-full h-11 rounded-xl text-[14px]'
+        className={`flex items-center justify-center gap-2 mb-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500 dark:focus-visible:ring-offset-slate-900 ${
+            recolhido ? 'w-10 h-10 mx-auto rounded-xl' : 'w-full h-10 rounded-xl text-[13px]'
         } ${ativo ? 'ring-2 ring-blue-300 dark:ring-blue-500/50' : ''}`}
     >
         <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
@@ -179,15 +179,15 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
     return (
         <div className="flex flex-col h-full bg-white dark:bg-[#0c101a]">
             
-            <div className={`shrink-0 ${recolhido ? 'px-2 pt-6 pb-6 flex flex-col items-center gap-3' : 'px-5 pt-6 pb-6 flex items-center justify-between gap-2'}`}>
+            <div className={`shrink-0 ${recolhido ? 'px-2 pt-4 pb-4 flex flex-col items-center gap-3' : 'px-4 pt-4 pb-4 flex items-center justify-between gap-2'}`}>
                 
                 <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-[12px] bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
+                    <div className="w-9 h-9 rounded-[11px] bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
                         <Zap className="w-[20px] h-[20px]" fill="currentColor" strokeWidth={1} />
                     </div>
                     {!recolhido && (
                         <div className="flex flex-col min-w-0 mt-0.5">
-                            <h1 className="text-[20px] font-black text-slate-900 dark:text-white leading-none tracking-[-0.02em] uppercase">Pratique</h1>
+                            <h1 className="text-[18px] font-black text-slate-900 dark:text-white leading-none tracking-[-0.02em] uppercase">Pratique</h1>
                             <h2 className="text-[10.5px] font-black text-blue-600 dark:text-blue-400 tracking-[0.22em] mt-1.5 leading-none">VENDAS</h2>
                         </div>
                     )}
@@ -205,7 +205,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                 )}
             </div>
 
-            <div className={`shrink-0 flex-1 overflow-y-auto custom-scrollbar pb-6 ${recolhido ? 'px-2' : 'px-4'}`} onScroll={esconderDica}>
+            <div className={`shrink-0 flex-1 overflow-y-auto custom-scrollbar pb-4 ${recolhido ? 'px-2' : 'px-3'}`} onScroll={esconderDica}>
                 
                 {/* No computador o seletor de unidade agora fica no TopBar. No celular continua aqui, porque o topo não tem espaço. */}
                 {ehChefe && modo === 'mobile' && (
@@ -219,7 +219,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                 {grupos.map((grupo, idx) => {
                     if (grupo.abas.length === 0) return null;
                     return (
-                        <div key={grupo.id} className={idx === 0 ? '' : 'pt-3'}>
+                        <div key={grupo.id} className={idx === 0 ? '' : 'pt-2'}>
                             {recolhido ? (
                                 idx > 0 && <div className="h-px bg-slate-200 dark:bg-slate-800 mx-2 mb-3" />
                             ) : (
@@ -235,15 +235,15 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                 })}
             </div>
 
-            <div className={`shrink-0 border-t border-slate-200 dark:border-slate-800 ${recolhido ? 'px-2 py-3' : 'px-4 py-4'}`}>
+            <div className={`shrink-0 border-t border-slate-200 dark:border-slate-800 ${recolhido ? 'px-2 py-3' : 'px-3 py-3'}`}>
                 {abaConfig && (
-                    <div className="mb-3">
+                    <div className="mb-2">
                         <ItemMenu tab={abaConfig} ativo={activeTab === abaConfig.id} recolhido={recolhido} onClick={() => navegar(abaConfig.id)} mostrarDica={mostrarDica} esconderDica={esconderDica} />
                     </div>
                 )}
                 
                 <div className={`flex items-center gap-3 ${recolhido ? 'justify-center flex-col' : ''}`}>
-                    <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-sm font-black border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center text-sm font-black border border-slate-200 dark:border-slate-700 shrink-0 shadow-sm">
                         {inicial}
                     </div>
                     
@@ -285,7 +285,7 @@ export function SidebarDesktop(props) {
 
     const recolhido = Boolean(props.isCollapsed) || telaMedia;
     return (
-        <aside className={`hidden lg:flex flex-col h-full shrink-0 relative z-30 bg-white dark:bg-[#0c101a] border-r border-slate-200 dark:border-slate-800 transition-[width] duration-200 ease-out ${recolhido ? 'w-[80px]' : 'w-[256px]'}`}>
+        <aside className={`hidden lg:flex flex-col h-full shrink-0 relative z-30 bg-white dark:bg-[#0c101a] border-r border-slate-200 dark:border-slate-800 transition-[width] duration-200 ease-out ${recolhido ? 'w-[72px]' : 'w-[232px]'}`}>
             <ConteudoSidebar {...props} modo="desktop" recolhido={recolhido} podeRecolher={!telaMedia} />
         </aside>
     );

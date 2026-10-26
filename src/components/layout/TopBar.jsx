@@ -78,7 +78,7 @@ function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr }) {
     const itemNormal = 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5';
 
     return (
-        <div className="relative mt-1" ref={ref}>
+        <div className="relative mt-0.5" ref={ref}>
             <button
                 type="button"
                 onClick={() => setAberto((a) => !a)}
@@ -203,11 +203,11 @@ export default function TopBar({
         ? `${pendentesTotais} ${tr('topbar.pendingCommunications', 'comunicados pendentes')}`
         : tr('topbar.noPendingCommunications', 'Nenhum comunicado pendente');
 
-    const botaoIcone = 'w-9 h-9 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
+    const botaoIcone = 'w-8 h-8 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
 
     return (
         <>
-            <header className="shrink-0 h-[72px] bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 px-4 lg:px-8 z-20 transition-colors">
+            <header className="shrink-0 h-[60px] bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 px-4 lg:px-6 z-20 transition-colors">
 
                 {/* Esquerda: menu mobile + título + seletor de unidade */}
                 <div className="flex items-center gap-4 sm:min-w-[200px]">
@@ -220,7 +220,7 @@ export default function TopBar({
                         <Menu className="w-5 h-5" />
                     </button>
                     <div className="hidden sm:flex flex-col min-w-0">
-                        <h2 className="text-[18px] font-black text-slate-800 dark:text-white leading-none tracking-tight truncate">{titulo}</h2>
+                        <h2 className="text-[16px] font-black text-slate-800 dark:text-white leading-none tracking-tight truncate">{titulo}</h2>
                         {mostrarSeletor ? (
                             <SeletorUnidadeTopo
                                 unidadeGlobal={unidadeGlobal}
@@ -229,7 +229,7 @@ export default function TopBar({
                                 tr={tr}
                             />
                         ) : (
-                            <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400 mt-1 truncate">{subtitulo}</span>
+                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{subtitulo}</span>
                         )}
                     </div>
                 </div>
@@ -241,7 +241,7 @@ export default function TopBar({
                         onClick={() => setSearchOpen(true)}
                         aria-label={tr('topbar.searchOpen', 'Abrir busca')}
                         aria-keyshortcuts={isMac ? 'Meta+K' : 'Control+K'}
-                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-2.5 bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 transition-colors border border-slate-200/50 dark:border-slate-700/50 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shadow-inner"
+                        className="w-full flex items-center justify-between px-3 sm:px-4 py-2 bg-slate-100/70 dark:bg-slate-800/50 hover:bg-slate-200/70 dark:hover:bg-slate-800 rounded-xl text-slate-500 dark:text-slate-400 transition-colors border border-slate-200/50 dark:border-slate-700/50 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shadow-inner"
                     >
                         <span className="flex items-center gap-2.5 min-w-0">
                             <Search className="w-4 h-4 shrink-0" />

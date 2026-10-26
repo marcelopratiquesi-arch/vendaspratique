@@ -24,6 +24,9 @@ import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
 
+// 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
+const ESCALA_INTERFACE = 0.9;
+
 // 🔥 FUNÇÃO BLINDADA: Remove acentos e espaços duplos
 const normalizarNomeBusca = (nome) => {
     if (!nome) return '';
@@ -170,6 +173,15 @@ export default function App() {
     }, [theme]);
     
     useEffect(() => { localStorage.setItem('pratique_sidebar', isCollapsed); }, [isCollapsed]);
+
+    // 📐 Escala da interface: deixa o sistema inteiro um pouco menor, como um "zoom" fixo.
+    // 1 = tamanho original | 0.9 = 10% menor | 0.85 = 15% menor
+    useEffect(() => {
+        const raiz = document.documentElement;
+        const anterior = raiz.style.zoom;
+        raiz.style.zoom = String(ESCALA_INTERFACE);
+        return () => { raiz.style.zoom = anterior; };
+    }, []);
 
     useEffect(() => {
         let timeoutId;
@@ -443,7 +455,7 @@ export default function App() {
     const abasPermitidas = todasAbas.filter(aba => aba.permissoes.includes(usuarioLogado.role));
 
     return (
-        <div className="flex h-dvh w-full bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500 relative">
+        <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
             
             <IdleCurtain isIdle={isIdle} />
 
@@ -482,7 +494,7 @@ export default function App() {
                     onConcluido={() => setTriggerSync(prev => prev + 1)}
                 />
 
-                <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative z-0 h-full w-full">
+                <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-5 relative z-0 h-full w-full">
                     {activeTab === 'lancamento' && (
                         <LancamentoVendas 
                             usuarioLogado={usuarioVirtual} 
@@ -514,11 +526,11 @@ export default function App() {
                             visitantes={dadosVisitantes}
                             onIniciarVendaAluno={(aluno) => {
                                 setAlunoPreSelecionado(aluno);
-                                setActiveTab('lancamento');
+                                handleNavigation('lancamento');
                             }}
                             onIniciarAvaliacaoAluno={(aluno) => {
                                 setAlunoPreSelecionado(aluno);
-                                setActiveTab('avaliacao');
+                                handleNavigation('avaliacao');
                             }}
                             alunoParaAbrir={alunoGlobalPreSelecionado}
                             limparAlunoParaAbrir={() => setAlunoGlobalPreSelecionado(null)}
@@ -532,6 +544,7 @@ export default function App() {
                             setAvaliacoes={setDadosAvaliacoes} 
                             alunoPreSelecionado={alunoPreSelecionado} 
                             limparPreSelecao={() => setAlunoPreSelecionado(null)}
+                            onVoltarParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
                     {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}

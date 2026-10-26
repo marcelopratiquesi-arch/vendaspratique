@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ListChecks } from 'lucide-react';
 import TabPerguntasAvaliacao from './TabPerguntasAvaliacao.jsx';
 import ModalEvolucaoAluno from './ModalEvolucaoAluno.jsx';
@@ -6,13 +6,41 @@ import { FundoGlobalComFotos } from './FundoGlobal.jsx';
 import PainelInicial from './PainelInicial.jsx';
 import PainelAvaliador from './PainelAvaliador.jsx';
 
-const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] }) => {
+const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], alunoPreSelecionado = null, limparPreSelecao, onVoltarParaAluno }) => {
     const [professorAtivo, setProfessorAtivo] = useState(null); 
     const [abaAtiva, setAbaAtiva] = useState('relatorio');
     const [avaliacaoEditando, setAvaliacaoEditando] = useState(null);
     const [alunoEvolucaoModal, setAlunoEvolucaoModal] = useState(null);
 
-    const handleVoltar = () => { setAvaliacaoEditando(null); setAbaAtiva('relatorio'); };
+    // ⚡ Caminho rápido: aluno vindo da ficha (botão "Avaliação")
+    const [alunoParaAvaliar, setAlunoParaAvaliar] = useState(null);
+    const [unidadeAvaliacao, setUnidadeAvaliacao] = useState('');
+
+    useEffect(() => {
+        if (!alunoPreSelecionado) return;
+        const unidadeUsuario = usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : '';
+        const unidade = unidadeUsuario || alunoPreSelecionado.unidade || '';
+        setAlunoParaAvaliar(alunoPreSelecionado);
+        setUnidadeAvaliacao(unidade);
+        setAvaliacaoEditando(null);
+        setProfessorAtivo({ id: 'FICHA', nome: 'NOVA AVALIAÇÃO', unidade, avaliadorAberto: true });
+        setAbaAtiva('nova');
+        if (limparPreSelecao) limparPreSelecao();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [alunoPreSelecionado]);
+
+    const handleVoltar = () => {
+        setAvaliacaoEditando(null);
+        setAbaAtiva('relatorio');
+        // Se veio da ficha, ao salvar ou cancelar volta para a ficha do aluno
+        if (alunoParaAvaliar) {
+            const aluno = alunoParaAvaliar;
+            setAlunoParaAvaliar(null);
+            setUnidadeAvaliacao('');
+            setProfessorAtivo(null);
+            if (onVoltarParaAluno) onVoltarParaAluno(aluno);
+        }
+    };
 
     // 🔥 FILTRO BLINDADO CORRIGIDO: Lê a coluna "role" (onde o setor é salvo) e ajusta o status
     const colaboradoresValidos = useMemo(() => {
@@ -79,6 +107,8 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [] })
                     setAlunoEvolucaoModal={setAlunoEvolucaoModal}
                     avaliacoes={avaliacoes}
                     colaboradores={colaboradoresValidos} 
+                    alunoParaAvaliar={alunoParaAvaliar}
+                    unidadeAvaliacao={unidadeAvaliacao}
                 />
             )}
         </div>

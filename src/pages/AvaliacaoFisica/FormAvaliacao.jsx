@@ -61,7 +61,8 @@ const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, 
     </div>
 );
 
-const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando, colaboradores = [] }) => {
+// alunoInicial: aluno vindo da ficha (botão "Avaliação"). unidadeDestino: unidade em que a avaliação será gravada.
+const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando, colaboradores = [], alunoInicial = null, unidadeDestino = '' }) => {
     const { t, locale, language } = useI18n(); const langAtual = locale || language || 'pt-BR';
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [sucesso, setSucesso] = useState(false);
@@ -77,6 +78,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     // 🔥 NOVO: Estado para armazenar quem é o avaliador responsável real
     const [avaliadorResponsavel, setAvaliadorResponsavel] = useState(() => {
         if (avaliacaoEditando?.professor) return avaliacaoEditando.professor;
+        // Vindo da ficha do aluno: o avaliador fica em aberto para escolher
+        if (professorAtivo?.avaliadorAberto) return '';
         if (professorAtivo?.id !== 'GLOBAL' && professorAtivo?.id !== 'GERAL') return professorAtivo?.nome || '';
         return '';
     });
@@ -152,6 +155,26 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         }
     }, [avaliacaoEditando, perguntasDinamicas]);
 
+    // ⚡ Aluno vindo da ficha: já chega localizado (busca o cadastro completo pelo id)
+    useEffect(() => {
+        if (!alunoInicial || avaliacaoEditando) return;
+        let ativo = true;
+        const carregarAluno = async () => {
+            let aluno = alunoInicial;
+            if (alunoInicial.id) {
+                const { data } = await supabase.from('alunos').select('*').eq('id', alunoInicial.id).maybeSingle();
+                if (data) aluno = data;
+            }
+            if (!ativo) return;
+            setAlunoEncontrado(aluno);
+            if (aluno.cpf) setCpfBusca(mascaraCPF(aluno.cpf));
+            setCpfErro(false);
+            setStatusCpf('encontrado');
+        };
+        carregarAluno();
+        return () => { ativo = false; };
+    }, [alunoInicial, avaliacaoEditando]);
+
     const buscarAlunoPorCpf = async (cpfLimpo) => {
         setBuscandoCpf(true); setStatusCpf(null);
         try {
@@ -170,6 +193,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             else { setCpfErro(false); debounceRef.current = setTimeout(() => buscarAlunoPorCpf(masked.replace(/\D/g, '')), 500); }
         } else { setCpfErro(false); }
     };
+
+    // Com unidade definida (fluxo da ficha), mostra só os avaliadores daquela unidade
+    const colaboradoresDoSelect = (() => {
+        if (!unidadeDestino) return colaboradores;
+        const daUnidade = colaboradores.filter(c => String(c.unidade || '').toUpperCase().trim() === String(unidadeDestino).toUpperCase().trim());
+        return daUnidade.length > 0 ? daUnidade : colaboradores;
+    })();
 
     const handleSaveAlunoSuccess = (alunoAtualizado) => { setAlunoEncontrado(alunoAtualizado); setCpfBusca(mascaraCPF(alunoAtualizado.cpf)); setStatusCpf('encontrado'); };
     const handleChange = (e) => setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -259,7 +289,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         e.preventDefault();
         
         if (!alunoEncontrado) return alert(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
-        if (!usuarioLogado?.unidade) return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
+        const unidadeFinal = unidadeDestino || usuarioLogado?.unidade;
+        if (!unidadeFinal || unidadeFinal === 'TODAS') return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
         if (!avaliadorResponsavel) return alert("Selecione o Avaliador Responsável."); // 🔥 Validação do avaliador
 
         if (p === null || p <= 0 || p > 300) return alert(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
@@ -304,7 +335,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             }
 
             const novaAvaliacao = {
-                aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: usuarioLogado.unidade,
+                aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: unidadeDestino || usuarioLogado.unidade,
                 professor: avaliadorResponsavel || professorAtivo.nome, // 🔥 Atribuição do avaliador
                 usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
                 sexo: sexoAluno, peso: p, altura: alt, 
@@ -368,7 +399,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
                             {avaliacaoEditando ? 'Editar Avaliação Física' : t('assessment.form.title')}
                         </h2>
-                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('assessment.prof')}: {professorAtivo.nome}</p>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('assessment.prof')}: {avaliadorResponsavel || (professorAtivo?.avaliadorAberto ? 'A definir' : professorAtivo.nome)}</p>
                     </div>
                     <button type="button" onClick={voltar} className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors w-full md:w-auto">{t('assessment.form.cancel')}</button>
                 </div>
@@ -439,7 +470,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     required
                                 >
                                     <option value="" disabled>Selecione...</option>
-                                    {colaboradores.map(c => (
+                                    {colaboradoresDoSelect.map(c => (
                                         <option key={c.id} value={c.nome}>{c.nome}</option>
                                     ))}
                                 </select>
