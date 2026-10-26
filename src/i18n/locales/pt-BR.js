@@ -11,14 +11,25 @@ export default {
 
     // NAVEGAÇÃO
     "navigation.newSale": "Nova Venda",
+    "navigation.newSaleDesc": "Lançamento e atribuição",
     "navigation.history": "Histórico",
+    "navigation.historyDesc": "Vendas realizadas",
     "navigation.dashboard": "Dashboard",
+    "navigation.dashboardDesc": "Métricas e resultados",
     "navigation.closing": "Fechamento",
+    "navigation.closingDesc": "Conferência de caixa",
     "navigation.crm": "CRM",
+    "navigation.crmDesc": "Gestão de visitantes e contatos",
+    "navigation.students": "Alunos",  
+    "navigation.studentsDesc": "Gerencie sua base de alunos",
     "navigation.assessment": "Avaliação",
+    "navigation.assessmentDesc": "Módulo de bioimpedância",
     "navigation.management": "Cadastros",
+    "navigation.managementDesc": "Gestão de planos e produtos",
     "navigation.settings": "Configurações",
+    "navigation.settingsDesc": "Ajustes do sistema",
     "navigation.communications": "Comunicados", 
+    "navigation.communicationsDesc": "Comunicação corporativa",
 
     "header.globalView": "VISÃO GLOBAL (TODAS)",
     "header.mainMenu": "Menu Principal",
@@ -28,7 +39,7 @@ export default {
     "idle.description": "Por motivos de segurança e para garantir a sincronização em tempo real do banco de dados, o sistema foi pausado após 15 minutos sem uso.",
     "idle.button": "Atualizar Sistema Agora",
 
-    // SIDEBAR
+    // SIDEBAR E TOPBAR
     "sidebar.expand": "Expandir",
     "sidebar.modules": "Módulos",
     "sidebar.pending": "pendentes",
@@ -36,6 +47,13 @@ export default {
     "sidebar.lightMode": "Claro",
     "sidebar.darkMode": "Escuro",
     "sidebar.menu": "Menu",
+    "sidebar.groups.operations": "Operação",
+    "sidebar.groups.relationship": "Relacionamento",
+    "sidebar.groups.management": "Gestão",
+    "sidebar.language": "Idioma",
+    "sidebar.theme": "Tema",
+    "topbar.searchPlaceholder": "Buscar alunos, navegação e ações rápidas...",
+    "topbar.searchShort": "Buscar...",
 
     // COMUNICADOS
     "communications.title": "Central de Comunicados",

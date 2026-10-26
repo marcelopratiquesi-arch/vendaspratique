@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabaseClient.js';
 import { useI18n } from './i18n/I18nContext.jsx'; 
-import LanguageSwitcher from './components/LanguageSwitcher.jsx'; 
 
 import { 
-    Zap, ChevronDown, Menu, X, LogOut, 
     ShoppingCart, History, PieChart, Wallet, 
-    Users, Database, Settings, Dumbbell, Lock,
-    PanelLeftClose, PanelLeftOpen, Sun, Moon, Megaphone 
+    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone 
 } from 'lucide-react';
 
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
+import TopBar from './components/layout/TopBar.jsx';
 import IdleCurtain from './components/layout/IdleCurtain.jsx';
 import BlockingGate from './components/BlockingGate/index.jsx';
 
@@ -19,6 +17,7 @@ import AssinaturasPratique from './pages/HistoricoVendas/index.jsx';
 import FechamentoCaixa from './pages/FechamentoCaixa';
 import AnaliseDashboard from './pages/AnaliseVendas'; 
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
+import ModuloAlunos360 from './pages/Alunos/index.jsx';
 import CadastroGeral from './pages/CadastroGeral'; 
 import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
@@ -45,8 +44,11 @@ export default function App() {
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
     const [isIdle, setIsIdle] = useState(false); 
     
-    const [triggerSync, setTriggerSync] = useState(0);
+    // Estados de Seleção de Aluno
+    const [alunoPreSelecionado, setAlunoPreSelecionado] = useState(null);
+    const [alunoGlobalPreSelecionado, setAlunoGlobalPreSelecionado] = useState(null);
     
+    const [triggerSync, setTriggerSync] = useState(0);
     const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('pratique_sidebar') === 'true');
     const [theme, setTheme] = useState(() => {
         const salvo = localStorage.getItem('pratique_theme');
@@ -54,6 +56,8 @@ export default function App() {
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
         return 'light';
     });
+
+    const [statusConexao, setStatusConexao] = useState('conectando');
 
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
@@ -64,7 +68,6 @@ export default function App() {
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
 
-    // 🔥 DICIONÁRIO HÍBRIDO (Busca por Matrícula E por Nome)
     const [alunosMap, setAlunosMap] = useState({ porNome: new Map(), porMatricula: new Map() });
 
     const [comunicadosGlobais, setComunicadosGlobais] = useState({
@@ -75,6 +78,22 @@ export default function App() {
     const [activeGateComm, setActiveGateComm] = useState(null); 
     const [isUserBusy, setIsUserBusy] = useState(false);
     const [targetTab, setTargetTab] = useState(null);
+
+    // Motor de Status de Conexão
+    useEffect(() => {
+        const updateOnlineStatus = () => {
+            if (navigator.onLine) setStatusConexao('conectando');
+            else setStatusConexao('offline');
+        };
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus();
+
+        return () => {
+            window.removeEventListener('online', updateOnlineStatus);
+            window.removeEventListener('offline', updateOnlineStatus);
+        };
+    }, []);
 
     useEffect(() => {
         const handleFocus = (e) => {
@@ -95,7 +114,6 @@ export default function App() {
 
     useEffect(() => {
         const bloqueante = comunicadosGlobais.comunicadoBloqueante;
-        
         if (!bloqueante) {
             setActiveGateComm(null);
             if (targetTab) {
@@ -127,14 +145,31 @@ export default function App() {
         }
     };
 
+    const handleSelecionarAlunoGlobal = (aluno) => {
+        setAlunoGlobalPreSelecionado(aluno);
+        handleNavigation('alunos');
+    };
+
     useEffect(() => { if (usuarioLogado) setUnidadeGlobal('TODAS'); }, [usuarioLogado]);
+    
     useEffect(() => {
         localStorage.setItem('pratique_theme', theme);
-        if (theme === 'dark') document.documentElement.classList.add('dark');
-        else document.documentElement.classList.remove('dark');
+        const applyTheme = (mode) => {
+            if (mode === 'dark') document.documentElement.classList.add('dark');
+            else document.documentElement.classList.remove('dark');
+        };
+        if (theme === 'system') {
+            const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            applyTheme(isDark ? 'dark' : 'light');
+            const listener = (e) => applyTheme(e.matches ? 'dark' : 'light');
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', listener);
+            return () => window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', listener);
+        } else {
+            applyTheme(theme);
+        }
     }, [theme]);
+    
     useEffect(() => { localStorage.setItem('pratique_sidebar', isCollapsed); }, [isCollapsed]);
-    const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
     useEffect(() => {
         let timeoutId;
@@ -172,11 +207,7 @@ export default function App() {
                     .eq('comunicados.status', 'ATIVO')
                     .is('comunicados.deleted_at', null);
 
-                if (error) {
-                    console.error("Erro Supabase App.jsx:", error);
-                    return;
-                }
-
+                if (error) return;
                 if (!isMounted) return;
 
                 const agora = new Date();
@@ -215,7 +246,10 @@ export default function App() {
         const channel = supabase.channel('central-sync-realtime')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicado_inbox' }, syncComunicados)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicados' }, syncComunicados)
-            .subscribe();
+            .subscribe((status) => {
+                if (status === 'SUBSCRIBED') setStatusConexao('online');
+                if (status === 'CHANNEL_ERROR' || status === 'CLOSED') setStatusConexao('offline');
+            });
 
         return () => {
             isMounted = false;
@@ -228,7 +262,6 @@ export default function App() {
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
     const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado?.unidade;
 
-    // 🔥 SMART FETCHING CIRÚRGICO
     const fetchAlunosEspecificos = useCallback(async (registrosArray, isMounted = true) => {
         if (!registrosArray || registrosArray.length === 0) return;
 
@@ -251,7 +284,6 @@ export default function App() {
         try {
             const arrNomes = Array.from(nomesBuscados);
             const arrMats = Array.from(matriculasBuscadas);
-            
             const chunkSize = 100;
             const dataResult = [];
 
@@ -290,8 +322,17 @@ export default function App() {
     const fetchColaboradores = useCallback(async (isMounted = true) => { let query = supabase.from('colaboradores').select('*'); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setColaboradores(data); }, [deveFiltrar, unidadeFiltro]);
     const fetchCatalogo = useCallback(async (isMounted = true) => { const { data } = await supabase.from('catalogo').select('*'); if (isMounted && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); } }, []);
     
+    const getDataCorte = () => {
+        const d = new Date();
+        d.setDate(d.getDate() - 90); 
+        return d.toISOString();
+    };
+
     const fetchVendas = useCallback(async (isMounted = true) => { 
-        let query = supabase.from('vendas').select('*').order('id', { ascending: false }).limit(10000); 
+        let query = supabase.from('vendas').select('*')
+            .gte('created_at', getDataCorte())
+            .order('id', { ascending: false })
+            .limit(3000); 
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
         const { data } = await query; 
         if (isMounted && data) {
@@ -300,10 +341,21 @@ export default function App() {
         }
     }, [deveFiltrar, unidadeFiltro, fetchAlunosEspecificos]);
 
-    const fetchLeads = useCallback(async (isMounted = true) => { let query = supabase.from('leads').select('*').order('id', { ascending: false }).limit(10000); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setDadosVisitantes(data); }, [deveFiltrar, unidadeFiltro]);
+    const fetchLeads = useCallback(async (isMounted = true) => { 
+        let query = supabase.from('leads').select('*')
+            .gte('created_at', getDataCorte())
+            .order('id', { ascending: false })
+            .limit(3000); 
+        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
+        const { data } = await query; 
+        if (isMounted && data) setDadosVisitantes(data); 
+    }, [deveFiltrar, unidadeFiltro]);
     
     const fetchAvaliacoes = useCallback(async (isMounted = true) => { 
-        let query = supabase.from('avaliacoes_realizadas').select('*').order('id', { ascending: false }).limit(10000); 
+        let query = supabase.from('avaliacoes_realizadas').select('*')
+            .gte('created_at', getDataCorte())
+            .order('id', { ascending: false })
+            .limit(3000); 
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
         const { data } = await query; 
         if (isMounted && data) {
@@ -329,7 +381,6 @@ export default function App() {
         return () => { isMounted = false; supabase.removeChannel(realtimeChannel); };
     }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
 
-    // 🔥 O "Frontend JOIN"
     const vendasEnriquecidas = useMemo(() => {
         return dadosAssinaturas.map(v => {
             let cpfAchado = v.cpf || v.cpf_aluno || '';
@@ -361,14 +412,19 @@ export default function App() {
     }, [dadosAvaliacoes, alunosMap]);
 
     const handleAddLancamentos = (novos) => setDadosAssinaturas([...novos, ...dadosAssinaturas]);
-    const handleLogout = () => { setUsuarioLogado(null); setIsMobileMenuOpen(false); };
+    const handleLogout = async () => { 
+        try { await supabase.auth.signOut(); } catch(e) {}
+        setUsuarioLogado(null); 
+        setIsMobileMenuOpen(false); 
+    };
 
     if (!usuarioLogado) return <Login onLogin={setUsuarioLogado} />;
 
+    // 🔥 CORREÇÃO DA VISÃO GLOBAL APLICADA AQUI
     const usuarioVirtual = {
         ...usuarioLogado,
         role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
-        unidade: (ehChefe && unidadeGlobal !== 'TODAS') ? unidadeGlobal : usuarioLogado.unidade
+        unidade: ehChefe ? unidadeGlobal : usuarioLogado.unidade 
     };
 
     const todasAbas = [
@@ -377,6 +433,7 @@ export default function App() {
         { id: 'analise', label: t('navigation.dashboard'), icon: PieChart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'fechamento', label: t('navigation.closing'), icon: Wallet, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'crm', label: t('navigation.crm'), icon: Users, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
+        { id: 'alunos', label: t('navigation.students', { defaultValue: 'Alunos' }), icon: GraduationCap, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'cadastros', label: t('navigation.management'), icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'], badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
@@ -388,48 +445,95 @@ export default function App() {
     return (
         <div className="flex h-dvh w-full bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500 relative">
             
-            <div className="absolute top-[-25%] left-[-15%] w-[600px] h-[600px] bg-blue-500/5 dark:bg-blue-600/10 rounded-full blur-[140px] pointer-events-none z-0"></div>
-            <div className="absolute bottom-[-25%] right-[-15%] w-[600px] h-[600px] bg-emerald-500/5 dark:bg-emerald-600/5 rounded-full blur-[140px] pointer-events-none z-0" style={{ animationDelay: '3s' }}></div>
-
             <IdleCurtain isIdle={isIdle} />
 
             <SidebarDesktop 
-                isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} theme={theme} toggleTheme={toggleTheme}
-                usuarioLogado={usuarioLogado} handleLogout={handleLogout}
-                abasPermitidas={abasPermitidas} activeTab={activeTab} 
-                setActiveTab={handleNavigation}
+                isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
+                abasPermitidas={abasPermitidas} activeTab={activeTab} setActiveTab={handleNavigation}
                 ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades}
+                usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
             <SidebarMobile 
-                isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} theme={theme} toggleTheme={toggleTheme}
-                usuarioLogado={usuarioLogado} handleLogout={handleLogout}
-                abasPermitidas={abasPermitidas} activeTab={activeTab} 
-                setActiveTab={handleNavigation}
+                isMobileMenuOpen={isMobileMenuOpen} fecharMobile={() => setIsMobileMenuOpen(false)}
+                abasPermitidas={abasPermitidas} activeTab={activeTab} setActiveTab={handleNavigation}
                 ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades}
+                usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
-            <button 
-                onClick={() => setIsMobileMenuOpen(true)} 
-                className="xl:hidden fixed top-4 right-4 z-40 p-3 rounded-[14px] bg-white/80 dark:bg-[#111827]/80 backdrop-blur-md border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 shadow-[0_4px_20px_rgba(0,0,0,0.08)] active:scale-95 transition-all"
-            >
-                <Menu className="w-5 h-5" />
-            </button>
-
             <div className="flex-1 flex flex-col h-full relative z-10 w-full min-w-0 overflow-hidden">
+                <TopBar 
+                    activeTab={activeTab}
+                    usuarioLogado={usuarioVirtual}
+                    theme={theme}
+                    setTheme={setTheme}
+                    onAbrirMenuMobile={() => setIsMobileMenuOpen(true)}
+                    onSelecionarAlunoGlobal={handleSelecionarAlunoGlobal}
+                    pendentesTotais={comunicadosGlobais.pendentesTotais}
+                    onNavigate={handleNavigation}
+                    podeTrocarUnidade={ehChefe}
+                    unidadeGlobal={unidadeGlobal}
+                    setUnidadeGlobal={setUnidadeGlobal}
+                    unidades={unidades}
+                />
+
                 <BlockingGate 
                     comunicadoBloqueante={activeGateComm} 
                     onConcluido={() => setTriggerSync(prev => prev + 1)}
                 />
 
-                {/* 🔥 AQUI ESTÁ A CORREÇÃO: O padding-4 a padding-8 voltaram para dar respiro aos módulos! */}
                 <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 lg:p-8 relative z-0 h-full w-full">
-                    {activeTab === 'lancamento' && <LancamentoVendas usuarioLogado={usuarioVirtual} unidades={unidades} onAddMultiple={handleAddLancamentos} planos={planos} produtos={produtos} servicos={servicos} colaboradores={colaboradores} />}
+                    {activeTab === 'lancamento' && (
+                        <LancamentoVendas 
+                            usuarioLogado={usuarioVirtual} 
+                            unidades={unidades} 
+                            onAddMultiple={handleAddLancamentos} 
+                            planos={planos} 
+                            produtos={produtos} 
+                            servicos={servicos} 
+                            colaboradores={colaboradores} 
+                            alunoPreSelecionado={alunoPreSelecionado} 
+                            limparPreSelecao={() => setAlunoPreSelecionado(null)}
+                            onIrParaAluno={handleSelecionarAlunoGlobal}
+                        />
+                    )}
                     {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} />}
                     {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
                     {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
                     {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
-                    {activeTab === 'avaliacao' && <AvaliacaoFisica usuarioLogado={usuarioVirtual} avaliacoes={avaliacoesEnriquecidas} colaboradores={colaboradores} setAvaliacoes={setDadosAvaliacoes} />}
+                    {activeTab === 'alunos' && (
+                        <ModuloAlunos360
+                            usuarioLogado={usuarioVirtual}
+                            usuarioReal={usuarioLogado}
+                            unidadeGlobal={unidadeGlobal}
+                            setUnidadeGlobal={setUnidadeGlobal}
+                            unidades={unidades}
+                            planos={planos}
+                            vendas={vendasEnriquecidas}
+                            avaliacoes={avaliacoesEnriquecidas}
+                            visitantes={dadosVisitantes}
+                            onIniciarVendaAluno={(aluno) => {
+                                setAlunoPreSelecionado(aluno);
+                                setActiveTab('lancamento');
+                            }}
+                            onIniciarAvaliacaoAluno={(aluno) => {
+                                setAlunoPreSelecionado(aluno);
+                                setActiveTab('avaliacao');
+                            }}
+                            alunoParaAbrir={alunoGlobalPreSelecionado}
+                            limparAlunoParaAbrir={() => setAlunoGlobalPreSelecionado(null)}
+                        />
+                    )}
+                    {activeTab === 'avaliacao' && (
+                        <AvaliacaoFisica 
+                            usuarioLogado={usuarioVirtual} 
+                            avaliacoes={avaliacoesEnriquecidas} 
+                            colaboradores={colaboradores} 
+                            setAvaliacoes={setDadosAvaliacoes} 
+                            alunoPreSelecionado={alunoPreSelecionado} 
+                            limparPreSelecao={() => setAlunoPreSelecionado(null)}
+                        />
+                    )}
                     {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
                     {activeTab === 'comunicados' && <CentralComunicados usuarioLogado={usuarioLogado} unidades={unidades} />}
                     {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}

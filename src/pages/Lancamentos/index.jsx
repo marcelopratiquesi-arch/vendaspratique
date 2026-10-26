@@ -1,55 +1,100 @@
-import React, { useState } from 'react';
-import HubSelecao from './HubSelecao.jsx';
+import React, { useState, useEffect } from 'react';
 import FormVenda from './FormVenda.jsx';
 import FormVisitante from './FormVisitante.jsx';
-import { ArrowLeft } from 'lucide-react';
+import { ShoppingCart, UserPlus } from 'lucide-react';
 
-const Lancamentos = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, servicos, colaboradores }) => {
-    // Estado que controla qual tela está aparecendo. Padrão é o hub de seleção.
-    const [modalidade, setModalidade] = useState('selecao');
+const LancamentoVendas = ({ 
+    usuarioLogado, 
+    unidades, 
+    onAddMultiple, 
+    planos, 
+    produtos, 
+    servicos, 
+    colaboradores,
+    alunoPreSelecionado,
+    limparPreSelecao,
+    onIrParaAluno // 🔥 Propriedade que recebe o comando do App.jsx para redirecionar
+}) => {
+    const [abaAtiva, setAbaAtiva] = useState('venda'); 
+
+    useEffect(() => {
+        if (alunoPreSelecionado) {
+            setAbaAtiva('venda');
+        }
+    }, [alunoPreSelecionado]);
+
+    const handleTrocarAba = (novaAba) => {
+        if (novaAba !== 'venda' && limparPreSelecao) {
+            limparPreSelecao();
+        }
+        setAbaAtiva(novaAba);
+    };
 
     return (
-        <div className="w-full max-w-6xl mx-auto">
+        <div className="space-y-4 max-w-5xl mx-auto animate-[fadeIn_0.2s_ease-out]">
             
-            {/* Botão de voltar (só aparece se não estiver na tela inicial do Hub) */}
-            {modalidade !== 'selecao' && (
-                <button 
-                    onClick={() => setModalidade('selecao')}
-                    className="mb-6 flex items-center gap-2 text-slate-500 hover:text-slate-800 font-bold uppercase tracking-widest text-[10px] transition-colors bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm w-fit"
+            <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl w-fit border border-slate-200 dark:border-slate-700/50 mb-6">
+                <button
+                    onClick={() => handleTrocarAba('venda')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                        abaAtiva === 'venda' 
+                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
                 >
-                    <ArrowLeft className="w-4 h-4" /> Voltar para Seleção
+                    <ShoppingCart className="w-4 h-4" />
+                    Lançar Venda
                 </button>
+                
+                <button
+                    onClick={() => handleTrocarAba('visitante')}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                        abaAtiva === 'visitante' 
+                        ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' 
+                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                    }`}
+                >
+                    <UserPlus className="w-4 h-4" />
+                    Cadastrar Visitante
+                </button>
+            </div>
+
+            {abaAtiva === 'venda' && (
+                <div className="motion-safe:animate-[slideDown_0.2s_ease-out]">
+                    <FormVenda 
+                        usuarioLogado={usuarioLogado}
+                        unidades={unidades}
+                        onAddMultiple={onAddMultiple}
+                        planos={planos}
+                        produtos={produtos}
+                        servicos={servicos}
+                        colaboradores={colaboradores}
+                        alunoPreSelecionado={alunoPreSelecionado} 
+                        limparPreSelecao={limparPreSelecao}
+                        onIrParaAluno={onIrParaAluno} // 🔥 Repassando o comando para o FormVenda disparar no final
+                        voltarHub={() => {
+                            if (limparPreSelecao) limparPreSelecao();
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                    />
+                </div>
             )}
 
-            {/* ROTEADOR DE TELAS */}
-            {modalidade === 'selecao' && (
-                <HubSelecao setModalidade={setModalidade} />
+            {abaAtiva === 'visitante' && (
+                <div className="motion-safe:animate-[slideDown_0.2s_ease-out]">
+                    <FormVisitante 
+                        usuarioLogado={usuarioLogado}
+                        unidades={unidades}
+                        colaboradores={colaboradores}
+                        voltarHub={() => {
+                            setAbaAtiva('venda');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                    />
+                </div>
             )}
-
-            {modalidade === 'venda' && (
-                <FormVenda 
-                    usuarioLogado={usuarioLogado} 
-                    unidades={unidades} 
-                    onAddMultiple={onAddMultiple}
-                    planos={planos}
-                    produtos={produtos}
-                    servicos={servicos}
-                    colaboradores={colaboradores}
-                    voltarHub={() => setModalidade('selecao')}
-                />
-            )}
-
-            {modalidade === 'visitante' && (
-                <FormVisitante 
-                    usuarioLogado={usuarioLogado} 
-                    unidades={unidades} 
-                    colaboradores={colaboradores} 
-                    voltarHub={() => setModalidade('selecao')}
-                />
-            )}
-
         </div>
     );
 };
 
-export default Lancamentos;
+export default LancamentoVendas;

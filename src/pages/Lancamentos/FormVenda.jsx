@@ -1,41 +1,66 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { safeNumber, formatMoney, getLocalDateISO } from './utils.js';
 import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import { User, Package, BookOpen, Box, Briefcase, LayoutGrid, Trash2, Plus, MessageSquare, Receipt, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard } from 'lucide-react';
 
-const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, servicos, colaboradores, voltarHub }) => {
-    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
+
+const FormVenda = ({ 
+    usuarioLogado, unidades, onAddMultiple, planos, produtos, servicos, 
+    colaboradores, voltarHub, alunoPreSelecionado, limparPreSelecao,
+    onIrParaAluno // Nova propriedade para o redirecionamento automático
+}) => {
+    // 🔥 Libera a escolha de unidade para quem não é recepção pura
+    const roleUsuario = String(usuarioLogado?.role || '').toUpperCase().trim();
+    const podeEscolherUnidade = ['ADMIN', 'MENTOR', 'LIDER', 'VENDEDOR'].includes(roleUsuario);
 
     const [formData, setFormData] = useState({ 
-        unidade: temVisaoGlobal ? '' : (usuarioLogado?.unidade || ''), 
+        unidade: usuarioLogado?.unidade || '', 
         data: getLocalDateISO(), 
         observacao: '' 
     });
 
-    // 🔥 IDENTIDADE BLINDADA DO ALUNO (Padrão Avaliação)
     const [cpfBusca, setCpfBusca] = useState('');
     const [cpfErro, setCpfErro] = useState(false);
     const [buscandoCpf, setBuscandoCpf] = useState(false);
     const [alunoEncontrado, setAlunoEncontrado] = useState(null); 
     const [statusCpf, setStatusCpf] = useState(null); 
     const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
+    
     const debounceRef = useRef(null);
+    const cpfAtualRef = useRef('');
+    const envioTravadoRef = useRef(false);
 
-    // Itens do Carrinho
     const getInitialItem = (vendedorPadrao = '') => ({ 
         id: Date.now(), tipo: '', nomeItem: '', vendedor: vendedorPadrao, quantidade: 1, valor: 'R$ 0,00', valorUnitario: 0, valorCalculado: 0 
     });
+    
     const [itensForm, setItensForm] = useState([getInitialItem()]);
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    useEffect(() => {
+        if (alunoPreSelecionado) {
+            cpfAtualRef.current = apenasDigitos(alunoPreSelecionado.cpf);
+            setCpfBusca(mascaraCPF(alunoPreSelecionado.cpf));
+            setAlunoEncontrado(alunoPreSelecionado);
+            setStatusCpf('encontrado');
+            setCpfErro(false);
+            
+            if (podeEscolherUnidade && alunoPreSelecionado.unidade) {
+                setFormData(prev => ({ ...prev, unidade: alunoPreSelecionado.unidade }));
+            }
+
+            if (limparPreSelecao) limparPreSelecao();
+        }
+    }, [alunoPreSelecionado, limparPreSelecao, podeEscolherUnidade]);
+
+    // 🔥 Filtra os consultores com base na unidade selecionada na tela
     const vendedoresDaUnidade = colaboradores.filter(c => {
         const isAtivo = c.ativo !== false;
-        const matchUnidade = temVisaoGlobal 
-            ? c.unidade?.toUpperCase() === formData.unidade?.toUpperCase()
-            : c.unidade?.toUpperCase() === usuarioLogado?.unidade?.toUpperCase();
+        const matchUnidade = c.unidade?.toUpperCase() === formData.unidade?.toUpperCase();
         return isAtivo && matchUnidade;
     });
 
@@ -43,28 +68,40 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
     const produtosAtivos = produtos.filter(p => p.ativo !== false);
     const servicosAtivos = servicos.filter(s => s.ativo !== false);
 
-    // ==========================================
-    // BUSCA INTELIGENTE DE CPF
-    // ==========================================
+    const cpfConfere = Boolean(alunoEncontrado) && apenasDigitos(alunoEncontrado.cpf) === apenasDigitos(cpfBusca);
+
     const buscarAlunoPorCpf = async (cpfLimpo) => {
         setBuscandoCpf(true);
         setStatusCpf(null);
         try {
-            const { data, error } = await supabase.from('alunos').select('*').eq('cpf', cpfLimpo).maybeSingle();
-            if (error && error.code !== 'PGRST116') throw error;
+            const cpfFormatado = mascaraCPF(cpfLimpo);
+            const { data, error } = await supabase
+                .from('alunos')
+                .select('*')
+                .or(`cpf.eq.${cpfLimpo},cpf.eq."${cpfFormatado}"`)
+                .limit(2);
 
-            if (data) {
-                setAlunoEncontrado(data);
+            if (cpfAtualRef.current !== cpfLimpo) return;
+            if (error) throw error;
+
+            const encontrados = data || [];
+            if (encontrados.length > 1) {
+                setAlunoEncontrado(null);
+                setStatusCpf('duplicado');
+            } else if (encontrados.length === 1) {
+                setAlunoEncontrado(encontrados[0]);
                 setStatusCpf('encontrado');
             } else {
                 setAlunoEncontrado(null);
                 setStatusCpf('novo');
             }
         } catch (error) {
+            if (cpfAtualRef.current !== cpfLimpo) return;
             console.error(error);
+            setAlunoEncontrado(null);
             setStatusCpf('erro');
         } finally {
-            setBuscandoCpf(false);
+            if (cpfAtualRef.current === cpfLimpo) setBuscandoCpf(false);
         }
     };
 
@@ -73,6 +110,8 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
         setCpfBusca(masked);
         setAlunoEncontrado(null); 
         setStatusCpf(null);
+        setBuscandoCpf(false);
+        cpfAtualRef.current = '';
         
         if (debounceRef.current) clearTimeout(debounceRef.current);
 
@@ -82,6 +121,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
             } else {
                 setCpfErro(false);
                 const limpo = masked.replace(/\D/g, '');
+                cpfAtualRef.current = limpo;
                 debounceRef.current = setTimeout(() => buscarAlunoPorCpf(limpo), 500);
             }
         } else {
@@ -90,19 +130,17 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
     };
 
     const handleSaveAlunoSuccess = (alunoAtualizado) => {
+        cpfAtualRef.current = apenasDigitos(alunoAtualizado.cpf);
         setAlunoEncontrado(alunoAtualizado);
         setCpfBusca(mascaraCPF(alunoAtualizado.cpf)); 
         setStatusCpf('encontrado');
     };
 
-    // ==========================================
-    // MANIPULAÇÃO DO CARRINHO E FORMULÁRIO
-    // ==========================================
     const handleMainChange = (e) => {
         const { name, value } = e.target;
         if (name === 'unidade') {
             setFormData({ ...formData, unidade: value });
-            setItensForm(itensForm.map(item => ({ ...item, vendedor: '' })));
+            setItensForm(itensForm.map(item => ({ ...item, vendedor: '' }))); // Reseta vendedores se mudar a unidade
         }
         else setFormData({ ...formData, [name]: value });
     };
@@ -142,15 +180,14 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
 
     const totalVenda = itensForm.reduce((acc, curr) => acc + safeNumber(curr.valorCalculado), 0);
 
-    // ==========================================
-    // SUBMIT DA VENDA
-    // ==========================================
     const handleSubmitVenda = async (e) => {
         e.preventDefault();
+
+        if (envioTravadoRef.current || isSubmitting || sucesso) return;
         
-        // 🔥 TRAVAS DE SEGURANÇA
         if (!alunoEncontrado) return alert('Localize ou cadastre o aluno pelo CPF primeiro.');
-        if (temVisaoGlobal && !formData.unidade) return alert('Atenção: Selecione a Unidade da venda.');
+        if (!cpfConfere) return alert('O CPF digitado não corresponde ao aluno carregado. Confira o CPF antes de continuar.');
+        if (!formData.unidade) return alert('Atenção: Selecione a Unidade da venda.');
         
         const itensValidos = itensForm.filter(item => item.nomeItem !== '' && item.tipo !== '');
         if (itensValidos.length === 0) return alert('Adicione pelo menos um item válido.');
@@ -158,6 +195,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
         const temItemSemVendedor = itensValidos.some(item => !item.vendedor);
         if (temItemSemVendedor) return alert('Selecione o Consultor Responsável para TODOS os itens adicionados.');
 
+        envioTravadoRef.current = true;
         setIsSubmitting(true);
 
         try {
@@ -168,7 +206,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     data: formData.data, 
                     matricula: alunoEncontrado.matricula || '', 
                     nome_aluno: alunoEncontrado.nome.toUpperCase(),
-                    cpf: alunoEncontrado.cpf.replace(/\D/g, ''), // 🔥 AQUI ESTÁ A MÁGICA GRAVANDO DIRETO NO BANCO!
+                    cpf: alunoEncontrado.cpf.replace(/\D/g, ''),
                     produto: item.nomeItem, 
                     vendedor: item.vendedor.toUpperCase(), 
                     valor: valorPuro, 
@@ -186,14 +224,27 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
             if (data) {
                 if(onAddMultiple) onAddMultiple(data.reverse()); 
                 setSucesso(true);
+                
+                // 🔥 Redirecionamento Automático
                 setTimeout(() => {
                     setSucesso(false);
-                    voltarHub();
-                }, 1200);
+                    if (onIrParaAluno) {
+                        onIrParaAluno(alunoEncontrado);
+                    } else if (voltarHub) {
+                        voltarHub();
+                    } else {
+                        envioTravadoRef.current = false;
+                    }
+                }, 1500); // 1.5s para o usuário ver o check verde antes de viajar de tela
+            } else {
+                envioTravadoRef.current = false;
             }
         } catch (error) {
+            envioTravadoRef.current = false;
             console.error("Erro:", error); alert("Erro ao salvar venda. Tente novamente.");
-        } finally { setIsSubmitting(false); }
+        } finally { 
+            setIsSubmitting(false); 
+        }
     };
 
     const labelClass = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1";
@@ -217,12 +268,16 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                         <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200">
                             <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-6 shadow-inner border border-emerald-200"><CheckCircle2 className="w-10 h-10" /></div>
                             <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2">Venda Confirmada!</h3>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Lançamento salvo no Caixa.</p>
+                            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-6">Lançamento salvo no Caixa.</p>
+                            {onIrParaAluno && (
+                                <div className="flex items-center gap-2 text-blue-600 font-bold text-xs bg-blue-50 px-5 py-2.5 rounded-xl border border-blue-100">
+                                    <Loader2 className="w-4 h-4 animate-spin" /> Abrindo ficha do aluno...
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
                 
-                {/* 1. SEÇÃO DO ALUNO */}
                 <div className={sectionClass}>
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
                         <User className="w-5 h-5 text-emerald-500" />
@@ -236,12 +291,13 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                 <div className="relative">
                                     <input type="text" value={cpfBusca} onChange={handleCpfChange} maxLength="14" className={`${inputClassBase} ${cpfErro ? 'border-rose-300 bg-rose-50 focus:ring-rose-500' : 'focus:ring-emerald-500'}`} placeholder="000.000.000-00" />
                                     {buscandoCpf && <Loader2 className="w-4 h-4 text-emerald-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
-                                    {alunoEncontrado && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute right-3 top-1/2 -translate-y-1/2" />}
-                                    {statusCpf === 'erro' && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
+                                    {cpfConfere && <CheckCircle2 className="w-4 h-4 text-emerald-500 absolute right-3 top-1/2 -translate-y-1/2" />}
+                                    {(statusCpf === 'erro' || statusCpf === 'duplicado') && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
                                 </div>
                                 {cpfErro && <span className="text-rose-500 text-[9px] font-bold uppercase mt-1 ml-1">CPF Inválido</span>}
                                 {statusCpf === 'encontrado' && <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1.5 ml-1">Cadastro localizado</p>}
                                 {statusCpf === 'novo' && <p className="text-[9px] font-black text-amber-600 uppercase tracking-widest mt-1.5 ml-1">Cliente Novo (Cadastrar)</p>}
+                                {statusCpf === 'duplicado' && <p className="text-[9px] font-black text-rose-600 uppercase tracking-widest mt-1.5 ml-1">CPF com mais de um cadastro</p>}
                             </div>
 
                             <div className="flex-1 w-full max-w-xs">
@@ -249,7 +305,8 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                 <input type="date" name="data" value={formData.data} onChange={handleMainChange} required className={inputClassBase} />
                             </div>
 
-                            {temVisaoGlobal && (
+                            {/* 🔥 MOSTRA A UNIDADE APENAS PARA QUEM TEM PERMISSÃO */}
+                            {podeEscolherUnidade && (
                                 <div className="flex-1 w-full max-w-xs">
                                     <label className={labelClass}>Unidade da Venda *</label>
                                     <select name="unidade" value={formData.unidade} onChange={handleMainChange} required className={inputClassBase}>
@@ -260,8 +317,18 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                             )}
                         </div>
 
-                        {!buscandoCpf && cpfBusca.length === 14 && !cpfErro && statusCpf !== 'erro' && (
-                            alunoEncontrado ? (
+                        {!buscandoCpf && statusCpf === 'duplicado' && (
+                            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 shadow-inner flex items-start gap-3 animate-[fadeIn_0.3s_ease-out]">
+                                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                                <div>
+                                    <h4 className="text-sm font-black text-rose-800 uppercase tracking-tight mb-1">CPF com mais de um cadastro</h4>
+                                    <p className="text-xs font-bold text-rose-700/80">Existe mais de um aluno com este CPF. Para não lançar a venda no cadastro errado, peça ao gestor para corrigir os cadastros antes de continuar.</p>
+                                </div>
+                            </div>
+                        )}
+
+                        {!buscandoCpf && cpfBusca.length === 14 && !cpfErro && statusCpf !== 'erro' && statusCpf !== 'duplicado' && statusCpf !== null && (
+                            cpfConfere ? (
                                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 shadow-inner flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-[fadeIn_0.3s_ease-out]">
                                     <div>
                                         <h4 className="text-lg font-black text-slate-800 uppercase tracking-tight flex items-center gap-2 mb-2">{alunoEncontrado.nome} <CheckCircle2 className="w-4 h-4 text-emerald-500" /></h4>
@@ -272,7 +339,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                         </div>
                                     </div>
                                     <button type="button" onClick={() => {
-                                        if(temVisaoGlobal && !formData.unidade) return alert('Selecione a unidade antes de cadastrar/editar o aluno.');
+                                        if(!formData.unidade) return alert('Selecione a unidade antes de cadastrar/editar o aluno.');
                                         setModalAlunoAberto(true);
                                     }} className="w-full md:w-auto px-5 py-2.5 bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0">
                                         <UserRoundPen className="w-4 h-4" /> Editar Cadastro
@@ -285,7 +352,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                         <p className="text-xs font-bold text-amber-700/70">Nenhum cliente localizado para este CPF.</p>
                                     </div>
                                     <button type="button" onClick={() => {
-                                        if(temVisaoGlobal && !formData.unidade) return alert('Selecione a unidade antes de cadastrar o aluno.');
+                                        if(!formData.unidade) return alert('Selecione a unidade antes de cadastrar o aluno.');
                                         setModalAlunoAberto(true);
                                     }} className="w-full md:w-auto px-5 py-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0">
                                         <UserPlus className="w-4 h-4" /> Cadastrar Cliente Rápido
@@ -296,8 +363,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                     </div>
                 </div>
 
-                {/* SÓ MOSTRA O CARRINHO SE O ALUNO FOR ENCONTRADO E CONFIRMADO */}
-                <div className={`transition-all duration-500 ${!alunoEncontrado ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
+                <div className={`transition-all duration-500 ${!cpfConfere ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
                     <div className={sectionClass}>
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">
@@ -336,10 +402,11 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                         </select>
                                     </div>
 
+                                    {/* 🔥 O CONSULTOR É FILTRADO PELA UNIDADE SELECIONADA NO TOPO */}
                                     <div className="lg:col-span-3">
                                         <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1.5 ml-1">Consultor Responsável *</label>
-                                        <select value={item.vendedor} onChange={(e) => handleItemChange(item.id, 'vendedor', e.target.value)} required disabled={temVisaoGlobal && !formData.unidade} className={`w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3 py-3 text-xs focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed ${item.vendedor === '' ? 'text-blue-400' : 'text-blue-700 font-bold uppercase'}`}>
-                                            <option value="" disabled hidden>{(temVisaoGlobal && !formData.unidade) ? 'Escolha a unidade...' : 'Selecione o consultor...'}</option>
+                                        <select value={item.vendedor} onChange={(e) => handleItemChange(item.id, 'vendedor', e.target.value)} required disabled={!formData.unidade} className={`w-full bg-blue-50/50 border border-blue-200 rounded-xl px-3 py-3 text-xs focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed ${item.vendedor === '' ? 'text-blue-400' : 'text-blue-700 font-bold uppercase'}`}>
+                                            <option value="" disabled hidden>{!formData.unidade ? 'Escolha a unidade primeiro...' : 'Selecione o consultor...'}</option>
                                             {vendedoresDaUnidade.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                         </select>
                                     </div>
@@ -383,7 +450,7 @@ const FormVenda = ({ usuarioLogado, unidades, onAddMultiple, planos, produtos, s
                                 <span className="text-4xl font-black text-slate-900 tracking-tight">{formatMoney(totalVenda)}</span>
                             </div>
                             
-                            <button type="submit" disabled={isSubmitting} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 mt-8 text-xs active:scale-[0.98]">
+                            <button type="submit" disabled={isSubmitting || sucesso} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 mt-8 text-xs active:scale-[0.98]">
                                 {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> Processando Caixa...</> : <><Check className="w-5 h-5" /> Confirmar Venda Final</>}
                             </button>
                         </div>
