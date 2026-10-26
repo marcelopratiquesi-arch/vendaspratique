@@ -6,9 +6,10 @@ import {
     Filter, Calendar, CalendarDays, Sun, UserCheck, Wallet, BarChart2, 
     Leaf, Star, Activity, Dumbbell, ShoppingBag, Receipt, Layers, 
     ChevronDown, ChevronUp, AlertCircle, RefreshCw, AlertTriangle, 
-    Bookmark, Package, Briefcase, Info, Lightbulb, Users, Building2, CalendarRange 
+    Bookmark, Package, Briefcase, Info, Lightbulb, Users, Building2, CalendarRange, Search, X 
 } from 'lucide-react';
 import { SmartFilter } from '../../components/SmartFilter.jsx';
+import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from './FiltrosCompactos.jsx';
 
 // 🔥 CORREÇÃO DE FUSO HORÁRIO BRASILEIRO
 const getLocalISODate = () => {
@@ -37,6 +38,10 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
     const [servicosOcultos, setServicosOcultos] = useState([]);
     
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS'); 
+    // Atalho de período escolhido no menu (hoje, 7d, mes, dia, personalizado...)
+    const [presetPeriodo, setPresetPeriodo] = useState('hoje');
+    // Busca por aluno, CPF ou matrícula
+    const [busca, setBusca] = useState('');
 
     const [categoriaExpandida, setCategoriaExpandida] = useState(null);
     const [catalogoGeral, setCatalogoGeral] = useState([]); 
@@ -68,7 +73,19 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
         setPlanosOcultos([]);
         setProdutosOcultos([]);
         setServicosOcultos([]);
+        setPresetPeriodo('hoje');
+        setBusca('');
         if (temVisaoGlobal) setFiltroUnidade('TODOS');
+    };
+
+    // Aplica o que foi escolhido no menu de período, usando os mesmos filtros de antes (dia / periodo / mes)
+    const aplicarPeriodo = (p) => {
+        if (!p) return;
+        setPresetPeriodo(p.preset);
+        setTipoFiltroData(p.tipo);
+        if (p.tipo === 'dia') setDiaEspecifico(p.dia || '');
+        if (p.tipo === 'periodo') { setDataInicio(p.inicio || ''); setDataFim(p.fim || ''); }
+        if (p.tipo === 'mes') { setFiltroMes(p.mes || 'TODOS'); setFiltroAno(p.ano || 'TODOS'); }
     };
 
     useEffect(() => {
@@ -158,6 +175,9 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
         };
     }, [vendasBase, mapCatalogo]);
 
+    const termoBusca = normalizeString(busca);
+    const digitosBusca = busca.replace(/\D/g, '');
+
     const vendasFiltradas = useMemo(() => {
         return vendasBase.filter(venda => {
             const prodUpper = (venda.produto || '').trim().toUpperCase();
@@ -168,9 +188,19 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             if (produtosOcultos.includes(prodUpper)) return false;
             if (servicosOcultos.includes(prodUpper)) return false;
 
+            // Busca por nome do aluno, CPF ou matrícula
+            if (termoBusca) {
+                const nome = normalizeString(String(venda.nome_aluno || venda.nome || ''));
+                const cpf = String(venda.cpf || '').replace(/\D/g, '');
+                const mat = String(venda.matricula || '');
+                const achou = nome.includes(termoBusca)
+                    || (digitosBusca.length >= 3 && (cpf.includes(digitosBusca) || mat.includes(digitosBusca)));
+                if (!achou) return false;
+            }
+
             return true;
         });
-    }, [vendasBase, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos]);
+    }, [vendasBase, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, termoBusca, digitosBusca]);
 
     const resumoVendedor = useMemo(() => {
         const resumo = {
@@ -258,241 +288,137 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
         servicosOcultos.length > 0 ||
         filtroUnidade !== 'TODOS' ||
         tipoFiltroData !== 'dia' ||
-        diaEspecifico !== hojePadrao;
+        diaEspecifico !== hojePadrao ||
+        termoBusca !== '';
+
+    // ---------- Textos do período ----------
+    const dataBR = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+    const nomeMes = (m) => (meses.find(x => x.val === m)?.label || '').replace(/^\d+\s*-\s*/, '');
+    const rotuloPeriodo = (() => {
+        if (presetPeriodo === 'dia') return dataBR(diaEspecifico) || 'Escolher dia';
+        if (presetPeriodo === 'mes') return filtroMes === 'TODOS' ? `Ano ${filtroAno === 'TODOS' ? 'todos' : filtroAno}` : `${nomeMes(filtroMes)}${filtroAno !== 'TODOS' ? ` ${filtroAno}` : ''}`;
+        if (presetPeriodo === 'personalizado') return `${dataBR(dataInicio)} – ${dataBR(dataFim)}`;
+        return ROTULO_ATALHO[presetPeriodo] || 'Período';
+    })();
+    const descricaoPeriodo = (() => {
+        if (tipoFiltroData === 'dia') return presetPeriodo === 'hoje' ? `Hoje, ${dataBR(diaEspecifico)}` : presetPeriodo === 'ontem' ? `Ontem, ${dataBR(diaEspecifico)}` : dataBR(diaEspecifico);
+        if (tipoFiltroData === 'periodo') return dataInicio || dataFim ? `${ROTULO_ATALHO[presetPeriodo] ? `${ROTULO_ATALHO[presetPeriodo]}: ` : ''}${dataBR(dataInicio)} a ${dataBR(dataFim)}` : 'Todo o período';
+        return rotuloPeriodo;
+    })();
+
+    // ---------- Filtros ativos (chips com X) ----------
+    const filtrosAtivos = [];
+    if (busca.trim()) filtrosAtivos.push({ id: 'busca', texto: `Busca: "${busca.trim()}"`, remover: () => setBusca('') });
+    if (temVisaoGlobal && filtroUnidade !== 'TODOS') filtrosAtivos.push({ id: 'unidade', texto: `Unidade: ${filtroUnidade}`, remover: () => setFiltroUnidade('TODOS') });
+    [
+        ['consultores', 'Consultores', vendedoresUnicos, vendedoresOcultos, setVendedoresOcultos],
+        ['planos', 'Planos', planosVendidos, planosOcultos, setPlanosOcultos],
+        ['produtos', 'Produtos', produtosVendidos, produtosOcultos, setProdutosOcultos],
+        ['servicos', 'Serviços', servicosVendidos, servicosOcultos, setServicosOcultos],
+    ].forEach(([id, nome, opcoes, ocultos, setOcultos]) => {
+        const ocultosValidos = ocultos.filter(o => opcoes.includes(o));
+        if (ocultosValidos.length > 0) {
+            const visiveis = opcoes.filter(o => !ocultos.includes(o));
+            const texto = visiveis.length <= 2 && visiveis.length > 0
+                ? `${nome}: ${visiveis.map(v => toTitleCase(v)).join(', ')}`
+                : `${nome}: ${visiveis.length} de ${opcoes.length}`;
+            filtrosAtivos.push({ id, texto, remover: () => setOcultos([]) });
+        }
+    });
+    const temFiltroAtivo = filtrosAtivos.length > 0 || presetPeriodo !== 'hoje';
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto">
             
             {/* ========================================== */}
-            {/* 🚀 FILTROS DE HISTÓRICO (REDESIGN PREMIUM 2026) */}
+            {/* 🚀 FILTROS DE HISTÓRICO (versão compacta) */}
             {/* ========================================== */}
-            <div className="bg-white rounded-[24px] border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-6 md:p-8 relative z-20">
-                
-                {/* CABEÇALHO DOS FILTROS */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-blue-600 text-white rounded-[18px] flex items-center justify-center shrink-0 shadow-md">
-                            <Filter className="w-6 h-6" />
-                        </div>
-                        <div className="flex flex-col">
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Filtros de Histórico</h2>
-                            <p className="text-[13px] font-medium text-slate-500 mt-0.5">Base de dados sincronizada em tempo real</p>
-                            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Selecione os filtros abaixo para visualizar o histórico de performance.</p>
-                        </div>
+            <div className="bg-white rounded-[20px] border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-4 md:p-5 relative z-20 flex flex-col gap-4">
+
+                {/* Título + o que está sendo exibido | Limpar + Período */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="min-w-0">
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Histórico de vendas</h2>
+                        <p className="text-[12px] font-semibold text-slate-500 mt-0.5 truncate">
+                            {descricaoPeriodo} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? 'Todas as unidades' : filtroUnidade) : (usuarioLogado?.unidade || '')}
+                        </p>
                     </div>
-                    
-                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                        <button 
-                            onClick={limparFiltros} 
-                            title="Limpar Filtros" 
-                            className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-500 rounded-[16px] transition-all shadow-sm shrink-0"
-                        >
-                            <RefreshCw className="w-4 h-4 mb-0.5" />
-                            <span className="text-[8px] font-black uppercase tracking-widest leading-none text-center">Limpar<br/>Filtros</span>
-                        </button>
-                        
-                        <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-200 flex-1 md:flex-none overflow-x-auto custom-scrollbar shadow-inner">
-                            <button onClick={() => setTipoFiltroData('mes')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
-                                <CalendarDays className="w-4 h-4" /> Mês
+                    <div className="flex items-center gap-2">
+                        {temFiltroAtivo && (
+                            <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors">
+                                <RefreshCw className="w-3.5 h-3.5" /> Limpar filtros
                             </button>
-                            <button onClick={() => setTipoFiltroData('periodo')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
-                                <CalendarRange className="w-4 h-4" /> Período
-                            </button>
-                            <button onClick={() => setTipoFiltroData('dia')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
-                                <Sun className="w-4 h-4" /> Dia
-                            </button>
-                        </div>
+                        )}
+                        <SeletorPeriodo
+                            rotulo={rotuloPeriodo}
+                            preset={presetPeriodo}
+                            tipo={tipoFiltroData}
+                            dia={diaEspecifico}
+                            inicio={dataInicio}
+                            fim={dataFim}
+                            mes={filtroMes}
+                            ano={filtroAno}
+                            meses={meses}
+                            anos={anosUnicos}
+                            onAplicar={aplicarPeriodo}
+                        />
                     </div>
                 </div>
 
-                {/* PRIMEIRA LINHA DE FILTROS (DADOS, UNIDADE, CONSULTORES) */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6">
-                    
-                    {/* Renderização condicional baseada no Tipo de Filtro selecionado */}
-                    {tipoFiltroData === 'mes' && (
-                        <>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                        <CalendarDays className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Mês Referência</label>
-                                        <span className="text-[10px] font-medium text-slate-400 leading-tight">Selecione o mês</span>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-slate-300 transition-colors h-[48px] appearance-none shadow-sm">
-                                        {meses.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
-                                    </select>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                </div>
-                            </div>
-                            
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                        <Calendar className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Ano Referência</label>
-                                        <span className="text-[10px] font-medium text-slate-400 leading-tight">Selecione o ano</span>
-                                    </div>
-                                </div>
-                                <div className="relative">
-                                    <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer hover:border-slate-300 transition-colors h-[48px] appearance-none shadow-sm">
-                                        <option value="TODOS">Todos os Anos</option>
-                                        {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
-                                    </select>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                </div>
-                            </div>
-                        </>
-                    )}
+                {/* Busca + filtros lado a lado */}
+                <div className="flex flex-wrap gap-2.5">
+                    <label className="flex-[2] min-w-[240px] h-[42px] px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow">
+                        <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                        <input
+                            type="text"
+                            value={busca}
+                            onChange={(e) => setBusca(e.target.value)}
+                            placeholder="Buscar por aluno, CPF ou matrícula"
+                            aria-label="Buscar venda por aluno, CPF ou matrícula"
+                            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium text-slate-800 placeholder-slate-400"
+                        />
+                        {busca && (
+                            <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca" className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </label>
 
-                    {tipoFiltroData === 'periodo' && (
-                        <>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                        <CalendarDays className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Data Início</label>
-                                        <span className="text-[10px] font-medium text-slate-400 leading-tight">A partir de</span>
-                                    </div>
-                                </div>
-                                <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[48px]" />
-                            </div>
-
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                        <CalendarDays className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Data Fim</label>
-                                        <span className="text-[10px] font-medium text-slate-400 leading-tight">Até</span>
-                                    </div>
-                                </div>
-                                <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[48px]" />
-                            </div>
-                        </>
-                    )}
-
-                    {tipoFiltroData === 'dia' && (
-                        <div className="xl:col-span-2 bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                    <CalendarDays className="w-4 h-4" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Dia Específico</label>
-                                    <span className="text-[10px] font-medium text-slate-400 leading-tight">Selecione a data para consultar</span>
-                                </div>
-                            </div>
-                            <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[48px]" />
-                        </div>
-                    )}
-
-                    {/* BLOCO: ISOLAR UNIDADE (SÓ APARECE PARA VISÃO GLOBAL) */}
                     {temVisaoGlobal && (
-                        <div className="bg-rose-50/30 border border-rose-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-rose-50/50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-                                    <Building2 className="w-4 h-4" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <label className="text-[11px] font-black text-rose-700 uppercase tracking-widest">Isolar Unidade</label>
-                                    <span className="text-[10px] font-medium text-rose-500 leading-tight">Visualize os dados de uma unidade</span>
-                                </div>
-                            </div>
-                            <div className="relative">
-                                <select value={filtroUnidade} onChange={(e) => setFiltroUnidade(e.target.value)} className="w-full bg-white border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase hover:border-rose-300 transition-colors h-[48px] appearance-none shadow-sm">
-                                    {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS UNIDADES' : u}</option>)}
-                                </select>
-                                <ChevronDown className="w-4 h-4 text-rose-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            </div>
+                        <div className="relative flex-1 min-w-[170px]">
+                            <Building2 className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroUnidade !== 'TODOS' ? 'text-blue-700' : 'text-slate-400'}`} />
+                            <select
+                                value={filtroUnidade}
+                                onChange={(e) => setFiltroUnidade(e.target.value)}
+                                aria-label="Unidade"
+                                className={`w-full h-[42px] pl-9 pr-8 rounded-xl border text-[13px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${filtroUnidade !== 'TODOS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold'}`}
+                            >
+                                {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'Unidade: todas' : u}</option>)}
+                            </select>
+                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
                     )}
 
-                    {/* BLOCO: CONSULTORES */}
-                    <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
-                                <Users className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Consultores</label>
-                                <span className="text-[10px] font-medium text-slate-400 leading-tight">Filtre por consultor</span>
-                            </div>
-                        </div>
-                        <div className="relative">
-                            <SmartFilter 
-                                options={vendedoresUnicos} 
-                                ocultos={vendedoresOcultos} 
-                                setOcultos={setVendedoresOcultos} 
-                                label="TODOS" 
-                                Icone={null} 
-                            />
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                    </div>
-
+                    <FiltroMultiplo rotulo="Consultores" icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
+                    <FiltroMultiplo rotulo="Planos" icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
+                    <FiltroMultiplo rotulo="Produtos" icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
+                    <FiltroMultiplo rotulo="Serviços" icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
                 </div>
 
-                {/* SEGUNDA LINHA DE FILTROS (CATEGORIAS) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 relative z-0">
-                    
-                    <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                <Bookmark className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Planos</label>
-                                <span className="text-[10px] font-medium text-slate-400 leading-tight">Filtre por tipo de plano</span>
-                            </div>
-                        </div>
-                        <div className="relative">
-                            <SmartFilter options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} label="TODOS" Icone={null} />
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
+                {/* Filtros ativos (com X para tirar) */}
+                {filtrosAtivos.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-bold text-slate-500">Filtros ativos:</span>
+                        {filtrosAtivos.map(f => (
+                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700">
+                                {f.texto}
+                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors">
+                                    <X className="w-3 h-3" strokeWidth={3} />
+                                </button>
+                            </span>
+                        ))}
                     </div>
-
-                    <div className="bg-emerald-50/30 border border-emerald-100/60 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-emerald-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                                <Package className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Produtos</label>
-                                <span className="text-[10px] font-medium text-slate-400 leading-tight">Filtre por produtos</span>
-                            </div>
-                        </div>
-                        <div className="relative">
-                            <SmartFilter options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} label="TODOS" Icone={null} />
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                    </div>
-
-                    <div className="bg-violet-50/30 border border-violet-100/60 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-violet-50/50">
-                        <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center shrink-0">
-                                <Briefcase className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Serviços</label>
-                                <span className="text-[10px] font-medium text-slate-400 leading-tight">Filtre por serviços</span>
-                            </div>
-                        </div>
-                        <div className="relative">
-                            <SmartFilter options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} label="VAZIO" Icone={null} />
-                            <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                    </div>
-
-                </div>
+                )}
             </div>
 
             {exibirDashboard && (

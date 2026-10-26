@@ -387,7 +387,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             <div onClick={() => handleOrdenar('produto')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
                                                 ITEM VENDIDO (QTD) {<RenderSortIcon coluna="produto" />}
                                             </div>
-                                            <div onClick={() => handleOrdenar('vendedor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[9px] w-fit transition-colors">
+                                        </div>
+                                    </th>
+
+                                    <th className={thClass}>
+                                        <div className="flex flex-col gap-2">
+                                            <div onClick={() => handleOrdenar('vendedor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
                                                 VENDEDOR {<RenderSortIcon coluna="vendedor" />}
                                             </div>
                                         </div>
@@ -478,23 +483,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                 {rawCpf && <CopyButton textToCopy={cpfExibicao} label="Copiar CPF do aluno" />}
                                                             </div>
 
-                                                            {rawMatricula && (
-                                                                <>
-                                                                    <span className="text-slate-300 text-[10px]">|</span>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                                                            MAT: <span className="text-slate-500">{rawMatricula}</span>
-                                                                        </span>
-                                                                        <CopyButton textToCopy={rawMatricula} label="Copiar matrícula do aluno" />
-                                                                    </div>
-                                                                </>
-                                                            )}
                                                         </div>
                                                     </div>
                                                 )}
                                             </td>
 
-                                            {/* COLUNA 3: ITEM VENDIDO E VENDEDOR */}
+                                            {/* COLUNA 3: ITEM VENDIDO */}
                                             <td className="px-5 py-3 align-middle whitespace-nowrap">
                                                 {isEditing ? (
                                                     <div className="flex flex-col gap-2">
@@ -505,32 +499,37 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                 {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                                             </select>
                                                         </div>
-                                                        <select 
-                                                            value={(dadosEdicao.vendedor || '').toUpperCase()} 
-                                                            onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
-                                                            className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
-                                                        >
-                                                            <option value="" disabled>Selecione o Vendedor...</option>
-                                                            {vendedoresDaUnidade.sort().map(v => (
-                                                                <option key={v} value={v}>{toTitleCase(v)}</option>
-                                                            ))}
-                                                        </select>
                                                     </div>
                                                 ) : (
-                                                    <div>
-                                                        <div className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1.5">
-                                                            <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[10px]">{row.quantidade || '1'}x</span>
-                                                            {row.produto}
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 mt-2 bg-slate-100 w-fit px-2 py-1 rounded-md border border-slate-200" title={row.vendedor}>
-                                                            <User className="w-3 h-3 text-slate-400" />
-                                                            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{shortName(row.vendedor)}</span>
-                                                        </div>
+                                                    <div className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1.5">
+                                                        <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[10px]">{row.quantidade || '1'}x</span>
+                                                        {row.produto}
                                                     </div>
                                                 )}
                                             </td>
 
-                                            {/* COLUNA 4: VALOR */}
+                                            {/* COLUNA 4: VENDEDOR */}
+                                            <td className="px-5 py-3 align-middle whitespace-nowrap">
+                                                {isEditing ? (
+                                                    <select 
+                                                        value={(dadosEdicao.vendedor || '').toUpperCase()} 
+                                                        onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
+                                                        className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
+                                                    >
+                                                        <option value="" disabled>Selecione o Vendedor...</option>
+                                                        {vendedoresDaUnidade.sort().map(v => (
+                                                            <option key={v} value={v}>{toTitleCase(v)}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 bg-slate-100 w-fit px-2 py-1 rounded-md border border-slate-200" title={row.vendedor}>
+                                                        <User className="w-3 h-3 text-slate-400" />
+                                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{shortName(row.vendedor)}</span>
+                                                    </div>
+                                                )}
+                                            </td>
+
+                                            {/* COLUNA 5: VALOR */}
                                             <td className="px-5 py-3 align-middle no-drag whitespace-nowrap">
                                                 {isEditing ? (
                                                     <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-left bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner" title="O valor calcula sozinho" />
@@ -541,7 +540,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 )}
                                             </td>
 
-                                            {/* COLUNA 5: GESTÃO */}
+                                            {/* COLUNA 6: GESTÃO */}
                                             {podeEditar && (
                                                 <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] bg-white`}>
                                                     {isEditing ? (
