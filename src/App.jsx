@@ -176,12 +176,17 @@ export default function App() {
 
     // 📐 Escala da interface: deixa o sistema inteiro um pouco menor, como um "zoom" fixo.
     // 1 = tamanho original | 0.9 = 10% menor | 0.85 = 15% menor
+    // Só vale com alguém logado: a tela de login fica no tamanho normal e ocupa a tela inteira
+    // (com a escala ligada, telas de altura "100% da tela" deixavam uma faixa branca embaixo).
     useEffect(() => {
         const raiz = document.documentElement;
-        const anterior = raiz.style.zoom;
+        if (!usuarioLogado) {
+            raiz.style.zoom = '';
+            return undefined;
+        }
         raiz.style.zoom = String(ESCALA_INTERFACE);
-        return () => { raiz.style.zoom = anterior; };
-    }, []);
+        return () => { raiz.style.zoom = ''; };
+    }, [usuarioLogado]);
 
     useEffect(() => {
         let timeoutId;

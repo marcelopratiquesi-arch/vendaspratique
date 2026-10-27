@@ -8,11 +8,10 @@ import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
 import RankingGlobalTab from './RankingGlobalTab.jsx';
 import { 
-    BarChart3, Target, FileText, Trophy, Filter, RefreshCw,
-    Bookmark, Package, Briefcase, ChevronDown, 
-    CalendarDays, CalendarRange, Calendar, Info, Lightbulb, Users, Layers
+    BarChart3, Target, FileText, Trophy, RefreshCw,
+    Bookmark, Package, Briefcase, Users, X
 } from 'lucide-react';
-import { SmartFilter } from '../../components/SmartFilter.jsx';
+import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 
 const getLocalISODate = () => {
@@ -35,6 +34,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const [dataFim, setDataFim] = useState('');
     const [diaEspecifico, setDiaEspecifico] = useState(getLocalISODate());
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS');
+    // Atalho escolhido no menu de período (este_mes, hoje, 7d, mes, dia, personalizado...)
+    const [presetPeriodo, setPresetPeriodo] = useState('este_mes');
 
     const [vendedoresOcultos, setVendedoresOcultos] = useState([]);
     const [planosOcultos, setPlanosOcultos] = useState([]);
@@ -143,6 +144,27 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         setPlanosOcultos([]);
         setProdutosOcultos([]);
         setServicosOcultos([]);
+        setPresetPeriodo('este_mes');
+    };
+
+    // Menu de período → filtros que esta tela já usa (mes / periodo / dia).
+    // "Este mês" e "Mês passado" usam o modo mês, para as metas mensais continuarem funcionando.
+    const aplicarPeriodo = (p) => {
+        if (!p) return;
+        if (p.preset === 'este_mes' || p.preset === 'mes_passado') {
+            const ref = new Date();
+            if (p.preset === 'mes_passado') ref.setMonth(ref.getMonth() - 1, 1);
+            setPresetPeriodo(p.preset);
+            setTipoFiltro('mes');
+            setFiltroMes(String(ref.getMonth() + 1).padStart(2, '0'));
+            setFiltroAno(String(ref.getFullYear()));
+            return;
+        }
+        setPresetPeriodo(p.preset);
+        setTipoFiltro(p.tipo);
+        if (p.tipo === 'dia') setDiaEspecifico(p.dia || '');
+        if (p.tipo === 'periodo') { setDataInicio(p.inicio || ''); setDataFim(p.fim || ''); }
+        if (p.tipo === 'mes') { setFiltroMes(p.mes || 'TODOS'); setFiltroAno(p.ano || 'TODOS'); }
     };
 
     useEffect(() => {
@@ -155,9 +177,11 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     useEffect(() => {
         const hoje = new Date();
         if (abaPrincipal === 'relatorio' || abaPrincipal === 'rankingGlobal') {
+            setPresetPeriodo('hoje');
             setTipoFiltro('dia');
             setDiaEspecifico(getLocalISODate());
         } else {
+            setPresetPeriodo('este_mes');
             setTipoFiltro('mes');
             setFiltroMes(String(hoje.getMonth() + 1).padStart(2, '0'));
             setFiltroAno(hoje.getFullYear().toString());
@@ -330,6 +354,39 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         return `${dataInicio ? dataInicio.split('-').reverse().join('/') : '...'} até ${dataFim ? dataFim.split('-').reverse().join('/') : '...'}`;
     })();
 
+    // ---------- Textos do período ----------
+    const dataBR = (iso) => (iso ? iso.split('-').reverse().join('/') : '');
+    const nomeMesSel = mesesTraduzidos.find(m => m.val === filtroMes)?.label || filtroMes;
+    const rotuloPeriodo = (() => {
+        if (presetPeriodo === 'este_mes') return 'Este mês';
+        if (presetPeriodo === 'mes_passado') return 'Mês passado';
+        if (presetPeriodo === 'mes') return filtroMes === 'TODOS' ? `Ano ${filtroAno === 'TODOS' ? 'todos' : filtroAno}` : `${nomeMesSel}${filtroAno !== 'TODOS' ? ` ${filtroAno}` : ''}`;
+        if (presetPeriodo === 'dia') return dataBR(diaEspecifico) || 'Escolher dia';
+        if (presetPeriodo === 'personalizado') return `${dataBR(dataInicio)} – ${dataBR(dataFim)}`;
+        return ROTULO_ATALHO[presetPeriodo] || 'Período';
+    })();
+    const descricaoPeriodo = (() => {
+        if (tipoFiltro === 'dia') return presetPeriodo === 'hoje' ? `Hoje, ${dataBR(diaEspecifico)}` : presetPeriodo === 'ontem' ? `Ontem, ${dataBR(diaEspecifico)}` : dataBR(diaEspecifico);
+        if (tipoFiltro === 'periodo') return dataInicio || dataFim ? `${dataBR(dataInicio)} a ${dataBR(dataFim)}` : 'Todo o período';
+        return labelFiltroAtual;
+    })();
+
+    // ---------- Filtros ativos (chips com X) ----------
+    const filtrosAtivos = [];
+    [
+        ['consultores', 'Consultores', vendedoresUnicos, vendedoresOcultos, setVendedoresOcultos],
+        ['planos', 'Planos', planosVendidos, planosOcultos, setPlanosOcultos],
+        ['produtos', 'Produtos', produtosVendidos, produtosOcultos, setProdutosOcultos],
+        ['servicos', 'Serviços', servicosVendidos, servicosOcultos, setServicosOcultos],
+    ].forEach(([id, nome, opcoes, ocultos, setOcultos]) => {
+        if (ocultos.some(o => opcoes.includes(o))) {
+            const visiveis = opcoes.filter(o => !ocultos.includes(o));
+            filtrosAtivos.push({ id, texto: `${nome}: ${visiveis.length} de ${opcoes.length}`, remover: () => setOcultos([]) });
+        }
+    });
+    const presetPadrao = (abaPrincipal === 'relatorio' || abaPrincipal === 'rankingGlobal') ? 'hoje' : 'este_mes';
+    const temFiltroAtivo = filtrosAtivos.length > 0 || presetPeriodo !== presetPadrao;
+
     const abrirModalWhatsapp = (texto, config = {}) => {
         setTextoEditavel(texto);
         setModalConfig({ titulo: config.titulo || 'Mensagem', icone: config.icone || 'send', cor: config.cor || 'emerald' });
@@ -368,221 +425,80 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             />
 
             {/* ========================================== */}
-            {/* 🚀 BARRA DE NAVEGAÇÃO DAS ABAS */}
+            {/* 🚀 ABAS + FILTROS (versão compacta, mesmo padrão do Histórico) */}
             {/* ========================================== */}
-            <div className="bg-white rounded-[24px] border border-slate-200 p-3 flex justify-start items-center shadow-sm relative z-20">
-                <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-100 w-full lg:w-auto overflow-x-auto custom-scrollbar shadow-inner gap-1">
-                    <button
-                        onClick={() => setAbaPrincipal('dashboard')}
-                        className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'dashboard' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                    >
-                        <BarChart3 className="w-4 h-4" /> Dashboard
-                    </button>
+            <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-4 md:p-5 relative z-20 flex flex-col gap-4">
 
-                    <button
-                        onClick={() => setAbaPrincipal('visaoGeral')}
-                        className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'visaoGeral' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                    >
-                        <Target className="w-4 h-4" /> Metas da Unidade
-                    </button>
+                {/* Abas | o que está sendo exibido + período */}
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1" role="tablist" aria-label="Seções">
+                        {[
+                            ['dashboard', 'Dashboard', BarChart3],
+                            ['visaoGeral', 'Metas da unidade', Target],
+                            ['relatorio', 'Relatórios', FileText],
+                            ...(temVisaoGlobal ? [['rankingGlobal', 'Ranking global', Trophy]] : []),
+                        ].map(([id, rotulo, Icone]) => {
+                            const ativa = abaPrincipal === id;
+                            return (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={ativa}
+                                    onClick={() => setAbaPrincipal(id)}
+                                    className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-bold'}`}
+                                >
+                                    <Icone className={`w-4 h-4 ${id === 'rankingGlobal' ? 'text-amber-500' : ''}`} /> {rotulo}
+                                </button>
+                            );
+                        })}
+                    </div>
 
-                    <button
-                        onClick={() => setAbaPrincipal('relatorio')}
-                        className={`flex-1 min-w-[140px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'relatorio' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                    >
-                        <FileText className="w-4 h-4" /> Relatórios
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[12px] font-semibold text-slate-500">
+                            {descricaoPeriodo} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? 'Todas as unidades' : filtroUnidade) : (usuarioLogado?.unidade || '')}
+                        </span>
+                        <SeletorPeriodo
+                            rotulo={rotuloPeriodo}
+                            preset={presetPeriodo}
+                            tipo={tipoFiltro}
+                            dia={diaEspecifico}
+                            inicio={dataInicio}
+                            fim={dataFim}
+                            mes={filtroMes}
+                            ano={filtroAno}
+                            meses={mesesTraduzidos}
+                            anos={anosUnicos.filter(a => a !== 'TODOS')}
+                            onAplicar={aplicarPeriodo}
+                        />
+                    </div>
+                </div>
 
-                    {/* 🏆 4ª ABA EXCLUSIVA PARA ADMIN E MENTOR */}
-                    {temVisaoGlobal && (
-                        <button
-                            onClick={() => setAbaPrincipal('rankingGlobal')}
-                            className={`flex-1 min-w-[160px] px-6 py-3 rounded-[14px] text-[11px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaPrincipal === 'rankingGlobal' ? 'bg-slate-900 shadow-md text-amber-400 border border-slate-800' : 'text-slate-600 hover:text-slate-900 hover:bg-amber-50/60'}`}
-                        >
-                            <Trophy className="w-4 h-4 text-amber-500" /> Ranking Global
+                {/* Filtros lado a lado */}
+                <div className="flex flex-wrap gap-2.5">
+                    <FiltroMultiplo rotulo="Consultores" icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
+                    <FiltroMultiplo rotulo="Planos" icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
+                    <FiltroMultiplo rotulo="Produtos" icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
+                    <FiltroMultiplo rotulo="Serviços" icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
+                </div>
+
+                {/* Filtros ativos */}
+                {(filtrosAtivos.length > 0 || temFiltroAtivo) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                        {filtrosAtivos.length > 0 && <span className="text-[11px] font-bold text-slate-500">Filtros ativos:</span>}
+                        {filtrosAtivos.map(f => (
+                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700">
+                                {f.texto}
+                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors">
+                                    <X className="w-3 h-3" strokeWidth={3} />
+                                </button>
+                            </span>
+                        ))}
+                        <button type="button" onClick={limparFiltros} className="h-7 px-2.5 rounded-lg text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors">
+                            <RefreshCw className="w-3.5 h-3.5" /> Limpar filtros
                         </button>
-                    )}
-                </div>
-            </div>
-
-            {/* ========================================== */}
-            {/* 🚀 PAINEL CENTRAL DE FILTROS GLOBAIS AVANÇADOS */}
-            {/* ========================================== */}
-            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 relative z-10">
-                {/* HEADER DOS FILTROS */}
-                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 mb-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-[18px] border border-blue-100 shadow-inner flex items-center justify-center shrink-0">
-                            {abaPrincipal === 'dashboard' && <BarChart3 className="w-6 h-6" />}
-                            {abaPrincipal === 'visaoGeral' && <Target className="w-6 h-6" />}
-                            {abaPrincipal === 'relatorio' && <FileText className="w-6 h-6" />}
-                            {abaPrincipal === 'rankingGlobal' && <Trophy className="w-6 h-6 text-amber-500" />}
-                        </div>
-                        <div className="flex flex-col">
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                                {abaPrincipal === 'dashboard' ? 'Dashboard' : 
-                                 abaPrincipal === 'visaoGeral' ? 'Metas da Unidade' : 
-                                 abaPrincipal === 'rankingGlobal' ? 'Ranking Global da Rede' :
-                                 'Relatórios Operacionais'}
-                            </h2>
-                            <p className="text-[13px] font-medium text-slate-500 mt-0.5">
-                                Controle os dados exibidos no painel e relatórios
-                            </p>
-                        </div>
                     </div>
-
-                    <div className="flex flex-wrap items-center gap-4 w-full xl:w-auto">
-                        <button onClick={limparFiltros} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 transition-colors bg-slate-50 px-5 py-3 rounded-xl border border-slate-200 hover:border-slate-300 shadow-sm">
-                            <RefreshCw className="w-4 h-4" /> 
-                            <div className="flex flex-col text-left">
-                                <span>Limpar Filtros</span>
-                                <span className="text-[8px] font-medium text-slate-400 normal-case tracking-normal mt-0.5">Resetar todas as opções</span>
-                            </div>
-                        </button>
-
-                        <div className="flex bg-slate-50 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto shadow-inner">
-                            <button onClick={() => setTipoFiltro('mes')} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-blue-600 shadow-md text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}><CalendarDays className="w-4 h-4"/> Mês</button>
-                            <button onClick={() => setTipoFiltro('periodo')} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-blue-600 shadow-md text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}><CalendarRange className="w-4 h-4"/> Período</button>
-                            <button onClick={() => setTipoFiltro('dia')} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-blue-600 shadow-md text-white' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100'}`}><Calendar className="w-4 h-4"/> Dia</button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* BANNER DE INFORMAÇÃO */}
-                <div className="flex flex-col md:flex-row items-center gap-4 bg-blue-50/50 border border-blue-100/80 rounded-xl p-3.5 mb-8 shadow-sm">
-                    <div className="flex items-center gap-2.5 text-blue-600 flex-1 px-2">
-                        <Info className="w-4 h-4 shrink-0" />
-                        <span className="text-xs font-medium text-blue-800/80 leading-snug">Selecione os filtros abaixo para visualizar os dados desejados. As informações do dashboard e relatórios serão atualizadas automaticamente.</span>
-                    </div>
-                    <div className="hidden md:block w-px h-6 bg-blue-200"></div>
-                    <div className="flex items-center gap-2.5 text-amber-600 px-2 shrink-0">
-                        <Lightbulb className="w-4 h-4 shrink-0" />
-                        <span className="text-xs font-medium text-amber-800/80">Dica: utilize os filtros para uma análise mais precisa</span>
-                    </div>
-                </div>
-
-                {/* SEÇÃO 1: PERÍODO DE REFERÊNCIA */}
-                <div className="mb-10 relative z-10">
-                    <div className="flex items-center gap-2.5 mb-5">
-                        <Calendar className="w-5 h-5 text-blue-600" />
-                        <div className="flex flex-col">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Período de Referência</h3>
-                            <p className="text-[10px] font-medium text-slate-500">Defina o mês e o ano para análise dos dados</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {tipoFiltro === 'mes' && (
-                            <>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Mês de Referência</label>
-                                    <div className="relative">
-                                        <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3.5 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none pr-10 shadow-sm cursor-pointer hover:border-slate-300 transition-colors">
-                                            {mesesTraduzidos.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
-                                        </select>
-                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5 text-slate-400"/> Ano de Referência</label>
-                                    <div className="relative">
-                                        <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3.5 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 appearance-none pr-10 shadow-sm cursor-pointer hover:border-slate-300 transition-colors">
-                                            {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
-                                        </select>
-                                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                        {tipoFiltro === 'periodo' && (
-                            <>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Data Início</label>
-                                    <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[52px]" />
-                                </div>
-                                <div className="flex flex-col gap-2">
-                                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Data Fim</label>
-                                    <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[52px]" />
-                                </div>
-                            </>
-                        )}
-                        {tipoFiltro === 'dia' && (
-                            <div className="flex flex-col gap-2 sm:col-span-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400"/> Dia Específico</label>
-                                <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm h-[52px]" />
-                            </div>
-                        )}
-
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Users className="w-3.5 h-3.5 text-slate-400"/> Consultores</label>
-                            <div className="relative">
-                                <SmartFilter options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} label="TODOS" Icone={null} />
-                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            </div>
-                        </div>
-
-                        {/* CARD RESUMO AZUL: FILTRO ATIVO */}
-                        <div className="bg-blue-50/60 border border-blue-100 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
-                            <div className="w-12 h-12 bg-blue-100/80 text-blue-600 rounded-full flex items-center justify-center shrink-0">
-                                <BarChart3 className="w-5 h-5" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Filtro Ativo</span>
-                                <span className="text-base font-black text-blue-700 leading-tight">{labelFiltroAtual}</span>
-                                <span className="text-[10px] font-medium text-slate-500 mt-1">{vendedoresOcultos.length > 0 ? `${vendedoresUnicos.length - vendedoresOcultos.length} consultores visíveis` : 'Todos os consultores'}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* SEÇÃO 2: FILTROS POR CATEGORIA */}
-                <div className="pt-8 border-t border-slate-100 relative z-0">
-                    <div className="flex items-center gap-2.5 mb-5">
-                        <Layers className="w-5 h-5 text-indigo-600" />
-                        <div className="flex flex-col">
-                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">Filtros por Categoria</h3>
-                            <p className="text-[10px] font-medium text-slate-500">Refine os dados por tipo de venda</p>
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Bookmark className="w-3.5 h-3.5 text-blue-500"/> Filtrar Planos</label>
-                            <div className="relative">
-                                <SmartFilter options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} label="TODOS" Icone={null} />
-                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Package className="w-3.5 h-3.5 text-emerald-500"/> Filtrar Produtos</label>
-                            <div className="relative">
-                                <SmartFilter options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} label="TODOS" Icone={null} />
-                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            </div>
-                        </div>
-                        
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5"><Briefcase className="w-3.5 h-3.5 text-violet-500"/> Filtrar Serviços</label>
-                            <div className="relative">
-                                <SmartFilter options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} label="VAZIO" Icone={null} />
-                                <ChevronDown className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            </div>
-                        </div>
-
-                        {/* CARD RESUMO VERDE: FILTROS APLICADOS */}
-                        <div className="bg-emerald-50/60 border border-emerald-100 rounded-[20px] p-5 flex items-center gap-4 shadow-sm">
-                            <div className="w-12 h-12 bg-emerald-100/80 text-emerald-600 rounded-full flex items-center justify-center shrink-0">
-                                <Filter className="w-5 h-5" />
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-0.5">Filtros Aplicados</span>
-                                <span className="text-base font-black text-emerald-700 leading-tight">Personalize sua visão</span>
-                                <span className="text-[10px] font-medium text-slate-500 mt-1">Selecione os filtros desejados</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                )}
             </div>
 
             {/* ========================================== */}

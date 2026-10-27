@@ -389,7 +389,7 @@ const DashboardTab = ({
     }, [vendasFiltradas, grupoExpandido, modalProdOpen, modalAtivosOpen]);
 
     return (
-        <div className="space-y-6 animate-[fadeIn_0.2s_ease-out] relative">
+        <div className="space-y-4 animate-[fadeIn_0.2s_ease-out] relative">
             
             {/* 🔥 NOVO PADRÃO: JANELAS FLUTUANTES (PRODUTIVIDADE) */}
             <DraggableWindow
@@ -507,18 +507,18 @@ const DashboardTab = ({
             </DraggableWindow>
 
             {/* 🔥 GRID PRINCIPAL DOS INDICADORES */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
                 
-                <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiPlans', { defaultValue: 'Planos Vendidos' })}</p>
-                    <p className="text-4xl font-black tracking-tight" title={t('analytics.dashboard.kpiTooltip', { defaultValue: 'Métrica deduplicada para espelhar número real de alunos' })}>{String(totalPlanos).padStart(2, '0')}</p>
+                    <p className="text-3xl font-black tracking-tight" title={t('analytics.dashboard.kpiTooltip', { defaultValue: 'Métrica deduplicada para espelhar número real de alunos' })}>{String(totalPlanos).padStart(2, '0')}</p>
                 </div>
                 
                 {/* NOVO CARD: ATIVOS DA UNIDADE */}
                 <div 
                     onClick={handleAbrirModalAtivos}
                     title="Clique para atualizar a quantidade de alunos ativos"
-                    className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden group cursor-pointer hover:ring-4 hover:ring-emerald-500/30 hover:-translate-y-1 transition-all duration-300"
+                    className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden group cursor-pointer hover:ring-4 hover:ring-emerald-500/30 hover:-translate-y-1 transition-all duration-300"
                 >
                     <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                         <Users className="w-32 h-32" />
@@ -533,7 +533,7 @@ const DashboardTab = ({
                                 <span className="text-xs font-bold opacity-80 uppercase tracking-widest">Sincronizando</span>
                             </div>
                         ) : ativosAtualBanco !== null ? (
-                            <p className="text-4xl font-black tracking-tight">{Number(ativosAtualBanco).toLocaleString('pt-BR')}</p>
+                            <p className="text-3xl font-black tracking-tight">{Number(ativosAtualBanco).toLocaleString('pt-BR')}</p>
                         ) : (
                             <p className="text-2xl font-black tracking-tight opacity-90 mt-1">Não Informado</p>
                         )}
@@ -542,7 +542,7 @@ const DashboardTab = ({
 
                 <div 
                     onClick={() => setModalProdOpen(true)}
-                    className="bg-gradient-to-br from-pink-600 to-rose-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden group cursor-pointer hover:ring-4 hover:ring-rose-500/30 hover:-translate-y-1 transition-all duration-300"
+                    className="bg-gradient-to-br from-pink-600 to-rose-800 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden group cursor-pointer hover:ring-4 hover:ring-rose-500/30 hover:-translate-y-1 transition-all duration-300"
                     title="Clique para ver a Memória de Cálculo"
                 >
                     <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
@@ -552,30 +552,30 @@ const DashboardTab = ({
                         Produtividade <i data-lucide="info" className="w-3 h-3 opacity-70"></i>
                     </p>
                     <div className="flex items-baseline gap-1 relative z-10">
-                        <p className="text-4xl font-black tracking-tight">{produtividadeUpsell.toFixed(0)}</p>
+                        <p className="text-3xl font-black tracking-tight">{produtividadeUpsell.toFixed(0)}</p>
                         <span className="text-xl font-bold opacity-80">%</span>
                     </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="bg-gradient-to-br from-amber-500 to-amber-700 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiProducts', { defaultValue: 'Produtos Físicos' })}</p>
-                    <p className="text-4xl font-black tracking-tight">{String(totalVendasProdutos).padStart(2, '0')}</p>
+                    <p className="text-3xl font-black tracking-tight">{String(totalVendasProdutos).padStart(2, '0')}</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-violet-500 to-violet-700 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="bg-gradient-to-br from-violet-500 to-violet-700 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiServices', { defaultValue: 'Serviços Avulsos' })}</p>
-                    <p className="text-4xl font-black tracking-tight">{String(totalServicos).padStart(2, '0')}</p>
+                    <p className="text-3xl font-black tracking-tight">{String(totalServicos).padStart(2, '0')}</p>
                 </div>
 
-                <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[24px] p-6 text-white shadow-lg relative overflow-hidden">
+                <div className="bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden">
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2">{t('analytics.dashboard.kpiRevenue', { defaultValue: 'Faturamento Bruto' })}</p>
-                    <p className="text-2xl lg:text-3xl font-black tracking-tight mt-1">{formatMoney(faturamento)}</p>
+                    <p className="text-xl lg:text-2xl font-black tracking-tight mt-1">{formatMoney(faturamento)}</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
+                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col">
                     <div className="flex justify-between items-center border-b border-slate-100 mb-6 pb-4">
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
                             <i data-lucide="layers" className="w-5 h-5 text-blue-500"></i> {t('analytics.dashboard.plansTitle', { defaultValue: 'Venda de Assinaturas' })}
@@ -623,7 +623,7 @@ const DashboardTab = ({
                     </button>
                 </div>
 
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
+                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
                         <i data-lucide="box" className="w-5 h-5 text-amber-500"></i> {t('analytics.dashboard.productsTitle', { defaultValue: 'Produtos / Complementos' })}
                     </h3>
@@ -638,16 +638,13 @@ const DashboardTab = ({
                     </div>
                 </div>
 
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-8 h-[450px] flex flex-col">
+                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col">
                     <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
                         <i data-lucide="medal" className="w-5 h-5 text-emerald-500"></i> {t('analytics.dashboard.podiumTitle', { defaultValue: 'Pódio Físico (Garrafa/Whey)' })}
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
                         {rankingOrdenado.map(([nome, qtd], idx) => {
-                            let emojiUI = "🟢 ❌ ❌";
-                            if (qtd === 0) emojiUI = "❌ ❌ ❌";
-                            else if (qtd === 2) emojiUI = "🟢 🟢 ❌";
-                            else if (qtd >= 3) emojiUI = "✅ ✅ ✅";
+                            const preenchidos = Math.min(qtd, 3);
 
                             return (
                                 <div key={idx} className={`flex justify-between items-center p-3 rounded-xl border ${qtd === 0 ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
@@ -655,7 +652,11 @@ const DashboardTab = ({
                                         {idx+1}º {nome.split(' ')[0]}
                                     </span>
                                     <div className="flex items-center gap-3">
-                                        <span className="text-[10px] tracking-widest">{emojiUI}</span>
+                                        <span className="flex gap-1" aria-label={`${preenchidos} de 3`}>
+                                            {[0, 1, 2].map(i => (
+                                                <span key={i} className={`w-2.5 h-2.5 rounded-[3px] ${i < preenchidos ? 'bg-emerald-500' : (qtd === 0 ? 'bg-rose-200' : 'bg-slate-200')}`} />
+                                            ))}
+                                        </span>
                                         <span className={`text-[10px] font-black bg-white px-2 py-0.5 rounded border shadow-sm ${qtd === 0 ? 'text-rose-500 border-rose-200' : 'text-emerald-600 border-slate-200'}`}>{String(qtd).padStart(2, '0')} un</span>
                                     </div>
                                 </div>
