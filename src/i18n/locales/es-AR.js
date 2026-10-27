@@ -365,5 +365,12 @@ export default {
     "students.paste.errorAnalyze": "Error al analizar datos copiados.",
     "students.paste.success": "¡Éxito! {count} alumnos fueron registrados en la base.",
     "students.paste.errorImport": "Ocurrió un error en la importación por lotes. Consulte la consola.",
-    "students.ageYears": "{age} años"
+    "students.ageYears": "{age} años",
+
+    // BÚSQUEDA DE ALUMNOS EN TODA LA RED
+    "search.ownUnit": "Tu unidad",
+    "search.otherUnit": "Otra unidad de la red",
+    "search.otherUnits": "Otras unidades de la red",
+    "search.multiUnit": "Vinculado a más de una unidad, revisar",
+    "search.multiUnitHint": "Pedí que alguien revise y unifique el registro de este alumno."
 };

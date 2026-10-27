@@ -117,6 +117,8 @@ export const buscarAlunosPaginado = async ({
     }
 
     const { data, error } = await rpcCall;
+    // Pedido cancelado de propósito (chegou um pedido mais novo): não é erro, não avisa no console
+    if (signal?.aborted) return { alunos: [], totalCount: 0 };
     if (error) console.error("Erro na RPC listar_alunos_360:", error);
 
     let lista = data || [];
@@ -166,6 +168,194 @@ export const buscarAlunosPaginado = async ({
         alunos: lista,
         totalCount
     };
+};
+
+// ==========================================
+// 🌐 BUSCA NA REDE INTEIRA (regra 8 do CLAUDE.md — decisão do dono, não "corrigir")
+// Todos os perfis acham alunos de qualquer unidade. Os da unidade de quem busca vêm primeiro.
+// ==========================================
+const normalizarUnidade = (u) => String(u || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+
+const unidadeValida = (u) => {
+    const limpa = String(u || '').toUpperCase().trim();
+    return limpa && limpa !== 'TODAS' && limpa !== 'TODOS' && limpa !== 'GLOBAL' ? limpa : '';
+};
+
+// Mesmo nome com e sem acento (ex.: SANTA INÊS / SANTA INES), como na aba Cadastros
+const variantesUnidade = (u) => {
+    const base = String(u || '').toUpperCase().trim();
+    return [...new Set([base, normalizarUnidade(base), base.replace('INES', 'INÊS')])].filter(Boolean);
+};
+
+const montarCondicoesBusca = (termoBusca, termoNumerico) => {
+    const cleanTerm = termoBusca.replace(/"/g, '');
+    const condicoes = [`nome.ilike."%${cleanTerm}%"`, `email.ilike."%${cleanTerm}%"`];
+    if (termoNumerico.length > 0) {
+        if (termoNumerico.length === 11) {
+            const cpfMask = termoNumerico.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+            condicoes.push(`cpf.eq."${termoNumerico}"`, `cpf.eq."${cpfMask}"`);
+        } else {
+            condicoes.push(`cpf.ilike."%${termoNumerico}%"`);
+        }
+        condicoes.push(`telefone.ilike."%${termoNumerico}%"`, `matricula.ilike."%${termoNumerico}%"`);
+    }
+    return condicoes.join(',');
+};
+
+const erroCancelado = () => {
+    const e = new Error('Busca cancelada');
+    e.name = 'AbortError';
+    return e;
+};
+
+const listaUnidades = (linhas) => [...new Set((linhas || []).map(v => String(v.unidade || '').toUpperCase().trim()).filter(Boolean))];
+
+// Unidades de TODOS os alunos pedidos, inclusive de outras unidades.
+// Usa a consulta segura "unidades_dos_alunos" do Supabase (devolve só o nome da unidade), porque a regra
+// de acesso da tabela alunos_unidades deixa Recepção/Líder ver só os vínculos da própria unidade.
+// Se a consulta ainda não existir no banco, devolve null e quem chamou usa os vínculos visíveis.
+const buscarUnidadesViaConsultaSegura = async (ids, signal = null) => {
+    let consulta = supabase.rpc('unidades_dos_alunos', { p_aluno_ids: ids });
+    if (signal && typeof consulta.abortSignal === 'function') consulta = consulta.abortSignal(signal);
+    const { data, error } = await consulta;
+    if (signal?.aborted) throw erroCancelado();
+    if (error) {
+        console.warn('Consulta unidades_dos_alunos indisponível; usando só os vínculos visíveis:', error.message || error);
+        return null;
+    }
+    return data || [];
+};
+
+// Unidades ligadas a um aluno
+export const buscarUnidadesDoAluno = async (alunoId) => {
+    if (!alunoId) return [];
+    const viaConsulta = await buscarUnidadesViaConsultaSegura([alunoId]);
+    if (viaConsulta) return listaUnidades(viaConsulta);
+
+    const { data, error } = await supabase.from('alunos_unidades').select('unidade').eq('aluno_id', alunoId);
+    if (error) {
+        console.error('Erro ao buscar unidades do aluno:', error);
+        return [];
+    }
+    return listaUnidades(data);
+};
+
+// Acrescenta em cada aluno: unidades (todas as ligadas), da_minha_unidade e multiplas_unidades
+export const anexarUnidades = async (lista, unidadeMinha = '', signal = null) => {
+    const alunos = lista || [];
+    const ids = alunos.map(a => a.id).filter(Boolean);
+    let vinculos = [];      // vínculos visíveis (trazem a matrícula da unidade de quem busca)
+    let unidadesRede = null; // todas as unidades de cada aluno, pela consulta segura
+    if (ids.length > 0) {
+        let consulta = supabase.from('alunos_unidades').select('aluno_id, unidade, matricula').in('aluno_id', ids);
+        if (signal && typeof consulta.abortSignal === 'function') consulta = consulta.abortSignal(signal);
+        const [resVinculos, resUnidades] = await Promise.all([consulta, buscarUnidadesViaConsultaSegura(ids, signal)]);
+        if (signal?.aborted) throw erroCancelado();
+        if (resVinculos.error) console.error('Erro ao buscar unidades dos alunos:', resVinculos.error);
+        vinculos = resVinculos.data || [];
+        unidadesRede = resUnidades;
+    }
+
+    const minha = normalizarUnidade(unidadeValida(unidadeMinha));
+    return alunos.map(aluno => {
+        const doAluno = vinculos.filter(v => v.aluno_id === aluno.id);
+        let unidades = listaUnidades(unidadesRede ? unidadesRede.filter(v => v.aluno_id === aluno.id) : doAluno);
+        // "SEM VÍNCULO" é o que a busca do banco devolve quando não enxerga nenhum vínculo: não é unidade
+        if (unidades.length === 0 && aluno.unidade && normalizarUnidade(aluno.unidade) !== 'SEM VINCULO') {
+            unidades = [String(aluno.unidade).toUpperCase().trim()];
+        }
+
+        const daMinha = Boolean(minha) && unidades.some(u => normalizarUnidade(u) === minha);
+        const vinculoMinha = daMinha ? doAluno.find(v => normalizarUnidade(v.unidade) === minha) : null;
+
+        return {
+            ...aluno,
+            unidades,
+            unidade: daMinha ? (vinculoMinha?.unidade || unidades[0]) : (unidades[0] || aluno.unidade || ''),
+            matricula: aluno.matricula || vinculoMinha?.matricula || doAluno[0]?.matricula || '',
+            da_minha_unidade: daMinha,
+            multiplas_unidades: unidades.length > 1
+        };
+    });
+};
+
+export const buscarAlunosNaRede = async ({
+    busca = '',
+    unidadePreferida = '',
+    limite = 8,
+    roleUsuario = 'RECEPCAO',
+    signal = null
+}) => {
+    const termoBusca = String(busca || '').trim();
+    if (termoBusca.length < 2) return { alunos: [], temMais: false };
+
+    const termoNumerico = termoBusca.replace(/\D/g, '');
+    const unidadeMinha = unidadeValida(unidadePreferida);
+    const condicoes = montarCondicoesBusca(termoBusca, termoNumerico);
+    const comSinal = (q) => (signal && typeof q.abortSignal === 'function' ? q.abortSignal(signal) : q);
+
+    let termoRpc = termoBusca;
+    if (termoNumerico.length === 11 && !termoBusca.includes('-')) {
+        termoRpc = termoNumerico.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+    }
+
+    // 1) Rede inteira, direto no cadastro de alunos
+    const consultaRede = comSinal(supabase.from('alunos').select('*').or(condicoes).order('nome', { ascending: true }).limit(limite + 1));
+    // 2) Só a unidade de quem busca, para ela aparecer primeiro mesmo quando a rede tem muitos resultados
+    const consultaMinha = unidadeMinha
+        ? comSinal(supabase.from('alunos').select('*, vinculo:alunos_unidades!inner(unidade)').or(condicoes).in('vinculo.unidade', variantesUnidade(unidadeMinha)).order('nome', { ascending: true }).limit(limite))
+        : Promise.resolve({ data: [] });
+    // 3) Busca principal do banco (traz o último plano e entende acentos): só complementa
+    const consultaRpc = comSinal(supabase.rpc('listar_alunos_360', {
+        p_busca: termoRpc,
+        p_unidade: unidadeMinha || 'TODAS',
+        p_plano: 'TODOS',
+        p_data_inicio: null,
+        p_data_fim: null,
+        p_ordem_coluna: 'nome',
+        p_ordem_direcao: 'ASC',
+        p_pagina: 1,
+        p_limite: limite,
+        p_role_usuario: roleUsuario || 'RECEPCAO',
+        p_unidade_usuario: unidadeMinha
+    }));
+
+    const [resRede, resMinha, resRpc] = await Promise.allSettled([consultaRede, consultaMinha, consultaRpc]);
+    if (signal?.aborted) throw erroCancelado();
+
+    const pegarDados = (res, nome) => {
+        if (res.status === 'rejected') { console.error(`Erro na busca (${nome}):`, res.reason); return null; }
+        if (res.value?.error) { console.error(`Erro na busca (${nome}):`, res.value.error); return null; }
+        return res.value?.data || [];
+    };
+    const dadosRede = pegarDados(resRede, 'rede');
+    const dadosMinha = pegarDados(resMinha, 'unidade');
+    const dadosRpc = pegarDados(resRpc, 'listar_alunos_360');
+
+    if (dadosRede === null && dadosRpc === null) throw new Error('Não foi possível buscar alunos agora.');
+
+    // Junta tudo sem repetir: o que já veio fica, o que faltava (ex.: último plano) é completado
+    const porId = new Map();
+    [dadosRpc, dadosMinha, dadosRede].forEach(lista => {
+        (lista || []).forEach(({ vinculo: _vinculo, total_count: _total, ...aluno }) => {
+            if (!aluno?.id) return;
+            const existente = porId.get(aluno.id);
+            porId.set(aluno.id, existente ? { ...aluno, ...existente } : aluno);
+        });
+    });
+
+    const comUnidades = await anexarUnidades([...porId.values()], unidadeMinha, signal);
+    const porNome = (a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
+    const ordenados = [
+        ...comUnidades.filter(a => a.da_minha_unidade).sort(porNome),
+        ...comUnidades.filter(a => !a.da_minha_unidade).sort(porNome)
+    ];
+
+    const temMais = ordenados.length > limite
+        || (dadosRede || []).length > limite
+        || (dadosMinha || []).length >= limite;
+
+    return { alunos: ordenados.slice(0, limite), temMais };
 };
 
 // ==========================================

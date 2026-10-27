@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
-import { buscarAlunosPaginado } from '../../pages/Alunos/utils.js';
+import { buscarAlunosNaRede } from '../../pages/Alunos/utils.js';
 import { getRecentes, addRecente, removerRecente, limparRecentes } from './recentesAlunos.js';
 import { getCachedSearch, setCachedSearch, highlightText, mascararCpfExibicao } from './commandUtils.js';
+import EtiquetasUnidade from '../EtiquetasUnidade.jsx';
 
 const HighlightedText = ({ text, query }) => {
     const parts = highlightText(text, query);
@@ -37,10 +38,11 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
     const emailUsuario = usuarioLogado?.email || usuarioLogado?.user?.email || usuarioLogado?.id || 'local_user';
     const roleUsuario = String(usuarioLogado?.role || '').toUpperCase().trim();
     
-    // 🔥 CORREÇÃO DA VISÃO GLOBAL: Se for chefe, respeita o filtro global do TopBar.
+    // A busca é sempre na rede inteira (regra 8 do CLAUDE.md). A unidade de quem busca só define quem aparece primeiro.
+    // Admin/Mentor com uma unidade escolhida no topo chegam aqui como LIDER daquela unidade (usuarioVirtual).
     const ehChefe = roleUsuario === 'ADMIN' || roleUsuario === 'MENTOR';
     const unidadeFiltroAtivo = ehChefe ? (unidadeGlobal || 'TODAS') : (usuarioLogado?.unidade || 'TODAS');
-    const exibirBaloesUnidade = ehChefe && unidadeFiltroAtivo === 'TODAS';
+    const temUnidadePropria = unidadeFiltroAtivo !== 'TODAS';
 
     useEffect(() => {
         if (isOpen) {
@@ -82,7 +84,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
         }
 
         const buscarBD = async () => {
-            const cacheKey = `${termoReal}_${unidadeFiltroAtivo}_${roleUsuario}`;
+            const cacheKey = `rede_${termoReal}_${unidadeFiltroAtivo}_${roleUsuario}`;
             const cached = getCachedSearch(cacheKey);
             
             if (cached) setResultados(cached);
@@ -94,11 +96,12 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
             abortRef.current = controller;
 
             try {
-                const { alunos: rows } = await buscarAlunosPaginado({
+                const { alunos: rows } = await buscarAlunosNaRede({
                     busca: termoReal,
-                    unidade: unidadeFiltroAtivo, 
-                    plano: 'TODOS', dataInicio: '', dataFim: '', ordemColuna: 'nome', ordemDirecao: 'ASC', pagina: 1, limite: 8,
-                    roleUsuario, unidadeUsuario: unidadeFiltroAtivo, signal: controller.signal
+                    unidadePreferida: unidadeFiltroAtivo,
+                    limite: 8,
+                    roleUsuario,
+                    signal: controller.signal
                 });
 
                 if (!controller.signal.aborted) {
@@ -132,12 +135,26 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
         }
 
         if (resultados.length > 0) {
-            list.push({ type: 'header', label: safeT('search.students', 'Resultados da Busca') });
-            list.push(...resultados.map(r => ({ type: 'aluno', data: r })));
+            if (!temUnidadePropria) {
+                list.push({ type: 'header', label: safeT('search.students', 'Resultados da Busca') });
+                list.push(...resultados.map(r => ({ type: 'aluno', data: r })));
+                return list;
+            }
+            // Primeiro os da unidade de quem busca, depois os das outras unidades da rede
+            const daMinha = resultados.filter(r => r.da_minha_unidade);
+            const outras = resultados.filter(r => !r.da_minha_unidade);
+            if (daMinha.length > 0) {
+                list.push({ type: 'header', label: `${safeT('search.ownUnit', 'Sua unidade')} · ${unidadeFiltroAtivo}` });
+                list.push(...daMinha.map(r => ({ type: 'aluno', data: r })));
+            }
+            if (outras.length > 0) {
+                list.push({ type: 'header', label: safeT('search.otherUnits', 'Outras unidades da rede') });
+                list.push(...outras.map(r => ({ type: 'aluno', data: r })));
+            }
         }
 
         return list;
-    }, [termo, recentes, resultados, safeT]);
+    }, [termo, recentes, resultados, safeT, temUnidadePropria, unidadeFiltroAtivo]);
 
     const handleKeyDown = (e) => {
         const selectableItens = itensNavegaveis.filter(i => i.type !== 'header');
@@ -261,14 +278,14 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                                         </span>
                                     </div>
                                     
-                                    <div className="flex items-center gap-2 text-[12px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                    <div className={`flex items-center gap-2 text-[12px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 ${isRecente ? 'truncate' : 'flex-wrap'}`}>
                                         {isRecente ? (
                                             <span>{aluno.acao_label || 'Visitado recentemente'}</span>
                                         ) : (
                                             <>
                                                 {aluno.matricula && <span className="text-blue-600 dark:text-blue-400">#<HighlightedText text={aluno.matricula} query={termoReal} /></span>}
                                                 {aluno.cpf && <span><HighlightedText text={mascararCpfExibicao(aluno.cpf)} query={termoReal} /></span>}
-                                                {exibirBaloesUnidade && aluno.unidade && <span className="px-1.5 py-px bg-slate-200 dark:bg-slate-700 rounded text-slate-600 dark:text-slate-300">{aluno.unidade}</span>}
+                                                <EtiquetasUnidade unidades={aluno.unidades || (aluno.unidade ? [aluno.unidade] : [])} unidadeMinha={temUnidadePropria ? unidadeFiltroAtivo : ''} />
                                             </>
                                         )}
                                     </div>

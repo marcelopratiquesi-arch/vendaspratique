@@ -28,6 +28,20 @@ Sistema de vendas usado por uma rede de academias (Pratique). O dono do projeto 
    - Sempre manter o modo escuro funcionando (classes `dark:`).
    - Fonte Inter. Ícones da biblioteca `lucide-react`.
 
+8. **A busca de alunos é sempre na rede inteira (decisão do dono — não "corrigir").**
+   - O sistema é de comissão e unificado: um aluno de uma unidade pode comprar em outra (ex.: aluno de Neves compra em Santa Inês). É melhor achar o cadastro dele do que cadastrar de novo.
+   - Vale para todos os perfis (ADMIN, MENTOR, LIDER e RECEPCAO) na busca Ctrl+K, na busca da lista de Alunos e na busca do Novo Visitante. A função que faz isso é `buscarAlunosNaRede` em [src/pages/Alunos/utils.js](src/pages/Alunos/utils.js).
+   - Os alunos da unidade de quem está buscando aparecem primeiro; depois os das outras unidades.
+   - Sempre mostrar a etiqueta com a unidade de origem do aluno (componente [src/components/EtiquetasUnidade.jsx](src/components/EtiquetasUnidade.jsx)). Se o aluno estiver ligado a mais de uma unidade, mostrar todas e o aviso "ligado a mais de uma unidade, conferir".
+   - A etiqueta depende da consulta segura **`unidades_dos_alunos`** criada no Supabase (SQL Editor). Motivo: a regra de acesso `RLS_SELECT_VINCULOS` da tabela `alunos_unidades` deixa Recepção/Líder ver só os vínculos da própria unidade, então sem essa consulta aparece "SEM VÍNCULO". Ela devolve só o nome da unidade e só responde a funcionários (`get_user_colaborador_info`). **Não apagar** essa consulta nem trocar por uma leitura direta da tabela. Se ela não existir, o código cai para os vínculos visíveis e avisa no console.
+   - A lista de Alunos **sem** busca digitada continua mostrando só a unidade (a rede inteira só entra quando há uma busca).
+   - A venda e a visita são sempre lançadas na unidade de quem está vendendo/atendendo, **nunca** na unidade de origem do aluno.
+   - Isto é uma exceção à regra 6, que continua valendo para vendas, relatórios, metas, caixa e os demais dados.
+
+9. **A Nova Venda busca o aluno SOMENTE pelo CPF completo (decisão do dono).**
+   - O CPF é a garantia de não lançar a venda e a comissão no aluno errado.
+   - Não adicionar busca por nome nem por matrícula na Nova Venda.
+
 ## Como rodar
 
 - `npm install` — instala as dependências (só na primeira vez).

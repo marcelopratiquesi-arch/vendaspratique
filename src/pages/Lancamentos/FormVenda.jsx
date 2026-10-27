@@ -3,6 +3,8 @@ import { supabase } from '../../supabaseClient.js';
 import { safeNumber, formatMoney, getLocalDateISO } from './utils.js';
 import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
+import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
+import { buscarUnidadesDoAluno } from '../Alunos/utils.js';
 import { User, Package, BookOpen, Box, Briefcase, LayoutGrid, Trash2, Plus, MessageSquare, Receipt, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard } from 'lucide-react';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
@@ -48,14 +50,21 @@ const FormVenda = ({
             setAlunoEncontrado(alunoPreSelecionado);
             setStatusCpf('encontrado');
             setCpfErro(false);
-            
-            if (podeEscolherUnidade && alunoPreSelecionado.unidade) {
-                setFormData(prev => ({ ...prev, unidade: alunoPreSelecionado.unidade }));
-            }
+            // A venda fica na unidade de quem vende, nunca na unidade de origem do aluno (regra 8 do CLAUDE.md)
 
             if (limparPreSelecao) limparPreSelecao();
         }
-    }, [alunoPreSelecionado, limparPreSelecao, podeEscolherUnidade]);
+    }, [alunoPreSelecionado, limparPreSelecao]);
+
+    // Unidade(s) de origem do aluno, só para a recepção saber de onde ele é
+    const [unidadesAluno, setUnidadesAluno] = useState([]);
+    useEffect(() => {
+        const id = alunoEncontrado?.id;
+        if (!id) { setUnidadesAluno([]); return undefined; }
+        let ativo = true;
+        buscarUnidadesDoAluno(id).then(lista => { if (ativo) setUnidadesAluno(lista); });
+        return () => { ativo = false; };
+    }, [alunoEncontrado?.id]);
 
     // 🔥 Filtra os consultores com base na unidade selecionada na tela
     const vendedoresDaUnidade = colaboradores.filter(c => {
@@ -336,6 +345,9 @@ const FormVenda = ({
                                             {alunoEncontrado.matricula && <span className="flex items-center gap-1"><CreditCard className="w-3.5 h-3.5" /> Mat: {alunoEncontrado.matricula}</span>}
                                             {alunoEncontrado.telefone && <span className="flex items-center gap-1">📞 {alunoEncontrado.telefone}</span>}
                                             {alunoEncontrado.email && <span className="flex items-center gap-1">✉️ {alunoEncontrado.email}</span>}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                            Unidade de origem: <EtiquetasUnidade unidades={unidadesAluno} unidadeMinha={formData.unidade} />
                                         </div>
                                     </div>
                                     <button type="button" onClick={() => {

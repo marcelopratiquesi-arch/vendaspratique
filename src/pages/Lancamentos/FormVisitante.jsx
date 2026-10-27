@@ -2,8 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { getLocalDateISO } from './utils.js';
 import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
-import { buscarAlunosPaginado } from '../Alunos/utils.js';
+import { buscarAlunosNaRede, buscarUnidadesDoAluno } from '../Alunos/utils.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
+import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
 import { UserPlus, Target, Send, Loader2, CheckCircle2, Briefcase, AlertTriangle, UserRoundPen, Search, RefreshCw, PhoneOff } from 'lucide-react';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
@@ -53,6 +54,19 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Unidade(s) de origem da pessoa escolhida (só para mostrar; a visita fica na unidade de quem atende)
+    const [unidadesAluno, setUnidadesAluno] = useState([]);
+    const unidadeMinha = temVisaoGlobal ? leadForm.unidade : (usuarioLogado?.unidade || '');
+
+    useEffect(() => {
+        const id = alunoEncontrado?.id;
+        if (!id) { setUnidadesAluno([]); return undefined; }
+        if (Array.isArray(alunoEncontrado.unidades)) { setUnidadesAluno(alunoEncontrado.unidades); return undefined; }
+        let ativo = true;
+        buscarUnidadesDoAluno(id).then(lista => { if (ativo) setUnidadesAluno(lista); });
+        return () => { ativo = false; };
+    }, [alunoEncontrado]);
 
     // Cursor no campo ao abrir; limpa temporizadores ao sair
     useEffect(() => {
@@ -160,18 +174,12 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
             listaAbortRef.current = controller;
             try {
                 const role = String(usuarioLogado?.role || '').toUpperCase().trim();
-                const { alunos } = await buscarAlunosPaginado({
+                // Rede inteira, com a unidade de quem atende primeiro (regra 8 do CLAUDE.md)
+                const { alunos } = await buscarAlunosNaRede({
                     busca: termo,
-                    unidade: temVisaoGlobal ? 'TODAS' : (usuarioLogado?.unidade || ''),
-                    plano: 'TODOS',
-                    dataInicio: '',
-                    dataFim: '',
-                    ordemColuna: 'nome',
-                    ordemDirecao: 'ASC',
-                    pagina: 1,
+                    unidadePreferida: unidadeMinha,
                     limite: 6,
                     roleUsuario: role,
-                    unidadeUsuario: usuarioLogado?.unidade || '',
                     signal: controller.signal,
                 });
                 if (controller.signal.aborted) return;
@@ -192,10 +200,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         fecharLista();
         if (!aluno) return;
 
-        if (temVisaoGlobal && aluno.unidade && !leadForm.unidade) {
-            setLeadForm(prev => ({ ...prev, unidade: aluno.unidade, vendedor: '' }));
-        }
-
+        // A unidade da visita é sempre a de quem atende, nunca a de origem do aluno (regra 8 do CLAUDE.md)
         const cpfDig = apenasDigitos(aluno.cpf);
         cpfAtualRef.current = cpfDig.length === 11 ? cpfDig : '';
         setCpfBusca(cpfDig.length === 11 ? mascaraCPF(cpfDig) : (aluno.nome || ''));
@@ -445,7 +450,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                                     <p className="text-[10px] font-bold text-slate-500 flex flex-wrap items-center gap-x-3 mt-0.5">
                                                         {aluno.matricula && <span>Mat: {aluno.matricula}</span>}
                                                         {cpfParcial(aluno.cpf) && <span>{cpfParcial(aluno.cpf)}</span>}
-                                                        {aluno.unidade && <span className="px-1.5 py-px bg-slate-100 rounded text-slate-600">{aluno.unidade}</span>}
+                                                        <EtiquetasUnidade unidades={aluno.unidades || (aluno.unidade ? [aluno.unidade] : [])} unidadeMinha={unidadeMinha} />
                                                     </p>
                                                 </div>
                                             </button>
@@ -476,6 +481,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                 <div>
                                     <h4 className="text-sm font-black text-amber-800 uppercase tracking-tight mb-1">{alunoEncontrado.nome}</h4>
                                     <p className="text-xs font-bold text-amber-700/80">Esta pessoa não tem CPF no cadastro. Complete o cadastro para enviar ao CRM.</p>
+                                    <EtiquetasUnidade unidades={unidadesAluno} unidadeMinha={unidadeMinha} className="mt-2" />
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto shrink-0">
                                     <button type="button" onClick={trocarPessoa} className="px-5 py-2.5 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
@@ -506,6 +512,9 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                         <div className="flex flex-wrap gap-x-6 gap-y-2 text-xs font-bold text-slate-500">
                                             {alunoEncontrado.telefone && <span className="flex items-center gap-1">📞 {alunoEncontrado.telefone}</span>}
                                             {alunoEncontrado.email && <span className="flex items-center gap-1">✉️ {alunoEncontrado.email}</span>}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-2 mt-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                            Unidade de origem: <EtiquetasUnidade unidades={unidadesAluno} unidadeMinha={unidadeMinha} />
                                         </div>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto shrink-0">

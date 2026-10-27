@@ -5,6 +5,7 @@ import {
     Copy, Check
 } from 'lucide-react';
 import { formatarCPF, formatarTelefone, formatarDataBR, extrairIniciais, copiarTextoSeguro } from './utils.js';
+import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
 
 // Função para gerar uma cor de Avatar consistente para cada Aluno
 const getAvatarColor = (nome) => {
@@ -99,7 +100,8 @@ const CabecalhoOrdenavel = ({ coluna, label, ordemColuna, ordemDirecao, onOrdena
 
 const ListaAlunos = ({
     alunos = [], totalCount = 0, loading = false, erro = null,
-    onTentarNovamente, onLimparFiltros, temVisaoGlobal = false, ehAdmin = false,
+    onTentarNovamente, onLimparFiltros, ehAdmin = false,
+    unidadeMinha = '', avisoLimite = '',
     ordemColuna = 'nome', ordemDirecao = 'ASC', onOrdenar,
     pagina = 1, setPagina, itensPorPagina = 25, setItensPorPagina,
     onSelecionarAluno, onEditarAluno, onExcluirAluno, 
@@ -134,7 +136,8 @@ const ListaAlunos = ({
                             <CabecalhoOrdenavel coluna="cpf" label="CPF" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             <CabecalhoOrdenavel coluna="email" label="E-mail" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             <CabecalhoOrdenavel coluna="telefone" label="Telefone" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            {temVisaoGlobal && <CabecalhoOrdenavel coluna="unidade" label="Unidade" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />}
+                            {/* Unidade sempre visível: a busca é na rede inteira (regra 8 do CLAUDE.md) */}
+                            <CabecalhoOrdenavel coluna="unidade" label="Unidade" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             <CabecalhoOrdenavel coluna="plano" label="Plano" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             <CabecalhoOrdenavel coluna="cadastro" label="Cadastro" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             {/* 🔥 COLUNA DE AÇÕES STICKY À DIREITA */}
@@ -150,7 +153,7 @@ const ListaAlunos = ({
                                     <td className="px-5 py-4"><div className="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded" /></td>
                                     <td className="px-5 py-4"><div className="h-3 w-36 bg-slate-200 dark:bg-slate-800 rounded" /></td>
                                     <td className="px-5 py-4"><div className="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                                    {temVisaoGlobal && <td className="px-5 py-4"><div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded" /></td>}
+                                    <td className="px-5 py-4"><div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded" /></td>
                                     <td className="px-5 py-4"><div className="space-y-2"><div className="h-4 w-20 bg-slate-200 dark:bg-slate-800 rounded" /><div className="h-2 w-16 bg-slate-100 dark:bg-slate-800/60 rounded" /></div></td>
                                     <td className="px-5 py-4"><div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" /></td>
                                     <td className="px-5 py-4 text-right sticky right-0 bg-white dark:bg-slate-900 z-10 border-l border-slate-100 dark:border-slate-800/60 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]"><div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded ml-auto" /></td>
@@ -158,7 +161,7 @@ const ListaAlunos = ({
                             ))
                         ) : alunos.length === 0 ? (
                             <tr>
-                                <td colSpan={temVisaoGlobal ? 8 : 7} className="py-24 text-center">
+                                <td colSpan={8}className="py-24 text-center">
                                     <div className="flex flex-col items-center">
                                         <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-500 flex items-center justify-center mb-3 border border-slate-100 dark:border-slate-700"><Users className="w-5 h-5" /></div>
                                         <p className="text-sm font-black text-slate-600 dark:text-slate-300 uppercase">Nenhum aluno encontrado</p>
@@ -224,11 +227,9 @@ const ListaAlunos = ({
                                             </div>
                                         </td>
 
-                                        {temVisaoGlobal && (
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 bg-slate-50 dark:bg-slate-800 px-2 py-1 rounded border border-slate-100 dark:border-slate-700">{aluno.unidade || 'SEM VÍNCULO'}</span>
-                                            </td>
-                                        )}
+                                        <td className="px-5 py-4 max-w-[220px]">
+                                            <EtiquetasUnidade unidades={aluno.unidades || (aluno.unidade ? [aluno.unidade] : [])} unidadeMinha={unidadeMinha} />
+                                        </td>
 
                                         {/* B) PLANO (BADGE COM CORES HARMÔNICAS) */}
                                         <td className="px-5 py-4">
@@ -302,6 +303,10 @@ const ListaAlunos = ({
                     </tbody>
                 </table>
             </div>
+
+            {avisoLimite && (
+                <p className="px-6 py-2.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-100 dark:border-amber-900/40">{avisoLimite}</p>
+            )}
 
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">

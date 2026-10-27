@@ -1,9 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import FiltrosAlunos from './FiltrosAlunos.jsx';
 import ListaAlunos from './ListaAlunos.jsx';
 import { ModalConfirmarExclusaoAluno } from './ModaisAlunos.jsx';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
-import { buscarAlunosPaginado } from './utils.js';
+import { buscarAlunosPaginado, buscarAlunosNaRede, anexarUnidades } from './utils.js';
+
+// Máximo de alunos trazidos numa busca pela rede (acima disso, pedimos para refinar a busca)
+const LIMITE_BUSCA_REDE = 100;
+
+// Ordenação feita na tela durante a busca pela rede (mesmas colunas da tabela)
+const CAMPO_ORDEM = { nome: 'nome', cpf: 'cpf', email: 'email', telefone: 'telefone', unidade: 'unidade', plano: 'ultimo_plano', cadastro: 'created_at', created_at: 'created_at' };
 import { CheckCircle2 } from 'lucide-react';
 import FichaAluno from './ficha/index.jsx';
 import { supabase } from '../../supabaseClient.js';
@@ -62,6 +68,10 @@ const ModuloAlunos360 = ({
     const [totalCount, setTotalCount] = useState(0);
     const [loading, setLoading] = useState(true);
     const [erro, setErro] = useState(null);
+
+    // Busca pela rede inteira (regra 8 do CLAUDE.md): resultado completo, paginado aqui na tela
+    const [resultadoRede, setResultadoRede] = useState([]);
+    const [redeTemMais, setRedeTemMais] = useState(false);
 
     const [alunoFichaAberta, setAlunoFichaAberta] = useState(null);
 
@@ -126,6 +136,14 @@ const ModuloAlunos360 = ({
         return () => clearTimeout(timer);
     }, [buscaInput]);
 
+    const isSearching = buscaDebounced.trim().length > 0;
+
+    // "Sua unidade" para ordenar e destacar: a escolhida no topo (Admin/Mentor) ou a do usuário
+    const unidadeMinha = temVisaoGlobal
+        ? (filtroUnidade && filtroUnidade !== 'TODAS' ? filtroUnidade : '')
+        : (usuarioLogado?.unidade || '');
+
+    // Sem busca: lista só da unidade, como sempre foi
     const carregarListaServidor = useCallback(async (silencioso = false) => {
         if (abortControllerRef.current) abortControllerRef.current.abort();
         const controller = new AbortController();
@@ -135,14 +153,12 @@ const ModuloAlunos360 = ({
         setErro(null);
 
         try {
-            const isSearching = buscaDebounced.trim().length > 0;
-
             const { alunos: rows, totalCount: count } = await buscarAlunosPaginado({
-                busca: buscaDebounced,
+                busca: '',
                 unidade: temVisaoGlobal ? filtroUnidade : unidadeTravada,
-                plano: isSearching ? 'TODOS' : filtroPlano,
-                dataInicio: isSearching ? '' : dataInicio,
-                dataFim: isSearching ? '' : dataFim,
+                plano: filtroPlano,
+                dataInicio,
+                dataFim,
                 ordemColuna,
                 ordemDirecao,
                 pagina,
@@ -152,8 +168,11 @@ const ModuloAlunos360 = ({
                 signal: controller.signal
             });
 
+            // Acrescenta as unidades ligadas a cada aluno (para a etiqueta e o aviso de mais de uma unidade)
+            const rowsComUnidades = await anexarUnidades(rows, unidadeMinha, controller.signal);
+
             if (!controller.signal.aborted) {
-                setAlunos(rows);
+                setAlunos(rowsComUnidades);
                 setTotalCount(count);
                 setUltimaAtualizacao(new Date());
             }
@@ -166,22 +185,64 @@ const ModuloAlunos360 = ({
             }
         }
     }, [
-        buscaDebounced, filtroUnidade, unidadeTravada, filtroPlano, dataInicio,
+        filtroUnidade, unidadeTravada, filtroPlano, dataInicio,
         dataFim, ordemColuna, ordemDirecao, pagina, itensPorPagina,
-        temVisaoGlobal, roleReal, usuarioLogado?.unidade
+        temVisaoGlobal, roleReal, usuarioLogado?.unidade, unidadeMinha
     ]);
 
-    useEffect(() => {
-        carregarListaServidor();
-    }, [carregarListaServidor]);
+    // Com busca: rede inteira, com a unidade de quem busca primeiro (regra 8 do CLAUDE.md)
+    const carregarBuscaRede = useCallback(async (silencioso = false) => {
+        if (abortControllerRef.current) abortControllerRef.current.abort();
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        if (!silencioso) setLoading(true);
+        setErro(null);
+
+        try {
+            const { alunos: rows, temMais } = await buscarAlunosNaRede({
+                busca: buscaDebounced,
+                unidadePreferida: unidadeMinha,
+                limite: LIMITE_BUSCA_REDE,
+                roleUsuario: roleReal,
+                signal: controller.signal
+            });
+
+            if (!controller.signal.aborted) {
+                setResultadoRede(rows);
+                setRedeTemMais(temMais);
+                setUltimaAtualizacao(new Date());
+            }
+        } catch (err) {
+            if (err?.name === 'AbortError' || controller.signal.aborted) return;
+            setErro(err?.message || 'Erro ao consultar alunos no servidor.');
+        } finally {
+            if (!controller.signal.aborted && !silencioso) {
+                setLoading(false);
+            }
+        }
+    }, [buscaDebounced, unidadeMinha, roleReal]);
+
+    const recarregar = useCallback((silencioso = false) => {
+        if (isSearching) carregarBuscaRede(silencioso);
+        else carregarListaServidor(silencioso);
+    }, [isSearching, carregarBuscaRede, carregarListaServidor]);
 
     useEffect(() => {
-        const handleFocus = () => carregarListaServidor(true);
+        if (!isSearching) carregarListaServidor();
+    }, [carregarListaServidor, isSearching]);
+
+    useEffect(() => {
+        if (isSearching) carregarBuscaRede();
+    }, [carregarBuscaRede, isSearching]);
+
+    useEffect(() => {
+        const handleFocus = () => recarregar(true);
         window.addEventListener('focus', handleFocus);
 
         const channel = supabase.channel('alunos_sincronizacao')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'alunos' }, () => {
-                carregarListaServidor(true);
+                recarregar(true);
             })
             .subscribe();
 
@@ -189,7 +250,23 @@ const ModuloAlunos360 = ({
             window.removeEventListener('focus', handleFocus);
             supabase.removeChannel(channel);
         };
-    }, [carregarListaServidor]);
+    }, [recarregar]);
+
+    // Busca pela rede: sua unidade primeiro, depois as outras; dentro de cada grupo, a ordem escolhida na tabela
+    const resultadoRedeOrdenado = useMemo(() => {
+        const campo = CAMPO_ORDEM[ordemColuna] || 'nome';
+        const sentido = ordemDirecao === 'DESC' ? -1 : 1;
+        const comparar = (a, b) => String(a[campo] || '').localeCompare(String(b[campo] || ''), 'pt-BR', { numeric: true }) * sentido;
+        return [
+            ...resultadoRede.filter(a => a.da_minha_unidade).sort(comparar),
+            ...resultadoRede.filter(a => !a.da_minha_unidade).sort(comparar)
+        ];
+    }, [resultadoRede, ordemColuna, ordemDirecao]);
+
+    const alunosExibidos = isSearching
+        ? resultadoRedeOrdenado.slice((pagina - 1) * itensPorPagina, pagina * itensPorPagina)
+        : alunos;
+    const totalExibido = isSearching ? resultadoRedeOrdenado.length : totalCount;
 
     const handleOrdenar = (coluna) => {
         if (ordemColuna === coluna) {
@@ -230,7 +307,7 @@ const ModuloAlunos360 = ({
                 alunoInicial={alunoEditando}
                 onSaveSuccess={(alunoSalvo) => {
                     dispararToast('Registo atualizado!');
-                    carregarListaServidor();
+                    recarregar();
                     if (alunoFichaAberta && alunoSalvo?.id === alunoFichaAberta.id) {
                         setAlunoFichaAberta((prev) => ({ ...prev, ...alunoSalvo }));
                     }
@@ -247,7 +324,7 @@ const ModuloAlunos360 = ({
                 onExcluidoSucesso={() => {
                     dispararToast('Aluno excluído com sucesso!');
                     setAlunoFichaAberta(null);
-                    carregarListaServidor();
+                    recarregar();
                 }}
             />
 
@@ -270,7 +347,7 @@ const ModuloAlunos360 = ({
                         temVisaoGlobal={temVisaoGlobal}
                         unidades={unidades}
                         planos={planos}
-                        totalFiltrados={totalCount}
+                        totalFiltrados={totalExibido}
                         loading={loading}
                         onNovoAluno={() => {
                             setAlunoEditando(null);
@@ -280,14 +357,16 @@ const ModuloAlunos360 = ({
                     />
 
                     <ListaAlunos
-                        alunos={alunos}
-                        totalCount={totalCount}
+                        alunos={alunosExibidos}
+                        totalCount={totalExibido}
                         loading={loading}
                         erro={erro}
-                        onTentarNovamente={() => carregarListaServidor(false)}
+                        onTentarNovamente={() => recarregar(false)}
                         onLimparFiltros={limparFiltros}
                         temVisaoGlobal={temVisaoGlobal}
                         ehAdmin={ehAdmin}
+                        unidadeMinha={unidadeMinha}
+                        avisoLimite={isSearching && redeTemMais ? `Mostrando os primeiros ${LIMITE_BUSCA_REDE} resultados da rede. Digite mais do nome, ou o CPF, para refinar a busca.` : ""}
                         ordemColuna={ordemColuna}
                         ordemDirecao={ordemDirecao}
                         onOrdenar={handleOrdenar}

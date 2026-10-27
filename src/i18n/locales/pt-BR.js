@@ -383,5 +383,12 @@ export default {
     "students.paste.errorAnalyze": "Erro ao analisar dados copiados.",
     "students.paste.success": "Sucesso! {count} alunos foram cadastrados no banco.",
     "students.paste.errorImport": "Ocorreu um erro na importação em lote. Veja o console.",
-    "students.ageYears": "{age} anos"
+    "students.ageYears": "{age} anos",
+
+    // BUSCA DE ALUNOS NA REDE INTEIRA
+    "search.ownUnit": "Sua unidade",
+    "search.otherUnit": "Outra unidade da rede",
+    "search.otherUnits": "Outras unidades da rede",
+    "search.multiUnit": "Ligado a mais de uma unidade, conferir",
+    "search.multiUnitHint": "Peça para alguém conferir e unificar o cadastro deste aluno."
 };

@@ -365,5 +365,12 @@ export default {
     "students.paste.errorAnalyze": "Error parsing copied data.",
     "students.paste.success": "Success! {count} students were registered in the database.",
     "students.paste.errorImport": "An error occurred during batch import. Check the console.",
-    "students.ageYears": "{age} years"
+    "students.ageYears": "{age} years",
+
+    // NETWORK-WIDE STUDENT SEARCH
+    "search.ownUnit": "Your unit",
+    "search.otherUnit": "Another unit in the network",
+    "search.otherUnits": "Other units in the network",
+    "search.multiUnit": "Linked to more than one unit, please check",
+    "search.multiUnitHint": "Ask someone to review and merge this student's record."
 };
