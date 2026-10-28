@@ -454,7 +454,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                             ) : (
                                 <>
                                     <p className="text-sm font-bold text-amber-800 tracking-tight">
-                                        {vinculoMultiplo ? 'LIGADO A MAIS DE UMA UNIDADE, CONFERIR' : `${t('validation.networkFound', {defaultValue: 'ALUNO LOCALIZADO NA REDE'})} · ${vinculosAluno[0]}`}
+                                        {vinculoMultiplo ? 'LIGADO A MAIS DE UMA UNIDADE, CONFERIR' : `ALUNO DE OUTRA UNIDADE · ${vinculosAluno[0]}`}
                                     </p>
                                     <p className="text-xs font-medium text-amber-700 leading-snug mt-1">
                                         {situacao === 'OUTRA'
