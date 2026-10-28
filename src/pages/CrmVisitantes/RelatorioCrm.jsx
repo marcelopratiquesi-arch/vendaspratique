@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Calendar, CalendarDays, Sun, Download, TrendingUp, Users, Target, Activity } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../../supabaseClient.js';
+import { Calendar, CalendarDays, Sun, Download, TrendingUp, Activity, Loader2, AlertTriangle } from 'lucide-react';
+import { dataDoLead, dataLocalISO } from './utils';
 
 // ============================================================================
 // UTILITÁRIOS INTERNOS (Isolados para não depender de arquivos externos)
@@ -12,21 +14,24 @@ const meses = [
     { val: '12', label: '12 - Dezembro' }
 ];
 
-const safeIsoDate = (dStr) => {
-    if (!dStr) return '';
-    if (dStr.includes('T')) return dStr.split('T')[0];
-    if (dStr.includes('/')) {
-        const partes = dStr.split(' ')[0].split('/');
-        if(partes.length === 3) return `${partes[2]}-${partes[1]}-${partes[0]}`;
-    }
-    return dStr.split(' ')[0];
+// Dia no horário local (um contato das 22h não cai no dia seguinte)
+const safeIsoDate = (dStr) => dataLocalISO(dStr);
+
+// Busca no banco em páginas de 1000 (limite do Supabase), até 30 mil contatos
+const PAGINA = 1000;
+const MAX_PAGINAS = 30;
+
+// "AAAA-MM-DD" somando dias, no horário local
+const somarDias = (iso, dias) => {
+    const [a, m, d] = iso.split('-').map(Number);
+    return new Date(a, m - 1, d + dias);
 };
 
 // ============================================================================
 // COMPONENTE PRINCIPAL DO RELATÓRIO DO CRM
 // ============================================================================
 const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
-    const hojePadrao = new Date().toISOString().split('T')[0];
+    const hojePadrao = dataLocalISO(new Date());
     const mesPadrao = String(new Date().getMonth() + 1).padStart(2, '0');
     const anoPadrao = new Date().getFullYear().toString();
 
@@ -37,19 +42,75 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
     const [dataFim, setDataFim] = useState('');
     const [diaEspecifico, setDiaEspecifico] = useState(hojePadrao);
 
+    // O App só carrega 90 dias de contatos (e no máximo 3 mil na Visão Global). O relatório busca
+    // no banco os contatos do período escolhido, para fechados antigos também entrarem na conta.
+    const [leadsDoBanco, setLeadsDoBanco] = useState(null); // null = ainda não chegou ou deu erro: usa os da tela
+    const [carregando, setCarregando] = useState(false);
+    const [cortado, setCortado] = useState(false);
+    const unidadeDoUsuario = !temVisaoGlobal && usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : '';
+
+    // Faixa de datas do filtro (AAAA-MM-DD). Vazio = sem limite daquele lado.
+    const faixa = useMemo(() => {
+        if (tipoFiltroData === 'mes') {
+            if (filtroAno === 'TODOS') return { inicio: '', fim: '' };
+            if (filtroMes === 'TODOS') return { inicio: `${filtroAno}-01-01`, fim: `${filtroAno}-12-31` };
+            const ultimoDia = new Date(Number(filtroAno), Number(filtroMes), 0).getDate();
+            return { inicio: `${filtroAno}-${filtroMes}-01`, fim: `${filtroAno}-${filtroMes}-${String(ultimoDia).padStart(2, '0')}` };
+        }
+        if (tipoFiltroData === 'periodo') return { inicio: dataInicio || '', fim: dataFim || '' };
+        return { inicio: diaEspecifico || '', fim: diaEspecifico || '' };
+    }, [tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
+
+    useEffect(() => {
+        let cancelado = false;
+        // A data de entrada pode estar em 3 campos (CRM, Novo Visitante e banco): o contato entra se qualquer um cair na faixa.
+        // 1 dia de folga em cada lado (fuso horário); o filtro exato é feito logo abaixo, como antes.
+        const desde = faixa.inicio ? `"${somarDias(faixa.inicio, -1).toISOString()}"` : '';
+        const ate = faixa.fim ? `"${somarDias(faixa.fim, 2).toISOString()}"` : '';
+        const condicao = (campo) => {
+            const partes = [desde && `${campo}.gte.${desde}`, ate && `${campo}.lt.${ate}`].filter(Boolean);
+            return partes.length > 1 ? `and(${partes.join(',')})` : partes[0];
+        };
+        const filtroDatas = (desde || ate) ? ['created_at', 'criado_em', 'data_criacao'].map(condicao).join(',') : '';
+
+        const buscar = async () => {
+            setCarregando(true);
+            const encontrados = [];
+            let bateuNoTeto = true;
+            for (let pagina = 0; pagina < MAX_PAGINAS; pagina++) {
+                let query = supabase.from('leads').select('*').order('id', { ascending: true }).range(pagina * PAGINA, pagina * PAGINA + PAGINA - 1);
+                if (filtroDatas) query = query.or(filtroDatas);
+                if (unidadeDoUsuario) query = query.ilike('unidade', unidadeDoUsuario);
+                const { data, error } = await query;
+                if (cancelado) return;
+                if (error) { console.error('Erro ao buscar contatos do relatório:', error); setLeadsDoBanco(null); setCarregando(false); return; }
+                encontrados.push(...(data || []));
+                if (!data || data.length < PAGINA) { bateuNoTeto = false; break; }
+            }
+            if (cancelado) return;
+            setLeadsDoBanco(encontrados);
+            setCortado(bateuNoTeto);
+            setCarregando(false);
+        };
+        buscar();
+        return () => { cancelado = true; };
+    }, [faixa, unidadeDoUsuario]);
+
+    const fonte = leadsDoBanco || visitantes;
+
     const anosUnicos = useMemo(() => {
-        const anos = [...new Set(visitantes.map(v => safeIsoDate(v.criado_em || v.data).split('-')[0]))].filter(Boolean).sort((a,b) => b-a); 
+        const anos = [...new Set(visitantes.map(v => safeIsoDate(dataDoLead(v)).split('-')[0]))].filter(Boolean).sort((a,b) => b-a); 
         if(anos.length === 0) anos.push(anoPadrao);
         return anos;
     }, [visitantes, anoPadrao]);
 
     // 1. FILTRAGEM DE DATA (Mantém apenas os leads do período selecionado)
     const leadsFiltrados = useMemo(() => {
-        return visitantes.filter(v => {
+        return fonte.filter(v => {
             // Se não tiver visão global, trava na unidade do usuário
-            if (!temVisaoGlobal && v.unidade !== usuarioLogado?.unidade) return false;
+            if (!temVisaoGlobal && String(v.unidade || '').toUpperCase() !== String(usuarioLogado?.unidade || '').toUpperCase()) return false;
 
-            const dataBase = v.criado_em || v.data;
+            const dataBase = dataDoLead(v);
             if (!dataBase) return false;
             
             const isoDate = safeIsoDate(dataBase);
@@ -69,7 +130,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
 
             return true;
         });
-    }, [visitantes, temVisaoGlobal, usuarioLogado, tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
+    }, [fonte, temVisaoGlobal, usuarioLogado, tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
 
     // 2. CONSOLIDAÇÃO DOS DADOS POR UNIDADE
     const relatorioUnidades = useMemo(() => {
@@ -84,8 +145,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                     total: 0,
                     fechados: 0,
                     perdidos: 0,
-                    emAtendimento: 0,
-                    dayUse: 0
+                    emAtendimento: 0
                 };
             }
 
@@ -94,13 +154,6 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
             if (lead.status === 'Fechado') relatorio[unidade].fechados++;
             else if (lead.status === 'Perdido') relatorio[unidade].perdidos++;
             else relatorio[unidade].emAtendimento++;
-
-            // Verifica se o lead realizou Day Use (buscando a palavra-chave)
-            const interesse = (lead.interesse || '').toUpperCase();
-            const obs = (lead.observacao || '').toUpperCase();
-            if (interesse.includes('DAY USE') || interesse.includes('DAYUSE') || obs.includes('DAY USE')) {
-                relatorio[unidade].dayUse++;
-            }
         });
 
         // Transforma o objeto em Array e calcula as taxas
@@ -119,21 +172,20 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
         acc.fechados += row.fechados;
         acc.perdidos += row.perdidos;
         acc.emAtendimento += row.emAtendimento;
-        acc.dayUse += row.dayUse;
         return acc;
-    }, { total: 0, fechados: 0, perdidos: 0, emAtendimento: 0, dayUse: 0 });
+    }, { total: 0, fechados: 0, perdidos: 0, emAtendimento: 0 });
 
     const taxaConversaoGeral = totaisGerais.total > 0 ? ((totaisGerais.fechados / totaisGerais.total) * 100).toFixed(1) : 0;
 
     // 4. EXPORTAÇÃO PARA EXCEL (CSV)
     const exportarCSV = () => {
-        let csv = 'Unidade;Total Visitantes;Em Atendimento;Convertidos (Matriculados);Perdidos;Day Use;Taxa de Conversao (%)\n';
-        
+        let csv = 'Unidade;Total Visitantes;Em Atendimento;Convertidos (Matriculados);Perdidos;Taxa de Conversao (%)\n';
+
         relatorioUnidades.forEach(row => {
-            csv += `${row.unidade};${row.total};${row.emAtendimento};${row.fechados};${row.perdidos};${row.dayUse};${row.taxaConversao}%\n`;
+            csv += `${row.unidade};${row.total};${row.emAtendimento};${row.fechados};${row.perdidos};${row.taxaConversao}%\n`;
         });
-        
-        csv += `TOTAL GERAL;${totaisGerais.total};${totaisGerais.emAtendimento};${totaisGerais.fechados};${totaisGerais.perdidos};${totaisGerais.dayUse};${taxaConversaoGeral}%\n`;
+
+        csv += `TOTAL GERAL;${totaisGerais.total};${totaisGerais.emAtendimento};${totaisGerais.fechados};${totaisGerais.perdidos};${taxaConversaoGeral}%\n`;
 
         const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF força o UTF-8 no Excel Excel
         const link = document.createElement("a");
@@ -145,26 +197,26 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
     };
 
     return (
-        <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out] flex flex-col min-h-[600px]">
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out] flex flex-col min-h-[600px]">
             
             {/* CABEÇALHO E FILTROS */}
-            <div className="flex flex-col xl:flex-row justify-between items-start gap-6 mb-8 border-b border-slate-100 pb-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start gap-6 mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                        <Activity className="w-6 h-6 text-indigo-600" /> Relatório Global de Conversão
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
+                        <Activity className="w-6 h-6 text-indigo-600 dark:text-indigo-400" /> Relatório Global de Conversão
                     </h2>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Visão consolidada de todas as unidades</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? `Unidade ${usuarioLogado.unidade}` : 'Visão consolidada de todas as unidades'}</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto overflow-x-auto custom-scrollbar shadow-inner">
-                        <button onClick={() => setTipoFiltroData('mes')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto overflow-x-auto custom-scrollbar shadow-inner">
+                        <button onClick={() => setTipoFiltroData('mes')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white dark:bg-slate-900 shadow-sm text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                             <Calendar className="w-4 h-4" /> Mês
                         </button>
-                        <button onClick={() => setTipoFiltroData('periodo')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+                        <button onClick={() => setTipoFiltroData('periodo')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white dark:bg-slate-900 shadow-sm text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                             <CalendarDays className="w-4 h-4" /> Período
                         </button>
-                        <button onClick={() => setTipoFiltroData('dia')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white shadow-sm text-indigo-700' : 'text-slate-500 hover:text-slate-800'}`}>
+                        <button onClick={() => setTipoFiltroData('dia')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white dark:bg-slate-900 shadow-sm text-indigo-700 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                             <Sun className="w-4 h-4" /> Dia
                         </button>
                     </div>
@@ -176,32 +228,42 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
             </div>
 
             {/* CONTROLES DE DATA */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
                 {tipoFiltroData === 'mes' && (
                     <>
-                        <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer">
+                        <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer">
                             {meses.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
                         </select>
-                        <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer">
+                        <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer">
                             {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
                         </select>
                     </>
                 )}
                 {tipoFiltroData === 'periodo' && (
                     <>
-                        <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer" />
-                        <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer" />
+                        <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer" />
+                        <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer" />
                     </>
                 )}
                 {tipoFiltroData === 'dia' && (
                     <div className="sm:col-span-2">
-                        <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer" />
+                        <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm cursor-pointer" />
                     </div>
                 )}
             </div>
 
+            {(carregando || cortado || !leadsDoBanco) && (
+                <div className={`mb-4 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-2 border ${carregando ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`}>
+                    {carregando
+                        ? <><Loader2 className="w-4 h-4 animate-spin shrink-0" /> Buscando os contatos do período no banco...</>
+                        : cortado
+                            ? <><AlertTriangle className="w-4 h-4 shrink-0" /> Período muito grande: o relatório usou os primeiros {(PAGINA * MAX_PAGINAS).toLocaleString('pt-BR')} contatos. Escolha um período menor para números exatos.</>
+                            : <><AlertTriangle className="w-4 h-4 shrink-0" /> Não foi possível buscar no banco: mostrando só os contatos carregados na tela (últimos 90 dias).</>}
+                </div>
+            )}
+
             {/* TABELA DENSIDADE ALTA (ESTILO EXCEL) */}
-            <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-2xl shadow-inner bg-slate-50">
+            <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-2xl shadow-inner bg-slate-50 dark:bg-slate-800/60">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-800 text-white sticky top-0 z-10 shadow-md">
                         <tr>
@@ -210,41 +272,37 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">Em Atendimento (Kanban)</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-emerald-400">Convertidos (Matriculou)</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-rose-400">Perdidos (Geladeira)</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-amber-400">Fizeram Day Use</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-right">Taxa de Conversão</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-200 bg-white">
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {relatorioUnidades.length === 0 ? (
-                            <tr><td colSpan="7" className="text-center py-16 text-slate-400 font-bold uppercase tracking-widest text-xs bg-white">Nenhum dado encontrado para o período.</td></tr>
+                            <tr><td colSpan="6" className="text-center py-16 text-slate-400 font-bold uppercase tracking-widest text-xs bg-white dark:bg-slate-900">Nenhum dado encontrado para o período.</td></tr>
                         ) : (
                             relatorioUnidades.map((row, idx) => (
-                                <tr key={row.unidade} className="hover:bg-indigo-50/50 transition-colors">
-                                    <td className="px-6 py-3 border-r border-slate-100">
+                                <tr key={row.unidade} className="hover:bg-indigo-50/50 dark:hover:bg-indigo-500/10 transition-colors">
+                                    <td className="px-6 py-3 border-r border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black text-slate-400">{idx + 1}º</span>
-                                            <p className="text-sm font-black text-slate-800 uppercase">{row.unidade}</p>
+                                            <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{row.unidade}</p>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-3 text-center border-r border-slate-100">
-                                        <span className="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg">{row.total}</span>
+                                    <td className="px-6 py-3 text-center border-r border-slate-100 dark:border-slate-800">
+                                        <span className="text-sm font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg">{row.total}</span>
                                     </td>
-                                    <td className="px-6 py-3 text-center border-r border-slate-100">
-                                        <span className="text-sm font-bold text-slate-500">{row.emAtendimento}</span>
+                                    <td className="px-6 py-3 text-center border-r border-slate-100 dark:border-slate-800">
+                                        <span className="text-sm font-bold text-slate-500 dark:text-slate-400">{row.emAtendimento}</span>
                                     </td>
                                     <td className="px-6 py-3 text-center border-r border-emerald-50">
-                                        <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100">{row.fechados}</span>
+                                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-100 dark:border-emerald-500/20">{row.fechados}</span>
                                     </td>
                                     <td className="px-6 py-3 text-center border-r border-rose-50">
                                         <span className="text-sm font-bold text-rose-500">{row.perdidos}</span>
                                     </td>
-                                    <td className="px-6 py-3 text-center border-r border-amber-50">
-                                        <span className="text-sm font-bold text-amber-600">{row.dayUse}</span>
-                                    </td>
                                     <td className="px-6 py-3 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <TrendingUp className={`w-4 h-4 ${row.taxaConversao >= 30 ? 'text-emerald-500' : row.taxaConversao >= 15 ? 'text-blue-500' : 'text-orange-500'}`} />
-                                            <span className="text-base font-black text-slate-800">{row.taxaConversao}%</span>
+                                            <span className="text-base font-black text-slate-800 dark:text-white">{row.taxaConversao}%</span>
                                         </div>
                                     </td>
                                 </tr>
@@ -253,15 +311,14 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                     </tbody>
                     {/* LINHA DE TOTAIS FIXA NO RODAPÉ */}
                     {relatorioUnidades.length > 0 && (
-                        <tfoot className="bg-slate-100 sticky bottom-0 border-t-2 border-slate-300 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
+                        <tfoot className="bg-slate-100 dark:bg-slate-800 sticky bottom-0 border-t-2 border-slate-300 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
                             <tr>
-                                <td className="px-6 py-5 text-sm font-black text-slate-800 uppercase tracking-widest border-r border-slate-200">Total Global</td>
-                                <td className="px-6 py-5 text-center font-black text-slate-800 text-base border-r border-slate-200">{totaisGerais.total}</td>
-                                <td className="px-6 py-5 text-center font-black text-slate-600 text-base border-r border-slate-200">{totaisGerais.emAtendimento}</td>
-                                <td className="px-6 py-5 text-center font-black text-emerald-700 text-base border-r border-slate-200">{totaisGerais.fechados}</td>
-                                <td className="px-6 py-5 text-center font-black text-rose-600 text-base border-r border-slate-200">{totaisGerais.perdidos}</td>
-                                <td className="px-6 py-5 text-center font-black text-amber-600 text-base border-r border-slate-200">{totaisGerais.dayUse}</td>
-                                <td className="px-6 py-5 text-right font-black text-indigo-700 text-lg">{taxaConversaoGeral}%</td>
+                                <td className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest border-r border-slate-200 dark:border-slate-800">Total Global</td>
+                                <td className="px-6 py-5 text-center font-black text-slate-800 dark:text-white text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.total}</td>
+                                <td className="px-6 py-5 text-center font-black text-slate-600 dark:text-slate-300 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.emAtendimento}</td>
+                                <td className="px-6 py-5 text-center font-black text-emerald-700 dark:text-emerald-300 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.fechados}</td>
+                                <td className="px-6 py-5 text-center font-black text-rose-600 dark:text-rose-400 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.perdidos}</td>
+                                <td className="px-6 py-5 text-right font-black text-indigo-700 dark:text-indigo-300 text-lg">{taxaConversaoGeral}%</td>
                             </tr>
                         </tfoot>
                     )}

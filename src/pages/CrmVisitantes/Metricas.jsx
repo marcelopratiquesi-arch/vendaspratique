@@ -7,9 +7,9 @@ import {
     Users, CheckCircle, XCircle, Target, TrendingUp, 
     BarChart2, PieChart as PieIcon, Activity, CalendarDays, ChevronRight 
 } from 'lucide-react';
-import { STATUS_TOKENS, COLUNAS, formatarDataHora } from './utils';
+import { STATUS_TOKENS, COLUNAS, dataDoLead, dataLocalISO } from './utils';
 
-const Metricas = ({ visitantes = [], colaboradores = [] }) => {
+const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
 
     // ==========================================
     // 1. LÓGICA DE DADOS GERAIS (KPIs)
@@ -28,12 +28,12 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
         for (let i = 13; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            const dataStr = d.toISOString().slice(0, 10);
+            const dataStr = dataLocalISO(d);
             m[dataStr] = 0;
         }
         
         visitantes.forEach(v => {
-            const dataIso = v.criado_em ? v.criado_em.slice(0, 10) : null;
+            const dataIso = dataLocalISO(dataDoLead(v)) || null;
             if (dataIso && m[dataIso] !== undefined) {
                 m[dataIso] += 1;
             }
@@ -83,7 +83,7 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
     // ==========================================
     const ultimosLeads = useMemo(() => {
         return [...visitantes]
-            .sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime())
+            .sort((a, b) => new Date(dataDoLead(b)).getTime() - new Date(dataDoLead(a)).getTime())
             .slice(0, 5);
     }, [visitantes]);
 
@@ -114,7 +114,7 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
                 </div>
                 <div>
                     <h2 className="text-2xl font-black text-white tracking-tight">Performance de Captação</h2>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1">Métricas Globais do CRM</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{operador ? `Carteira de ${operador}` : 'Carteira de quem está operando'}</p>
                 </div>
             </div>
 
@@ -172,11 +172,11 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
                                 <TrendingUp className="w-4 h-4 text-orange-400" />
                                 Evolução de Captação
                             </h2>
-                            <p className="text-xs text-slate-500 mt-0.5">Novos leads nos últimos 14 dias</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Novos leads nos últimos 14 dias</p>
                         </div>
                     </div>
                     {dadosEvolucao.every(d => d.Capturas === 0) ? (
-                        <div className="h-[220px] flex items-center justify-center text-slate-600 text-sm font-bold">Sem dados recentes</div>
+                        <div className="h-[220px] flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">Sem dados recentes</div>
                     ) : (
                         <ResponsiveContainer width="100%" height={220}>
                             <AreaChart data={dadosEvolucao}>
@@ -206,23 +206,23 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
                     </h2>
                     
                     {ultimosLeads.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-slate-600 text-sm font-bold">Nenhum lead capturado</div>
+                        <div className="flex-1 flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">Nenhum lead capturado</div>
                     ) : (
                         <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
                             {ultimosLeads.map(v => {
                                 const token = STATUS_TOKENS[v.status] || STATUS_TOKENS['Novo'];
                                 return (
                                     <div key={v.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/50 border border-slate-800 hover:border-slate-700 transition-all group">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black" style={{ backgroundColor: token.bg.split('/')[0], color: token.hex }}>
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 font-black" style={{ backgroundColor: `${token.hex}26`, color: token.hex }}>
                                             <Activity className="w-4 h-4" />
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-white truncate">{v.nome}</p>
-                                            <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                                                {v.vendedor} · {v.criado_em ? new Date(v.criado_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                            <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                                                {v.vendedor} · {dataDoLead(v) ? new Date(dataDoLead(v)).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
                                             </p>
                                         </div>
-                                        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-emerald-400 transition-colors shrink-0" />
+                                        <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-emerald-400 transition-colors shrink-0" />
                                     </div>
                                 );
                             })}
@@ -239,7 +239,7 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
                         <BarChart2 className="w-4 h-4 text-emerald-500" /> Performance por Consultor
                     </h3>
                     {dadosGraficoConsultores.length === 0 ? (
-                        <p className="text-slate-600 font-bold text-center py-10">Gráfico aguardando volume de dados.</p>
+                        <p className="text-slate-600 dark:text-slate-300 font-bold text-center py-10">Gráfico aguardando volume de dados.</p>
                     ) : (
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={dadosGraficoConsultores} barSize={24}>
@@ -259,7 +259,7 @@ const Metricas = ({ visitantes = [], colaboradores = [] }) => {
                         <PieIcon className="w-4 h-4 text-orange-500" /> Distribuição Atual no Funil
                     </h3>
                     {dadosGraficoFunil.length === 0 ? (
-                        <p className="text-slate-600 font-bold text-center py-10">Gráfico aguardando volume de dados.</p>
+                        <p className="text-slate-600 dark:text-slate-300 font-bold text-center py-10">Gráfico aguardando volume de dados.</p>
                     ) : (
                         <ResponsiveContainer width="100%" height={260}>
                             <PieChart>

@@ -240,6 +240,48 @@ export const buscarUnidadesDoAluno = async (alunoId) => {
     return listaUnidades(data);
 };
 
+// Unidades de vários alunos de uma vez: Map(aluno_id → [unidades]). Usa a consulta segura (de 200 em 200).
+// Devolve null se a consulta segura não existir (aí não dá para saber as unidades de outras unidades).
+export const buscarUnidadesDeVariosAlunos = async (alunoIds) => {
+    const ids = [...new Set((alunoIds || []).filter(Boolean))];
+    const mapa = new Map();
+    for (let i = 0; i < ids.length; i += 200) {
+        const fatia = ids.slice(i, i + 200);
+        const linhas = await buscarUnidadesViaConsultaSegura(fatia);
+        if (!linhas) return null;
+        fatia.forEach(id => mapa.set(id, listaUnidades(linhas.filter(v => v.aluno_id === id))));
+    }
+    return mapa;
+};
+
+// Mesma unidade, sem ligar para acentos e maiúsculas ("SANTA INÊS 1" = "Santa Ines 1")
+export const mesmaUnidade = (a, b) => Boolean(normalizarUnidade(a)) && normalizarUnidade(a) === normalizarUnidade(b);
+
+// REGRA: um vínculo por aluno, na unidade onde ele consome (compra). Mover, nunca somar.
+// Usa a função segura "mover_vinculo_alunos" do Supabase: ela apaga os vínculos das outras unidades e deixa
+// um só na unidade de destino. É preciso a função porque a regra de acesso da tabela alunos_unidades não deixa
+// Recepção/Líder mexer em vínculos de outra unidade. Recepção/Líder só movem para a própria unidade.
+// matriculas: uma por aluno, na mesma ordem. null (ou item vazio) = mantém a matrícula que já houver na
+// unidade de destino; se não houver, o vínculo fica sem matrícula.
+export const moverVinculoAlunos = async (unidade, alunoIds, matriculas = null) => {
+    const destino = String(unidade || '').toUpperCase().trim();
+    const ids = (alunoIds || []).filter(Boolean);
+    if (!destino || destino === 'TODAS') return { ok: false, erro: 'Unidade de destino inválida.' };
+    if (ids.length === 0) return { ok: true, movidos: 0 };
+    const listaMatriculas = matriculas ? ids.map((_, i) => (String(matriculas[i] ?? '').trim() || null)) : null;
+    const { data, error } = await supabase.rpc('mover_vinculo_alunos', {
+        p_unidade: destino,
+        p_aluno_ids: ids,
+        p_matriculas: listaMatriculas
+    });
+    if (error) {
+        console.error('Erro ao mover vínculo do aluno:', error);
+        const naoExiste = /could not find|does not exist|not find the function/i.test(error.message || '');
+        return { ok: false, erro: naoExiste ? 'A função segura "mover_vinculo_alunos" ainda não foi criada no Supabase.' : (error.message || 'Erro desconhecido.') };
+    }
+    return { ok: true, movidos: Number(data) || ids.length };
+};
+
 // Acrescenta em cada aluno: unidades (todas as ligadas), da_minha_unidade e multiplas_unidades
 export const anexarUnidades = async (lista, unidadeMinha = '', signal = null) => {
     const alunos = lista || [];

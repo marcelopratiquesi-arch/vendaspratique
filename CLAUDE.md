@@ -37,10 +37,33 @@ Sistema de vendas usado por uma rede de academias (Pratique). O dono do projeto 
    - A lista de Alunos **sem** busca digitada continua mostrando só a unidade (a rede inteira só entra quando há uma busca).
    - A venda e a visita são sempre lançadas na unidade de quem está vendendo/atendendo, **nunca** na unidade de origem do aluno.
    - Isto é uma exceção à regra 6, que continua valendo para vendas, relatórios, metas, caixa e os demais dados.
+   - O aviso "ligado a mais de uma unidade" continua existindo só como segurança: pela regra 11, isso não deveria mais acontecer.
+
+11. **Um vínculo por aluno, na unidade onde ele consome (decisão do dono).**
+   - Cada aluno tem **UM** registro só na tabela `alunos_unidades`. O aluno pode treinar e comprar em qualquer unidade, e o vínculo dele é a unidade onde ele compra. **Mover, nunca somar.**
+   - Quem muda o vínculo é sempre a função segura **`mover_vinculo_alunos`** do Supabase, chamada por `moverVinculoAlunos` em [src/pages/Alunos/utils.js](src/pages/Alunos/utils.js). Ela apaga os vínculos das outras unidades e deixa um só na unidade de destino. Recepção e Líder só movem para a própria unidade; Admin e Mentor movem para qualquer uma. Ela é necessária porque a regra de acesso da tabela não deixa Recepção/Líder mexer em vínculos de outra unidade. **Não apagar** a função nem trocar por gravação direta na tabela.
+   - **Janela do aluno** ([ModalAluno.jsx](src/components/Modals/ModalAluno.jsx)): editar aluno de outra unidade só atualiza os dados pessoais (não cria vínculo nem mexe na matrícula). Para mudar a unidade existe o botão "Transferir para minha unidade", que pede a matrícula da unidade nova. Aluno novo, ou sem vínculo nenhum, ganha o vínculo na unidade de quem cadastra.
+   - **Nova Venda:** qualquer venda (plano, produto ou serviço) move o vínculo para a unidade da venda. A matrícula na unidade nova fica em branco até a próxima importação do TECACE ou até alguém editar. Se mover falhar, a venda continua salva e aparece um aviso.
+   - **Novo Visitante não move vínculo** (visita não é compra).
+   - **Smart Paste** (Cadastro Geral → Alunos): a importação move cada aluno da lista para a unidade da lista. A prévia mostra o cartão "Transferidos" com a unidade de origem. Sem matrícula na lista, mantém a que já houver na unidade.
+   - No banco, a trava `alunos_unidades_um_vinculo_por_aluno` (índice único em `aluno_id`) impede dois vínculos para o mesmo aluno.
 
 9. **A Nova Venda busca o aluno SOMENTE pelo CPF completo (decisão do dono).**
    - O CPF é a garantia de não lançar a venda e a comissão no aluno errado.
    - Não adicionar busca por nome nem por matrícula na Nova Venda.
+
+10. **CRM de visitantes (pasta `src/pages/CrmVisitantes`) — decisões do dono.**
+    - Todo mundo entra primeiro na tela de entrada ([PainelInicialCrm.jsx](src/pages/CrmVisitantes/PainelInicialCrm.jsx)). Só o pessoal da **Recepção** ganha cartão (Líder/Admin não têm cartão). Clicando no cartão, abre o Kanban e a Lista daquela pessoa (dá para trocar de pessoa). **Todos os perfis, inclusive a Recepção, veem embaixo o "Andamento da Recepção"**: indicadores, planilha por recepcionista e "O que aconteceu" (tirados da tabela `historico_leads`), sempre da própria unidade. Só Admin e Mentor, na Visão Global, veem também o Painel da Rede.
+    - **Só Líder e Admin podem apagar contato** (`podeApagarLeads` em [utils.js](src/pages/CrmVisitantes/utils.js)). A Recepção e o Mentor não veem nenhum botão de apagar. A regra usa o papel verdadeiro (`roleReal`, criado no `usuarioVirtual` do App), porque Admin/Mentor que escolhe uma unidade vira "LIDER" no `role`. No banco, a regra de acesso `crm_apagar_so_lider_admin` da tabela `leads` (criada no SQL Editor) garante o mesmo: Admin apaga em qualquer unidade e Líder só na dele.
+    - A meta diária (150 ações) é contada pelo histórico do banco (`historico_leads` do dia), não pelo computador.
+    - Mudanças vindas de outras pessoas recarregam os números do CRM no máximo 1 vez por minuto. Há um botão "Atualizar" na tela de entrada.
+    - O Relatório de conversão busca no banco os contatos do período escolhido (não depende dos 90 dias do App).
+    - O App carrega só 90 dias de leads; o CRM busca à parte os leads antigos ainda em aberto (tudo menos Fechado/Arquivado), para nenhum contato sumir da Base, do Kanban ou da Geladeira.
+    - Contato novo é salvo na unidade de quem está operando (nunca "TODAS"). CPF é salvo só com números e conferido no banco inteiro antes de salvar.
+    - **O "Day Use (3 Dias)" não existe mais.** O funil tem só Novo → Em Contato → Fechado → Perdido (`COLUNAS` em utils.js). Contato que ainda esteja gravado como Day Use aparece como "Em Contato" (`normalizarStatus`). Não recriar a fase nem textos que ofereçam Day Use.
+    - A Base (piscina) e o "puxar fila" mostram só os contatos da unidade de quem está operando.
+    - Quando Líder/Admin/Mentor age no CRM de uma recepcionista, a ação conta para ela, mas o histórico ganha a marca "[feito por NOME (Papel)]".
+    - Na Visão Global (seletor do topo em "TODAS"), a tela de entrada mostra o **Painel da Rede** ([PainelRedeCrm.jsx](src/pages/CrmVisitantes/PainelRedeCrm.jsx)): uma linha por unidade com Usando (ação hoje/ontem), Parado (2 a 6 dias) ou Sem uso (7 dias ou mais). Clicar numa unidade filtra os cartões e a planilha.
 
 ## Como rodar
 

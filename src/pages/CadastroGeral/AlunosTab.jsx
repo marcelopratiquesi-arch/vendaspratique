@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Search, Users, FileText, X, Loader2, Save, UserRoundPen, ShieldAlert, CheckCircle2, Link, RefreshCcw, ClipboardPaste, Info, AlertTriangle } from 'lucide-react';
+import { Search, Users, FileText, X, Loader2, Save, UserRoundPen, ShieldAlert, CheckCircle2, Link, RefreshCcw, ClipboardPaste, Info, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { buscarUnidadesDeVariosAlunos, moverVinculoAlunos, mesmaUnidade } from '../Alunos/utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { parseSmartPaste, mascaraCPF, formatarTelefone } from './utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
@@ -160,7 +161,7 @@ const AlunosTab = (props) => {
                     const chunk = cpfsParaChecar.slice(i, i + chunkSize);
                     
                     // 🔥 BURACO 1 FECHADO: Puxamos telefone e email antigos também para não perder dados!
-                    const { data: globalData } = await supabase.from('alunos').select('cpf, telefone, email').in('cpf', chunk);
+                    const { data: globalData } = await supabase.from('alunos').select('id, cpf, telefone, email').in('cpf', chunk);
                     if (globalData) existentesGlobais = [...existentesGlobais, ...globalData];
 
                     const { data: localData } = await supabase.from('alunos')
@@ -195,6 +196,13 @@ const AlunosTab = (props) => {
                     mapOcupantes.set(String(mo.matricula).trim(), { cpf: mo.alunos.cpf, nome: mo.alunos.nome });
                 });
 
+                // REGRA: um vínculo por aluno. Descobre em que unidade(s) cada aluno que já existe está ligado
+                // (consulta segura: enxerga também as outras unidades), para mostrar quem será transferido.
+                const unidadesPorAluno = await buscarUnidadesDeVariosAlunos(existentesGlobais.map(e => e.id));
+                if (!unidadesPorAluno) {
+                    throw new Error('Consulta segura unidades_dos_alunos indisponível: não dá para saber de qual unidade os alunos vêm.');
+                }
+
                 parsed.forEach(p => {
                     if (p.status !== 'NOVO') return;
 
@@ -216,17 +224,29 @@ const AlunosTab = (props) => {
                         return;
                     }
 
+                    // Unidades de fora onde o aluno está ligado hoje (vão sair na importação)
+                    const unidadesDoAluno = dadosAntigos ? (unidadesPorAluno.get(dadosAntigos.id) || []) : [];
+                    const unidadesDeFora = unidadesDoAluno.filter(u => !mesmaUnidade(u, unidadeAtiva));
+
                     if (mapMatriculasLocais.has(p.cpf)) {
                         const matriculaBanco = String(mapMatriculasLocais.get(p.cpf)).trim();
-                        
+
                         if (matriculaColada && matriculaColada !== matriculaBanco) {
                             p.status = 'ATUALIZAR MATRÍCULA';
                             p.matriculaAntiga = matriculaBanco;
+                            if (unidadesDeFora.length > 0) p.origem = unidadesDeFora.join(' + ');
+                        } else if (unidadesDeFora.length > 0) {
+                            // Já está aqui, mas também ligado a outra unidade: a importação deixa um vínculo só
+                            p.status = 'TRANSFERIR';
+                            p.origem = unidadesDeFora.join(' + ');
                         } else {
                             p.status = 'JÁ NESTA UNIDADE';
                         }
+                    } else if (unidadesDeFora.length > 0) {
+                        p.status = 'TRANSFERIR';
+                        p.origem = unidadesDeFora.join(' + ');
                     } else if (mapGlobais.has(p.cpf)) {
-                        p.status = 'NOVO VÍNCULO';
+                        p.status = 'NOVO VÍNCULO'; // existe, mas não está ligado a nenhuma unidade
                     } else {
                         p.status = 'NOVO ALUNO';
                     }
@@ -236,7 +256,7 @@ const AlunosTab = (props) => {
             setFiltroDashboard('TODOS');
         } catch (err) {
             console.error(err);
-            alert('Erro ao analisar os dados cruzados com a nuvem.');
+            alert(`Erro ao analisar os dados cruzados com a nuvem.${err?.message ? `\n\n${err.message}` : ''}`);
         } finally {
             setAnalisando(false);
         }
@@ -249,9 +269,10 @@ const AlunosTab = (props) => {
     };
 
     const importarAlunosValidos = async () => {
-        const validos = previewData.filter(p => 
-            p.status === 'NOVO ALUNO' || 
-            p.status === 'NOVO VÍNCULO' || 
+        const validos = previewData.filter(p =>
+            p.status === 'NOVO ALUNO' ||
+            p.status === 'NOVO VÍNCULO' ||
+            p.status === 'TRANSFERIR' ||
             p.status === 'ATUALIZAR MATRÍCULA' || 
             (p.status === 'CONFLITO GRAVE' && p.forcarTroca)
         );
@@ -303,18 +324,15 @@ const AlunosTab = (props) => {
                 const mapCpfToId = {};
                 insertedAlunos.forEach(a => { mapCpfToId[a.cpf] = a.id; });
 
-                const payloadVinculos = chunkValidos.map(v => ({
-                    aluno_id: mapCpfToId[v.cpf],
-                    unidade: unidadeAtiva,
-                    matricula: v.matricula || null,
-                    status: 'ATIVO'
-                })).filter(v => v.aluno_id);
-
-                const { error: errVinculos } = await supabase
-                    .from('alunos_unidades')
-                    .upsert(payloadVinculos, { onConflict: 'aluno_id,unidade' });
-                
-                if (errVinculos) throw errVinculos;
+                // REGRA: um vínculo por aluno. Move todos para esta unidade (apaga os vínculos das outras
+                // unidades) pela função segura. Sem matrícula na lista = mantém a que já houver nesta unidade.
+                const comId = chunkValidos.filter(v => mapCpfToId[v.cpf]);
+                const resultado = await moverVinculoAlunos(
+                    unidadeAtiva,
+                    comId.map(v => mapCpfToId[v.cpf]),
+                    comId.map(v => v.matricula || null)
+                );
+                if (!resultado.ok) throw new Error(resultado.erro);
 
                 // 🔥 BURACO 3 FECHADO: Feed de progresso ao vivo
                 gravados += chunkValidos.length;
@@ -330,7 +348,7 @@ const AlunosTab = (props) => {
             carregarAlunos(); 
         } catch (error) {
             console.error("Erro na importação:", error);
-            alert('Erro crítico ao gravar os dados. Verifique a conexão com a internet.');
+            alert(`Erro crítico ao gravar os dados. Verifique a conexão com a internet.${error?.message ? `\n\n${error.message}` : ''}`);
         } finally {
             setImportando(false);
             setProgresso(0);
@@ -342,10 +360,15 @@ const AlunosTab = (props) => {
     const dashboardStats = {
         novos: previewData.filter(p => p.status === 'NOVO ALUNO').length,
         vinculos: previewData.filter(p => p.status === 'NOVO VÍNCULO').length,
+        transferir: previewData.filter(p => p.status === 'TRANSFERIR').length,
+        // Contagem por unidade de origem (ex.: "SANTA INES 2: 18"); inclui quem só troca de matrícula e sai de outra unidade
+        origens: Object.entries(previewData.filter(p => p.origem && (p.status === 'TRANSFERIR' || p.status === 'ATUALIZAR MATRÍCULA'))
+            .reduce((acc, p) => { acc[p.origem] = (acc[p.origem] || 0) + 1; return acc; }, {}))
+            .sort((a, b) => b[1] - a[1]),
         atualizacoes: previewData.filter(p => p.status === 'ATUALIZAR MATRÍCULA').length,
         conflitosGerais: previewData.filter(p => p.status === 'CONFLITO GRAVE').length,
         errosIniciais: previewData.filter(p => p.status === 'CPF INVÁLIDO' || p.status === 'DUPLICADO NA LISTA').length,
-        totalParaImportar: previewData.filter(p => p.status === 'NOVO ALUNO' || p.status === 'NOVO VÍNCULO' || p.status === 'ATUALIZAR MATRÍCULA' || (p.status === 'CONFLITO GRAVE' && p.forcarTroca)).length
+        totalParaImportar: previewData.filter(p => p.status === 'NOVO ALUNO' || p.status === 'NOVO VÍNCULO' || p.status === 'TRANSFERIR' || p.status === 'ATUALIZAR MATRÍCULA' || (p.status === 'CONFLITO GRAVE' && p.forcarTroca)).length
     };
 
     // Filtra a exibição da tabela baseado no Card clicado
@@ -353,6 +376,7 @@ const AlunosTab = (props) => {
         if (filtroDashboard === 'TODOS') return previewData;
         if (filtroDashboard === 'NOVOS') return previewData.filter(p => p.status === 'NOVO ALUNO');
         if (filtroDashboard === 'VINCULOS') return previewData.filter(p => p.status === 'NOVO VÍNCULO');
+        if (filtroDashboard === 'TRANSFERIR') return previewData.filter(p => p.status === 'TRANSFERIR' || (p.status === 'ATUALIZAR MATRÍCULA' && p.origem));
         if (filtroDashboard === 'ATUALIZACOES') return previewData.filter(p => p.status === 'ATUALIZAR MATRÍCULA');
         if (filtroDashboard === 'CONFLITOS') return previewData.filter(p => p.status === 'CONFLITO GRAVE');
         if (filtroDashboard === 'ERROS') return previewData.filter(p => p.status === 'CPF INVÁLIDO' || p.status === 'DUPLICADO NA LISTA');
@@ -560,7 +584,7 @@ const AlunosTab = (props) => {
                             ) : (
                                 <div className="p-6 flex flex-col h-full">
                                     {/* DASHBOARD DE RESUMO INTERATIVO */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6 shrink-0">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 shrink-0">
                                         <button 
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'NOVOS' ? 'TODOS' : 'NOVOS')}
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'NOVOS' ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-200 scale-[1.02]' : 'bg-white border-emerald-200 hover:border-emerald-400'}`}
@@ -577,6 +601,25 @@ const AlunosTab = (props) => {
                                             <div className="absolute right-[-10px] bottom-[-10px] text-blue-50/50"><Link className="w-24 h-24" /></div>
                                             <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10">Novos Vínculos</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.vinculos}</p>
+                                            <p className="text-[9px] font-bold text-slate-400 relative z-10 mt-1">Já cadastrados, sem unidade</p>
+                                        </button>
+
+                                        {/* TRANSFERÊNCIAS: alunos que saem de outra unidade e passam a ser só desta */}
+                                        <button
+                                            onClick={() => setFiltroDashboard(filtroDashboard === 'TRANSFERIR' ? 'TODOS' : 'TRANSFERIR')}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'TRANSFERIR' ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 scale-[1.02]' : 'bg-white border-indigo-200 hover:border-indigo-400'}`}
+                                        >
+                                            <div className="absolute right-[-10px] bottom-[-10px] text-indigo-50/50"><ArrowRightLeft className="w-24 h-24" /></div>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 relative z-10">Transferidos p/ {unidadeAtiva}</p>
+                                            <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.transferir}</p>
+                                            {dashboardStats.origens.length > 0 && (
+                                                <div className="relative z-10 mt-1 space-y-0.5">
+                                                    {dashboardStats.origens.slice(0, 3).map(([origem, qtd]) => (
+                                                        <p key={origem} className="text-[9px] font-bold text-indigo-500 uppercase truncate" title={`${qtd} saem de ${origem}`}>{qtd} de {origem}</p>
+                                                    ))}
+                                                    {dashboardStats.origens.length > 3 && <p className="text-[9px] font-bold text-slate-400">+ {dashboardStats.origens.length - 3} unidades</p>}
+                                                </div>
+                                            )}
                                         </button>
                                         
                                         <button 
@@ -634,13 +677,16 @@ const AlunosTab = (props) => {
                                                         const isAtualizar = linha.status === 'ATUALIZAR MATRÍCULA';
                                                         const isConflito = linha.status === 'CONFLITO GRAVE';
                                                         const isIgnorado = linha.status === 'JÁ NESTA UNIDADE';
-                                                        
-                                                        let rowBg = isNovo ? 'bg-emerald-50/20 hover:bg-emerald-50/50' 
-                                                                  : isAtualizar ? 'bg-amber-50/30 hover:bg-amber-50/60' 
+                                                        const isTransferir = linha.status === 'TRANSFERIR';
+
+                                                        let rowBg = isNovo ? 'bg-emerald-50/20 hover:bg-emerald-50/50'
+                                                                  : isTransferir ? 'bg-indigo-50/30 hover:bg-indigo-50/60'
+                                                                  : isAtualizar ? 'bg-amber-50/30 hover:bg-amber-50/60'
                                                                   : isIgnorado ? 'bg-slate-50/50' 
                                                                   : 'bg-rose-50 hover:bg-rose-100';
 
                                                         let badgeColor = isNovo ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                                                                         : isTransferir ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
                                                                          : isAtualizar ? 'bg-amber-100 text-amber-700 border-amber-300'
                                                                          : isIgnorado ? 'bg-slate-100 text-slate-500 border-slate-200'
                                                                          : 'bg-rose-600 text-white border-rose-700';
@@ -686,7 +732,12 @@ const AlunosTab = (props) => {
                                                                             </button>
                                                                         </div>
                                                                     )}
-                                                                    {!isConflito && <span className="text-slate-300">-</span>}
+                                                                    {!isConflito && linha.origem && (
+                                                                        <span className="inline-flex items-center gap-1 text-indigo-600 font-black text-[9px] uppercase tracking-widest">
+                                                                            <ArrowRightLeft className="w-3 h-3" /> Sai de {linha.origem}
+                                                                        </span>
+                                                                    )}
+                                                                    {!isConflito && !linha.origem && <span className="text-slate-300">-</span>}
                                                                 </td>
                                                             </tr>
                                                         )

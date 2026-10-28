@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS } from './utils';
-import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, Archive, ListPlus } from 'lucide-react';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead } from './utils';
+import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus } from 'lucide-react';
 
 const Lista = ({ 
     visitantes, 
@@ -10,15 +10,19 @@ const Lista = ({
     deletarLeadsEmLote,  
     setModalWpp, 
     setModalDetalhe, 
-    carregarHistoricoLead 
+    carregarHistoricoLead,
+    registrarHistorico,
+    podeApagar = false
 }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'puxado_em', direction: 'desc' });
     const [filtroStatus, setFiltroStatus] = useState('');
     const [selecionados, setSelecionados] = useState([]);
 
-    const handleLigarMicroSip = (telefone) => {
-        if (!telefone) return;
-        window.location.href = `sip:${telefone.replace(/\D/g, '')}`;
+    // Igual ao Kanban: a ligação fica registrada no histórico do contato
+    const handleLigarMicroSip = async (lead) => {
+        if (!lead?.telefone) return;
+        if (registrarHistorico) await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
+        window.location.href = `sip:${lead.telefone.replace(/\D/g, '')}`;
     };
 
     const abrirModalWpp = (lead) => {
@@ -50,8 +54,8 @@ const Lista = ({
         let valB = b[sortConfig.key];
         
         if (sortConfig.key === 'puxado_em' || sortConfig.key === 'criado_em') {
-            valA = new Date(valA || a.criado_em).getTime();
-            valB = new Date(valB || b.criado_em).getTime();
+            valA = new Date(valA || dataDoLead(a)).getTime();
+            valB = new Date(valB || dataDoLead(b)).getTime();
         }
 
         if (typeof valA === 'string') valA = valA.toLowerCase();
@@ -79,24 +83,26 @@ const Lista = ({
     };
 
     return (
-        <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out] flex flex-col overflow-hidden min-h-[600px]">
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out] flex flex-col overflow-hidden min-h-[600px]">
             
-            <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-slate-100 pb-6">
+            <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
                 <div>
-                    <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                    <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
                         <ListPlus className="w-6 h-6 text-blue-500"/> Visão de Lista
-                        <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded border border-slate-200 ml-2 shadow-sm">{leadsExibidos.length} Filtrados</span>
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 ml-2 shadow-sm">{leadsExibidos.length} Filtrados</span>
                     </h3>
                 </div>
 
                 <div className="flex items-center gap-3">
                     {selecionados.length > 0 && (
-                        <div className="flex items-center gap-2 mr-4 animate-[fadeIn_0.2s_ease-out] bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-200 shadow-sm">
-                            <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest mr-2">{selecionados.length} Selecionados:</span>
+                        <div className="flex items-center gap-2 mr-4 animate-[fadeIn_0.2s_ease-out] bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-500/30 shadow-sm">
+                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest mr-2">{selecionados.length} Selecionados:</span>
                             
-                            <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[9px] tracking-widest shadow-sm">
-                                <Trash2 className="w-3.5 h-3.5" /> Excluir do Banco
-                            </button>
+                            {podeApagar && (
+                                <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[9px] tracking-widest shadow-sm">
+                                    <Trash2 className="w-3.5 h-3.5" /> Excluir do Banco
+                                </button>
+                            )}
 
                             <button onClick={() => limparEExecutar(alterarStatusEmLote, 'Perdido')} className="bg-cyan-500 hover:bg-cyan-600 text-white font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[9px] tracking-widest shadow-sm">
                                 <Snowflake className="w-3.5 h-3.5" /> Enviar p/ Geladeira
@@ -104,9 +110,9 @@ const Lista = ({
                         </div>
                     )}
 
-                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
-                        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 outline-none cursor-pointer uppercase">
+                        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
                             <option value="">TODOS OS STATUS</option>
                             {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
                         </select>
@@ -114,65 +120,61 @@ const Lista = ({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-xl">
+            <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl">
                 <table className="w-full text-left border-collapse min-w-max">
-                    <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm border-b border-slate-200">
+                    <thead className="bg-slate-50 dark:bg-slate-800/60 sticky top-0 z-10 shadow-sm border-b border-slate-200 dark:border-slate-800">
                         <tr>
                             <th className="px-4 py-4 text-center w-12">
                                 <input 
                                     type="checkbox" 
-                                    className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400 focus:ring-blue-500 cursor-pointer"
                                     checked={selecionados.length === leadsExibidos.length && leadsExibidos.length > 0}
                                     onChange={toggleSelectAll}
                                 />
                             </th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group" onClick={() => requestSort('nome')}>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('nome')}>
                                 <div className="flex items-center gap-1">Lead <ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
                             </th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group" onClick={() => requestSort('telefone')}>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('telefone')}>
                                 Contato
                             </th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group" onClick={() => requestSort('status')}>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('status')}>
                                 <div className="flex items-center gap-1">Fase do Funil <ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
                             </th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 transition-colors group" onClick={() => requestSort('puxado_em')}>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('puxado_em')}>
                                 <div className="flex items-center gap-1">Entrada (Puxado) <ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações Individuais</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {leadsExibidos.length === 0 ? (
                             <tr><td colSpan="6" className="text-center py-12 text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhum lead encontrado neste filtro.</td></tr>
                         ) : (
                             leadsExibidos.map(v => {
                                 const isSelected = selecionados.includes(v.id);
                                 const token = STATUS_TOKENS[v.status] || STATUS_TOKENS['Novo'];
-                                // ✅ IDENTIFICADOR DE DAY USE NA LISTA
-                                const isDayUse = (v.interesse || '').toUpperCase().includes('DAY USE');
-                                
+
                                 return (
-                                    <tr key={v.id} className={`transition-colors cursor-pointer ${isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50'}`} onClick={() => toggleSelectRow(v.id)}>
+                                    <tr key={v.id} className={`transition-colors cursor-pointer ${isSelected ? 'bg-blue-50/50 dark:bg-blue-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`} onClick={() => toggleSelectRow(v.id)}>
                                         <td className="px-4 py-3 text-center">
                                             <input 
                                                 type="checkbox" 
-                                                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" 
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400 focus:ring-blue-500 cursor-pointer" 
                                                 checked={isSelected} 
                                                 onChange={() => {}} 
                                             />
                                         </td>
                                         <td className="px-6 py-3">
-                                            <p className="text-sm font-black text-slate-800 uppercase flex items-center gap-2">
+                                            <p className="text-sm font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
                                                 {v.nome}
-                                                {/* ✅ FOGUINHO MÁGICO AQUI */}
-                                                {isDayUse && <span className="text-[10px] bg-gradient-to-r from-amber-500 to-orange-500 text-white px-1.5 py-0.5 rounded shadow-sm" title="Fez Day Use">🔥</span>}
                                             </p>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 px-1.5 py-0.5 rounded mt-1 inline-block border border-slate-200 shadow-sm">
+                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded mt-1 inline-block border border-slate-200 dark:border-slate-800 shadow-sm">
                                                 {v.tipo_lead || 'LEAD'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-3">
-                                            <p className="text-xs font-bold text-slate-600">{v.telefone}</p>
+                                            <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
                                         </td>
                                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                                             <select 
@@ -183,23 +185,25 @@ const Lista = ({
                                                 {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
                                             </select>
                                         </td>
-                                        <td className="px-6 py-3 text-[10px] font-bold text-slate-500 uppercase">
-                                            {formatarDataHora(v.puxado_em || v.criado_em)}
+                                        <td className="px-6 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
+                                            {formatarDataHora(v.puxado_em || dataDoLead(v))}
                                         </td>
                                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleLigarMicroSip(v.telefone)} className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100" title="Ligar">
+                                                <button onClick={() => handleLigarMicroSip(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title="Ligar">
                                                     <PhoneCall className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => abrirModalWpp(v)} className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100" title="WhatsApp">
+                                                <button onClick={() => abrirModalWpp(v)} className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 dark:border-emerald-500/20" title="WhatsApp">
                                                     <MessageCircle className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200" title="Ficha Completa">
+                                                <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200 dark:border-slate-800" title="Ficha Completa">
                                                     <Info className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => deletarLead(v.id)} className="w-8 h-8 rounded-lg bg-white text-slate-300 hover:bg-rose-50 hover:text-rose-600 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100" title="Excluir Definitivamente">
-                                                    <Archive className="w-4 h-4" />
-                                                </button>
+                                                {podeApagar && (
+                                                    <button onClick={() => deletarLead(v.id)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title="Excluir Definitivamente">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

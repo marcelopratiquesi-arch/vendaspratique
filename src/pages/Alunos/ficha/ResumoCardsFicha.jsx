@@ -4,7 +4,15 @@ import { formatarDataBR } from '../utils.js';
 
 const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
     
-    const ultimaCompraExtra = dadosFicha.produtos.length > 0 ? dadosFicha.produtos[0].produto : 'NENHUMA';
+    // Último plano tirado das vendas buscadas agora (aparece na hora da venda). O "ultimo_plano" do cadastro
+    // é recalculado pelo banco de tempos em tempos: só é usado se o aluno não tiver venda de plano no sistema.
+    const planoMaisRecente = dadosFicha.planos[0] || null;
+    const ultimoPlano = planoMaisRecente ? planoMaisRecente.produto : (aluno.ultimo_plano || 'NENHUM');
+    const dataUltimoPlano = planoMaisRecente
+        ? formatarDataBR(planoMaisRecente.data || planoMaisRecente.created_at)
+        : (aluno.ultimo_plano_data ? formatarDataBR(aluno.ultimo_plano_data) : 'Plano atual');
+
+    const ultimaCompraExtra =dadosFicha.produtos.length > 0 ? dadosFicha.produtos[0].produto : 'NENHUMA';
     const dataUltimaCompraExtra = dadosFicha.produtos.length > 0 ? formatarDataBR(dadosFicha.produtos[0].data || dadosFicha.produtos[0].created_at) : 'Produto adicional';
     
     const dataUltimaAvaliacao = dadosFicha.avaliacoes.length > 0 ? formatarDataBR(dadosFicha.avaliacoes[0].data || dadosFicha.avaliacoes[0].created_at) : 'NENHUMA';
@@ -23,8 +31,8 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
         },
         {
             titulo: 'Último Plano',
-            valor: aluno.ultimo_plano || 'NENHUM',
-            subvalor: aluno.ultimo_plano_data ? formatarDataBR(aluno.ultimo_plano_data) : 'Plano atual',
+            valor: loading ? '...' : ultimoPlano,
+            subvalor: loading ? '' : dataUltimoPlano,
             icone: Bookmark,
             bgIcon: 'bg-emerald-50 text-emerald-600',
         },

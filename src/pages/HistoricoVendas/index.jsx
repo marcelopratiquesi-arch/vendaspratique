@@ -20,7 +20,7 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
-const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores = [] }) => {
+const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores = [], onAbrirAluno }) => {
     const hojePadrao = getLocalISODate();
     const mesPadrao = String(new Date().getMonth() + 1).padStart(2, '0');
     const anoPadrao = new Date().getFullYear().toString();
@@ -540,6 +540,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                 catalogoGeral={catalogoGeral} 
                 usuarioLogado={usuarioLogado}
                 colaboradores={colaboradores}
+                onAbrirAluno={onAbrirAluno}
             />
 
         </div>

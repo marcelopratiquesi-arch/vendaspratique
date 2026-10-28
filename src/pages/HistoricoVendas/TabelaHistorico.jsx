@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { safeNumber, safeIsoDate, formatMoney, formatDataBR, formatarCPF, extrairHoraCriacao, toTitleCase, buildCatalogoMap, gerarChaveDuplicidade, normalizeString } from './utils.js';
+import { anexarUnidades } from '../Alunos/utils.js';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy, AlertTriangle, Clock } from 'lucide-react';
 
 // ==========================================
@@ -66,7 +67,30 @@ const shortName = (name) => {
     return name;
 };
 
-const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [] }) => {
+const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [], onAbrirAluno }) => {
+    // Clique no nome do aluno: acha o cadastro pelo CPF da venda e abre a ficha
+    const [abrindoAlunoId, setAbrindoAlunoId] = useState(null);
+    const abrirFichaDoAluno = async (vendaId, cpf) => {
+        if (!onAbrirAluno || abrindoAlunoId) return;
+        const cpfLimpo = String(cpf || '').replace(/\D/g, '');
+        if (cpfLimpo.length !== 11) return alert('Esta venda não tem um CPF completo. Não dá para abrir a ficha do aluno.');
+        setAbrindoAlunoId(vendaId);
+        try {
+            const { data: achados, error } = await supabase.from('alunos').select('*')
+                .or(`cpf.eq.${cpfLimpo},cpf.eq."${formatarCPF(cpfLimpo)}"`).limit(2);
+            if (error) throw error;
+            if (!achados || achados.length === 0) return alert('Aluno não encontrado no cadastro para este CPF.');
+            if (achados.length > 1) return alert('Existe mais de um aluno com este CPF. Peça ao gestor para corrigir os cadastros.');
+            const [comUnidade] = await anexarUnidades(achados);
+            onAbrirAluno(comUnidade || achados[0]);
+        } catch (err) {
+            console.error('Erro ao abrir a ficha do aluno:', err);
+            alert('Não foi possível abrir a ficha do aluno. Tente novamente.');
+        } finally {
+            setAbrindoAlunoId(null);
+        }
+    };
+
     const [ordenacao, setOrdenacao] = useState({ coluna: 'data', direcao: 'desc' });
     const [editandoId, setEditandoId] = useState(null);
     const [dadosEdicao, setDadosEdicao] = useState({});
@@ -469,9 +493,22 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 ) : (
                                                     <div className="flex flex-col gap-1">
                                                         <div className="flex items-center gap-1.5">
-                                                            <p className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase" title={rawName}>
-                                                                {nomeExibicao}
-                                                            </p>
+                                                            {onAbrirAluno && rawCpf ? (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => abrirFichaDoAluno(row.id, rawCpf)}
+                                                                    disabled={Boolean(abrindoAlunoId)}
+                                                                    className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase text-left hover:text-blue-600 hover:underline underline-offset-2 transition-colors cursor-pointer disabled:cursor-wait"
+                                                                    title={`Abrir a ficha de ${rawName}`}
+                                                                >
+                                                                    {nomeExibicao}
+                                                                </button>
+                                                            ) : (
+                                                                <p className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase" title={rawName}>
+                                                                    {nomeExibicao}
+                                                                </p>
+                                                            )}
+                                                            {abrindoAlunoId === row.id && <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />}
                                                             {rawName && <CopyButton textToCopy={nomeExibicao} label="Copiar nome do aluno" />}
                                                         </div>
 

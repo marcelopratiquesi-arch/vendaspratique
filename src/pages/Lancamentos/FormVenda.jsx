@@ -4,7 +4,7 @@ import { safeNumber, formatMoney, getLocalDateISO } from './utils.js';
 import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
-import { buscarUnidadesDoAluno } from '../Alunos/utils.js';
+import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade } from '../Alunos/utils.js';
 import { User, Package, BookOpen, Box, Briefcase, LayoutGrid, Trash2, Plus, MessageSquare, Receipt, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard } from 'lucide-react';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
@@ -231,7 +231,18 @@ const FormVenda = ({
             if (error) throw error;
 
             if (data) {
-                if(onAddMultiple) onAddMultiple(data.reverse()); 
+                if(onAddMultiple) onAddMultiple(data.reverse());
+
+                // REGRA: o vínculo do aluno é a unidade onde ele compra. Qualquer venda MOVE o vínculo para a
+                // unidade da venda (nunca soma). A matrícula da unidade nova fica em branco até a próxima
+                // importação do TECACE ou até alguém editar. Se falhar, a venda continua salva.
+                const jaEstaNaUnidade = unidadesAluno.length === 1 && mesmaUnidade(unidadesAluno[0], formData.unidade);
+                if (alunoEncontrado?.id && !jaEstaNaUnidade) {
+                    const resultado = await moverVinculoAlunos(formData.unidade, [alunoEncontrado.id]);
+                    if (resultado.ok) setUnidadesAluno([formData.unidade.toUpperCase()]);
+                    else alert(`A venda foi salva. Mas o vínculo do aluno NÃO foi movido para ${formData.unidade.toUpperCase()}.\n\nMotivo: ${resultado.erro}`);
+                }
+
                 setSucesso(true);
                 
                 // 🔥 Redirecionamento Automático

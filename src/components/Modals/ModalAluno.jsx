@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { UserRoundPen, X, Loader2, Save, UserPlus, AlertTriangle, Link } from 'lucide-react';
+import { UserRoundPen, X, Loader2, Save, UserPlus, AlertTriangle, Link, ArrowRightLeft } from 'lucide-react';
 import { normalizarNome, normalizarNumeros, formatarTelefone, validarEmail, validarTelefone, calcularIdade, mascaraCPF } from '../../pages/CadastroGeral/utilsAlunos.js';
+import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade } from '../../pages/Alunos/utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 
 const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogado, unidadeDestino }) => {
@@ -21,7 +22,12 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({ id: null, nome: '', cpf: '', matricula: '', telefone: '', email: '', data_nascimento: '' });
     const [idade, setIdade] = useState(null);
-    const [isNewLink, setIsNewLink] = useState(false); 
+
+    // REGRA: um vínculo por aluno, na unidade onde ele consome. Editar aluno de outra unidade NÃO cria vínculo:
+    // só atualiza os dados pessoais. Para mudar a unidade existe o botão "Transferir para minha unidade".
+    const [vinculosAluno, setVinculosAluno] = useState([]); // nomes das unidades ligadas ao aluno
+    const [carregandoVinculo, setCarregandoVinculo] = useState(false);
+    const [modoTransferir, setModoTransferir] = useState(false);
 
     // ESTADOS PARA VALIDAÇÃO EM TEMPO REAL
     const [erroMatricula, setErroMatricula] = useState('');
@@ -48,15 +54,48 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             setErroMatricula('');
             setErroTelefone('');
             setErroEmail('');
-
-            // Se tem ID mas não tem matrícula, é um aluno da rede que não tem vínculo com a unidade atual
-            if (alunoInicial?.id && !alunoInicial?.matricula) {
-                setIsNewLink(true);
-            } else {
-                setIsNewLink(false);
-            }
+            setModoTransferir(false);
+            setVinculosAluno([]);
         }
     }, [isOpen, alunoInicial?.id]); // 👈 A mágica está aqui: não dependemos mais da referência do objeto, apenas do ID.
+
+    // Onde está o vínculo do aluno (consulta segura: enxerga também as outras unidades)
+    useEffect(() => {
+        if (!isOpen || !alunoInicial?.id) return undefined;
+        let ativo = true;
+        setCarregandoVinculo(true);
+        buscarUnidadesDoAluno(alunoInicial.id)
+            .then(lista => { if (ativo) setVinculosAluno(lista); })
+            .finally(() => { if (ativo) setCarregandoVinculo(false); });
+        return () => { ativo = false; };
+    }, [isOpen, alunoInicial?.id]);
+
+    // NOVO: aluno novo · SEM_VINCULO: existe mas não tem unidade · MINHA: vínculo nesta unidade
+    // OUTRA: vínculo em outra unidade (só edita dados pessoais) · a etiqueta "multiplo" avisa casos antigos com 2+ vínculos
+    const temVinculoAqui = vinculosAluno.some(u => mesmaUnidade(u, unidadeAtiva));
+    const situacao = !formData.id ? 'NOVO'
+        : carregandoVinculo ? 'CARREGANDO'
+        : vinculosAluno.length === 0 ? 'SEM_VINCULO'
+        : temVinculoAqui ? 'MINHA'
+        : 'OUTRA';
+    const vinculoMultiplo = vinculosAluno.length > 1;
+    const unidadesDeFora = vinculosAluno.filter(u => !mesmaUnidade(u, unidadeAtiva));
+    // Só edita dados pessoais (não mexe em vínculo nem em matrícula)
+    const somenteDadosPessoais = situacao === 'OUTRA' && !modoTransferir;
+    const podeTransferir = Boolean(unidadeAtiva) && (situacao === 'OUTRA' || (situacao === 'MINHA' && vinculoMultiplo));
+
+    const iniciarTransferencia = () => {
+        setModoTransferir(true);
+        // A matrícula é da unidade nova: começa em branco quando o aluno vem de outra unidade
+        if (situacao === 'OUTRA') setFormData(prev => ({ ...prev, matricula: '' }));
+        setErroMatricula('');
+    };
+
+    const cancelarTransferencia = () => {
+        setModoTransferir(false);
+        setFormData(prev => ({ ...prev, matricula: alunoInicial?.matricula || '' }));
+        setErroMatricula('');
+    };
 
     useEffect(() => {
         setIdade(calcularIdade(formData.data_nascimento));
@@ -124,8 +163,9 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
     // BUSCAS BLINDADAS EM TEMPO REAL (ON BLUR)
     // ==========================================
     const handleBlurMatricula = async () => {
+        if (somenteDadosPessoais) return; // a matrícula é da outra unidade e não é alterada aqui
         const matStr = formData.matricula;
-        if (matStr.includes(' ')) return; 
+        if (matStr.includes(' ')) return;
         if (!matStr || matStr.toUpperCase() === 'VISITANTE') {
             setErroMatricula(''); return;
         }
@@ -223,6 +263,9 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         if (erroMatricula || erroTelefone || erroEmail) {
             return alert("Corrija os erros apontados em vermelho antes de salvar.");
         }
+        if (situacao === 'CARREGANDO') {
+            return alert("Aguarde um instante: conferindo a unidade do aluno.");
+        }
         
         // 🔥 BARREIRA CONTRA ALUNO "FANTASMA" SEM UNIDADE
         if (!unidadeAtiva) {
@@ -234,7 +277,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         const rawPhone = formData.telefone || '';
 
         if (/\s/.test(rawEmail)) return alert(t('validation.emailWhitespace', {defaultValue: "🚨 BLOQUEADO: Remova os espaços em branco do E-MAIL."}));
-        if (/\s/.test(rawMatricula)) return alert("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA.");
+        if (!somenteDadosPessoais && /\s/.test(rawMatricula)) return alert("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA.");
         
         const phoneError = validatePhoneStrict(rawPhone);
         if (phoneError) return alert(`🚨 BLOQUEADO: ${phoneError}`);
@@ -249,7 +292,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         if (!nomeLimpo) return alert("O nome completo é obrigatório.");
         if (!dataNasc) return alert("A data de nascimento é obrigatória.");
         if (!telefoneLimpo) return alert("O telefone de contato é obrigatório.");
-        if (!rawMatricula) return alert("A matrícula é obrigatória. (Se for um visitante, digite 'VISITANTE').");
+        if (!somenteDadosPessoais && !rawMatricula) return alert(modoTransferir ? `Informe a matrícula do aluno em ${unidadeAtiva} para transferir.` : "A matrícula é obrigatória. (Se for um visitante, digite 'VISITANTE').");
         if (!rawEmail) return alert("O e-mail é obrigatório.");
         if (!validarEmail(rawEmail)) return alert(t('validation.emailInvalid', {defaultValue: "O formato do e-mail é inválido."}));
 
@@ -274,8 +317,8 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 }
             }
 
-            // 🔥 PRE-FLIGHT 2: VERIFICA MATRÍCULA LOCAL
-            if (rawMatricula.toUpperCase() !== 'VISITANTE') {
+            // 🔥 PRE-FLIGHT 2: VERIFICA MATRÍCULA LOCAL (não se aplica quando só os dados pessoais mudam)
+            if (!somenteDadosPessoais && rawMatricula.toUpperCase() !== 'VISITANTE') {
                 const matNoZeros = rawMatricula.replace(/^0+/, '');
                 const matWithZero = '0' + matNoZeros;
                 let queryLocal = `matricula.eq.${rawMatricula},matricula.eq.${matNoZeros},matricula.eq.${matWithZero}`;
@@ -307,9 +350,10 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 cpf: cpfLimpo,
                 telefone: telefoneLimpo, 
                 email: rawEmail,
-                data_nascimento: dataNasc,
-                matricula: rawMatricula 
+                data_nascimento: dataNasc
             };
+            // Aluno de outra unidade: a matrícula é da unidade dele e não é alterada daqui
+            if (!somenteDadosPessoais) payloadPessoa.matricula = rawMatricula;
 
             let alunoIdDestino = formData.id;
             let dataResultPessoa;
@@ -329,18 +373,29 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 dataResultPessoa = data;
             }
 
-            // 2. SALVAR/ATUALIZAR VÍNCULO (Tabela 'alunos_unidades')
-            const payloadVinculo = {
-                aluno_id: alunoIdDestino,
-                unidade: unidadeAtiva, // Garantidamente limpa e filtrada
-                matricula: rawMatricula,
-                status: 'ATIVO',
-                updated_at: new Date().toISOString()
-            };
+            // 2. VÍNCULO (Tabela 'alunos_unidades') — um vínculo por aluno
+            if (somenteDadosPessoais) {
+                // Aluno de outra unidade: nenhum vínculo é criado ou alterado
+            } else if (modoTransferir) {
+                // Move o vínculo para esta unidade (apaga os das outras unidades) com a matrícula nova
+                const resultado = await moverVinculoAlunos(unidadeAtiva, [alunoIdDestino], [rawMatricula]);
+                if (!resultado.ok) {
+                    alert(`Os dados pessoais foram salvos, mas a transferência para ${unidadeAtiva} NÃO foi feita.\n\nMotivo: ${resultado.erro}`);
+                }
+            } else {
+                // Aluno novo, sem vínculo, ou já desta unidade: grava/atualiza o vínculo DESTA unidade
+                const payloadVinculo = {
+                    aluno_id: alunoIdDestino,
+                    unidade: unidadeAtiva, // Garantidamente limpa e filtrada
+                    matricula: rawMatricula,
+                    status: 'ATIVO',
+                    updated_at: new Date().toISOString()
+                };
 
-            const { error: errVinculo } = await supabase.from('alunos_unidades').upsert(payloadVinculo, { onConflict: 'aluno_id, unidade' });
-            if (errVinculo) {
-                console.error("Erro de vínculo:", errVinculo);
+                const { error: errVinculo } = await supabase.from('alunos_unidades').upsert(payloadVinculo, { onConflict: 'aluno_id, unidade' });
+                if (errVinculo) {
+                    console.error("Erro de vínculo:", errVinculo);
+                }
             }
 
             onSaveSuccess(dataResultPessoa);
@@ -370,22 +425,59 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 tracking-tight">{formData.id ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}</h3>
                             <p className="text-xs font-semibold text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                Vínculo: <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">{unidadeAtiva || 'NENHUMA'}</span>
+                                Vínculo: <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">
+                                    {situacao === 'CARREGANDO' ? '...'
+                                        : (situacao === 'NOVO' || situacao === 'SEM_VINCULO' || modoTransferir) ? (unidadeAtiva || 'NENHUMA')
+                                        : vinculosAluno.join(' + ')}
+                                </span>
                             </p>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-700 rounded-full transition-colors relative z-10"><X className="w-5 h-5" /></button>
                 </div>
 
-                {isNewLink && (
+                {/* ALUNO DE OUTRA UNIDADE (ou ligado a mais de uma): editar não cria vínculo; transferir move */}
+                {(situacao === 'OUTRA' || (situacao === 'MINHA' && vinculoMultiplo)) && (
+                    <div className={`border-b p-4 flex items-start gap-3 ${modoTransferir ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
+                        {modoTransferir ? <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" /> : <Link className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
+                        <div className="flex-1">
+                            {modoTransferir ? (
+                                <>
+                                    <p className="text-sm font-bold text-blue-800 tracking-tight">TRANSFERIR PARA {unidadeAtiva}</p>
+                                    <p className="text-xs font-medium text-blue-700 leading-snug mt-1">
+                                        Ao salvar, o vínculo sai de <strong>{unidadesDeFora.join(' + ')}</strong> e passa a ser só de <strong>{unidadeAtiva}</strong>. Informe a matrícula do aluno nesta unidade.
+                                    </p>
+                                    <button type="button" onClick={cancelarTransferencia} className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 transition-colors">
+                                        Cancelar transferência
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm font-bold text-amber-800 tracking-tight">
+                                        {vinculoMultiplo ? 'LIGADO A MAIS DE UMA UNIDADE, CONFERIR' : `${t('validation.networkFound', {defaultValue: 'ALUNO LOCALIZADO NA REDE'})} · ${vinculosAluno[0]}`}
+                                    </p>
+                                    <p className="text-xs font-medium text-amber-700 leading-snug mt-1">
+                                        {situacao === 'OUTRA'
+                                            ? `Este aluno é de ${vinculosAluno.join(' + ')}. Salvar aqui só atualiza os dados pessoais e não muda a unidade dele.`
+                                            : `Este aluno também está ligado a ${unidadesDeFora.join(' + ')}. Cada aluno deve ter um vínculo só.`}
+                                    </p>
+                                    {podeTransferir && (
+                                        <button type="button" onClick={iniciarTransferencia} className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2">
+                                            <ArrowRightLeft className="w-4 h-4" /> {situacao === 'OUTRA' ? 'Transferir para minha unidade' : `Deixar só em ${unidadeAtiva}`}
+                                        </button>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {situacao === 'SEM_VINCULO' && (
                     <div className="bg-amber-50 border-b border-amber-200 p-4 flex items-start gap-3">
                         <Link className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <div>
-                            <p className="text-sm font-bold text-amber-800 tracking-tight">{t('validation.networkFound', {defaultValue: 'ALUNO LOCALIZADO NA REDE'})}</p>
-                            <p className="text-xs font-medium text-amber-700 leading-snug mt-1">
-                                {t('validation.networkFoundSub', {defaultValue: 'Este CPF já pertence a outra unidade. Ao salvar, você criará um novo vínculo dele com a sua unidade atual.'})}
-                            </p>
-                        </div>
+                        <p className="text-xs font-medium text-amber-700 leading-snug">
+                            Este aluno não está ligado a nenhuma unidade. Ao salvar, ele fica ligado a <strong>{unidadeAtiva || 'NENHUMA'}</strong>.
+                        </p>
                     </div>
                 )}
 
@@ -432,14 +524,18 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         </div>
 
                         <div className="col-span-1 relative">
-                            <label className={labelClass}>Matrícula (Nesta Unidade) *</label>
+                            <label className={labelClass}>
+                                {somenteDadosPessoais ? `Matrícula (de ${vinculosAluno[0] || 'outra unidade'})` : modoTransferir ? `Matrícula em ${unidadeAtiva} *` : 'Matrícula (Nesta Unidade) *'}
+                            </label>
                             <div className="relative">
-                                <input 
-                                    type="text" 
-                                    name="matricula" 
-                                    value={formData.matricula} 
-                                    onChange={handleChange} 
-                                    onBlur={handleBlurMatricula} 
+                                <input
+                                    type="text"
+                                    name="matricula"
+                                    value={formData.matricula}
+                                    onChange={handleChange}
+                                    onBlur={handleBlurMatricula}
+                                    disabled={somenteDadosPessoais || situacao === 'CARREGANDO'}
+                                    title={somenteDadosPessoais ? 'A matrícula é da unidade do aluno. Para mudar, use "Transferir para minha unidade".' : undefined}
                                     className={`${inputClassBase} uppercase ${erroMatricula ? 'border-rose-500 text-rose-700 bg-rose-50 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
                                     placeholder="Ex: 012345" 
                                 />
@@ -471,8 +567,9 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                     <div className="pt-6 border-t border-slate-100 flex justify-end gap-3 mt-4">
                         <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white text-slate-600 border border-slate-300 hover:bg-slate-50 hover:text-slate-800 rounded-lg text-sm font-semibold transition-colors">Cancelar</button>
                         
-                        <button type="submit" disabled={isSubmitting || !!erroMatricula || !!erroTelefone || !!erroEmail} className={`px-6 py-2.5 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${formData.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
-                            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} {isSubmitting ? 'Processando...' : (isNewLink ? 'Criar Novo Vínculo' : 'Salvar Cliente')}
+                        <button type="submit" disabled={isSubmitting || situacao === 'CARREGANDO' || !!erroMatricula || !!erroTelefone || !!erroEmail} className={`px-6 py-2.5 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${formData.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                            {isSubmitting || situacao === 'CARREGANDO' ? <Loader2 className="w-4 h-4 animate-spin" /> : modoTransferir ? <ArrowRightLeft className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                            {isSubmitting ? 'Processando...' : modoTransferir ? 'Salvar e Transferir' : somenteDadosPessoais ? 'Salvar Dados Pessoais' : 'Salvar Cliente'}
                         </button>
                     </div>
                 </form>

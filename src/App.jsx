@@ -150,6 +150,15 @@ export default function App() {
 
     const handleSelecionarAlunoGlobal = (aluno) => {
         setAlunoGlobalPreSelecionado(aluno);
+        setOrigemFichaAluno(null);
+        handleNavigation('alunos');
+    };
+
+    // Abre a ficha lembrando de qual tela veio (o "Voltar" da ficha leva de volta para ela)
+    const [origemFichaAluno, setOrigemFichaAluno] = useState(null);
+    const abrirAlunoVindoDe = (aluno, abaOrigem) => {
+        setAlunoGlobalPreSelecionado(aluno);
+        setOrigemFichaAluno(abaOrigem);
         handleNavigation('alunos');
     };
 
@@ -441,6 +450,7 @@ export default function App() {
     const usuarioVirtual = {
         ...usuarioLogado,
         role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
+        roleReal: usuarioLogado.role, // papel verdadeiro (o "role" acima vira LIDER quando ADMIN/MENTOR escolhe uma unidade)
         unidade: ehChefe ? unidadeGlobal : usuarioLogado.unidade 
     };
 
@@ -514,7 +524,7 @@ export default function App() {
                             onIrParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
-                    {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} />}
+                    {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} onAbrirAluno={(aluno) => abrirAlunoVindoDe(aluno, 'assinaturas')} />}
                     {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
                     {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
                     {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
@@ -538,7 +548,9 @@ export default function App() {
                                 handleNavigation('avaliacao');
                             }}
                             alunoParaAbrir={alunoGlobalPreSelecionado}
-                            limparAlunoParaAbrir={() => setAlunoGlobalPreSelecionado(null)}
+                            origemAlunoParaAbrir={origemFichaAluno}
+                            limparAlunoParaAbrir={() => { setAlunoGlobalPreSelecionado(null); setOrigemFichaAluno(null); }}
+                            onVoltarParaOrigem={handleNavigation}
                         />
                     )}
                     {activeTab === 'avaliacao' && (

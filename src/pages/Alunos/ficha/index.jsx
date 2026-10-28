@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../../supabaseClient.js';
 import { ArrowLeft, User, Bookmark, ShoppingBag, Dumbbell, MessageCircle, Clock, Loader2, UserPlus, ShoppingCart } from 'lucide-react';
 import CabecalhoFicha from './CabecalhoFicha.jsx';
@@ -11,7 +11,7 @@ import TabContatosCrm from './TabContatosCrm.jsx';
 import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
 
-const FichaAluno = ({ aluno, onVoltar, onEditar, onVender, onAvaliar, usuarioLogado }) => {
+const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEditar, onVender, onAvaliar, usuarioLogado }) => {
     const [abaAtiva, setAbaAtiva] = useState('dados');
     const [loadingDados, setLoadingDados] = useState(true);
     const [dadosFicha, setDadosFicha] = useState({
@@ -25,16 +25,43 @@ const FichaAluno = ({ aluno, onVoltar, onEditar, onVender, onAvaliar, usuarioLog
     // Recepção só visualiza; excluir é para gestão
     const podeGerenciarAvaliacoes = ['ADMIN', 'MENTOR', 'LIDER'].includes(roleReal);
 
+    // Sobe quando chega venda/avaliação nova deste aluno ou quando a aba do navegador volta ao foco:
+    // a ficha busca tudo de novo, sem precisar sair e entrar
+    const [versaoDados, setVersaoDados] = useState(0);
+    const alunoJaCarregado = useRef(null);
+
+    useEffect(() => {
+        if (!aluno?.id) return undefined;
+        const cpfLimpo = limparApenasDigitos(aluno.cpf);
+        let timer = null;
+        const atualizar = () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => setVersaoDados(v => v + 1), 800);
+        };
+        let canal = supabase.channel(`ficha_aluno_${aluno.id}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'avaliacoes_realizadas', filter: `aluno_id=eq.${aluno.id}` }, atualizar);
+        if (cpfLimpo) canal = canal.on('postgres_changes', { event: '*', schema: 'public', table: 'vendas', filter: `cpf=eq.${cpfLimpo}` }, atualizar);
+        canal.subscribe();
+        window.addEventListener('focus', atualizar);
+        return () => {
+            clearTimeout(timer);
+            window.removeEventListener('focus', atualizar);
+            supabase.removeChannel(canal);
+        };
+    }, [aluno?.id, aluno?.cpf]);
+
     useEffect(() => {
         const buscarTudo = async () => {
-            setLoadingDados(true);
+            // Atualização do mesmo aluno é silenciosa (sem a tela de "Sincronizando...")
+            const silencioso = alunoJaCarregado.current === aluno.id;
+            if (!silencioso) setLoadingDados(true);
             try {
                 const cpfLimpo = limparApenasDigitos(aluno.cpf);
                 const telLimpo = limparApenasDigitos(aluno.telefone);
 
                 const queries = [];
                 queries.push(supabase.from('catalogo').select('nome, tipo'));
-                queries.push(cpfLimpo ? supabase.from('vendas').select('*').or(`cpf.eq.${cpfLimpo},cpf.eq.${aluno.cpf}`).order('data', { ascending: false }) : { data: [] });
+                queries.push(cpfLimpo ? supabase.from('vendas').select('*').or(`cpf.eq.${cpfLimpo},cpf.eq.${aluno.cpf}`).order('data', { ascending: false }).order('created_at', { ascending: false }) : { data: [] });
                 queries.push(aluno.id ? supabase.from('avaliacoes_realizadas').select('*').eq('aluno_id', aluno.id).order('created_at', { ascending: false }) : { data: [] });
                 
                 let queryOrCrm = [];
@@ -95,6 +122,7 @@ const FichaAluno = ({ aluno, onVoltar, onEditar, onVender, onAvaliar, usuarioLog
                 timeline.sort((a, b) => b.data_real - a.data_real);
 
                 setDadosFicha({ planos, produtos, avaliacoes: avaliacoesAll, crm: historicoCrm, timeline });
+                alunoJaCarregado.current = aluno.id;
 
             } catch (err) {
                 console.error("Erro ao carregar Ficha 360:", err);
@@ -104,7 +132,7 @@ const FichaAluno = ({ aluno, onVoltar, onEditar, onVender, onAvaliar, usuarioLog
         };
 
         if (aluno?.id) buscarTudo();
-    }, [aluno.id, aluno.cpf, aluno.telefone, aluno.created_at, aluno.unidade]);
+    }, [aluno.id, aluno.cpf, aluno.telefone, aluno.created_at, aluno.unidade, versaoDados]);
 
     const excluirAvaliacao = async (id) => {
         if (!window.confirm('Tem certeza que deseja excluir esta avaliação? Essa ação não pode ser desfeita.')) return;
@@ -139,7 +167,7 @@ const FichaAluno = ({ aluno, onVoltar, onEditar, onVender, onAvaliar, usuarioLog
                     onClick={onVoltar} 
                     className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none"
                 >
-                    <ArrowLeft className="w-3.5 h-3.5" /> Voltar para Lista
+                    <ArrowLeft className="w-3.5 h-3.5" /> {rotuloVoltar}
                 </button>
             </div>
 

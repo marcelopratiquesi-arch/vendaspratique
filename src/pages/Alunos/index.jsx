@@ -36,7 +36,9 @@ const ModuloAlunos360 = ({
     onIniciarVendaAluno,
     onIniciarAvaliacaoAluno,
     alunoParaAbrir,
-    limparAlunoParaAbrir
+    origemAlunoParaAbrir,
+    limparAlunoParaAbrir,
+    onVoltarParaOrigem
 }) => {
     const roleReal = String(usuarioReal?.role || usuarioLogado?.role || '').toUpperCase().trim();
     const temVisaoGlobal = roleReal === 'ADMIN' || roleReal === 'MENTOR';
@@ -74,6 +76,8 @@ const ModuloAlunos360 = ({
     const [redeTemMais, setRedeTemMais] = useState(false);
 
     const [alunoFichaAberta, setAlunoFichaAberta] = useState(null);
+    // Tela de onde a ficha foi aberta (ex.: 'assinaturas' = Histórico de Vendas). O "Voltar" leva de volta para ela.
+    const [origemFicha, setOrigemFicha] = useState(null);
 
     const [modalAlunoOpen, setModalAlunoOpen] = useState(false);
     const [alunoEditando, setAlunoEditando] = useState(null);
@@ -92,11 +96,13 @@ const ModuloAlunos360 = ({
     useEffect(() => {
         if (alunoParaAbrir) {
             setAlunoFichaAberta(alunoParaAbrir);
+            setOrigemFicha(origemAlunoParaAbrir || null);
             if (limparAlunoParaAbrir) limparAlunoParaAbrir();
         }
-    }, [alunoParaAbrir, limparAlunoParaAbrir]);
+    }, [alunoParaAbrir, origemAlunoParaAbrir, limparAlunoParaAbrir]);
 
     const handleSelecionarAluno = (aluno) => {
+        setOrigemFicha(null);
         setAlunoFichaAberta(aluno);
         addRecente(emailGlobalUsuario, aluno, 'Visitado recentemente');
     };
@@ -388,7 +394,11 @@ const ModuloAlunos360 = ({
             ) : (
                 <FichaAluno 
                     aluno={alunoFichaAberta}
-                    onVoltar={() => setAlunoFichaAberta(null)}
+                    onVoltar={() => {
+                        if (origemFicha && onVoltarParaOrigem) onVoltarParaOrigem(origemFicha);
+                        else setAlunoFichaAberta(null);
+                    }}
+                    rotuloVoltar={origemFicha === 'assinaturas' ? 'Voltar para Histórico de Vendas' : undefined}
                     onEditar={() => {
                         setAlunoEditando({ ...alunoFichaAberta, unidade_vinculo: alunoFichaAberta.unidade });
                         setModalAlunoOpen(true);
