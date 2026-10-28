@@ -100,8 +100,18 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 let historicoCrm = [];
                 if (leadsAll.length > 0) {
                     const leadIds = leadsAll.map(l => l.id);
-                    const { data: hist } = await supabase.from('historico_leads').select('*').in('lead_id', leadIds).order('created_at', { ascending: false });
-                    historicoCrm = hist || [];
+                    // A data do histórico do CRM fica em "data_registro" (ordenar por created_at dava erro 400).
+                    // O lead_id é texto nessa tabela.
+                    const { data: hist, error: erroHist } = await supabase.from('historico_leads').select('*')
+                        .in('lead_id', leadIds.map(String)).order('data_registro', { ascending: false });
+                    if (erroHist) console.error('Erro ao buscar contatos do CRM do aluno:', erroHist);
+                    // A aba Contatos e o cartão "Último Contato CRM" usam created_at / descricao / autor
+                    historicoCrm = (hist || []).map(h => ({
+                        ...h,
+                        created_at: h.created_at || h.data_registro,
+                        descricao: h.descricao || h.observacao,
+                        autor: h.autor || h.consultor
+                    }));
                 }
 
                 if (historicoCrm.length === 0 && leadsAll.length > 0) {
