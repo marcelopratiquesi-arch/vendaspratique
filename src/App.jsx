@@ -354,13 +354,24 @@ export default function App() {
         return d.toISOString();
     };
 
+    // Vendas dos últimos 90 dias SEM corte de quantidade: busca de 1.000 em 1.000 até acabar
+    // (antes parava em 3.000 e a visão "TODAS" escondia as vendas mais antigas desse período).
+    // Se alguma parte falhar, não troca a lista (mantém a que já estava na tela).
     const fetchVendas = useCallback(async (isMounted = true) => { 
-        let query = supabase.from('vendas').select('*')
-            .gte('created_at', getDataCorte())
-            .order('id', { ascending: false })
-            .limit(3000); 
-        if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
-        const { data } = await query; 
+        const corte = getDataCorte();
+        const TAMANHO_PAGINA = 1000;
+        let data = [];
+        for (let inicio = 0; ; inicio += TAMANHO_PAGINA) {
+            let query = supabase.from('vendas').select('*')
+                .gte('created_at', corte)
+                .order('id', { ascending: false })
+                .range(inicio, inicio + TAMANHO_PAGINA - 1);
+            if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
+            const { data: pagina, error } = await query;
+            if (error) { console.error('Erro ao carregar vendas:', error); data = null; break; }
+            data = data.concat(pagina || []);
+            if (!pagina || pagina.length < TAMANHO_PAGINA) break;
+        }
         if (isMounted && data) {
             setDadosAssinaturas(data);
             fetchAlunosEspecificos(data, isMounted);

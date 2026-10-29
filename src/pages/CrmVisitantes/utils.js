@@ -20,6 +20,88 @@ export const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
 export const normalizarNome = (nome) => String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim().replace(/\s+/g, ' ');
 export const mesmoNome = (a, b) => !!normalizarNome(a) && normalizarNome(a) === normalizarNome(b);
 
+// ==========================================
+// CONTATOS DE HOJE: VISITANTES 24H/48H E ANIVERSARIANTES
+// ==========================================
+// Visitante = cadastrado pelo Novo Visitante na recepção (origem RECEPCAO).
+// Cancelados e inativos entram por lista (Base/Smart Paste) e NÃO são visitantes.
+export const ehVisitanteRecepcao = (lead) => String(lead?.origem || '').toUpperCase() === 'RECEPCAO';
+
+// Dia da visita (AAAA-MM-DD, horário local)
+export const dataDaVisita = (lead) => dataLocalISO(lead?.data || lead?.data_criacao || dataDoLead(lead));
+
+// Dia de hoje somando dias (ex.: -1 = ontem), em AAAA-MM-DD
+export const diaISO = (deslocamento = 0, base = new Date()) => {
+    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + deslocamento);
+    return dataLocalISO(d);
+};
+export const somarDiasISO = (iso, dias) => {
+    const [a, m, d] = String(iso).split('-').map(Number);
+    return dataLocalISO(new Date(a, m - 1, d + dias));
+};
+
+// Textos padrão (Admin/Líder podem editar no CRM; ficam na tabela crm_mensagens_prontas)
+export const MENSAGENS_PADRAO = {
+    VISITANTE_24H: 'Olá, {nome}! Aqui é da equipe da Pratique {unidade}. Muito obrigado pela sua visita ontem! 😊 O que você achou da academia e do atendimento? Ficou com alguma dúvida que a gente possa te ajudar?',
+    VISITANTE_48H: 'Oi, {nome}! Tudo bem? Aqui é da equipe da Pratique {unidade}. Passando para dizer que as portas estão abertas para você voltar e começar a treinar com a gente. 💪 Quer ajuda para escolher o plano ideal e já deixar sua matrícula pronta?',
+    ANIVERSARIO: 'Feliz aniversário, {nome}! 🎉 Toda a equipe da Pratique {unidade} deseja a você um novo ano de vida cheio de saúde, alegria e conquistas. Um grande abraço!',
+    MIGRACAO: 'Oi, {nome}! Tudo bem? Aqui é da equipe da Pratique {unidade}. 😊 Temos uma novidade para você: com o plano com nutricionista, você treina com acompanhamento da alimentação e chega mais rápido no seu objetivo. 🥗💪 Quer que eu te explique como funciona a troca do seu plano?'
+};
+
+// ==========================================
+// TIPO DO CONTATO NA BASE: VISITANTE, CANCELADO e INATIVO
+// "CANCELADO/INATIVO" é o tipo antigo (antes da separação) e continua sendo aceito.
+// ==========================================
+export const TIPO_ANTIGO_CANCELADO_INATIVO = 'CANCELADO/INATIVO';
+export const ehCanceladoOuInativo = (tipo) => ['CANCELADO', 'INATIVO', TIPO_ANTIGO_CANCELADO_INATIVO].includes(String(tipo || '').toUpperCase());
+
+// Status do TECACE → tipo no CRM (decisão do dono, 2026-10-28). ATIVO/CLIENTE ainda são alunos: não entram na Base.
+export const CLASSIFICACAO_STATUS_TECACE = {
+    INATIVO: 'INATIVO',
+    SUSPENSO: 'INATIVO',
+    TRANCADO: 'INATIVO',
+    FINALIZADO: 'CANCELADO',
+    BLOQUEADO: 'CANCELADO',
+    VISITANTE: 'VISITANTE',
+    ATIVO: 'ATIVO',
+    CLIENTE: 'ATIVO'
+};
+export const tipoPeloStatusTecace = (status) => CLASSIFICACAO_STATUS_TECACE[normalizarNome(status)] || '';
+
+// Cor da etiqueta do tipo (Base, Kanban, Lista, ficha do contato)
+export const classeTipoLead = (tipo) => {
+    const t = String(tipo || '').toUpperCase();
+    if (t === 'VISITANTE') return 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30';
+    if (t === 'CANCELADO') return 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30';
+    if (t === 'INATIVO' || t === TIPO_ANTIGO_CANCELADO_INATIVO) return 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/30';
+    return 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800';
+};
+
+// Justificativas para "Marcar como feito" SEM ter mandado o WhatsApp (fica em vermelho para o Líder conferir)
+export const JUSTIFICATIVAS_SEM_WHATSAPP = ['Liguei', 'Falei pessoalmente'];
+
+// Motivos para colocar alguém em "Não contatar"
+export const MOTIVOS_NAO_CONTATAR = ['Pediu para não receber mensagens', 'Pediu para não receber ligações', 'Reclamou dos contatos', 'Número errado / não é a pessoa'];
+
+const capitalizar = (texto) => String(texto || '').toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+
+// Troca {nome} pelo primeiro nome e {unidade} pelo nome da unidade
+export const preencherMensagem = (texto, { nome, unidade }) => String(texto || '')
+    .split('{nome}').join(capitalizar(String(nome || '').trim().split(' ')[0]))
+    .split('{unidade}').join(capitalizar(unidade));
+
+// Busca do CRM: parte do nome (sem acento) ou parte dos números do CPF/telefone
+export const contatoCombinaComBusca = (contato, termo) => {
+    const texto = String(termo || '').trim();
+    if (!texto) return true;
+    if (normalizarNome(contato?.nome).includes(normalizarNome(texto))) return true;
+    const numeros = apenasDigitos(texto);
+    if (numeros.length >= 3) {
+        return apenasDigitos(contato?.cpf).includes(numeros) || apenasDigitos(contato?.telefone).includes(numeros);
+    }
+    return false;
+};
+
 // Data de entrada do lead. O CRM grava "criado_em", o Novo Visitante grava "data_criacao" e o banco tem "created_at".
 export const dataDoLead = (lead) => lead?.criado_em || lead?.data_criacao || lead?.created_at || lead?.data || null;
 
@@ -37,17 +119,33 @@ export const dataLocalISO = (valor) => {
     return dataLocalISO(new Date(texto));
 };
 
+// Meta do dia: conta PESSOAS diferentes contatadas (decisão do dono), não cliques.
+// Cada ação traz "pessoa" (lead:ID ou aluno:ID); ação sem pessoa conta sozinha.
+export const contarPessoasDaMeta = (progresso = []) =>
+    new Set(progresso.filter(p => p && p.data_contato).map((p, i) => p.pessoa || `acao:${i}`)).size;
+
 // Papel verdadeiro de quem está logado (Admin/Mentor que escolhe uma unidade no topo vira "LIDER" no role)
 export const papelReal = (usuario) => String(usuario?.roleReal || usuario?.role || '').toUpperCase();
 
 // Só Líder e Admin podem apagar contato do banco (decisão do dono). Recepção e Mentor nunca apagam.
 export const podeApagarLeads = (usuario) => ['ADMIN', 'LIDER'].includes(papelReal(usuario));
 
+// Quando Líder/Admin/Mentor (ou uma colega) age no CRM de outra recepcionista, a ação conta para ela,
+// mas fica a marca de quem fez de verdade: "feito por NOME (Papel)". Vazio quando a própria pessoa fez.
+// O login da Recepção é da unidade (ex.: "VENEZA"), não da pessoa: quem opera é a do cartão escolhido, sem marca.
+export const marcaFeitoPor = (usuarioLogado, operador) => {
+    const quem = usuarioLogado?.nome;
+    if (!operador || !quem || mesmoNome(quem, operador) || papelReal(usuarioLogado) === 'RECEPCAO') return '';
+    const papel = { ADMIN: 'Admin', MENTOR: 'Mentor', LIDER: 'Líder', RECEPCAO: 'Recepção' }[papelReal(usuarioLogado)] || papelReal(usuarioLogado);
+    return `feito por ${quem}${papel ? ` (${papel})` : ''}`;
+};
+
 // Pessoal da recepção (só eles operam o CRM e ganham cartão na tela de entrada)
 export const ehRecepcao = (colaborador) => {
     const cargo = String(colaborador?.role || colaborador?.setor || colaborador?.cargo || '').toUpperCase();
     const status = String(colaborador?.status || colaborador?.situacao || 'ATIVO').toUpperCase();
-    const inativo = status.includes('INATIVO') || status.includes('DESLIGADO') || status === 'FALSE';
+    // O Cadastro Geral → Equipe marca quem foi desativado com ativo = false
+    const inativo = colaborador?.ativo === false || status.includes('INATIVO') || status.includes('DESLIGADO') || status === 'FALSE';
     return !inativo && cargo.includes('RECEP');
 };
 
@@ -94,7 +192,7 @@ export const gerarTextoWhatsApp = (lead) => {
     const nomeFormatado = nomeAluno.charAt(0).toUpperCase() + nomeAluno.slice(1).toLowerCase();
     
     const saudacao = getSaudacao();
-    const isInativo = lead.tipo_lead === 'CANCELADO/INATIVO'; 
+    const isInativo = ehCanceladoOuInativo(lead.tipo_lead);
 
     if (lead.status === 'Novo') {
         return isInativo 

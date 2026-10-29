@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { mesesLista, formatMoney, getUltimos6Meses } from './utils.js';
+import { pedirMotivoExclusao, excluirVendaComMotivo } from '../HistoricoVendas/utils.js';
 import ConferenciaTab from './ConferenciaTab.jsx';
 import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
 import { CalendarDays, CalendarRange, Sun, RefreshCw, Building2, UserCheck, AlertCircle, PieChart, ShieldAlert, Wallet, ClipboardCheck, Users, BarChart2 } from 'lucide-react';
+
+// Data de hoje no horário do computador (Brasília): o dia vai até 23h59, e não vira às 21h como no horário UTC
+const hojeLocalISO = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
     const [subAba, setSubAba] = useState('conferencia');
@@ -25,7 +32,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
     const [dataInicialInput, setDataInicialInput] = useState('');
     const [dataFinalInput, setDataFinalInput] = useState('');
-    const [filtroDia, setFiltroDia] = useState(new Date().toISOString().split('T')[0]);
+    const [filtroDia, setFiltroDia] = useState(hojeLocalISO());
     const [filtroUnidadeIsolada, setFiltroUnidadeIsolada] = useState('TODOS'); 
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
@@ -38,7 +45,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         setFiltroAno(new Date().getFullYear().toString());
         setDataInicialInput('');
         setDataFinalInput('');
-        setFiltroDia(new Date().toISOString().split('T')[0]);
+        setFiltroDia(hojeLocalISO());
         if (temVisaoGlobal) setFiltroUnidadeIsolada('TODOS');
     };
 
@@ -90,7 +97,9 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
             matricula: vendaEditada.matricula,
             produto: vendaEditada.produto,
             quantidade: vendaEditada.quantidade,
-            valor: vendaEditada.valor
+            // O valor vem do catálogo (o campo é só leitura) e a comissão grava o mesmo número (decisão do dono, 29/10/2026)
+            valor: vendaEditada.valor,
+            comissao: vendaEditada.valor
         }).eq('id', vendaEditada.id);
 
         if (error) {
@@ -98,18 +107,22 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
             alert("Erro ao salvar a edição. Tente novamente.");
             throw error; 
         } else {
-            setVendas(vendas.map(v => v.id === vendaEditada.id ? { ...v, ...vendaEditada } : v));
+            setVendas(vendas.map(v => v.id === vendaEditada.id ? { ...v, ...vendaEditada, comissao: vendaEditada.valor } : v));
         }
     };
 
+    // Manda para a lixeira com motivo (função segura do banco: só Admin, ou Líder da própria unidade)
     const handleExcluirVenda = async (id) => {
-        const { error } = await supabase.from('vendas').delete().eq('id', id);
+        const motivo = pedirMotivoExclusao();
+        if (!motivo) return false;
+        const error = await excluirVendaComMotivo(supabase, id, motivo);
         if (error) {
             console.error("Erro ao excluir venda:", error);
-            alert("Erro ao excluir. Tente novamente.");
-        } else {
-            setVendas(vendas.filter(v => v.id !== id));
+            alert(`Não foi possível excluir a venda.\n\n${error.message || ''}`);
+            return false;
         }
+        setVendas(vendas.filter(v => v.id !== id));
+        return true;
     };
 
     const marcarTodosConferidos = async (idsParaMarcar = []) => {

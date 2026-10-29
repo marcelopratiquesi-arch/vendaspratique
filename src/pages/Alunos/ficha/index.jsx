@@ -10,6 +10,7 @@ import TabAvaliacoes from './TabAvaliacoes.jsx';
 import TabContatosCrm from './TabContatosCrm.jsx';
 import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
+import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/contatosFeitos.js';
 
 const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEditar, onVender, onAvaliar, usuarioLogado }) => {
     const [abaAtiva, setAbaAtiva] = useState('dados');
@@ -65,13 +66,27 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 queries.push(aluno.id ? supabase.from('avaliacoes_realizadas').select('*').eq('aluno_id', aluno.id).order('created_at', { ascending: false }) : { data: [] });
                 
                 let queryOrCrm = [];
+                const tel8 = telLimpo ? (telLimpo.length > 8 ? telLimpo.slice(-8) : telLimpo) : '';
                 if (cpfLimpo) queryOrCrm.push(`cpf.eq.${cpfLimpo}`, `cpf.eq.${aluno.cpf}`);
-                if (telLimpo) queryOrCrm.push(`telefone.ilike.%${telLimpo.length > 8 ? telLimpo.slice(-8) : telLimpo}%`);
-                queries.push(queryOrCrm.length > 0 ? supabase.from('leads').select('*').or(queryOrCrm.join(',')).order('created_at', { ascending: false }) : { data: [] });
+                if (tel8) queryOrCrm.push(`telefone.ilike.%${tel8}%`);
+                // Contatos do CRM do aluno em TODAS as unidades, pela consulta segura "crm_contatos_do_aluno"
+                // (a tabela leads é protegida por unidade). Se ela não existir, cai na busca direta abaixo.
+                queries.push(queryOrCrm.length > 0 ? supabase.rpc('crm_contatos_do_aluno', { p_cpf: cpfLimpo || null, p_tel8: tel8 || null }) : { data: null });
                 // Todas as perguntas, inclusive as desativadas, para as avaliações antigas continuarem com o texto
                 queries.push(supabase.from('avaliacao_perguntas').select('id, pergunta, ordem, descricao'));
 
-                const [resCat, resVendas, resAval, resLeads, resPerguntas] = await Promise.all(queries);
+                const [resCat, resVendas, resAval, resCrm, resPerguntas] = await Promise.all(queries);
+
+                let leadsAll = [];
+                let historicoBruto = null; // null = a consulta segura não respondeu: busca o histórico direto
+                if (resCrm?.data && !resCrm.error) {
+                    leadsAll = resCrm.data.leads || [];
+                    historicoBruto = resCrm.data.historico || [];
+                } else if (queryOrCrm.length > 0) {
+                    if (resCrm?.error) console.warn('Consulta segura crm_contatos_do_aluno indisponível; usando a busca direta:', resCrm.error.message || resCrm.error);
+                    const { data: leadsDiretos } = await supabase.from('leads').select('*').or(queryOrCrm.join(',')).order('created_at', { ascending: false });
+                    leadsAll = leadsDiretos || [];
+                }
 
                 const mapaPerguntas = {};
                 (resPerguntas?.data || []).forEach(p => {
@@ -84,7 +99,6 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
 
                 const vendasAll = resVendas.data || [];
                 const avaliacoesAll = resAval.data || [];
-                const leadsAll = resLeads.data || [];
 
                 const planos = vendasAll.filter(v => {
                     const tipo = mapCat.get((v.produto || '').toUpperCase().trim()) || 'plano';
@@ -99,12 +113,16 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
 
                 let historicoCrm = [];
                 if (leadsAll.length > 0) {
-                    const leadIds = leadsAll.map(l => l.id);
-                    // A data do histórico do CRM fica em "data_registro" (ordenar por created_at dava erro 400).
-                    // O lead_id é texto nessa tabela.
-                    const { data: hist, error: erroHist } = await supabase.from('historico_leads').select('*')
-                        .in('lead_id', leadIds.map(String)).order('data_registro', { ascending: false });
-                    if (erroHist) console.error('Erro ao buscar contatos do CRM do aluno:', erroHist);
+                    let hist = historicoBruto;
+                    if (hist === null) {
+                        const leadIds = leadsAll.map(l => l.id);
+                        // A data do histórico do CRM fica em "data_registro" (ordenar por created_at dava erro 400).
+                        // O lead_id é texto nessa tabela.
+                        const { data, error: erroHist } = await supabase.from('historico_leads').select('*')
+                            .in('lead_id', leadIds.map(String)).order('data_registro', { ascending: false });
+                        if (erroHist) console.error('Erro ao buscar contatos do CRM do aluno:', erroHist);
+                        hist = data;
+                    }
                     // A aba Contatos e o cartão "Último Contato CRM" usam created_at / descricao / autor
                     historicoCrm = (hist || []).map(h => ({
                         ...h,
@@ -129,6 +147,41 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 vendasAll.forEach(v => timeline.push({ id: `venda_${v.id}`, data_real: new Date(v.data || v.created_at), tipo: 'VENDA', titulo: `Compra: ${v.produto}`, descricao: `Por ${v.vendedor || 'Sistema'} na unidade ${v.unidade}.`, icone: ShoppingCart, corBg: 'bg-blue-500' }));
                 avaliacoesAll.forEach(av => timeline.push({ id: `aval_${av.id}`, data_real: new Date(av.data || av.created_at), tipo: 'AVALIACAO', titulo: 'Avaliação Física', descricao: `Avaliador: ${av.professor || 'N/I'}. Peso: ${av.peso}kg | Gordura: ${av.pgc}%`, icone: Dumbbell, corBg: 'bg-emerald-500' }));
                 leadsAll.forEach(l => timeline.push({ id: `crm_lead_${l.id}`, data_real: new Date(l.created_at || l.data), tipo: 'CRM', titulo: `Funil CRM: ${l.status || l.fase || 'CONTATO'}`, descricao: `Consultor: ${l.vendedor || l.consultor || 'N/I'}.`, icone: MessageCircle, corBg: 'bg-amber-500' }));
+                // Contatos do CRM marcados no pop-up "Contatos de hoje" e na Migração (aniversário, 24h, 48h, migração).
+                // Feito SEM WhatsApp aparece em vermelho, com a justificativa (para o Líder conferir).
+                const contatosFeitos = await carregarContatosDoAluno(aluno.id, leadsAll.map(l => String(l.id)));
+
+                // Os mesmos contatos entram na aba "Contatos" e no cartão "Último Contato CRM".
+                // Os de visitante 24h/48h feitos por WhatsApp já estão no histórico do funil: não repete.
+                const contatosNaAba = contatosFeitos
+                    .filter(c => !(c.lead_id && c.canal === 'WHATSAPP'))
+                    .map(c => ({
+                        id: `contato_${c.id}`,
+                        created_at: c.criado_em,
+                        tipo_acao: `${TIPOS_CONTATO[c.tipo] || c.tipo} · ${c.canal === 'WHATSAPP' ? 'WhatsApp' : 'sem WhatsApp'}`,
+                        descricao: (c.canal === 'WHATSAPP'
+                            ? `Mensagem de ${String(TIPOS_CONTATO[c.tipo] || c.tipo).toLowerCase()} enviada pelo WhatsApp.`
+                            : `Marcado como feito SEM WhatsApp. Justificativa: ${c.justificativa || 'não informada'}.`)
+                            + (c.observacao ? ` (${c.observacao})` : ''),
+                        autor: c.consultor,
+                        alerta: c.canal !== 'WHATSAPP'
+                    }));
+                historicoCrm = [...historicoCrm, ...contatosNaAba]
+                    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
+                contatosFeitos.forEach(c => {
+                    const viaWhatsApp = c.canal === 'WHATSAPP';
+                    timeline.push({
+                        id: `contato_${c.id}`,
+                        data_real: new Date(c.criado_em),
+                        tipo: 'CRM',
+                        titulo: `Contato ${TIPOS_CONTATO[c.tipo] || c.tipo}${viaWhatsApp ? ' via WhatsApp' : ' SEM WhatsApp'}`,
+                        descricao: `Por ${c.consultor || 'N/I'} (${c.unidade || '—'}).${viaWhatsApp ? '' : ` Justificativa: ${c.justificativa || 'não informada'}.`}${c.observacao ? ` ${c.observacao}.` : ''}`,
+                        icone: MessageCircle,
+                        corBg: viaWhatsApp ? 'bg-emerald-500' : 'bg-rose-500'
+                    });
+                });
+
                 timeline.sort((a, b) => b.data_real - a.data_real);
 
                 setDadosFicha({ planos, produtos, avaliacoes: avaliacoesAll, crm: historicoCrm, timeline });
@@ -181,7 +234,8 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 </button>
             </div>
 
-            <CabecalhoFicha aluno={aluno} onEditar={onEditar} onVender={() => onVender(aluno)} onAvaliar={() => onAvaliar(aluno)} />
+            {/* Sem onVender/onAvaliar (ex.: pop-up do CRM) os botões Vender e Avaliação não aparecem */}
+            <CabecalhoFicha aluno={aluno} onEditar={onEditar} onVender={onVender ? () => onVender(aluno) : undefined} onAvaliar={onAvaliar ? () => onAvaliar(aluno) : undefined} />
 
             <ResumoCardsFicha aluno={aluno} dadosFicha={dadosFicha} loading={loadingDados} />
 

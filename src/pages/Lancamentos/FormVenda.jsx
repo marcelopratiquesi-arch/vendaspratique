@@ -4,7 +4,8 @@ import { safeNumber, formatMoney, getLocalDateISO } from './utils.js';
 import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
-import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade } from '../Alunos/utils.js';
+import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade, pendenciasCadastroAluno } from '../Alunos/utils.js';
+import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
 import { User, Package, BookOpen, Box, Briefcase, LayoutGrid, Trash2, Plus, MessageSquare, Receipt, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard } from 'lucide-react';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
@@ -52,6 +53,13 @@ const FormVenda = ({
             setCpfErro(false);
             // A venda fica na unidade de quem vende, nunca na unidade de origem do aluno (regra 8 do CLAUDE.md)
 
+            // O aluno vindo da Central/ficha pode não trazer todos os campos: recarrega o cadastro completo
+            // (senão a etiqueta "cadastro incompleto" acusaria falta de dado que existe)
+            if (alunoPreSelecionado.id) {
+                supabase.from('alunos').select('*').eq('id', alunoPreSelecionado.id).maybeSingle()
+                    .then(({ data }) => { if (data) setAlunoEncontrado(prev => (prev?.id === data.id ? { ...prev, ...data } : prev)); });
+            }
+
             if (limparPreSelecao) limparPreSelecao();
         }
     }, [alunoPreSelecionado, limparPreSelecao]);
@@ -78,6 +86,9 @@ const FormVenda = ({
     const servicosAtivos = servicos.filter(s => s.ativo !== false);
 
     const cpfConfere = Boolean(alunoEncontrado) && apenasDigitos(alunoEncontrado.cpf) === apenasDigitos(cpfBusca);
+    // Decisão do dono: venda só com cadastro completo (telefone, e-mail, nascimento...)
+    const pendenciasCadastro = cpfConfere ? pendenciasCadastroAluno(alunoEncontrado) : [];
+    const vendaLiberada = cpfConfere && pendenciasCadastro.length === 0;
 
     const buscarAlunoPorCpf = async (cpfLimpo) => {
         setBuscandoCpf(true);
@@ -196,6 +207,7 @@ const FormVenda = ({
         
         if (!alunoEncontrado) return alert('Localize ou cadastre o aluno pelo CPF primeiro.');
         if (!cpfConfere) return alert('O CPF digitado não corresponde ao aluno carregado. Confira o CPF antes de continuar.');
+        if (pendenciasCadastro.length > 0) return alert(`Cadastro incompleto. Falta: ${pendenciasCadastro.join(', ')}. Clique em "Completar cadastro" antes de lançar a venda.`);
         if (!formData.unidade) return alert('Atenção: Selecione a Unidade da venda.');
         
         const itensValidos = itensForm.filter(item => item.nomeItem !== '' && item.tipo !== '');
@@ -383,10 +395,21 @@ const FormVenda = ({
                                 </div>
                             )
                         )}
+
+                        {!buscandoCpf && cpfConfere && (
+                            <AvisoCadastroIncompleto
+                                pendencias={pendenciasCadastro}
+                                liberar="a venda"
+                                onCompletar={() => {
+                                    if (!formData.unidade) return alert('Selecione a unidade antes de editar o aluno.');
+                                    setModalAlunoAberto(true);
+                                }}
+                            />
+                        )}
                     </div>
                 </div>
 
-                <div className={`transition-all duration-500 ${!cpfConfere ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
+                <div className={`transition-all duration-500 ${!vendaLiberada ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
                     <div className={sectionClass}>
                         <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6">

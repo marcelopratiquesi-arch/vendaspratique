@@ -63,12 +63,15 @@ export const formatDataBR = (dInput) => {
     return dStr;
 };
 
-export const extrairHoraCriacao = (isoString) => {
+export const extrairHoraCriacao = (isoString, comSegundos = false) => {
     if (!isoString) return '';
     const dataObj = new Date(isoString);
     // Valida se a conversão do Date falhou
     if (isNaN(dataObj)) return '';
-    return dataObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    // Com segundos: usado na aba Duplicidades para enxergar clique duplo
+    return dataObj.toLocaleTimeString('pt-BR', comSegundos
+        ? { hour: '2-digit', minute: '2-digit', second: '2-digit' }
+        : { hour: '2-digit', minute: '2-digit' });
 };
 
 export const toTitleCase = (str) => {
@@ -105,27 +108,34 @@ export const buildCatalogoMap = (catalogoArray) => {
 };
 
 // ==========================================
-// 🚨 NOVO: MOTOR DE AUDITORIA (DUPLICIDADES)
+// 🚨 MOTOR DE AUDITORIA (DUPLICIDADES) — decisão do dono (29/10/2026)
+// Venda COM CPF: chave = UNIDADE | DIA | CPF | PRODUTO (o aluno é reconhecido só pelo CPF).
+// Venda SEM CPF completo (as antigas, até 09/09/2026): REGRA ANTIGA, só entre elas —
+// "SEMCPF" | UNIDADE | DIA | MAT_matrícula (como está escrita) ou NOME_nome | PRODUTO.
+// Sem CPF, sem matrícula e sem nome: devolve null (não entra em grupo nenhum).
 // ==========================================
+export const PREFIXO_REGRA_ANTIGA = 'SEMCPF|';
+export const cpfDaVenda = (venda) => {
+    const digitos = String(venda?.cpf || venda?.cpf_aluno || '').replace(/\D/g, '');
+    return digitos.length === 11 ? digitos : '';
+};
+
 export const gerarChaveDuplicidade = (venda) => {
     if (!venda) return null;
 
-    const unidade = (venda.unidade || 'MATRIZ').toUpperCase().trim();
+    const unidade = normalizeString(String(venda.unidade || '')).replace(/[\s.]+/g, '');
     const dataVenda = safeIsoDate(venda.data || venda.created_at);
-    const produto = normalizeString(venda.produto || '');
-    
-    let identificadorAluno = '';
-    
-    // Matrícula é Ouro. Se existe, ela é a lei.
-    if (venda.matricula && String(venda.matricula).trim() !== '') {
-        identificadorAluno = `MAT_${String(venda.matricula).trim()}`;
-    } else {
-        // Fallback cauteloso para o nome
-        const nomeSujo = venda.nome_aluno || venda.nome || 'ALUNO_NAO_IDENTIFICADO';
-        identificadorAluno = `NOME_${normalizeString(nomeSujo)}`;
-    }
+    const produto = normalizeString(String(venda.produto || '')).replace(/\s+/g, ' ');
 
-    return `${unidade}|${dataVenda}|${identificadorAluno}|${produto}`;
+    const cpf = cpfDaVenda(venda);
+    if (cpf) return `${unidade}|${dataVenda}|${cpf}|${produto}`;
+
+    // Regra antiga (sem CPF)
+    const matricula = String(venda.matricula ?? '').trim();
+    const nome = normalizeString(String(venda.nome_aluno || venda.nome || '')).replace(/\s+/g, ' ');
+    const aluno = matricula ? `MAT_${matricula}` : (nome ? `NOME_${nome}` : '');
+    if (!aluno) return null;
+    return `${PREFIXO_REGRA_ANTIGA}${unidade}|${dataVenda}|${aluno}|${produto}`;
 };
 
 export const meses = [
@@ -143,3 +153,29 @@ export const meses = [
     { val: '11', label: '11 - Novembro' },
     { val: '12', label: '12 - Dezembro' }
 ];
+
+// ==========================================
+// EXCLUSÃO DE VENDA (lixeira com motivo)
+// A venda é apagada pela função segura "excluir_venda" do banco: Admin e Mentor (qualquer unidade) ou
+// Líder (só a unidade dele). Ela guarda a venda inteira na lixeira (vendas_auditoria) com quem
+// apagou, quando e o motivo; Admin e Mentor restauram pela aba Lixeira. O banco não aceita apagar venda direto.
+// ==========================================
+export const MOTIVO_EXCLUSAO_MINIMO = 5;
+
+// Pergunta o motivo. Devolve o texto, ou null se a pessoa cancelou ou não escreveu o suficiente.
+export const pedirMotivoExclusao = () => {
+    const resposta = window.prompt('Excluir esta venda?\n\nA venda vai para a LIXEIRA (o Admin ou o Mentor pode restaurar), com o seu nome e a data.\n\nEscreva o MOTIVO da exclusão (ex.: "lançada em duplicidade"):');
+    if (resposta === null) return null;
+    const motivo = resposta.trim();
+    if (motivo.length < MOTIVO_EXCLUSAO_MINIMO) {
+        alert(`Exclusão cancelada: o motivo precisa ter pelo menos ${MOTIVO_EXCLUSAO_MINIMO} letras.`);
+        return null;
+    }
+    return motivo;
+};
+
+// Manda a venda para a lixeira. Devolve o erro (ou null se deu certo).
+export const excluirVendaComMotivo = async (supabase, id, motivo) => {
+    const { error } = await supabase.rpc('excluir_venda', { p_venda_id: Number(id), p_motivo: motivo });
+    return error || null;
+};

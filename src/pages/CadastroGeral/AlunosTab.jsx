@@ -252,6 +252,58 @@ const AlunosTab = (props) => {
                     }
                 });
             }
+            // REGRA: CPF, e-mail e telefone são únicos por aluno (decisão do dono, vale até em família).
+            // Linha cujo telefone ou e-mail já é de OUTRO aluno (no sistema ou mais acima na lista) não é importada.
+            const STATUS_QUE_IMPORTAM = ['NOVO ALUNO', 'NOVO VÍNCULO', 'TRANSFERIR', 'ATUALIZAR MATRÍCULA', 'CONFLITO GRAVE'];
+            const soDigitos = (v) => String(v || '').replace(/\D/g, '');
+            const variantesTel = (tel) => {
+                const t = soDigitos(tel);
+                if (!t) return [];
+                if (t.length === 11) return [t, t.slice(0, 2) + t.slice(3)];      // com e sem o 9
+                if (t.length === 10) return [t, t.slice(0, 2) + '9' + t.slice(2)];
+                return [t];
+            };
+            const candidatos = parsed.filter(p => STATUS_QUE_IMPORTAM.includes(p.status));
+            const telefones = [...new Set(candidatos.flatMap(p => variantesTel(p.telefone)))];
+            const emails = [...new Set(candidatos.map(p => String(p.email || '').toLowerCase().trim()).filter(Boolean))];
+            const donoPorTel = new Map();
+            const donoPorEmail = new Map();
+            for (let i = 0; i < telefones.length; i += 200) {
+                const { data } = await supabase.from('alunos').select('cpf, nome, telefone').in('telefone', telefones.slice(i, i + 200));
+                (data || []).forEach(a => variantesTel(a.telefone).forEach(v => donoPorTel.set(v, a)));
+            }
+            for (let i = 0; i < emails.length; i += 200) {
+                const { data } = await supabase.from('alunos').select('cpf, nome, email').in('email', emails.slice(i, i + 200));
+                (data || []).forEach(a => donoPorEmail.set(String(a.email || '').toLowerCase().trim(), a));
+            }
+            const telNaLista = new Map();
+            const emailNaLista = new Map();
+            candidatos.forEach(p => {
+                const cpf = soDigitos(p.cpf);
+                const tels = variantesTel(p.telefone);
+                const email = String(p.email || '').toLowerCase().trim();
+                const outroDonoTel = tels.map(v => donoPorTel.get(v)).find(a => a && soDigitos(a.cpf) !== cpf);
+                const outroDonoEmail = email ? donoPorEmail.get(email) : null;
+                const emailDeOutro = outroDonoEmail && soDigitos(outroDonoEmail.cpf) !== cpf ? outroDonoEmail : null;
+                const telRepetidoNaLista = tels.map(v => telNaLista.get(v)).find(n => n && n.cpf !== cpf);
+                const emailRepetidoNaLista = email && emailNaLista.get(email)?.cpf !== cpf ? emailNaLista.get(email) : null;
+
+                let motivo = '';
+                if (outroDonoTel) motivo = `O telefone já é de ${outroDonoTel.nome} (CPF ${mascaraCPF(outroDonoTel.cpf)}).`;
+                else if (emailDeOutro) motivo = `O e-mail já é de ${emailDeOutro.nome} (CPF ${mascaraCPF(emailDeOutro.cpf)}).`;
+                else if (telRepetidoNaLista) motivo = `O telefone se repete na lista com ${telRepetidoNaLista.nome}.`;
+                else if (emailRepetidoNaLista) motivo = `O e-mail se repete na lista com ${emailRepetidoNaLista.nome}.`;
+
+                if (motivo) {
+                    p.status = 'DADO DE OUTRO ALUNO';
+                    p.conflitoMsg = `${motivo} Corrija no TECACE ou no cadastro antes de importar.`;
+                    p.forcarTroca = false;
+                    return;
+                }
+                tels.forEach(v => telNaLista.set(v, { cpf, nome: p.nome }));
+                if (email) emailNaLista.set(email, { cpf, nome: p.nome });
+            });
+
             setPreviewData(parsed);
             setFiltroDashboard('TODOS');
         } catch (err) {
@@ -367,7 +419,7 @@ const AlunosTab = (props) => {
             .sort((a, b) => b[1] - a[1]),
         atualizacoes: previewData.filter(p => p.status === 'ATUALIZAR MATRÍCULA').length,
         conflitosGerais: previewData.filter(p => p.status === 'CONFLITO GRAVE').length,
-        errosIniciais: previewData.filter(p => p.status === 'CPF INVÁLIDO' || p.status === 'DUPLICADO NA LISTA').length,
+        errosIniciais: previewData.filter(p => p.status === 'CPF INVÁLIDO' || p.status === 'DUPLICADO NA LISTA' || p.status === 'DADO DE OUTRO ALUNO').length,
         totalParaImportar: previewData.filter(p => p.status === 'NOVO ALUNO' || p.status === 'NOVO VÍNCULO' || p.status === 'TRANSFERIR' || p.status === 'ATUALIZAR MATRÍCULA' || (p.status === 'CONFLITO GRAVE' && p.forcarTroca)).length
     };
 
@@ -379,7 +431,7 @@ const AlunosTab = (props) => {
         if (filtroDashboard === 'TRANSFERIR') return previewData.filter(p => p.status === 'TRANSFERIR' || (p.status === 'ATUALIZAR MATRÍCULA' && p.origem));
         if (filtroDashboard === 'ATUALIZACOES') return previewData.filter(p => p.status === 'ATUALIZAR MATRÍCULA');
         if (filtroDashboard === 'CONFLITOS') return previewData.filter(p => p.status === 'CONFLITO GRAVE');
-        if (filtroDashboard === 'ERROS') return previewData.filter(p => p.status === 'CPF INVÁLIDO' || p.status === 'DUPLICADO NA LISTA');
+        if (filtroDashboard === 'ERROS') return previewData.filter(p => p.status === 'CPF INVÁLIDO' || p.status === 'DUPLICADO NA LISTA' || p.status === 'DADO DE OUTRO ALUNO');
         return previewData;
     }, [previewData, filtroDashboard]);
 
@@ -645,7 +697,7 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ERROS' ? 'bg-slate-100 border-slate-500 ring-2 ring-slate-200 scale-[1.02]' : 'bg-white border-slate-200 hover:border-slate-400'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-slate-100"><ShieldAlert className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 relative z-10">Erros de Leitura</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 relative z-10">Erros e Dados Repetidos</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.errosIniciais}</p>
                                         </button>
                                     </div>
@@ -732,12 +784,17 @@ const AlunosTab = (props) => {
                                                                             </button>
                                                                         </div>
                                                                     )}
+                                                                    {linha.status === 'DADO DE OUTRO ALUNO' && (
+                                                                        <span className="text-rose-600 font-bold text-[9px] max-w-xs whitespace-normal leading-tight block">
+                                                                            {linha.conflitoMsg}
+                                                                        </span>
+                                                                    )}
                                                                     {!isConflito && linha.origem && (
                                                                         <span className="inline-flex items-center gap-1 text-indigo-600 font-black text-[9px] uppercase tracking-widest">
                                                                             <ArrowRightLeft className="w-3 h-3" /> Sai de {linha.origem}
                                                                         </span>
                                                                     )}
-                                                                    {!isConflito && !linha.origem && <span className="text-slate-300">-</span>}
+                                                                    {!isConflito && !linha.origem && linha.status !== 'DADO DE OUTRO ALUNO' && <span className="text-slate-300">-</span>}
                                                                 </td>
                                                             </tr>
                                                         )

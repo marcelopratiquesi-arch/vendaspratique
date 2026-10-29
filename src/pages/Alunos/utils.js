@@ -254,6 +254,19 @@ export const buscarUnidadesDeVariosAlunos = async (alunoIds) => {
     return mapa;
 };
 
+// O que falta no cadastro do aluno (decisão do dono: venda e avaliação só com cadastro completo).
+// Matrícula não entra: ela vem do TECACE e pode ficar em branco depois de uma transferência.
+export const pendenciasCadastroAluno = (aluno) => {
+    if (!aluno) return [];
+    const faltando = [];
+    if (String(aluno.cpf || '').replace(/\D/g, '').length !== 11) faltando.push('CPF');
+    if (!String(aluno.nome || '').trim()) faltando.push('nome');
+    if (!aluno.data_nascimento) faltando.push('data de nascimento');
+    if (String(aluno.telefone || '').replace(/\D/g, '').length < 10) faltando.push('telefone');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(aluno.email || '').trim())) faltando.push('e-mail');
+    return faltando;
+};
+
 // Mesma unidade, sem ligar para acentos e maiúsculas ("SANTA INÊS 1" = "Santa Ines 1")
 export const mesmaUnidade = (a, b) => Boolean(normalizarUnidade(a)) && normalizarUnidade(a) === normalizarUnidade(b);
 

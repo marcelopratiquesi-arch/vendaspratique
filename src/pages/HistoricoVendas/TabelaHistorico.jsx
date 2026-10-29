@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { safeNumber, safeIsoDate, formatMoney, formatDataBR, formatarCPF, extrairHoraCriacao, toTitleCase, buildCatalogoMap, gerarChaveDuplicidade, normalizeString } from './utils.js';
+import { safeNumber, safeIsoDate, formatMoney, formatDataBR, formatarCPF, extrairHoraCriacao, toTitleCase, buildCatalogoMap, normalizeString, pedirMotivoExclusao, excluirVendaComMotivo } from './utils.js';
 import { anexarUnidades } from '../Alunos/utils.js';
-import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy, AlertTriangle, Clock } from 'lucide-react';
+import { agruparDuplicidades } from './duplicidades/motorDuplicidades.js';
+import AbaDuplicidades from './duplicidades/AbaDuplicidades.jsx';
+import { carregarLegitimas, marcarComoLegitima, desfazerLegitima } from './duplicidades/legitimas.js';
+import AbaLixeira from './lixeira/AbaLixeira.jsx';
+import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy } from 'lucide-react';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia
@@ -67,7 +71,7 @@ const shortName = (name) => {
     return name;
 };
 
-const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [], onAbrirAluno }) => {
+const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeEditar, catalogoGeral, usuarioLogado, colaboradores = [], onAbrirAluno, unidadeHistorico, lixeira = [], lixeiraErro = '', carregandoLixeira = false, onLixeiraMudou, descricaoPeriodo }) => {
     // Clique no nome do aluno: acha o cadastro pelo CPF da venda e abre a ficha
     const [abrindoAlunoId, setAbrindoAlunoId] = useState(null);
     const abrirFichaDoAluno = async (vendaId, cpf) => {
@@ -98,7 +102,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // ✅ ESTADOS DE NAVEGAÇÃO E PAGINAÇÃO
-    const [visaoAtual, setVisaoAtual] = useState('registros'); // 'registros' | 'duplicidades'
+    const [visaoAtual, setVisaoAtual] = useState('registros'); // 'registros' | 'duplicidades' | 'lixeira'
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [itensPorPagina, setItensPorPagina] = useState(50); 
 
@@ -109,34 +113,23 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
     const mapCatalogo = useMemo(() => buildCatalogoMap(catalogoGeral), [catalogoGeral]);
 
-    // ==========================================
-    // 🚨 MOTOR DE DETECÇÃO DE DUPLICIDADES
-    // ==========================================
-    const gruposDuplicados = useMemo(() => {
-        const mapa = new Map();
+    // Duplicidades: a regra fica no arquivo próprio (duplicidades/motorDuplicidades.js).
+    // "Não é duplicidade" fica gravado no banco (duplicidades/legitimas.js) e esconde o grupo.
+    const [legitimas, setLegitimas] = useState([]);
+    const [marcandoChave, setMarcandoChave] = useState(null);
+    useEffect(() => {
+        let ativo = true;
+        carregarLegitimas(supabase).then(lista => { if (ativo) setLegitimas(lista); });
+        return () => { ativo = false; };
+    }, []);
+    const resultadoDuplicidades = useMemo(() => agruparDuplicidades(vendasFiltradas, legitimas), [vendasFiltradas, legitimas]);
+    const gruposDuplicados = resultadoDuplicidades.grupos;
 
-        vendasFiltradas.forEach(venda => {
-            const chave = gerarChaveDuplicidade(venda);
-            if (!chave) return;
-
-            if (!mapa.has(chave)) {
-                mapa.set(chave, {
-                    chaveBase: chave,
-                    linhas: []
-                });
-            }
-            mapa.get(chave).linhas.push(venda);
-        });
-
-        const duplicidadesDetectadas = Array.from(mapa.values()).filter(grupo => grupo.linhas.length > 1);
-
-        return duplicidadesDetectadas.sort((a, b) => {
-            if (b.linhas.length !== a.linhas.length) return b.linhas.length - a.linhas.length;
-            const dataA = a.linhas[a.linhas.length - 1].created_at ? new Date(a.linhas[a.linhas.length - 1].created_at).getTime() : 0;
-            const dataB = b.linhas[b.linhas.length - 1].created_at ? new Date(b.linhas[b.linhas.length - 1].created_at).getTime() : 0;
-            return dataB - dataA;
-        });
-    }, [vendasFiltradas]);
+    // Lixeira: Admin e Mentor (papel verdadeiro, mesmo escolhendo uma unidade no topo) restauram
+    const papelReal = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase();
+    const podeRestaurar = papelReal === 'ADMIN' || papelReal === 'MENTOR';
+    // A lista da Lixeira vem pronta do index.jsx (mesmos filtros do Histórico); aqui só recarrega
+    const recarregarLixeira = () => { if (onLixeiraMudou) onLixeiraMudou(); };
 
     // ==========================================
     // FUNÇÕES DA TABELA E MOUSE DRAG
@@ -176,26 +169,27 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     // ==========================================
     const removerLancamento = async (id) => {
         if(!podeEditar || isSubmitting) return;
-        if(window.confirm('Atenção: Tem certeza que deseja EXCLUIR permanentemente este registro da Nuvem?')) {
-            setIsSubmitting(true);
-            const backupDados = [...data];
-            
-            setData(data.filter(v => v.id !== id));
-            
-            let query = supabase.from('vendas').delete().eq('id', id);
-            if (!temVisaoGlobal) {
-                query = query.eq('unidade', usuarioLogado?.unidade);
-            }
-            
-            const { error } = await query;
-            
-            if (error) {
-                console.error("Erro ao deletar:", error);
-                alert("Erro ao excluir do banco de dados. A ação foi revertida.");
-                setData(backupDados); 
-            }
-            setIsSubmitting(false);
+        // Venda já conferida no Fechamento: confirmação a mais antes de pedir o motivo
+        const venda = data.find(v => v.id === id);
+        if (venda?.conferiu && !window.confirm(`ATENÇÃO: esta venda já foi CONFERIDA no Fechamento${venda.conferido_por ? ` por ${venda.conferido_por}` : ''}.\n\nExcluir mesmo assim? Ela sai das comissões e do Fechamento.`)) return;
+        // Pede o motivo (vale como confirmação) e manda para a lixeira pela função segura do banco
+        const motivo = pedirMotivoExclusao();
+        if (!motivo) return;
+        setIsSubmitting(true);
+        const backupDados = [...data];
+
+        setData(data.filter(v => v.id !== id));
+
+        const error = await excluirVendaComMotivo(supabase, id, motivo);
+
+        if (error) {
+            console.error("Erro ao excluir venda:", error);
+            alert(`Não foi possível excluir a venda. A ação foi revertida.\n\n${error.message || ''}`);
+            setData(backupDados);
+        } else {
+            recarregarLixeira();
         }
+        setIsSubmitting(false);
     };
 
     const iniciarEdicao = (venda) => {
@@ -219,27 +213,33 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             unidade: venda.unidade || 'MATRIZ',
             quantidade: qtd,
             valorUnitario: unitario,
-            valorCalculado: valorNumericoBanco
+            valorCalculado: valorNumericoBanco,
+            alunoStatus: '' // só a aba Duplicidades usa (troca de aluno pelo CPF)
         });
     };
 
     const handleEdicaoChange = (field, value) => {
-        let novosDados = { ...dadosEdicao, [field]: value };
-        if (field === 'produto') {
-            const item = mapCatalogo.get(normalizeString(value));
-            if (item) {
-                const novoUnitario = safeNumber(item.valor);
-                novosDados.valorUnitario = novoUnitario;
-                novosDados.valorCalculado = novoUnitario * novosDados.quantidade;
+        setDadosEdicao(atual => {
+            let novosDados = { ...atual, [field]: value };
+            if (field === 'produto') {
+                const item = mapCatalogo.get(normalizeString(value));
+                if (item) {
+                    const novoUnitario = safeNumber(item.valor);
+                    novosDados.valorUnitario = novoUnitario;
+                    novosDados.valorCalculado = novoUnitario * novosDados.quantidade;
+                }
             }
-        }
-        if (field === 'quantidade') {
-            const qtd = parseInt(value) || 1;
-            novosDados.quantidade = qtd;
-            novosDados.valorCalculado = novosDados.valorUnitario * qtd;
-        }
-        setDadosEdicao(novosDados);
+            if (field === 'quantidade') {
+                const qtd = parseInt(value) || 1;
+                novosDados.quantidade = qtd;
+                novosDados.valorCalculado = novosDados.valorUnitario * qtd;
+            }
+            return novosDados;
+        });
     };
+
+    // Aba Duplicidades: o aluno achado pelo CPF preenche nome, CPF e matrícula de uma vez
+    const aplicarAlunoNaEdicao = (campos) => setDadosEdicao(atual => ({ ...atual, ...campos }));
 
     const cancelarEdicao = () => {
         setEditandoId(null);
@@ -248,6 +248,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
     const salvarEdicao = async (vendaOriginal) => {
         if (isSubmitting) return;
+        if (!dadosEdicao.data) return alert('Informe a data da venda.');
+        if (['buscando', 'nao_encontrado', 'duplicado', 'incompleto', 'erro'].includes(dadosEdicao.alunoStatus || '')) {
+            return alert('Não é possível salvar: confira o CPF do aluno. Ele precisa estar completo e cadastrado no sistema.');
+        }
         setIsSubmitting(true);
 
         const valorPuro = safeNumber(dadosEdicao.valorCalculado);
@@ -283,6 +287,32 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             setEditandoId(vendaOriginal.id); 
         }
         setIsSubmitting(false);
+    };
+
+    const marcarLegitima = async (grupo) => {
+        if (!podeEditar || marcandoChave) return;
+        const ok = window.confirm(`Marcar como "Não é duplicidade"?\n\nOs ${grupo.linhas.length} lançamentos deste grupo são vendas legítimas. O grupo sai da lista (volta se entrar um lançamento novo igual). Fica registrado quem decidiu e quando.`);
+        if (!ok) return;
+        setMarcandoChave(grupo.chaveBase);
+        const { marcacao, error } = await marcarComoLegitima(supabase, grupo, usuarioLogado);
+        setMarcandoChave(null);
+        if (error || !marcacao) {
+            console.error('Erro ao marcar como legítima:', error);
+            alert(`Não foi possível salvar a marcação.\n\n${error?.message || ''}`);
+            return;
+        }
+        setLegitimas(atual => [marcacao, ...atual]);
+    };
+
+    const desfazerMarcacao = async (marcacao) => {
+        if (!podeEditar || !marcacao) return;
+        if (!window.confirm('Desfazer a marcação "Não é duplicidade"? O grupo volta para a lista de possíveis duplicidades.')) return;
+        const error = await desfazerLegitima(supabase, marcacao.id);
+        if (error) {
+            alert(`Não foi possível desfazer.\n\n${error.message || ''}`);
+            return;
+        }
+        setLegitimas(atual => atual.filter(m => m.id !== marcacao.id));
     };
 
     const handleOrdenar = (colunaClicada) => {
@@ -332,29 +362,44 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const thClass = "px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 select-none group whitespace-nowrap align-top";
 
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-[fadeIn_0.3s_ease-out]">
-            
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-[fadeIn_0.3s_ease-out]">
+
             {/* CABEÇALHO COM ABAS DE NAVEGAÇÃO */}
-            <div className="px-6 py-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto overflow-x-auto custom-scrollbar">
-                    <button 
-                        onClick={() => setVisaoAtual('registros')} 
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'registros' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto custom-scrollbar">
+                    <button
+                        onClick={() => setVisaoAtual('registros')}
+                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
                     >
                         <History className="w-4 h-4" /> Registros de Vendas
                     </button>
-                    <button 
-                        onClick={() => setVisaoAtual('duplicidades')} 
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'duplicidades' ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+                    <button
+                        onClick={() => setVisaoAtual('duplicidades')}
+                        title={gruposDuplicados.length > 0
+                            ? `${gruposDuplicados.length} ${gruposDuplicados.length === 1 ? 'grupo' : 'grupos'} · ${resultadoDuplicidades.excedentes} ${resultadoDuplicidades.excedentes === 1 ? 'lançamento excedente' : 'lançamentos excedentes'}`
+                            : 'Nenhuma possível duplicidade encontrada'}
+                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
                     >
                         <Copy className="w-4 h-4" /> Duplicidades
-                        
+
                         {gruposDuplicados.length > 0 && (
-                            <span 
-                                title={`${gruposDuplicados.length} grupos de possíveis duplicidades encontrados`}
-                                className="ml-1 bg-amber-500 text-white px-2 py-0.5 rounded-md text-[9px] animate-pulse shadow-sm"
-                            >
+                            <span className="ml-1 bg-amber-500 text-white px-2 py-0.5 rounded-md text-[9px] animate-pulse shadow-sm">
                                 {gruposDuplicados.length}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={() => setVisaoAtual('lixeira')}
+                        title={lixeira.length > 0
+                            ? `${lixeira.length} ${lixeira.length === 1 ? 'venda excluída' : 'vendas excluídas'} no período`
+                            : 'Nenhuma venda excluída no período'}
+                        className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+                    >
+                        <Trash2 className="w-4 h-4" /> Lixeira
+
+                        {lixeira.length > 0 && (
+                            <span className="ml-1 bg-rose-600 dark:bg-rose-500 text-white px-2 py-0.5 rounded-md text-[9px] shadow-sm">
+                                {lixeira.length}
                             </span>
                         )}
                     </button>
@@ -669,166 +714,25 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 </>
             )}
 
-            {/* CONTEÚDO: ABA CENTRAL DE DUPLICIDADES */}
+            {/* CONTEÚDO: ABA CENTRAL DE DUPLICIDADES (arquivo próprio: duplicidades/AbaDuplicidades.jsx) */}
             {visaoAtual === 'duplicidades' && (
-                <div className="p-6 md:p-8 bg-slate-50/50 min-h-[50vh]">
-                    
-                    <div className="flex flex-col mb-8 pb-6 border-b border-slate-200">
-                        <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-                            <AlertTriangle className="w-6 h-6 text-amber-500" />
-                            Auditoria de Possíveis Duplicidades
-                        </h3>
-                        <p className="text-xs font-bold text-slate-500 mt-2 max-w-2xl leading-relaxed">
-                            O sistema identifica registros repetidos no <strong>mesmo dia</strong>, na <strong>mesma unidade</strong>, para o <strong>mesmo produto</strong> e <strong>matrícula/aluno</strong>. Avalie cada caso para confirmar se foi um erro de relançamento ou uma venda legítima.
-                        </p>
-                    </div>
+                <AbaDuplicidades
+                    resultado={resultadoDuplicidades} mapCatalogo={mapCatalogo} temVisaoGlobal={temVisaoGlobal}
+                    podeEditar={podeEditar} colaboradores={colaboradores} catalogoGeral={catalogoGeral}
+                    editandoId={editandoId} dadosEdicao={dadosEdicao} isSubmitting={isSubmitting}
+                    onEditar={iniciarEdicao} onAlterarCampo={handleEdicaoChange} onAplicarAluno={aplicarAlunoNaEdicao}
+                    onSalvar={salvarEdicao} onCancelar={cancelarEdicao} onExcluir={removerLancamento}
+                    onMarcarLegitima={marcarLegitima} onDesfazerLegitima={desfazerMarcacao} marcandoChave={marcandoChave}
+                />
+            )}
 
-                    {gruposDuplicados.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center opacity-80">
-                            <Check className="w-16 h-16 text-emerald-400 mb-4 bg-emerald-50 rounded-full p-3 shadow-inner" />
-                            <h4 className="text-lg font-black text-slate-700">Tudo limpo por aqui!</h4>
-                            <p className="text-sm font-bold text-slate-400 mt-2">Nenhuma duplicidade encontrada para os filtros selecionados.</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-                            {gruposDuplicados.map((grupo, index) => {
-                                const amostra = grupo.linhas[0];
-                                
-                                // --- NOVA LÓGICA DE DETECÇÃO DE PLANO PARA COR VERMELHA ---
-                                const itemCatalogo = mapCatalogo.get(normalizeString(amostra.produto || ''));
-                                const tipoItem = itemCatalogo && itemCatalogo.tipo ? itemCatalogo.tipo.toLowerCase().trim() : 'plano';
-                                const isPlano = tipoItem === 'plano' || (!['produto', 'servico', 'serviço'].includes(tipoItem));
-                                
-                                // --- CORES DINÂMICAS ---
-                                const corBordaHover = isPlano ? 'hover:border-rose-400' : 'hover:border-amber-300';
-                                const corFundoCabecalho = isPlano ? 'bg-rose-50/50 border-rose-100' : 'bg-amber-50/50 border-amber-100';
-                                const corIconeTopo = isPlano ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600';
-                                const corTagLanzamentos = isPlano ? 'bg-rose-600' : 'bg-amber-500';
-                                const AlertIcon = isPlano ? AlertTriangle : Copy;
-                                
-                                return (
-                                    <div key={grupo.chaveBase + index} className={`bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${corBordaHover}`}>
-                                        
-                                        <div className={`border-b p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${corFundoCabecalho}`}>
-                                            <div className="flex items-start gap-4 w-full">
-                                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${corIconeTopo}`}>
-                                                    <AlertIcon className="w-6 h-6" />
-                                                </div>
-                                                <div className="flex-1 overflow-hidden">
-                                                    <h4 className="text-base font-black text-slate-800 uppercase tracking-tight truncate" title={amostra.nome_aluno || amostra.nome}>
-                                                        {toTitleCase(amostra.nome_aluno || amostra.nome)}
-                                                    </h4>
-                                                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                                        <span className="bg-white border border-slate-200 px-2 py-0.5 rounded text-[9px] font-black text-slate-500 uppercase tracking-widest">
-                                                            MAT: {amostra.matricula || 'N/A'}
-                                                        </span>
-                                                        <span className="bg-blue-50 border border-blue-100 px-2 py-0.5 rounded text-[9px] font-black text-blue-600 uppercase tracking-widest truncate max-w-[150px]">
-                                                            {amostra.produto}
-                                                        </span>
-                                                        {temVisaoGlobal && (
-                                                            <span className="bg-rose-50 border border-rose-100 px-2 py-0.5 rounded text-[9px] font-black text-rose-600 uppercase tracking-widest">
-                                                                {amostra.unidade || 'MATRIZ'}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className={`${corTagLanzamentos} text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest whitespace-nowrap shadow-sm`}>
-                                                {grupo.linhas.length} Lançamentos
-                                            </div>
-                                        </div>
-
-                                        <div className="p-5 flex flex-col gap-4 flex-1">
-                                            {grupo.linhas.map((row) => {
-                                                const isEditing = editandoId === row.id;
-                                                
-                                                let vendedoresDaUnidade = [];
-                                                if (isEditing) {
-                                                    vendedoresDaUnidade = colaboradores
-                                                        .filter(c => (c.unidade || 'MATRIZ').toUpperCase() === (row.unidade || 'MATRIZ').toUpperCase())
-                                                        .map(c => c.nome.toUpperCase());
-
-                                                    const vendedorAtualFormatado = (dadosEdicao.vendedor || '').toUpperCase();
-                                                    if (vendedorAtualFormatado && !vendedoresDaUnidade.includes(vendedorAtualFormatado)) {
-                                                        vendedoresDaUnidade.push(vendedorAtualFormatado);
-                                                    }
-                                                }
-
-                                                return (
-                                                    <div key={row.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-xl transition-colors ${isEditing ? 'bg-blue-50/50 border-blue-300 shadow-md' : 'bg-slate-50/50 border-slate-200 hover:bg-slate-50'}`}>
-                                                        
-                                                        <div className="flex items-center gap-4 flex-1 w-full">
-                                                            <div className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-lg p-2 min-w-[70px] shadow-sm shrink-0">
-                                                                <Clock className="w-3.5 h-3.5 text-slate-400 mb-1" />
-                                                                <span className="text-xs font-black text-slate-700">{extrairHoraCriacao(row.created_at) || '--:--'}</span>
-                                                            </div>
-                                                            
-                                                            <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                                                                {isEditing ? (
-                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-                                                                        <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-[11px] shadow-sm" />
-                                                                        <input type="text" placeholder="CPF" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm" />
-                                                                        <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-[11px] shadow-sm">
-                                                                            <option value="" disabled>Selecione...</option>
-                                                                            {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
-                                                                        </select>
-                                                                        <select value={(dadosEdicao.vendedor || '').toUpperCase()} onChange={e => handleEdicaoChange('vendedor', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-[11px] shadow-sm">
-                                                                            <option value="" disabled>Selecione o Vendedor...</option>
-                                                                            {vendedoresDaUnidade.sort().map(v => <option key={v} value={v}>{toTitleCase(v)}</option>)}
-                                                                        </select>
-                                                                        <input type="number" min="1" placeholder="Qtd" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm" />
-                                                                    </div>
-                                                                ) : (
-                                                                    <>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="text-[11px] font-black text-slate-800">Qtd: {row.quantidade || '1'}</span>
-                                                                            <span className="text-[10px] text-slate-300">•</span>
-                                                                            <span className="text-[11px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{formatMoney(row.valor)}</span>
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                                                                            <User className="w-3 h-3 text-slate-400" /> Consultor: <span className="text-slate-700">{toTitleCase(row.vendedor)}</span>
-                                                                        </div>
-                                                                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                                            Por: {toTitleCase(row.criado_por ? row.criado_por.split(' ')[0] : 'Sistema')}
-                                                                        </p>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                        
-                                                        {podeEditar && (
-                                                            <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0 mt-3 sm:mt-0">
-                                                                {isEditing ? (
-                                                                    <>
-                                                                        <button disabled={isSubmitting} onClick={() => salvarEdicao(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                                            {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Salvar
-                                                                        </button>
-                                                                        <button disabled={isSubmitting} onClick={cancelarEdicao} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                                            <X className="w-3 h-3" /> Cancelar
-                                                                        </button>
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <button disabled={isSubmitting} onClick={() => iniciarEdicao(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 text-slate-600 hover:text-blue-600 hover:border-blue-300 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                                            <Edit3 className="w-3 h-3" /> Editar
-                                                                        </button>
-                                                                        <button disabled={isSubmitting} onClick={() => removerLancamento(row.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-rose-200 text-rose-600 hover:bg-rose-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                                            <Trash2 className="w-3 h-3" /> Excluir
-                                                                        </button>
-                                                                    </>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+            {/* CONTEÚDO: ABA LIXEIRA (arquivo próprio: lixeira/AbaLixeira.jsx) */}
+            {visaoAtual === 'lixeira' && (
+                <AbaLixeira
+                    linhas={lixeira} erro={lixeiraErro} carregando={carregandoLixeira}
+                    unidade={unidadeHistorico} temVisaoGlobal={temVisaoGlobal} descricaoPeriodo={descricaoPeriodo}
+                    podeRestaurar={podeRestaurar} onRestaurada={recarregarLixeira}
+                />
             )}
         </div>
     );

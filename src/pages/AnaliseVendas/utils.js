@@ -133,24 +133,24 @@ export const criarGruposPlanosVazio = () => ({
     "OUTROS PLANOS": { total: 0, detalhes: {}, cor: "bg-slate-500", textCor: "text-slate-700" }
 });
 
+// Grupo de um plano pelo nome. REGRA ÚNICA (painel de vendas e aba Migração do CRM usam esta mesma função):
+// NUTRI é conferido ANTES de PLUS, então "PLUS + NUTRI" é NUTRI e o "PLUS" sozinho é PLUS (sem nutricionista).
+export const grupoDoPlano = (nomePlano) => {
+    const nomeNorm = normalizeString(nomePlano);
+    if (nomeNorm.includes("NUTRI")) return "NUTRI";
+    if (nomeNorm.includes("PLUS")) return "PLUS";
+    if (nomeNorm.includes("FIT")) return "FIT";
+    if (nomeNorm.includes("PERSONAL")) return "PERSONAL CLASS";
+    return "OUTROS PLANOS";
+};
+
+// Plano com nutricionista = o nome tem "NUTRI" (ex.: PRATIQUE NUTRI, FIT + NUTRI, PLUS + NUTRI)
+export const planoTemNutri = (nomePlano) => grupoDoPlano(nomePlano) === "NUTRI";
+
 export const classificarPlanoEmGrupo = (gruposPlanos, prodUpper, qtd) => {
-    const nomeNorm = normalizeString(prodUpper);
-    if (nomeNorm.includes("NUTRI")) {
-        gruposPlanos["NUTRI"].total += qtd;
-        gruposPlanos["NUTRI"].detalhes[prodUpper] = (gruposPlanos["NUTRI"].detalhes[prodUpper] || 0) + qtd;
-    } else if (nomeNorm.includes("PLUS")) {
-        gruposPlanos["PLUS"].total += qtd;
-        gruposPlanos["PLUS"].detalhes[prodUpper] = (gruposPlanos["PLUS"].detalhes[prodUpper] || 0) + qtd;
-    } else if (nomeNorm.includes("FIT")) {
-        gruposPlanos["FIT"].total += qtd;
-        gruposPlanos["FIT"].detalhes[prodUpper] = (gruposPlanos["FIT"].detalhes[prodUpper] || 0) + qtd;
-    } else if (nomeNorm.includes("PERSONAL")) {
-        gruposPlanos["PERSONAL CLASS"].total += qtd;
-        gruposPlanos["PERSONAL CLASS"].detalhes[prodUpper] = (gruposPlanos["PERSONAL CLASS"].detalhes[prodUpper] || 0) + qtd;
-    } else {
-        gruposPlanos["OUTROS PLANOS"].total += qtd;
-        gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] = (gruposPlanos["OUTROS PLANOS"].detalhes[prodUpper] || 0) + qtd;
-    }
+    const grupo = grupoDoPlano(prodUpper);
+    gruposPlanos[grupo].total += qtd;
+    gruposPlanos[grupo].detalhes[prodUpper] = (gruposPlanos[grupo].detalhes[prodUpper] || 0) + qtd;
 };
 
 export const formatDataBR = (dInput) => {

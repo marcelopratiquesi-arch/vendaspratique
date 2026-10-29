@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, linkWhatsApp as montarLinkWhatsApp } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, linkWhatsApp as montarLinkWhatsApp } from './utils';
+import { carregarResumoDoDia } from './contatosFeitos';
 import { 
     MessageCircle, X, Copy, Send, Phone, IdCard, Info, 
     PenTool, History, Loader2, Trophy, Target, UserPlus, MoveRight, 
-    CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard 
+    CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban
 } from 'lucide-react';
 
 const Modais = ({
@@ -12,7 +13,8 @@ const Modais = ({
     historicoLead, loadingHistorico, registrarHistorico, alterarStatus,
     mostrarRelatorio, setMostrarRelatorio, progressoHoje = [], 
     consultorAtivo, usuarioLogado, META_DIARIA = 150,
-    visitantes = [], setConsultorAtivo 
+    visitantes = [], setConsultorAtivo,
+    onNaoContatar
 }) => {
     const [novaNota, setNovaNota] = useState('');
     const [textoRelatorio, setTextoRelatorio] = useState('');
@@ -102,7 +104,7 @@ const Modais = ({
     // ==========================================
     // GERADOR DE RELATÓRIO DO TURNO
     // ==========================================
-    const gerarRelatorioWhatsApp = () => {
+    const gerarRelatorioWhatsApp = (resumoDia = null) => {
         const validos = progressoHoje.filter(p => p && p.data_contato);
         const nomeGerador = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Equipe');
 
@@ -153,7 +155,7 @@ const Modais = ({
 
         let texto = `📊 *RELATÓRIO DE FECHAMENTO - PRATIQUE*\n`;
         texto += `👤 Consultor(a): *${nomeGerador}*\n`;
-        texto += `🎯 Meta Atingida: *${validos.length} / ${META_DIARIA} Ações*\n`;
+        texto += `🎯 Meta Atingida: *${contarPessoasDaMeta(validos)} / ${META_DIARIA} Pessoas contatadas* (${validos.length} ações)\n`;
         texto += `⏱️ Turno Focado: *${hrs}h ${mins}m* (Das ${primeiroTexto} às ${ultimoTexto})\n\n`;
         
         texto += `*🔥 PRODUTIVIDADE HOJE:*\n`;
@@ -163,6 +165,22 @@ const Modais = ({
         });
         if (outrasAcoes > 0) texto += `🔄 Outras Movimentações: *${outrasAcoes}*\n`;
         if (!teveAcao && outrasAcoes === 0) texto += `Nenhuma interação registrada neste turno.\n`;
+
+        // Contatos do dia (pop-up "Contatos de hoje", Migração e Não contatar), lidos do banco
+        if (resumoDia) {
+            const linhaTipo = (tipo) => {
+                const doTipo = resumoDia.feitos.filter(f => f.tipo === tipo);
+                const viaWpp = doTipo.filter(f => f.canal === 'WHATSAPP').length;
+                const semWpp = doTipo.length - viaWpp;
+                return `*${doTipo.length}* (${viaWpp} WhatsApp${semWpp > 0 ? ` · ${semWpp} sem WhatsApp ⚠️` : ''})`;
+            };
+            texto += `\n*📅 CONTATOS DO DIA:*\n`;
+            texto += `🎂 Aniversários: ${linhaTipo('ANIVERSARIO')}\n`;
+            texto += `👋 Visitantes 24h: ${linhaTipo('VISITANTE_24H')}\n`;
+            texto += `🔁 Visitantes 48h: ${linhaTipo('VISITANTE_48H')}\n`;
+            texto += `🥗 Migração: ${linhaTipo('MIGRACAO')} · *${resumoDia.interessados}* interessado(s)\n`;
+            texto += `🚫 Não contatar: *${resumoDia.naoContatar}*\n`;
+        }
 
         texto += `\n*📸 FOTO DA MINHA CARTEIRA:*\n`;
         texto += `⭐ Novos (Aguardando): *${snapshotFunil['Novo']}*\n`;
@@ -175,10 +193,18 @@ const Modais = ({
 
     useEffect(() => {
         if (mostrarRelatorio) {
-            setTextoRelatorio(gerarRelatorioWhatsApp());
-            setPosRelatorio({ x: 0, y: 0 }); 
+            setTextoRelatorio(gerarRelatorioWhatsApp(null));
+            setPosRelatorio({ x: 0, y: 0 });
+            // Completa com os contatos do dia assim que o resumo chega do banco
+            let ativo = true;
+            const nomeGerador = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Equipe');
+            carregarResumoDoDia(nomeGerador).then(resumo => {
+                if (ativo && resumo) setTextoRelatorio(gerarRelatorioWhatsApp(resumo));
+            });
+            return () => { ativo = false; };
         }
-    }, [mostrarRelatorio, progressoHoje, consultorAtivo, visitantes]);
+        return undefined;
+    }, [mostrarRelatorio, progressoHoje, consultorAtivo, visitantes, usuarioLogado?.nome]);
 
     return (
         <>
@@ -227,7 +253,7 @@ const Modais = ({
                             <div className="pointer-events-none">
                                 <div className="flex items-center gap-3 mb-2">
                                     <h2 className="text-3xl font-black text-white tracking-tight uppercase">{modalDetalhe.lead.nome}</h2>
-                                    <span className={`px-2.5 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${modalDetalhe.lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>{modalDetalhe.lead.tipo_lead || 'LEAD'}</span>
+                                    <span className={`px-2.5 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${modalDetalhe.lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : String(modalDetalhe.lead.tipo_lead || '').toUpperCase() === 'CANCELADO' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>{modalDetalhe.lead.tipo_lead || 'LEAD'}</span>
                                 </div>
                                 <div className="flex items-center gap-6 text-sm font-bold text-slate-400">
                                     <span className="flex items-center gap-2 text-blue-300"><Phone className="w-4 h-4" /> {modalDetalhe.lead.telefone}</span>
@@ -261,6 +287,12 @@ const Modais = ({
                                         <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
                                     </button>
                                 </div>
+
+                                {onNaoContatar && (
+                                    <button type="button" onClick={() => onNaoContatar(modalDetalhe.lead)} className="mx-6 mt-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors" title="A pessoa pediu para não receber contato">
+                                        <Ban className="w-4 h-4" /> Não contatar
+                                    </button>
+                                )}
 
                                 <div className="p-6 space-y-6 flex-1">
                                     {/* MUDAR FASE */}
@@ -392,8 +424,8 @@ const Modais = ({
                     >
                         <div onMouseDown={handleMouseDownRelatorio} className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
                             <div className="flex items-center gap-3 pointer-events-none">
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${progressoHoje.length >= META_DIARIA ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-500'}`}>
-                                    {progressoHoje.length >= META_DIARIA ? <Trophy className="w-4 h-4" /> : <Target className="w-4 h-4" />}
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${contarPessoasDaMeta(progressoHoje) >= META_DIARIA ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-500' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-500'}`}>
+                                    {contarPessoasDaMeta(progressoHoje) >= META_DIARIA ? <Trophy className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                                 </div>
                                 <div>
                                     <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest leading-none">Fechamento de Turno</h3>

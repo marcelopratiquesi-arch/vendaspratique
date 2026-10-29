@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import TabelaHistorico from './TabelaHistorico.jsx';
 import { supabase } from '../../supabaseClient.js';
 import { safeIsoDate, safeNumber, formatMoney, meses, toTitleCase, buildCatalogoMap, normalizeString } from './utils.js';
@@ -18,6 +18,28 @@ const getLocalISODate = () => {
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+};
+
+// Regra única de período do Histórico (dia / mês / intervalo), usada nas vendas e na Lixeira
+const passaNoPeriodo = (dataFormatada, { tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico }) => {
+    const [y, m] = dataFormatada.split('-');
+    if (tipoFiltroData === 'mes') {
+        if (filtroMes !== 'TODOS' && m !== filtroMes) return false;
+        if (filtroAno !== 'TODOS' && y !== filtroAno) return false;
+    } else if (tipoFiltroData === 'periodo') {
+        if (dataInicio && dataFormatada < dataInicio) return false;
+        if (dataFim && dataFormatada > dataFim) return false;
+    } else if (tipoFiltroData === 'dia') {
+        if (diaEspecifico && dataFormatada !== diaEspecifico) return false;
+    }
+    return true;
+};
+
+// Dia (no horário do computador) em que a venda foi excluída
+const diaLocalISO = (iso) => {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores = [], onAbrirAluno }) => {
@@ -111,6 +133,12 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
         return anos;
     }, [data, anoPadrao]);
 
+    // Período escolhido (o mesmo vale para as vendas e para a Lixeira, que usa a data da exclusão)
+    const filtroPeriodo = useMemo(
+        () => ({ tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico }),
+        [tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]
+    );
+
     const vendasBase = useMemo(() => {
         return data.filter(venda => {
             const unidadeVenda = String(venda.unidade || '').trim().toUpperCase();
@@ -131,19 +159,9 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             if (partes[2].length === 4) { y = partes[2]; m = partes[1]; d = partes[0]; }
             const dataFormatada = `${y}-${m}-${d}`;
 
-            if (tipoFiltroData === 'mes') {
-                if (filtroMes !== 'TODOS' && m !== filtroMes) return false;
-                if (filtroAno !== 'TODOS' && y !== filtroAno) return false;
-            } else if (tipoFiltroData === 'periodo') {
-                if (dataInicio && dataFormatada < dataInicio) return false;
-                if (dataFim && dataFormatada > dataFim) return false;
-            } else if (tipoFiltroData === 'dia') {
-                if (diaEspecifico && dataFormatada !== diaEspecifico) return false;
-            }
-
-            return true;
+            return passaNoPeriodo(dataFormatada, filtroPeriodo);
         });
-    }, [data, temVisaoGlobal, filtroUnidade, usuarioLogado, tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
+    }, [data, temVisaoGlobal, filtroUnidade, usuarioLogado, filtroPeriodo]);
 
     // 🔥 CORREÇÃO DA CLASSIFICAÇÃO: Usando o normalizeString para cruzar perfeitamente com o Catálogo
     const { planosVendidos, produtosVendidos, servicosVendidos, vendedoresUnicos } = useMemo(() => {
@@ -201,6 +219,59 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             return true;
         });
     }, [vendasBase, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, termoBusca, digitosBusca]);
+
+    // ==========================================
+    // LIXEIRA: vendas excluídas (consulta segura vendas_lixeira_listar, que já limita por perfil).
+    // Usa os MESMOS filtros do Histórico: período (pela data da exclusão), unidade, busca e itens escondidos.
+    // ==========================================
+    const [lixeira, setLixeira] = useState([]);
+    const [lixeiraErro, setLixeiraErro] = useState('');
+    const [carregandoLixeira, setCarregandoLixeira] = useState(false);
+
+    const carregarLixeira = useCallback(async () => {
+        setCarregandoLixeira(true);
+        const { data: linhas, error } = await supabase.rpc('vendas_lixeira_listar', { p_inicio: null, p_fim: null, p_unidade: null });
+        if (error) {
+            console.error('Lixeira: erro ao carregar (a consulta vendas_lixeira_listar já foi criada no Supabase?)', error);
+            setLixeiraErro(error.message || 'Não foi possível carregar a lixeira.');
+        } else {
+            setLixeiraErro('');
+            setLixeira(linhas || []);
+        }
+        setCarregandoLixeira(false);
+    }, []);
+
+    // Recarrega ao abrir e sempre que entra ou sai venda (exclusão/restauração, inclusive de outra pessoa)
+    const qtdVendas = data.length;
+    useEffect(() => { carregarLixeira(); }, [carregarLixeira, qtdVendas]);
+
+    const lixeiraFiltrada = useMemo(() => {
+        const unidadeLogado = String(usuarioLogado?.unidade || '').trim().toUpperCase();
+        const filtroUnidadeTrim = String(filtroUnidade || '').trim().toUpperCase();
+        return lixeira.filter(l => {
+            const unidadeVenda = String(l.unidade || '').trim().toUpperCase();
+            if (temVisaoGlobal && filtroUnidadeTrim !== 'TODOS' && unidadeVenda !== filtroUnidadeTrim) return false;
+            if (!temVisaoGlobal && unidadeVenda !== unidadeLogado) return false;
+
+            const dia = diaLocalISO(l.excluido_em);
+            if (!dia || !passaNoPeriodo(dia, filtroPeriodo)) return false;
+
+            const prodUpper = String(l.produto || '').trim().toUpperCase();
+            const vendUpper = String(l.vendedor || '').trim().toUpperCase();
+            if (vendedoresOcultos.includes(vendUpper)) return false;
+            if (planosOcultos.includes(prodUpper) || produtosOcultos.includes(prodUpper) || servicosOcultos.includes(prodUpper)) return false;
+
+            if (termoBusca) {
+                const nome = normalizeString(String(l.aluno || ''));
+                const cpf = String(l.cpf || '').replace(/\D/g, '');
+                const mat = String(l.matricula || '');
+                const achou = nome.includes(termoBusca)
+                    || (digitosBusca.length >= 3 && (cpf.includes(digitosBusca) || mat.includes(digitosBusca)));
+                if (!achou) return false;
+            }
+            return true;
+        });
+    }, [lixeira, temVisaoGlobal, filtroUnidade, usuarioLogado, filtroPeriodo, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, termoBusca, digitosBusca]);
 
     const resumoVendedor = useMemo(() => {
         const resumo = {
@@ -541,6 +612,12 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                 usuarioLogado={usuarioLogado}
                 colaboradores={colaboradores}
                 onAbrirAluno={onAbrirAluno}
+                unidadeHistorico={unidadeAtual}
+                lixeira={lixeiraFiltrada}
+                lixeiraErro={lixeiraErro}
+                carregandoLixeira={carregandoLixeira}
+                onLixeiraMudou={carregarLixeira}
+                descricaoPeriodo={descricaoPeriodo}
             />
 
         </div>

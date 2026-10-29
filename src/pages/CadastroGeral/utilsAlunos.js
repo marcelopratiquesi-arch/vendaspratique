@@ -45,6 +45,24 @@ export const validarTelefone = (tel) => {
     return false;
 };
 
+// Telefone como fica no banco: só números e SEM o 55 do Brasil (o TECACE exporta "55 31 9...").
+export const telefoneSem55 = (tel) => {
+    const limpo = normalizarNumeros(tel);
+    return /^55\d{10,11}$/.test(limpo) ? limpo.slice(2) : limpo;
+};
+
+// Telefone de preenchimento, não é número de verdade (ex.: 9999999999, 31999999999, 31000000000)
+export const telefoneFalso = (tel) => {
+    const limpo = telefoneSem55(tel);
+    return /^(\d)\1+$/.test(limpo) || /^\d{2}(\d)\1{7,8}$/.test(limpo);
+};
+
+// E-mail de preenchimento usado quando o aluno não informou (ex.: naoinformou@gmail.com)
+export const emailFalso = (email) => {
+    const usuario = String(email || '').toLowerCase().trim().split('@')[0];
+    return ['naoinformou', 'naoinformado', 'naousar', 'naotem', 'sememail', 'confirmar', 'teste', 'nao', 'nt'].includes(usuario);
+};
+
 export const formatarTelefone = (tel) => {
     const limpo = normalizarNumeros(tel);
     if (limpo.length === 11) return limpo.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
@@ -132,6 +150,7 @@ export const parseSmartPaste = (rawText) => {
             matricula: headers.findIndex(h => h.includes('MATRÍCULA') || h.includes('MATRICULA') || h.includes('ID')),
             telefone: headers.findIndex(h => h.includes('TELEFONE') || h.includes('CELULAR')),
             email: headers.findIndex(h => h.includes('EMAIL') || h.includes('E-MAIL')),
+            status: headers.findIndex(h => h.trim() === 'STATUS' || h.trim() === 'SITUAÇÃO' || h.trim() === 'SITUACAO'),
             nascimento: headers.findIndex(h => h === 'NASCIMENTO' || h === 'DATA DE NASCIMENTO')
         };
     }
@@ -143,7 +162,12 @@ export const parseSmartPaste = (rawText) => {
         const cols = lines[i].split('\t');
         
         const rawCpf = colMap.cpf >= 0 ? cols[colMap.cpf] : cols[5];
-        const cleanCpf = normalizarNumeros(rawCpf || '');
+        let cleanCpf = normalizarNumeros(rawCpf || '');
+        // O Excel apaga o zero da frente quando trata o CPF como número (04447961695 → 4447961695).
+        // Completa com zeros e só aceita se o CPF continuar válido pelos dígitos verificadores.
+        if (cleanCpf.length >= 9 && cleanCpf.length < 11 && validarCPF(cleanCpf.padStart(11, '0'))) {
+            cleanCpf = cleanCpf.padStart(11, '0');
+        }
         
         const rawNome = colMap.nome >= 0 ? cols[colMap.nome] : cols[1];
         const nome = normalizarNome(rawNome);
@@ -156,8 +180,12 @@ export const parseSmartPaste = (rawText) => {
         const emailBruto = colMap.email >= 0 ? cols[colMap.email] : cols[2];
         const nascBruto = colMap.nascimento >= 0 ? cols[colMap.nascimento] : '';
 
-        let telefone = normalizarNumeros(telBruto || '');
+        // Telefone sem o 55 (como fica no banco). Número de preenchimento (9999999999...) vira vazio:
+        // o aluno fica com "cadastro incompleto" até a recepção pedir o número real.
+        let telefone = telefoneSem55(telBruto || '');
+        if (telefone && telefoneFalso(telefone)) telefone = '';
         let email = normalizarEmail(emailBruto);
+        if (email && emailFalso(email)) email = '';
         let dataNascimento = parseDataBrParaIso(nascBruto || '');
 
         let status = 'NOVO';
@@ -194,7 +222,9 @@ export const parseSmartPaste = (rawText) => {
             telefone_formatado: telefone ? formatarTelefone(telefone) : '',
             email: email,
             data_nascimento: dataNascimento,
-            idade: calcularIdade(dataNascimento) 
+            idade: calcularIdade(dataNascimento),
+            // Status do TECACE como veio na lista (ATIVO, INATIVO, FINALIZADO...); usado pelo Smart Paste do CRM
+            status_tecace: String((colMap.status >= 0 ? cols[colMap.status] : cols[4]) || '').trim().toUpperCase()
         });
     }
     

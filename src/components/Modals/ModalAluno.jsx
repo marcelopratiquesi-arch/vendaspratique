@@ -268,7 +268,8 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         }
         
         // 🔥 BARREIRA CONTRA ALUNO "FANTASMA" SEM UNIDADE
-        if (!unidadeAtiva) {
+        // (completar só os dados pessoais de um aluno de outra unidade não precisa de unidade escolhida)
+        if (!unidadeAtiva && !somenteDadosPessoais) {
             return alert("🚨 ERRO CRÍTICO: Selecione uma unidade específica no topo da tela antes de cadastrar. Não é possível salvar um aluno na visão 'TODAS'.");
         }
         
@@ -298,6 +299,17 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
 
         setIsSubmitting(true);
         try {
+            // 🔥 PRE-FLIGHT 0: CPF ÚNICO — aluno novo com CPF que já existe ganha um aviso claro (não o erro genérico)
+            if (!formData.id) {
+                const { data: dupCpf, error: errCpf } = await supabase.from('alunos').select('id, nome')
+                    .or(`cpf.eq.${cpfLimpo},cpf.eq."${mascaraCPF(cpfLimpo)}"`).limit(1);
+                if (errCpf) throw errCpf;
+                if (dupCpf && dupCpf.length > 0) {
+                    setIsSubmitting(false);
+                    return alert(`🚨 BLOQUEADO: O CPF ${formData.cpf} já está cadastrado para ${String(dupCpf[0].nome || '').toUpperCase()}. Busque o aluno pelo CPF em vez de cadastrar de novo.`);
+                }
+            }
+
             // 🔥 PRE-FLIGHT 1: VERIFICA PESSOA GLOBAL
             const telSemNove = telefoneLimpo.length === 11 ? telefoneLimpo.slice(0,2) + telefoneLimpo.slice(3) : telefoneLimpo;
             const telComNove = telefoneLimpo.length === 10 ? telefoneLimpo.slice(0,2) + '9' + telefoneLimpo.slice(2) : telefoneLimpo;
@@ -410,22 +422,22 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
 
     if (!isOpen) return null;
 
-    const labelClass = "block text-xs font-semibold text-slate-700 mb-1.5";
-    const inputClassBase = "w-full bg-white border border-slate-300 rounded-lg px-3 py-2.5 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed font-medium";
+    const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5";
+    const inputClassBase = "w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-500 dark:disabled:bg-slate-800/60 dark:disabled:text-slate-400 disabled:cursor-not-allowed font-medium";
 
     return (
         <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out]">
+            <div className="bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out]">
                 
-                <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center relative overflow-hidden">
+                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center relative overflow-hidden">
                     <div className="flex items-center gap-3 relative z-10">
-                        <div className={`p-2.5 rounded-lg border ${formData.id ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-emerald-50 border-emerald-200 text-emerald-600'}`}>
+                        <div className={`p-2.5 rounded-lg border ${formData.id ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400'}`}>
                             {formData.id ? <UserRoundPen className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800 tracking-tight">{formData.id ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}</h3>
-                            <p className="text-xs font-semibold text-slate-500 mt-0.5 flex items-center gap-1.5">
-                                Vínculo: <span className="text-blue-600 bg-blue-100 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{formData.id ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}</h3>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                                Vínculo: <span className="text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">
                                     {situacao === 'CARREGANDO' ? '...'
                                         : (situacao === 'NOVO' || situacao === 'SEM_VINCULO' || modoTransferir) ? (unidadeAtiva || 'NENHUMA')
                                         : vinculosAluno.join(' + ')}
@@ -433,30 +445,30 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white border border-slate-200 hover:bg-slate-100 hover:text-slate-700 rounded-full transition-colors relative z-10"><X className="w-5 h-5" /></button>
+                    <button onClick={onClose} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 rounded-full transition-colors relative z-10"><X className="w-5 h-5" /></button>
                 </div>
 
                 {/* ALUNO DE OUTRA UNIDADE (ou ligado a mais de uma): editar não cria vínculo; transferir move */}
                 {(situacao === 'OUTRA' || (situacao === 'MINHA' && vinculoMultiplo)) && (
-                    <div className={`border-b p-4 flex items-start gap-3 ${modoTransferir ? 'bg-blue-50 border-blue-200' : 'bg-amber-50 border-amber-200'}`}>
-                        {modoTransferir ? <ArrowRightLeft className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" /> : <Link className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
+                    <div className={`border-b p-4 flex items-start gap-3 ${modoTransferir ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30'}`}>
+                        {modoTransferir ? <ArrowRightLeft className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" /> : <Link className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />}
                         <div className="flex-1">
                             {modoTransferir ? (
                                 <>
-                                    <p className="text-sm font-bold text-blue-800 tracking-tight">TRANSFERIR PARA {unidadeAtiva}</p>
-                                    <p className="text-xs font-medium text-blue-700 leading-snug mt-1">
+                                    <p className="text-sm font-bold text-blue-800 dark:text-blue-300 tracking-tight">TRANSFERIR PARA {unidadeAtiva}</p>
+                                    <p className="text-xs font-medium text-blue-700 dark:text-blue-300 leading-snug mt-1">
                                         Ao salvar, o vínculo sai de <strong>{unidadesDeFora.join(' + ')}</strong> e passa a ser só de <strong>{unidadeAtiva}</strong>. Informe a matrícula do aluno nesta unidade.
                                     </p>
-                                    <button type="button" onClick={cancelarTransferencia} className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-slate-800 transition-colors">
+                                    <button type="button" onClick={cancelarTransferencia} className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
                                         Cancelar transferência
                                     </button>
                                 </>
                             ) : (
                                 <>
-                                    <p className="text-sm font-bold text-amber-800 tracking-tight">
+                                    <p className="text-sm font-bold text-amber-800 dark:text-amber-300 tracking-tight">
                                         {vinculoMultiplo ? 'LIGADO A MAIS DE UMA UNIDADE, CONFERIR' : `ALUNO DE OUTRA UNIDADE · ${vinculosAluno[0]}`}
                                     </p>
-                                    <p className="text-xs font-medium text-amber-700 leading-snug mt-1">
+                                    <p className="text-xs font-medium text-amber-700 dark:text-amber-300 leading-snug mt-1">
                                         {situacao === 'OUTRA'
                                             ? `Este aluno é de ${vinculosAluno.join(' + ')}. Salvar aqui só atualiza os dados pessoais e não muda a unidade dele.`
                                             : `Este aluno também está ligado a ${unidadesDeFora.join(' + ')}. Cada aluno deve ter um vínculo só.`}
@@ -473,9 +485,9 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 )}
 
                 {situacao === 'SEM_VINCULO' && (
-                    <div className="bg-amber-50 border-b border-amber-200 p-4 flex items-start gap-3">
+                    <div className="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/30 p-4 flex items-start gap-3">
                         <Link className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
-                        <p className="text-xs font-medium text-amber-700 leading-snug">
+                        <p className="text-xs font-medium text-amber-700 dark:text-amber-300 leading-snug">
                             Este aluno não está ligado a nenhuma unidade. Ao salvar, ele fica ligado a <strong>{unidadeAtiva || 'NENHUMA'}</strong>.
                         </p>
                     </div>
@@ -500,7 +512,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         
                         <div className="col-span-1">
                             <label className={labelClass}>Idade</label>
-                            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500 flex items-center shadow-sm">
+                            <div className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center shadow-sm">
                                 {idade !== null ? `${idade} anos` : '—'}
                             </div>
                         </div>
@@ -514,13 +526,13 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                     value={formData.telefone} 
                                     onChange={handleChange} 
                                     onBlur={handleBlurTelefone} 
-                                    className={`${inputClassBase} uppercase ${erroTelefone ? 'border-rose-500 text-rose-700 bg-rose-50 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
+                                    className={`${inputClassBase} uppercase ${erroTelefone ? 'border-rose-500 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
                                     placeholder="(00) 00000-0000" 
                                 />
                                 {verificandoTelefone && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
                                 {erroTelefone && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
                             </div>
-                            {erroTelefone && <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroTelefone}</p>}
+                            {erroTelefone && <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroTelefone}</p>}
                         </div>
 
                         <div className="col-span-1 relative">
@@ -536,13 +548,13 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                     onBlur={handleBlurMatricula}
                                     disabled={somenteDadosPessoais || situacao === 'CARREGANDO'}
                                     title={somenteDadosPessoais ? 'A matrícula é da unidade do aluno. Para mudar, use "Transferir para minha unidade".' : undefined}
-                                    className={`${inputClassBase} uppercase ${erroMatricula ? 'border-rose-500 text-rose-700 bg-rose-50 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
+                                    className={`${inputClassBase} uppercase ${erroMatricula ? 'border-rose-500 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
                                     placeholder="Ex: 012345" 
                                 />
                                 {verificandoMatricula && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
                                 {erroMatricula && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
                             </div>
-                            {erroMatricula && <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroMatricula}</p>}
+                            {erroMatricula && <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroMatricula}</p>}
                         </div>
 
                         <div className="col-span-2 relative">
@@ -554,18 +566,18 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                     value={formData.email} 
                                     onChange={handleChange} 
                                     onBlur={handleBlurEmail}
-                                    className={`${inputClassBase} lowercase ${erroEmail ? 'border-rose-500 text-rose-700 bg-rose-50 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
+                                    className={`${inputClassBase} lowercase ${erroEmail ? 'border-rose-500 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
                                     placeholder="aluno@email.com" 
                                 />
                                 {verificandoEmail && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
                                 {erroEmail && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
                             </div>
-                            {erroEmail && <p className="text-[10px] font-bold text-rose-600 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroEmail}</p>}
+                            {erroEmail && <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroEmail}</p>}
                         </div>
                     </div>
 
-                    <div className="pt-6 border-t border-slate-100 flex justify-end gap-3 mt-4">
-                        <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white text-slate-600 border border-slate-300 hover:bg-slate-50 hover:text-slate-800 rounded-lg text-sm font-semibold transition-colors">Cancelar</button>
+                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 mt-4">
+                        <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-white rounded-lg text-sm font-semibold transition-colors">Cancelar</button>
                         
                         <button type="submit" disabled={isSubmitting || situacao === 'CARREGANDO' || !!erroMatricula || !!erroTelefone || !!erroEmail} className={`px-6 py-2.5 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${formData.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                             {isSubmitting || situacao === 'CARREGANDO' ? <Loader2 className="w-4 h-4 animate-spin" /> : modoTransferir ? <ArrowRightLeft className="w-4 h-4" /> : <Save className="w-4 h-4" />}

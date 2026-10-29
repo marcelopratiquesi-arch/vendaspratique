@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, classeTipoLead } from './utils';
 import { PhoneCall, MessageCircle, CalendarClock, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
 
 // ==========================================
@@ -40,7 +40,7 @@ const LeadCard = memo(({
 
             <div className="flex justify-between items-start mb-3 relative z-10">
                 <div className="flex flex-wrap gap-2 items-center">
-                    <span className={`inline-block px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30' : lead.tipo_lead === 'CANCELADO/INATIVO' ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800'}`}>
+                    <span className={`inline-block px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${classeTipoLead(lead.tipo_lead)}`}>
                         {lead.tipo_lead || 'Não Informado'}
                     </span>
                 </div>

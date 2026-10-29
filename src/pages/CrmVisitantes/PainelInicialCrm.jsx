@@ -1,8 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw } from 'lucide-react';
-import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome } from './utils';
+import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText } from 'lucide-react';
+import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO } from './utils';
+import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar } from './contatosFeitos';
 import PainelRedeCrm from './PainelRedeCrm';
+import FichaAlunoPopup from './FichaAlunoPopup';
+import RelatorioConsultor from './RelatorioConsultor';
 
 // ==========================================
 // TELA DE ENTRADA DO CRM
@@ -54,6 +57,16 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     // Guarda { chave, nome }: a chave ignora acentos e maiúsculas ("SANTA INÊS" = "Santa Ines").
     const [unidadeFoco, setUnidadeFoco] = useState(null);
     const chaveFoco = unidadeFoco?.chave || '';
+    // Busca na lista "O que aconteceu" e ficha do aluno em pop-up (a tela fica aberta por baixo)
+    const [buscaAcontecimentos, setBuscaAcontecimentos] = useState('');
+    const [contatoFicha, setContatoFicha] = useState(null);
+    // Relatório por recepcionista (Etapa D): quem está escolhida e onde fica na tela
+    const [relatorioPessoa, setRelatorioPessoa] = useState('');
+    const relatorioRef = useRef(null);
+    const abrirRelatorioDe = (nome) => {
+        setRelatorioPessoa(normalizarNome(nome));
+        setTimeout(() => relatorioRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    };
 
     const visaoGlobal = !usuarioLogado?.unidade || usuarioLogado.unidade === 'TODAS';
     const ehRecepcaoLogada = String(usuarioLogado?.role || '').toUpperCase() === 'RECEPCAO';
@@ -68,6 +81,19 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const leads = useMemo(() => (
         chaveFoco ? leadsTodos.filter(l => normalizarNome(l.unidade) === chaveFoco) : leadsTodos
     ), [leadsTodos, chaveFoco]);
+
+    // Recepcionistas desligadas (ativo = false no Cadastro Geral → Equipe): não aparecem em nada do CRM.
+    // A contagem aparece embaixo da planilha só para confirmar que a regra está valendo.
+    const desligadasEscondidas = useMemo(() => {
+        const unidadeTopo = !visaoGlobal ? normalizarNome(usuarioLogado?.unidade) : '';
+        return colaboradores.filter(c => {
+            const cargo = String(c.role || c.setor || c.cargo || '').toUpperCase();
+            if (!cargo.includes('RECEP') || c.ativo !== false) return false;
+            if (unidadeTopo && normalizarNome(c.unidade) !== unidadeTopo) return false;
+            if (chaveFoco && normalizarNome(c.unidade) !== chaveFoco) return false;
+            return true;
+        }).length;
+    }, [colaboradores, visaoGlobal, usuarioLogado?.unidade, chaveFoco]);
     const nomesChave = recepcionistas.map(r => r.nome).sort().join('|');
 
     // Histórico real gravado no banco (mesmo número em qualquer computador)
@@ -92,8 +118,86 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
         return () => { cancelado = true; };
     }, [periodo, nomesChave, mostrarPainel, versao]);
 
-    useEffect(() => { setLimiteLista(30); }, [periodo, filtroPessoa]);
-    useEffect(() => { setFiltroPessoa(''); }, [chaveFoco]);
+    // Contatos de 24h/48h feitos (tabela crm_contatos_feitos) e lista "Não contatar", para a planilha
+    const [feitosVisitas, setFeitosVisitas] = useState([]);
+    const [naoContatar, setNaoContatar] = useState(new Set());
+    useEffect(() => {
+        let cancelado = false;
+        const inicio = inicioDoPeriodo(periodo);
+        // A visita é 1 ou 2 dias antes do prazo: busca a partir de 2 dias antes do início do período
+        const desde = inicio ? somarDiasISO(dataLocalISO(inicio), -2) : null;
+        Promise.all([carregarContatosFeitos({ tipos: ['VISITANTE_24H', 'VISITANTE_48H', 'ANIVERSARIO', 'MIGRACAO'], desde }), carregarNaoContatar()])
+            .then(([feitos, bloqueados]) => {
+                if (cancelado) return;
+                setFeitosVisitas(feitos || []);
+                setNaoContatar(bloqueados);
+            });
+        return () => { cancelado = true; };
+    }, [periodo, versao]);
+
+    // Visitantes 24h/48h por recepcionista:
+    // - "no prazo": feito até o dia do prazo (visita + 1 dia para 24h, + 2 dias para 48h) → conta para QUEM FEZ;
+    // - "atrasado": feito depois do prazo ou ainda não feito com o prazo vencido → conta para QUEM ATENDEU a visita.
+    // Prazo de hoje ainda não feito não é atraso. Contato FEITO conta sempre (mesmo se depois fechou plano ou pediu
+    // "Não contatar"); quem fechou, foi arquivado ou está no Não contatar só deixa de contar como pendente/atrasado.
+    const prazosVisitantes = useMemo(() => {
+        const hoje = diaISO(0);
+        const inicioISO = inicioDoPeriodo(periodo) ? dataLocalISO(inicioDoPeriodo(periodo)) : '';
+        const feitoPor = new Map(feitosVisitas.map(f => [chaveContatoFeito(f.tipo, f.lead_id || f.aluno_id, f.referencia), f]));
+        const porPessoa = new Map();
+        const somar = (nome, campo) => {
+            const chave = normalizarNome(nome);
+            if (!chave) return;
+            if (!porPessoa.has(chave)) porPessoa.set(chave, { noPrazo24: 0, atrasado24: 0, noPrazo48: 0, atrasado48: 0 });
+            porPessoa.get(chave)[campo]++;
+        };
+        leads
+            .filter(ehVisitanteRecepcao)
+            .forEach(l => {
+                const visita = dataDaVisita(l);
+                if (!visita) return;
+                const semPendencia = ['Fechado', 'Arquivado'].includes(l.status) || estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id) });
+                [['VISITANTE_24H', 1, '24'], ['VISITANTE_48H', 2, '48']].forEach(([tipo, dias, sufixo]) => {
+                    const prazo = somarDiasISO(visita, dias);
+                    if (prazo > hoje || (inicioISO && prazo < inicioISO)) return;
+                    const feito = feitoPor.get(chaveContatoFeito(tipo, String(l.id), visita));
+                    if (!feito && semPendencia) return;
+                    const atendente = l.vendedor || l.puxado_por;
+                    if (feito && dataLocalISO(feito.criado_em) <= prazo) somar(feito.consultor, `noPrazo${sufixo}`);
+                    else if (feito || prazo < hoje) somar(atendente, `atrasado${sufixo}`);
+                });
+            });
+        return porPessoa;
+    }, [leads, feitosVisitas, naoContatar, periodo]);
+
+    // Contatos marcados como feitos SEM WhatsApp no período (em vermelho, para o Líder conferir), por quem marcou
+    const semWhatsAppPorPessoa = useMemo(() => {
+        const inicio = inicioDoPeriodo(periodo);
+        const mapa = new Map();
+        feitosVisitas
+            .filter(f => f.canal && f.canal !== 'WHATSAPP' && (!inicio || new Date(f.criado_em) >= inicio))
+            .forEach(f => { const chave = normalizarNome(f.consultor); mapa.set(chave, (mapa.get(chave) || 0) + 1); });
+        return mapa;
+    }, [feitosVisitas, periodo]);
+
+    // Contatos de Migração no período, por quem fez (total, via WhatsApp e sem WhatsApp)
+    const migracaoPorPessoa = useMemo(() => {
+        const inicio = inicioDoPeriodo(periodo);
+        const mapa = new Map();
+        feitosVisitas
+            .filter(f => f.tipo === 'MIGRACAO' && (!inicio || new Date(f.criado_em) >= inicio))
+            .forEach(f => {
+                const chave = normalizarNome(f.consultor);
+                const atual = mapa.get(chave) || { total: 0, whatsapp: 0 };
+                atual.total++;
+                if (f.canal === 'WHATSAPP') atual.whatsapp++;
+                mapa.set(chave, atual);
+            });
+        return mapa;
+    }, [feitosVisitas, periodo]);
+
+    useEffect(() => { setLimiteLista(30); }, [periodo, filtroPessoa, buscaAcontecimentos]);
+    useEffect(() => { setFiltroPessoa(''); setRelatorioPessoa(''); }, [chaveFoco]);
 
     const leadPorId = useMemo(() => {
         const m = new Map();
@@ -113,8 +217,13 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             idsTrabalhados.forEach(id => {
                 const lead = leadPorId.get(id);
                 if (lead?.tipo_lead === 'VISITANTE') visitantes++;
-                else if (lead?.tipo_lead === 'CANCELADO/INATIVO') cancelados++;
+                else if (ehCanceladoOuInativo(lead?.tipo_lead)) cancelados++;
             });
+
+            // Contatos de aniversário e migração (sem contato no funil) também são ações da pessoa
+            const feitosDaPessoa = feitosVisitas.filter(f => !f.lead_id && mesmoNome(f.consultor, r.nome) && (!inicio || new Date(f.criado_em) >= inicio));
+            const ultimaFunil = acoes[0]?.data_registro || null;
+            const ultimaFeito = feitosDaPessoa[0]?.criado_em || null;
 
             const daPessoa = leads.filter(l => mesmoNome(l.puxado_por, r.nome));
             const carteira = daPessoa.filter(l => FASES_EM_ATENDIMENTO.includes(l.status));
@@ -131,13 +240,16 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 // Conta cada contato uma vez só (ir e voltar de "Fechado" não vira 2 fechamentos)
                 fechados: new Set(acoes.filter(h => moveuPara(h, 'Fechado')).map(h => String(h.lead_id))).size,
                 perdidos: new Set(acoes.filter(h => moveuPara(h, 'Perdido')).map(h => String(h.lead_id))).size,
-                acoes: contatos.length,
+                acoes: contatos.length + feitosDaPessoa.length,
                 emAtendimento: carteira.length,
                 semContato: carteira.filter(l => !idsTrabalhados.has(String(l.id))).length,
-                ultima: acoes[0]?.data_registro || null
+                ultima: [ultimaFunil, ultimaFeito].filter(Boolean).sort((x, y) => new Date(x) - new Date(y)).pop() || null,
+                prazos: prazosVisitantes.get(normalizarNome(r.nome)) || { noPrazo24: 0, atrasado24: 0, noPrazo48: 0, atrasado48: 0 },
+                semWhatsApp: semWhatsAppPorPessoa.get(normalizarNome(r.nome)) || 0,
+                migracao: migracaoPorPessoa.get(normalizarNome(r.nome)) || { total: 0, whatsapp: 0 }
             };
         });
-    }, [recepcionistas, historico, leads, leadPorId, periodo]);
+    }, [recepcionistas, historico, leads, leadPorId, periodo, prazosVisitantes, semWhatsAppPorPessoa, migracaoPorPessoa, feitosVisitas]);
 
     const linhaDe = (r) => linhas.find(l => l.colaborador.id === r.id);
 
@@ -150,9 +262,15 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
         acoes: linhas.reduce((s, l) => s + l.acoes, 0)
     }), [leads, linhas]);
 
-    const acontecimentos = useMemo(() => (
-        filtroPessoa ? historico.filter(h => normalizarNome(h.consultor) === filtroPessoa) : historico
-    ), [historico, filtroPessoa]);
+    const acontecimentos = useMemo(() => historico.filter(h => {
+        if (filtroPessoa && normalizarNome(h.consultor) !== filtroPessoa) return false;
+        // Busca por nome, CPF ou telefone do contato
+        if (buscaAcontecimentos.trim()) {
+            const lead = leadPorId.get(String(h.lead_id));
+            return Boolean(lead) && contatoCombinaComBusca(lead, buscaAcontecimentos);
+        }
+        return true;
+    }), [historico, filtroPessoa, buscaAcontecimentos, leadPorId]);
 
     const ehLider = !ehRecepcaoLogada;
     const nomeUnidade = unidadeFoco?.nome || (visaoGlobal ? 'Todas as unidades' : usuarioLogado?.unidade);
@@ -288,23 +406,32 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                         <th className={th}>Recepcionista</th>
                                         <th className={`${th} text-center`}>Puxados</th>
                                         <th className={`${th} text-center`}>Visitantes trabalhados</th>
-                                        <th className={`${th} text-center`}>Cancelados trabalhados</th>
+                                        <th className={`${th} text-center`}>Cancelados/Inativos trabalhados</th>
                                         <th className={`${th} text-center`}>WhatsApp</th>
                                         <th className={`${th} text-center`}>Ligações</th>
                                         <th className={`${th} text-center`}>Notas</th>
                                         <th className={`${th} text-center`}>Fechados</th>
                                         <th className={`${th} text-center`}>Perdidos</th>
                                         <th className={`${th} text-center`}>Sem contato</th>
+                                        <th className={`${th} text-center`} title="No prazo (quem fez) · atrasados (quem atendeu a visita)">Visitantes 24h</th>
+                                        <th className={`${th} text-center`} title="No prazo (quem fez) · atrasados (quem atendeu a visita)">Visitantes 48h</th>
+                                        <th className={`${th} text-center`} title="Contatos de migração para plano com nutricionista no período">Migração</th>
+                                        <th className={`${th} text-center`} title="Contatos marcados como feitos sem mandar o WhatsApp (o Líder confere)">Sem WhatsApp</th>
                                         <th className={th}>Última ação</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {linhas.length === 0 ? (
-                                        <tr><td colSpan="11" className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">Nenhuma recepcionista para mostrar.</td></tr>
+                                        <tr><td colSpan="15" className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">Nenhuma recepcionista para mostrar.</td></tr>
                                     ) : linhas.map(l => (
                                         <tr key={l.colaborador.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors" onClick={() => onEscolher(l.colaborador)} title="Abrir o Kanban e a Lista desta pessoa">
                                             <td className="px-4 py-3">
-                                                <p className="text-xs font-black text-slate-800 dark:text-white uppercase">{l.colaborador.nome}</p>
+                                                <p className="text-xs font-black text-slate-800 dark:text-white uppercase flex items-center gap-1.5">
+                                                    {l.colaborador.nome}
+                                                    <button type="button" onClick={(e) => { e.stopPropagation(); abrirRelatorioDe(l.colaborador.nome); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10" title="Ver o relatório de contatos desta recepcionista">
+                                                        <FileText className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </p>
                                                 {visaoGlobal && l.colaborador.unidade && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{l.colaborador.unidade}</p>}
                                             </td>
                                             <td className={td}>{l.puxados}</td>
@@ -318,12 +445,45 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                             <td className={td}>
                                                 <span className={`px-2 py-0.5 rounded-md font-black ${l.semContato > 0 ? 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'text-slate-400'}`}>{l.semContato}</span>
                                             </td>
+                                            <td className={td}>
+                                                <span className="font-black text-emerald-600 dark:text-emerald-400" title="Feitos no prazo">{l.prazos.noPrazo24}</span>
+                                                {l.prazos.atrasado24 > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black" title="Atrasados (de quem atendeu a visita)">{l.prazos.atrasado24} atras.</span>}
+                                            </td>
+                                            <td className={td}>
+                                                <span className="font-black text-emerald-600 dark:text-emerald-400" title="Feitos no prazo">{l.prazos.noPrazo48}</span>
+                                                {l.prazos.atrasado48 > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black" title="Atrasados (de quem atendeu a visita)">{l.prazos.atrasado48} atras.</span>}
+                                            </td>
+                                            <td className={td} title={`${l.migracao.whatsapp} via WhatsApp · ${l.migracao.total - l.migracao.whatsapp} sem WhatsApp`}>
+                                                <span className={`font-black ${l.migracao.total > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>{l.migracao.total}</span>
+                                            </td>
+                                            <td className={td}>
+                                                <span className={`px-2 py-0.5 rounded-md font-black ${l.semWhatsApp > 0 ? 'bg-rose-600 text-white' : 'text-slate-400'}`} title="Marcados como feitos sem WhatsApp">{l.semWhatsApp}</span>
+                                            </td>
                                             <td className="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{l.ultima ? formatarDataHora(l.ultima) : '—'}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
                         </div>
+                        {desligadasEscondidas > 0 && (
+                            <p className="px-5 py-2.5 border-t border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
+                                <UserX className="w-3.5 h-3.5" />
+                                {desligadasEscondidas === 1 ? '1 recepcionista desligada não aparece' : `${desligadasEscondidas} recepcionistas desligadas não aparecem`} nesta lista (desligadas no Cadastro Geral → Equipe).
+                            </p>
+                        )}
+                    </div>
+
+                    {/* RELATÓRIO POR RECEPCIONISTA (Etapa D) */}
+                    <div ref={relatorioRef}>
+                        <RelatorioConsultor
+                            recepcionistas={recepcionistas}
+                            leads={leads}
+                            usuarioLogado={usuarioLogado}
+                            unidadeEscopo={chaveFoco || (!visaoGlobal ? normalizarNome(usuarioLogado?.unidade) : '')}
+                            pessoa={relatorioPessoa}
+                            onPessoa={setRelatorioPessoa}
+                            versao={versao}
+                        />
                     </div>
 
                     {/* O QUE ACONTECEU */}
@@ -333,10 +493,27 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                 <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" /> O que aconteceu
                                 <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">{acontecimentos.length}</span>
                             </h4>
-                            <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value)} className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer">
-                                <option value="">Todas as recepcionistas</option>
-                                {recepcionistas.map(r => <option key={r.id} value={normalizarNome(r.nome)}>{r.nome}</option>)}
-                            </select>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <div className="relative">
+                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        value={buscaAcontecimentos}
+                                        onChange={(e) => setBuscaAcontecimentos(e.target.value)}
+                                        placeholder="Buscar por nome, CPF ou telefone"
+                                        className="w-64 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                                    />
+                                    {buscaAcontecimentos && (
+                                        <button type="button" onClick={() => setBuscaAcontecimentos('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title="Limpar busca">
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                                <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value)} className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer">
+                                    <option value="">Todas as recepcionistas</option>
+                                    {recepcionistas.map(r => <option key={r.id} value={normalizarNome(r.nome)}>{r.nome}</option>)}
+                                </select>
+                            </div>
                         </div>
                         <div className="overflow-x-auto custom-scrollbar">
                             <table className="w-full text-left border-collapse min-w-max">
@@ -362,7 +539,11 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                                 <td className="px-4 py-2.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatarDataHora(h.data_registro || h.created_at)}</td>
                                                 <td className="px-4 py-2.5 text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase whitespace-nowrap">{String(h.consultor || '').split(' ')[0]}</td>
                                                 <td className="px-4 py-2.5"><span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{h.tipo_acao}</span></td>
-                                                <td className="px-4 py-2.5 text-[11px] font-bold text-slate-800 dark:text-white uppercase whitespace-nowrap">{lead?.nome || <span className="text-slate-400 normal-case font-medium">Contato fora da lista atual</span>}</td>
+                                                <td className="px-4 py-2.5 text-[11px] font-bold text-slate-800 dark:text-white uppercase whitespace-nowrap">{lead ? (
+                                                    <button type="button" onClick={() => setContatoFicha(lead)} className="uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 transition-colors" title="Abrir a ficha do aluno">
+                                                        {lead.nome}
+                                                    </button>
+                                                ) : <span className="text-slate-400 normal-case font-medium">Contato fora da lista atual</span>}</td>
                                                 <td className="px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{lead?.tipo_lead || '—'}</td>
                                                 <td className="px-4 py-2.5">
                                                     {lead ? <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${token?.bg || ''} ${token?.text || 'text-slate-500'} ${token?.border || 'border-slate-200'}`}>{lead.status}</span> : <span className="text-slate-400">—</span>}
@@ -381,6 +562,10 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                         )}
                     </div>
                 </div>
+            )}
+
+            {contatoFicha && (
+                <FichaAlunoPopup contato={contatoFicha} usuarioLogado={usuarioLogado} onFechar={() => setContatoFicha(null)} />
             )}
         </div>
     );

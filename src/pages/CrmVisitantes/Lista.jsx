@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead } from './utils';
-import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus } from 'lucide-react';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, contatoCombinaComBusca, classeTipoLead } from './utils';
+import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus, Search, X, Ban } from 'lucide-react';
+import FichaAlunoPopup from './FichaAlunoPopup';
 
 const Lista = ({ 
     visitantes, 
@@ -12,10 +13,15 @@ const Lista = ({
     setModalDetalhe, 
     carregarHistoricoLead,
     registrarHistorico,
-    podeApagar = false
+    podeApagar = false,
+    usuarioLogado,
+    onNaoContatar
 }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'puxado_em', direction: 'desc' });
     const [filtroStatus, setFiltroStatus] = useState('');
+    const [busca, setBusca] = useState('');
+    // Contato cuja ficha de aluno está aberta no pop-up (o CRM fica aberto por baixo)
+    const [contatoFicha, setContatoFicha] = useState(null);
     const [selecionados, setSelecionados] = useState([]);
 
     // Igual ao Kanban: a ligação fica registrada no histórico do contato
@@ -47,6 +53,9 @@ const Lista = ({
 
     if (filtroStatus) {
         leadsExibidos = leadsExibidos.filter(v => v.status === filtroStatus);
+    }
+    if (busca.trim()) {
+        leadsExibidos = leadsExibidos.filter(v => contatoCombinaComBusca(v, busca));
     }
 
     leadsExibidos.sort((a, b) => {
@@ -110,6 +119,22 @@ const Lista = ({
                         </div>
                     )}
 
+                    <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={busca}
+                            onChange={(e) => { setBusca(e.target.value); setSelecionados([]); }}
+                            placeholder="Buscar por nome, CPF ou telefone"
+                            className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
+                        />
+                        {busca && (
+                            <button type="button" onClick={() => { setBusca(''); setSelecionados([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title="Limpar busca">
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+
                     <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
@@ -166,10 +191,15 @@ const Lista = ({
                                             />
                                         </td>
                                         <td className="px-6 py-3">
-                                            <p className="text-sm font-black text-slate-800 dark:text-white uppercase flex items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); setContatoFicha(v); }}
+                                                className="text-sm font-black text-slate-800 dark:text-white uppercase flex items-center gap-2 text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 transition-colors"
+                                                title="Abrir a ficha do aluno"
+                                            >
                                                 {v.nome}
-                                            </p>
-                                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded mt-1 inline-block border border-slate-200 dark:border-slate-800 shadow-sm">
+                                            </button>
+                                            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>
                                                 {v.tipo_lead || 'LEAD'}
                                             </span>
                                         </td>
@@ -199,6 +229,11 @@ const Lista = ({
                                                 <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200 dark:border-slate-800" title="Ficha Completa">
                                                     <Info className="w-4 h-4" />
                                                 </button>
+                                                {onNaoContatar && (
+                                                    <button onClick={() => onNaoContatar(v)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title="Não contatar (a pessoa pediu para não receber contato)">
+                                                        <Ban className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                                 {podeApagar && (
                                                     <button onClick={() => deletarLead(v.id)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title="Excluir Definitivamente">
                                                         <Trash2 className="w-4 h-4" />
@@ -213,6 +248,10 @@ const Lista = ({
                     </tbody>
                 </table>
             </div>
+
+            {contatoFicha && (
+                <FichaAlunoPopup contato={contatoFicha} usuarioLogado={usuarioLogado} onFechar={() => setContatoFicha(null)} />
+            )}
         </div>
     );
 };

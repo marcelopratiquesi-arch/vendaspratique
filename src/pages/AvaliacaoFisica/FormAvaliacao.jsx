@@ -5,7 +5,9 @@ import { calcularSMI, calcularHidratacao, classificarRCQ, classificarGV, classif
 import { mascaraCPF, validarCPF, formatarTelefone, calcularIdade } from '../CadastroGeral/utilsAlunos.js'; 
 import { processarExameBioimpedancia } from './bioimpedancia/index.js';
 import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCircle, Search, UserRoundPen, UserPlus, CreditCard, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
-import ModalAluno from '../../components/Modals/ModalAluno.jsx'; 
+import ModalAluno from '../../components/Modals/ModalAluno.jsx';
+import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
+import { pendenciasCadastroAluno } from '../Alunos/utils.js';
 
 const IconBraco = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.2 10.4a4.1 4.1 0 0 0-1.8-1.8 19 19 0 0 0-6.1-1.7c-2.4-.3-4.6-.2-6.5.6a4.1 4.1 0 0 0-2.3 2.3 4.1 4.1 0 0 0 .5 3.6c.9 1.4 2.5 2.4 4.5 2.8 1.9.4 4.1.2 6.5-.6.5-.2 1-.3 1.5-.5.6-.2 1.3-.4 1.9-.7a11.1 11.1 0 0 0 3-2 4 4 0 0 0 .6-3.8z" /></svg>);
 const IconPerna = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v9l-3 4-2 6h4l1-3 3-1V2h-3z" /></svg>);
@@ -274,6 +276,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     };
 
     const sexoAluno = alunoEncontrado?.sexo || 'M';
+    // Decisão do dono: avaliação nova só com cadastro completo. Editar uma avaliação já feita não trava.
+    const pendenciasCadastro = alunoEncontrado && !avaliacaoEditando ? pendenciasCadastroAluno(alunoEncontrado) : [];
+    const avaliacaoLiberada = Boolean(alunoEncontrado) && pendenciasCadastro.length === 0;
     
     let alt = parseVal(form.altura); 
     if (alt !== null && alt > 3) alt = alt / 100; 
@@ -289,6 +294,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         e.preventDefault();
         
         if (!alunoEncontrado) return alert(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
+        if (pendenciasCadastro.length > 0) return alert(`Cadastro incompleto. Falta: ${pendenciasCadastro.join(', ')}. Clique em "Completar cadastro" antes de lançar a avaliação.`);
         const unidadeFinal = unidadeDestino || usuarioLogado?.unidade;
         if (!unidadeFinal || unidadeFinal === 'TODAS') return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
         if (!avaliadorResponsavel) return alert("Selecione o Avaliador Responsável."); // 🔥 Validação do avaliador
@@ -538,7 +544,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
                 </div>
 
-                <div className={`transition-all duration-500 ${!alunoEncontrado ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
+                <AvisoCadastroIncompleto
+                    pendencias={pendenciasCadastro}
+                    liberar="a avaliação"
+                    onCompletar={() => setModalAlunoAberto(true)}
+                />
+
+                <div className={`transition-all duration-500 ${!avaliacaoLiberada ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border-2 border-blue-200/60 dark:border-blue-900/50 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                         <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-200/20 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
@@ -810,7 +822,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         )}
                     </div>
 
-                    <button type="submit" disabled={isSubmitting || !alunoEncontrado} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-5 rounded-[20px] shadow-[0_4px_15px_rgba(249,115,22,0.3)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
+                    <button type="submit" disabled={isSubmitting || !avaliacaoLiberada} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-5 rounded-[20px] shadow-[0_4px_15px_rgba(249,115,22,0.3)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
                         {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('assessment.form.savingBtn', {defaultValue: 'Salvando...'})}</> : <><Send className="w-5 h-5" /> {avaliacaoEditando ? 'Atualizar Avaliação Física' : t('assessment.form.saveBtn', {defaultValue: 'Salvar Avaliação Física'})}</>}
                     </button>
                 </div>

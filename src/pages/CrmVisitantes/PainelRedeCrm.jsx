@@ -45,6 +45,8 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
     const [unidades, setUnidades] = useState([]);
     const [leadsAbertos, setLeadsAbertos] = useState([]);
     const [historico, setHistorico] = useState([]);
+    // Contatos de aniversário e migração (tabela crm_contatos_feitos), que não passam pelo histórico do funil
+    const [contatosFeitos, setContatosFeitos] = useState([]);
     const [carregando, setCarregando] = useState(false);
     const [erro, setErro] = useState(false);
     const [cortado, setCortado] = useState(false);
@@ -74,7 +76,21 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
                         return q;
                     })
                 ]);
+                // Busca à parte: se a tabela ainda não existir, o resto do painel continua funcionando
+                let feitos = [];
+                try {
+                    const resFeitos = await buscarPaginado(() => {
+                        let q = supabase.from('crm_contatos_feitos').select('id, unidade, criado_em').is('lead_id', null)
+                            .order('criado_em', { ascending: false });
+                        if (desde) q = q.gte('criado_em', desde.toISOString());
+                        return q;
+                    });
+                    feitos = resFeitos.dados;
+                } catch (erroFeitos) {
+                    console.warn('Contatos feitos indisponíveis no Painel da Rede:', erroFeitos?.message || erroFeitos);
+                }
                 if (cancelado) return;
+                setContatosFeitos(feitos);
                 if (resUnidades.error) console.error('Erro ao buscar unidades:', resUnidades.error);
                 setUnidades(resUnidades.data || []);
                 setLeadsAbertos(resLeads.dados);
@@ -136,10 +152,19 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
             if (h.tipo_acao === 'Mudança de Fase' && String(h.observacao || '').includes('para "Fechado"')) l.fechadosIds.add(String(h.lead_id));
         });
 
+        // Contatos de aniversário e migração também mostram que a unidade está usando o CRM
+        contatosFeitos.forEach(f => {
+            const l = linhaDa(f.unidade);
+            if (!l) return;
+            if (!l.ultima || new Date(f.criado_em) > new Date(l.ultima)) l.ultima = f.criado_em;
+            if (inicio && new Date(f.criado_em) < inicio) return;
+            l.acoes++;
+        });
+
         return [...mapa.values()]
             .map(({ fechadosIds, ...l }) => ({ ...l, fechados: fechadosIds.size, situacao: situacaoDeUso(l.ultima) }))
             .sort((a, b) => a.situacao.ordem - b.situacao.ordem || b.acoes - a.acoes || a.unidade.localeCompare(b.unidade, 'pt-BR'));
-    }, [unidades, colaboradores, leadsAbertos, historico, inicioIso]);
+    }, [unidades, colaboradores, leadsAbertos, historico, contatosFeitos, inicioIso]);
 
     const resumo = useMemo(() => ({
         usando: linhas.filter(l => l.situacao.rotulo === 'Usando').length,

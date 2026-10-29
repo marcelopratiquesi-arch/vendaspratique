@@ -387,10 +387,11 @@ const ConferenciaTab = ({
     };
 
     const handleExcluirModal = async (id) => {
-        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda do sistema? Esta ação não pode ser desfeita.')) {
+        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo.')) {
             if(onExcluirVenda) {
-                await onExcluirVenda(id);
-                setVendaEmEdicao(null); 
+                // Só fecha a janela se a venda foi mesmo excluída (a pessoa pode cancelar o motivo)
+                const excluiu = await onExcluirVenda(id);
+                if (excluiu !== false) setVendaEmEdicao(null);
             }
         }
     };
@@ -711,7 +712,7 @@ const ConferenciaTab = ({
                                                 </button>
                                                 <button 
                                                     onClick={() => {
-                                                        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda do sistema? Esta ação não pode ser desfeita.')) {
+                                                        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo.')) {
                                                             if(onExcluirVenda) onExcluirVenda(v.id);
                                                         }
                                                     }} 

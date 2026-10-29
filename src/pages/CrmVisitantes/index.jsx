@@ -1,14 +1,22 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
 
-import { formatarCPF, cpfValido, apenasDigitos, mesmoNome, podeApagarLeads, ehRecepcao, dataDoLead, normalizarStatus, papelReal } from './utils';
+import { formatarCPF, cpfValido, apenasDigitos, mesmoNome, podeApagarLeads, ehRecepcao, dataDoLead, normalizarStatus, classeTipoLead, tipoPeloStatusTecace, marcaFeitoPor } from './utils';
 import Metricas from './Metricas';
 import Kanban from './Kanban';
 import Lista from './Lista';
 import Modais from './Modais';
 import RelatorioCrm from './RelatorioCrm'; // ✅ IMPORTAÇÃO DO NOVO RELATÓRIO
 import PainelInicialCrm from './PainelInicialCrm';
-import { Database, Users, ArrowRightCircle, ClipboardPaste, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, UserPlus, Loader2 } from 'lucide-react';
+import ContatosDeHoje from './ContatosDeHoje';
+import AbaMigracao from './AbaMigracao';
+import AbaNaoContatar from './AbaNaoContatar';
+import { JanelaNaoContatar } from './JanelasContato';
+import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar } from './contatosFeitos';
+import { diaISO, contarPessoasDaMeta } from './utils';
+import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
+import { Repeat, Ban } from 'lucide-react';
+import { Database, Users, ArrowRightCircle, ClipboardPaste, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, UserPlus, Loader2, CalendarCheck } from 'lucide-react';
 
 // O App só carrega leads dos últimos 90 dias. O CRM busca à parte os leads mais antigos que ainda estão em aberto
 // (Base, Kanban e Geladeira) para nenhum contato sumir. Fechados antigos não precisam ser trabalhados.
@@ -16,7 +24,7 @@ const DIAS_CORTE_APP = 90;
 const STATUS_ENCERRADOS = ['Fechado', 'Arquivado'];
 // Mudanças feitas por outras pessoas (tempo real) recarregam os números no máximo 1 vez por minuto
 const INTERVALO_ATUALIZACAO = 60000;
-// Ações que contam na meta diária (puxar fila, capturar e importar não contam)
+// Ações que contam na meta diária (a meta soma PESSOAS diferentes que receberam alguma dessas ações) (puxar fila, capturar e importar não contam)
 const ACOES_DA_META = ['WhatsApp', 'Ligação', 'Observação', 'Mudança de Fase'];
 
 const montarFiltroCpf = (digitos) => `cpf.eq.${digitos},cpf.eq.${formatarCPF(digitos)}`;
@@ -93,8 +101,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     // ==========================================
     const [textoSmartPaste, setTextoSmartPaste] = useState('');
     const [previewLeads, setPreviewLeads] = useState([]);
-    const [tipoLeadSmartPaste, setTipoLeadSmartPaste] = useState('CANCELADO/INATIVO');
+    // AUTO = classifica cada linha pelo Status do TECACE (lista exportada do TECACE)
+    const [tipoLeadSmartPaste, setTipoLeadSmartPaste] = useState('AUTO');
     const [processandoPaste, setProcessandoPaste] = useState(false);
+    // Lista que não é do TECACE com o modo "Automático": precisa escolher o tipo do lote antes de salvar
+    const [pasteSemTipo, setPasteSemTipo] = useState(false);
     const [estatisticasPaste, setEstatisticasPaste] = useState({ novos: 0, duplicados: 0 }); 
     
     const [selecionadosBase, setSelecionadosBase] = useState([]);
@@ -128,20 +139,36 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         setProgressoHoje([]);
         const inicioDoDia = new Date();
         inicioDoDia.setHours(0, 0, 0, 0);
-        supabase.from('historico_leads').select('tipo_acao, observacao, data_registro')
-            .eq('consultor', consultorAtivo.nome)
-            .in('tipo_acao', ACOES_DA_META)
-            .gte('data_registro', inicioDoDia.toISOString())
-            .limit(5000)
-            .then(({ data, error }) => {
-                if (cancelado) return;
-                if (error) { console.error('Erro ao carregar a meta do dia:', error); return; }
-                setProgressoHoje((data || [])
-                    .filter(h => !String(h.observacao || '').startsWith('Movido em lote'))
-                    .map(h => ({ tipo: h.tipo_acao, observacao: h.observacao, data_contato: h.data_registro })));
-            });
+        Promise.all([
+            supabase.from('historico_leads').select('lead_id, tipo_acao, observacao, data_registro')
+                .eq('consultor', consultorAtivo.nome)
+                .in('tipo_acao', ACOES_DA_META)
+                .gte('data_registro', inicioDoDia.toISOString())
+                .limit(5000),
+            // Contatos de aniversário e migração (pop-up e aba Migração) também contam na meta.
+            // Os de visitante 24h/48h já contam pelo histórico do funil (por isso só os sem contato no funil).
+            supabase.from('crm_contatos_feitos').select('aluno_id, tipo, canal, criado_em')
+                .eq('consultor', consultorAtivo.nome)
+                .is('lead_id', null)
+                .gte('criado_em', inicioDoDia.toISOString())
+                .limit(5000)
+        ]).then(([resHist, resFeitos]) => {
+            if (cancelado) return;
+            if (resHist.error) { console.error('Erro ao carregar a meta do dia:', resHist.error); return; }
+            const doFunil = (resHist.data || [])
+                .filter(h => !String(h.observacao || '').startsWith('Movido em lote'))
+                .map(h => ({ tipo: h.tipo_acao, observacao: h.observacao, data_contato: h.data_registro, pessoa: `lead:${h.lead_id}` }));
+            const feitos = (resFeitos.data || [])
+                .map(f => ({ tipo: 'Contato CRM', observacao: `${f.tipo} ${f.canal}`, data_contato: f.criado_em, pessoa: f.aluno_id ? `aluno:${f.aluno_id}` : null }));
+            setProgressoHoje([...doFunil, ...feitos]);
+        });
         return () => { cancelado = true; };
     }, [consultorAtivo]);
+
+    // Contato de aniversário ou migração feito agora: soma na meta na hora (sem esperar recarregar)
+    const somarNaMeta = useCallback((observacao, pessoa = null) => {
+        setProgressoHoje(prev => [...prev, { tipo: 'Contato CRM', observacao, data_contato: new Date().toISOString(), pessoa }]);
+    }, []);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -158,10 +185,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     // Quando o Líder/Admin/Mentor age no CRM de uma recepcionista, a ação conta para ela,
     // mas o histórico ganha a marca de quem fez de verdade
     const marcaDeQuemFez = () => {
-        const quem = usuarioLogado?.nome;
-        if (!consultorAtivo || !quem || mesmoNome(quem, consultorAtivo.nome)) return '';
-        const papel = { ADMIN: 'Admin', MENTOR: 'Mentor', LIDER: 'Líder', RECEPCAO: 'Recepção' }[papelReal(usuarioLogado)] || papelReal(usuarioLogado);
-        return ` [feito por ${quem}${papel ? ` (${papel})` : ''}]`;
+        const marca = marcaFeitoPor(usuarioLogado, consultorAtivo?.nome);
+        return marca ? ` [${marca}]` : '';
     };
 
     const registrarHistorico = async (leadId, tipoAcao, observacaoOriginal, ignorarMeta = false) => {
@@ -182,7 +207,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         }
 
         if (!ignorarMeta) {
-            setProgressoHoje(prev => [...prev, { tipo: tipoAcao, observacao: observacao, data_contato: novoRegistro.data_registro }]);
+            setProgressoHoje(prev => [...prev, { tipo: tipoAcao, observacao: observacao, data_contato: novoRegistro.data_registro, pessoa: `lead:${leadId}` }]);
         }
 
         await supabase.from('historico_leads').insert([{
@@ -209,8 +234,49 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     // A Base (piscina) só mostra e só deixa puxar contatos da unidade de quem está operando
     const daUnidadeOperacao = (v) => !unidadeOperacao || String(v.unidade || '').toUpperCase() === unidadeOperacao;
 
+    // "Não contatar": quem pediu para não receber contato some de Base, Kanban, Lista e Geladeira (rede inteira)
+    const [naoContatar, setNaoContatar] = useState(new Set());
+    const [versaoNaoContatar, setVersaoNaoContatar] = useState(0);
+    const [naoContatarAlvo, setNaoContatarAlvo] = useState(null);
+    useEffect(() => {
+        let cancelado = false;
+        carregarNaoContatar().then(lista => { if (!cancelado) setNaoContatar(lista); });
+        return () => { cancelado = true; };
+    }, [versaoDados, versaoNaoContatar]);
+    const aoColocarNaoContatar = useCallback((pessoa) => {
+        setNaoContatar(prev => incluirNaoContatar(prev, { cpf: pessoa?.cpf, leadId: pessoa?.lead_id || (pessoa?.id ? String(pessoa.id) : null), alunoId: pessoa?.aluno_id }));
+        setVersaoNaoContatar(v => v + 1);
+    }, []);
+    const podeContatar = (v) => !estaNaoContatar(naoContatar, { cpf: v.cpf, leadId: String(v.id) });
+
+    // Pop-up "Contatos de hoje" (visitantes 24h/48h e aniversariantes). Abre sozinho uma vez por dia
+    // (por pessoa e unidade, neste navegador) quando há pendentes; depois, pelo botão no topo do CRM.
+    const [contatosHojeAberto, setContatosHojeAberto] = useState(false);
+    const [pendentesHoje, setPendentesHoje] = useState({ total: 0, carregando: true });
+    const aoAtualizarPendentes = useCallback((total, carregando) => setPendentesHoje({ total, carregando }), []);
+    useEffect(() => {
+        if (!consultorAtivo || !unidadeOperacao || pendentesHoje.carregando || pendentesHoje.total === 0) return;
+        const chave = `crm_contatos_hoje_${unidadeOperacao}_${consultorAtivo.nome}_${diaISO(0)}`;
+        let jaAbriu = false;
+        try { jaAbriu = sessionStorage.getItem(chave) === '1'; } catch { jaAbriu = false; }
+        if (jaAbriu) return;
+        try { sessionStorage.setItem(chave, '1'); } catch { /* navegador sem armazenamento: só não lembra */ }
+        setContatosHojeAberto(true);
+    }, [consultorAtivo, unidadeOperacao, pendentesHoje]);
+
+    // CPFs que já estão no CRM em TODAS as unidades. Usa a consulta segura "crm_cpfs_existentes"
+    // (a tabela leads é protegida por unidade: a busca direta só enxergaria a própria unidade).
+    // Devolve null se a consulta segura não existir; aí quem chamou usa a busca direta.
+    const buscarCpfsViaConsultaSegura = async (cpfs) => {
+        const { data, error } = await supabase.rpc('crm_cpfs_existentes', { p_cpfs: cpfs });
+        if (error) { console.warn('Consulta segura crm_cpfs_existentes indisponível; usando a busca direta:', error.message || error); return null; }
+        return data || [];
+    };
+
     // Procura o CPF no banco inteiro (não só nos contatos carregados)
     const buscarCpfNoBanco = async (cpfDigitos) => {
+        const viaConsulta = await buscarCpfsViaConsultaSegura([cpfDigitos]);
+        if (viaConsulta) return viaConsulta[0] || null;
         const { data, error } = await supabase.from('leads').select('id, nome, status, unidade').or(montarFiltroCpf(cpfDigitos)).limit(1);
         if (error) { console.error('Erro ao conferir CPF no banco:', error); return null; }
         return data?.[0] || null;
@@ -288,10 +354,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     // ==========================================
     // O MOTOR DO SMART PASTE (COM IA DE DETECÇÃO DE COLUNAS)
     // ==========================================
-    const processarColagem = (texto) => {
+    const processarColagem = (texto, tipoEscolhido = tipoLeadSmartPaste) => {
         setTextoSmartPaste(texto);
         if (!texto.trim()) { 
             setPreviewLeads([]); 
+            setPasteSemTipo(false);
             setEstatisticasPaste({ novos: 0, duplicados: 0 });
             return; 
         }
@@ -301,8 +368,24 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         let qtdNovos = 0;
         let qtdDuplicados = 0;
 
+        // Lista exportada do TECACE (cabeçalho com NOME e DOCUMENTO/STATUS): lê pelas colunas e,
+        // no modo "Automático", classifica cada linha pelo Status (CLASSIFICACAO_STATUS_TECACE em utils.js).
+        const primeiraLinha = (linhas.find(l => l.trim()) || '').toUpperCase();
+        const ehListaTecace = primeiraLinha.includes('NOME') && (primeiraLinha.includes('DOCUMENTO') || primeiraLinha.includes('STATUS'));
+        const entradas = [];
+        if (ehListaTecace) {
+            parseSmartPaste(texto).forEach(p => {
+                entradas.push({
+                    nome: p.nome,
+                    telefone: p.telefone || '',
+                    cpfLimpo: p.status === 'CPF INVÁLIDO' ? '' : p.cpf,
+                    statusTecace: p.status_tecace
+                });
+            });
+        }
+
         linhas.forEach(linha => {
-            if (!linha.trim()) return;
+            if (ehListaTecace || !linha.trim()) return;
             const colunas = linha.split('\t').map(c => c.trim());
             let nome = '', telefone = '', cpf = '';
             
@@ -335,9 +418,21 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 }
             }
             
-            let cpfLimpo = cpf.replace(/\D/g, '');
-            let cpfFormatado = cpfLimpo.length === 11 ? formatarCPF(cpfLimpo) : '';
-            let telLimpo = telefone.replace(/\D/g, '');
+            entradas.push({ nome, telefone, cpfLimpo: cpf.replace(/\D/g, ''), statusTecace: '' });
+        });
+
+        entradas.forEach(({ nome, telefone, cpfLimpo: cpfBruto, statusTecace }) => {
+            const cpfLimpo = cpfBruto.length === 11 ? cpfBruto : '';
+            const cpfFormatado = cpfLimpo ? formatarCPF(cpfLimpo) : '';
+            const telLimpo = String(telefone || '').replace(/\D/g, '');
+
+            // Tipo da linha: escolhido no seletor, ou pelo Status do TECACE no modo "Automático"
+            const tipoTecace = tipoPeloStatusTecace(statusTecace);
+            let tipo = tipoEscolhido === 'AUTO' ? tipoTecace : tipoEscolhido;
+            let motivoIgnorado = null;
+            if (tipoTecace === 'ATIVO') motivoIgnorado = 'ALUNO ATIVO';
+            else if (tipoEscolhido === 'AUTO' && !tipo && ehListaTecace) motivoIgnorado = `STATUS "${statusTecace || 'VAZIO'}" SEM CLASSIFICAÇÃO`;
+            if (motivoIgnorado) tipo = '';
 
             if (nome) {
                 let motivoDuplicidade = null;
@@ -370,15 +465,17 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     return false;
                 });
 
-                const isDuplicado = jaExisteBanco || jaExisteLista;
+                if (motivoIgnorado) motivoDuplicidade = motivoIgnorado;
+                const isDuplicado = Boolean(motivoIgnorado) || jaExisteBanco || jaExisteLista;
 
                 if (isDuplicado) qtdDuplicados++; else qtdNovos++;
 
-                mapeados.push({ 
-                    id_temp: Math.random().toString(), 
-                    nome, 
+                mapeados.push({
+                    id_temp: Math.random().toString(),
+                    nome,
                     telefone: telefone || '',
                     cpf: cpfFormatado,
+                    tipo,
                     isDuplicado,
                     motivo: motivoDuplicidade
                 });
@@ -387,9 +484,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
         setEstatisticasPaste({ novos: qtdNovos, duplicados: qtdDuplicados });
         setPreviewLeads(mapeados);
+        setPasteSemTipo(!ehListaTecace && tipoEscolhido === 'AUTO' && mapeados.length > 0);
     };
 
     const confirmarSmartPaste = async () => {
+        if (pasteSemTipo) return alert('Esta lista não é do TECACE (não tem a coluna Status). Escolha no seletor se o lote é VISITANTE, CANCELADO ou INATIVO.');
         const leadsValidos = previewLeads.filter(l => !l.isDuplicado);
         
         if (leadsValidos.length === 0) {
@@ -413,6 +512,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         const cpfsNoBanco = new Set();
         for (let i = 0; i < cpfsDoLote.length; i += 200) {
             const fatia = cpfsDoLote.slice(i, i + 200);
+            const viaConsulta = await buscarCpfsViaConsultaSegura(fatia);
+            if (viaConsulta) { viaConsulta.forEach(a => cpfsNoBanco.add(apenasDigitos(a.cpf))); continue; }
             const { data: achados, error: erroBusca } = await supabase.from('leads').select('cpf').in('cpf', [...fatia, ...fatia.map(formatarCPF)]);
             if (erroBusca) { console.error('Erro ao conferir CPFs do lote:', erroBusca); continue; }
             (achados || []).forEach(a => cpfsNoBanco.add(apenasDigitos(a.cpf)));
@@ -429,7 +530,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             nome: lead.nome,
             telefone: lead.telefone,
             cpf: apenasDigitos(lead.cpf) || null,
-            tipo_lead: tipoLeadSmartPaste,
+            tipo_lead: lead.tipo || tipoLeadSmartPaste,
             origem: 'CRM',
             vendedor: 'Importação',
             status: 'Novo',
@@ -636,23 +737,27 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const consultorLogado = consultorAtivo.nome;
     // Alguém abrindo o CRM de outra pessoa (Líder/Admin/Mentor, ou uma recepcionista no cartão da colega)
     const lideraOuAcompanha = !mesmoNome(usuarioLogado?.nome, consultorLogado);
-    const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v)).sort((a,b) => new Date(dataDoLead(b)) - new Date(dataDoLead(a)));
+    const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v) && podeContatar(v)).sort((a,b) => new Date(dataDoLead(b)) - new Date(dataDoLead(a)));
     // Nome comparado sem ligar para maiúsculas/acentos (o Novo Visitante grava o consultor em MAIÚSCULAS)
-    const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por, consultorLogado) && v.status !== 'Arquivado');
+    const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por, consultorLogado) && v.status !== 'Arquivado' && podeContatar(v));
     const meusLeadsAtivos = meusLeads.filter(v => v.puxado_em && v.status !== 'Perdido');
     const meusLeadsGeladeira = meusLeads.filter(v => v.status === 'Perdido');
 
     // Consultor do cadastro manual: só a recepção da unidade de quem opera (igual aos cartões).
     // Se não houver ninguém da recepção cadastrado, cai para a lista antiga (Líder + Recepção).
     const recepcaoDaUnidade = colaboradores.filter(c => ehRecepcao(c) && (!unidadeOperacao || String(c.unidade || '').toUpperCase() === unidadeOperacao));
-    const vendedoresPermitidos = colaboradores.filter(c => {
+    // Quem foi desativado no Cadastro Geral (ativo = false) nunca aparece no CRM
+    const colaboradoresAtivos = colaboradores.filter(c => c.ativo !== false);
+    const vendedoresPermitidos = colaboradoresAtivos.filter(c => {
         const role = String(c.role || c.cargo || '').toUpperCase();
         return role.includes('LIDER') || role.includes('LÍDER') || role.includes('RECEP');
     });
-    const opcoesVendedor = recepcaoDaUnidade.length > 0 ? recepcaoDaUnidade : (vendedoresPermitidos.length > 0 ? vendedoresPermitidos : colaboradores);
+    const opcoesVendedor = recepcaoDaUnidade.length > 0 ? recepcaoDaUnidade : (vendedoresPermitidos.length > 0 ? vendedoresPermitidos : colaboradoresAtivos);
 
-    const pctMeta = Math.min(100, Math.round((progressoHoje.length / META_DIARIA) * 100));
-    const metaBatida = progressoHoje.length >= META_DIARIA;
+    // Meta: pessoas diferentes contatadas hoje (mandar 5 mensagens para a mesma pessoa conta 1)
+    const pessoasHoje = contarPessoasDaMeta(progressoHoje);
+    const pctMeta = Math.min(100, Math.round((pessoasHoje / META_DIARIA) * 100));
+    const metaBatida = pessoasHoje >= META_DIARIA;
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative">
@@ -669,7 +774,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                 Operador: <strong className="text-blue-600 dark:text-blue-400">{consultorLogado}</strong>
                                 {unidadeOperacao && <span className="ml-2 px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{unidadeOperacao}</span>}
                             </span>
-                            <span className={`text-xs font-black transition-colors ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{progressoHoje.length} / {META_DIARIA} Ações Reais</span>
+                            <span className={`text-xs font-black transition-colors ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{pessoasHoje} / {META_DIARIA} Pessoas contatadas</span>
                         </div>
                         <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner">
                             <div className={`h-2.5 rounded-full transition-all duration-500 ease-out ${metaBatida ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${pctMeta}%` }}></div>
@@ -678,6 +783,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 </div>
                 
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                    <button onClick={() => setContatosHojeAberto(true)} className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 border ${pendentesHoje.total > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-700' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-slate-200 dark:border-slate-800'}`}>
+                        <CalendarCheck className="w-4 h-4" /> Contatos de hoje{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
+                    </button>
                     <button onClick={() => setConsultorAtivo(null)} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-800">
                         <LogOut className="w-4 h-4" /> {lideraOuAcompanha ? 'Voltar ao Painel' : 'Trocar'}
                     </button>
@@ -695,7 +803,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             )}
 
             {/* BARRA DE NAVEGAÇÃO / ABAS */}
-            <div className="flex bg-slate-200 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-300/60 dark:border-slate-700 shadow-inner w-full max-w-4xl mx-auto overflow-x-auto custom-scrollbar">
+            <div className="flex bg-slate-200 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-300/60 dark:border-slate-700 shadow-inner w-full max-w-6xl mx-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Database className="w-4 h-4" /> Base ({leadsNaBase.length})
                 </button>
@@ -707,6 +815,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 </button>
                 <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-cyan-500 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Snowflake className="w-4 h-4" /> Geladeira ({meusLeadsGeladeira.length})
+                </button>
+                <button onClick={() => setVisaoAtiva('migracao')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'migracao' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                    <Repeat className="w-4 h-4" /> Migração
+                </button>
+                <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'naocontatar' ? 'bg-rose-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                    <Ban className="w-4 h-4" /> Não contatar
                 </button>
                 <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-slate-900 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <PieChart className="w-4 h-4" /> Métricas
@@ -799,7 +913,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     <select name="tipo_lead" value={formData.tipo_lead} onChange={handleChange} required className="w-1/3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-black text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm">
                                         <option value="" disabled hidden>Tipo...</option>
                                         <option value="VISITANTE">VISITANTE</option>
-                                        <option value="CANCELADO/INATIVO">CANCELADO/INATIVO</option>
+                                        <option value="CANCELADO">CANCELADO</option>
+                                        <option value="INATIVO">INATIVO</option>
                                     </select>
                                     <input type="text" name="nome" value={formData.nome} onChange={handleChange} required placeholder="Nome do Lead" className="w-2/3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm" />
                                 </div>
@@ -847,9 +962,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                             <p>Copie as linhas na Pacto, dê <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 shadow-sm font-mono text-[10px]">Ctrl+C</kbd> e cole abaixo com <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 shadow-sm font-mono text-[10px]">Ctrl+V</kbd>.</p>
                         </div>
 
-                        <select value={tipoLeadSmartPaste} onChange={(e) => setTipoLeadSmartPaste(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-black text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm mb-4 cursor-pointer">
+                        <select value={tipoLeadSmartPaste} onChange={(e) => { setTipoLeadSmartPaste(e.target.value); processarColagem(textoSmartPaste, e.target.value); }} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-black text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm mb-4 cursor-pointer">
+                            <option value="AUTO">Automático: pelo Status do TECACE</option>
                             <option value="VISITANTE">Classificar lote como: VISITANTE</option>
-                            <option value="CANCELADO/INATIVO">Classificar lote como: CANCELADO/INATIVO</option>
+                            <option value="CANCELADO">Classificar lote como: CANCELADO</option>
+                            <option value="INATIVO">Classificar lote como: INATIVO</option>
                         </select>
 
                         <textarea 
@@ -859,6 +976,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
                         {previewLeads.length > 0 && (
                             <div className="mt-4 animate-[zoomIn_0.2s_ease-out]">
+                                {pasteSemTipo && (
+                                    <div className="mb-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-xl px-4 py-3 flex items-start gap-2">
+                                        <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                                        <span>Esta lista não é do TECACE (não tem a coluna Status), então o modo "Automático" não sabe o tipo. Escolha acima se o lote é <strong>VISITANTE</strong>, <strong>CANCELADO</strong> ou <strong>INATIVO</strong>.</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-center mb-3">
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-2 py-1 rounded-md">{estatisticasPaste.novos} Novos</span>
@@ -881,16 +1004,17 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                                         <span className="truncate">{l.nome}</span>
                                                     </td>
                                                     <td className="px-3 py-2">{l.telefone || 'S/N'}</td>
+                                                    <td className="px-3 py-2 text-right">{l.tipo && <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black tracking-widest ${classeTipoLead(l.tipo)}`}>{l.tipo}</span>}</td>
                                                 </tr>
                                             ))}
                                             {previewLeads.length > 50 && (
-                                                <tr><td colSpan="2" className="px-3 py-2 text-center text-[10px] font-bold text-slate-400">...e mais {previewLeads.length - 50} linhas</td></tr>
+                                                <tr><td colSpan="3" className="px-3 py-2 text-center text-[10px] font-bold text-slate-400">...e mais {previewLeads.length - 50} linhas</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
                                 
-                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0 || pasteSemTipo} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
                                     {processandoPaste ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> Salvar {estatisticasPaste.novos} Novos no Banco</>}
                                 </button>
                             </div>
@@ -961,7 +1085,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
-                                                <span className={`px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${v.tipo_lead === 'VISITANTE' ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30' : v.tipo_lead === 'CANCELADO/INATIVO' ? 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/30' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800'}`}>
+                                                <span className={`px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${classeTipoLead(v.tipo_lead)}`}>
                                                     {v.tipo_lead || 'N/A'}
                                                 </span>
                                             </td>
@@ -1021,6 +1145,30 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     carregarHistoricoLead={carregarHistoricoLead}
                     registrarHistorico={registrarHistorico}
                     podeApagar={podeApagar}
+                    usuarioLogado={usuarioLogado}
+                    onNaoContatar={setNaoContatarAlvo}
+                />
+            )}
+
+            {visaoAtiva === 'migracao' && (
+                <AbaMigracao
+                    unidade={unidadeOperacao}
+                    operador={consultorLogado}
+                    usuarioLogado={usuarioLogado}
+                    colaboradores={colaboradores}
+                    naoContatar={naoContatar}
+                    onNaoContatar={aoColocarNaoContatar}
+                    onContatoFeito={somarNaMeta}
+                />
+            )}
+
+            {visaoAtiva === 'naocontatar' && (
+                <AbaNaoContatar
+                    unidade={unidadeOperacao}
+                    operador={consultorLogado}
+                    usuarioLogado={usuarioLogado}
+                    versao={versaoNaoContatar}
+                    onMudou={() => setVersaoNaoContatar(v => v + 1)}
                 />
             )}
 
@@ -1029,6 +1177,34 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 historicoLead={historicoLead} loadingHistorico={loadingHistorico} registrarHistorico={registrarHistorico} alterarStatus={alterarStatus}
                 mostrarRelatorio={mostrarRelatorio} setMostrarRelatorio={setMostrarRelatorio} progressoHoje={progressoHoje} consultorAtivo={consultorAtivo}
                 usuarioLogado={usuarioLogado} META_DIARIA={META_DIARIA} visitantes={meusLeads} setConsultorAtivo={setConsultorAtivo}
+                onNaoContatar={setNaoContatarAlvo}
+            />
+
+            {naoContatarAlvo && (
+                <JanelaNaoContatar
+                    pessoa={{ ...naoContatarAlvo, lead_id: String(naoContatarAlvo.id) }}
+                    unidade={naoContatarAlvo.unidade || unidadeOperacao}
+                    quem={consultorLogado}
+                    onFechar={() => setNaoContatarAlvo(null)}
+                    onFeito={(p) => {
+                        aoColocarNaoContatar(p);
+                        if (modalDetalhe.show && modalDetalhe.lead?.id === naoContatarAlvo.id) setModalDetalhe({ show: false, lead: null });
+                    }}
+                />
+            )}
+
+            <ContatosDeHoje
+                unidade={unidadeOperacao}
+                operador={consultorLogado}
+                leads={visitantes}
+                usuarioLogado={usuarioLogado}
+                aberto={contatosHojeAberto}
+                onFechar={() => setContatosHojeAberto(false)}
+                onPendentes={aoAtualizarPendentes}
+                registrarHistorico={registrarHistorico}
+                onNaoContatar={aoColocarNaoContatar}
+                onContatoFeito={somarNaMeta}
+                versao={versaoDados + versaoNaoContatar}
             />
 
         </div>
