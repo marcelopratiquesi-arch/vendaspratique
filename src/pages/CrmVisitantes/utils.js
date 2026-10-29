@@ -127,8 +127,9 @@ export const contarPessoasDaMeta = (progresso = []) =>
 // Papel verdadeiro de quem está logado (Admin/Mentor que escolhe uma unidade no topo vira "LIDER" no role)
 export const papelReal = (usuario) => String(usuario?.roleReal || usuario?.role || '').toUpperCase();
 
-// Só Líder e Admin podem apagar contato do banco (decisão do dono). Recepção e Mentor nunca apagam.
-export const podeApagarLeads = (usuario) => ['ADMIN', 'LIDER'].includes(papelReal(usuario));
+// Admin, Líder e Mentor (nas unidades dele, mesma regra do Líder) apagam contato do banco (decisão do dono).
+// A Recepção nunca apaga. O banco confere (gatilho crm_conferir_quem_apaga).
+export const podeApagarLeads = (usuario) => ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuario));
 
 // Quando Líder/Admin/Mentor (ou uma colega) age no CRM de outra recepcionista, a ação conta para ela,
 // mas fica a marca de quem fez de verdade: "feito por NOME (Papel)". Vazio quando a própria pessoa fez.

@@ -34,7 +34,7 @@ const traduzirRole = (role, t) => {
     return (traduzido && traduzido !== c.chave) ? traduzido : c.padrao;
 };
 
-const SeletorUnidade = ({ unidadeGlobal, setUnidadeGlobal, unidades, recolhido, mostrarDica, esconderDica }) => {
+const SeletorUnidade = ({ unidadeGlobal, setUnidadeGlobal, unidades, recolhido, mostrarDica, esconderDica, rotuloTodas }) => {
     const { t } = useI18n();
     const [aberto, setAberto] = useState(false);
     const [busca, setBusca] = useState('');
@@ -51,7 +51,8 @@ const SeletorUnidade = ({ unidadeGlobal, setUnidadeGlobal, unidades, recolhido, 
     }, [busca, unidades]);
 
     const ehGlobal = unidadeGlobal === 'TODAS';
-    const rotuloGlobal = 'Visão Global';
+    // Mentor vê "Todas as minhas unidades" (só as dele); Admin vê "Visão Global"
+    const rotuloGlobal = rotuloTodas || 'Visão Global';
     const rotuloAtual = ehGlobal ? rotuloGlobal : unidadeGlobal;
     const mostrarOpcaoGlobal = !busca.trim();
     const IconeAtual = ehGlobal ? Globe : Building2;
@@ -153,7 +154,7 @@ const BotaoNovaVenda = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderD
     </button>
 );
 
-const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFecharMobile, abasPermitidas = [], activeTab, setActiveTab, ehChefe, unidadeGlobal, setUnidadeGlobal, unidades, usuarioLogado, handleLogout }) => {
+const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFecharMobile, abasPermitidas = [], activeTab, setActiveTab, ehChefe, unidadeGlobal, setUnidadeGlobal, unidades, usuarioLogado, handleLogout, rotuloTodas }) => {
     const { t } = useI18n();
     const [dica, setDica] = useState(null);
     
@@ -209,7 +210,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                 
                 {/* No computador o seletor de unidade agora fica no TopBar. No celular continua aqui, porque o topo não tem espaço. */}
                 {ehChefe && modo === 'mobile' && (
-                    <SeletorUnidade unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades} recolhido={recolhido} mostrarDica={mostrarDica} esconderDica={esconderDica} />
+                    <SeletorUnidade unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades} rotuloTodas={rotuloTodas} recolhido={recolhido} mostrarDica={mostrarDica} esconderDica={esconderDica} />
                 )}
 
                 {abaDestaque && (

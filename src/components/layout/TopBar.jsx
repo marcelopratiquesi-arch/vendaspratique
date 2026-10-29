@@ -29,7 +29,7 @@ const normalizar = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u03
 const ehCampoDeTexto = (el) => !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 
 // ---------- Seletor de unidade (mesmo comportamento do que estava na Sidebar) ----------
-function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr }) {
+function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr, rotuloTodas }) {
     const [aberto, setAberto] = useState(false);
     const [busca, setBusca] = useState('');
     const ref = useRef(null);
@@ -58,7 +58,8 @@ function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr }) {
     }, [busca, unidades]);
 
     const ehGlobal = !unidadeGlobal || unidadeGlobal === 'TODAS';
-    const rotuloGlobal = tr('topbar.globalView', 'Visão Global');
+    // Mentor vê "Todas as minhas unidades" (só as dele); Admin vê "Visão Global"
+    const rotuloGlobal = rotuloTodas || tr('topbar.globalView', 'Visão Global');
     const rotuloAtual = ehGlobal ? rotuloGlobal : unidadeGlobal;
     const IconeAtual = ehGlobal ? Globe : Building2;
     const mostrarOpcaoGlobal = !busca.trim();
@@ -152,6 +153,7 @@ export default function TopBar({
     unidadeGlobal,
     setUnidadeGlobal,
     unidades = [],
+    rotuloTodas,
 }) {
     const { t } = useI18n();
 
@@ -227,6 +229,7 @@ export default function TopBar({
                                 setUnidadeGlobal={setUnidadeGlobal}
                                 unidades={unidades}
                                 tr={tr}
+                                rotuloTodas={rotuloTodas}
                             />
                         ) : (
                             <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{subtitulo}</span>

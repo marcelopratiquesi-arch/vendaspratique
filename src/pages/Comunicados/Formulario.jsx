@@ -36,7 +36,9 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
     ]);
 
     // 4. PÚBLICO ALVO E AGENDAMENTO
-    const [tipoAlvo, setTipoAlvo] = useState('GLOBAL');
+    // Mentor só manda comunicado para as unidades dele (a lista "unidades" já vem só com as dele)
+    const ehMentor = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase() === 'MENTOR';
+    const [tipoAlvo, setTipoAlvo] = useState(ehMentor ? 'MINHAS' : 'GLOBAL');
     const [valorAlvo, setValorAlvo] = useState('TODOS');
     const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
     const [horaInicio, setHoraInicio] = useState(new Date().toTimeString().slice(0, 5));
@@ -196,14 +198,22 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             if (comError) throw comError;
 
             // Roteamento Instantâneo
-            const valorFinal = tipoAlvo === 'GLOBAL' ? 'TODOS' : valorAlvo;
-            const { error: rpcError } = await supabase.rpc('gerar_snapshot_comunicado', { 
-                p_comunicado_id: comData.id, 
-                p_tipo_alvo: tipoAlvo, 
-                p_valor_alvo: valorFinal 
-            });
-            
-            if (rpcError) throw rpcError;
+            // Mentor só manda para as unidades dele: "Todas as minhas unidades" = uma entrega por unidade
+            const entregas = ehMentor
+                ? (tipoAlvo === 'MINHAS'
+                    ? unidades.map(u => ({ tipo: 'UNIDADE', valor: u.nome }))
+                    : [{ tipo: 'UNIDADE', valor: unidades.some(u => u.nome === valorAlvo) ? valorAlvo : unidades[0]?.nome }])
+                : [{ tipo: tipoAlvo, valor: tipoAlvo === 'GLOBAL' ? 'TODOS' : valorAlvo }];
+            if (entregas.length === 0 || entregas.some(e => !e.valor)) throw new Error('Nenhuma unidade vinculada para receber o comunicado.');
+
+            for (const entrega of entregas) {
+                const { error: rpcError } = await supabase.rpc('gerar_snapshot_comunicado', {
+                    p_comunicado_id: comData.id,
+                    p_tipo_alvo: entrega.tipo,
+                    p_valor_alvo: entrega.valor
+                });
+                if (rpcError) throw rpcError;
+            }
 
             onSalvo();
         } catch (err) {
@@ -360,9 +370,18 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                         <div>
                             <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('communications.form.targetLabel', {defaultValue: 'Destinatários:'})}</label>
                             <select value={tipoAlvo} onChange={(e) => setTipoAlvo(e.target.value)} className={`${inputClasses} cursor-pointer`}>
-                                <option value="GLOBAL">Todos os Usuários da Empresa</option>
-                                <option value="ROLE">Por Cargo / Permissão</option>
-                                <option value="UNIDADE">Por Academia / Unidade</option>
+                                {ehMentor ? (
+                                    <>
+                                        <option value="MINHAS">Todas as minhas unidades</option>
+                                        <option value="UNIDADE">Por Academia / Unidade</option>
+                                    </>
+                                ) : (
+                                    <>
+                                        <option value="GLOBAL">Todos os Usuários da Empresa</option>
+                                        <option value="ROLE">Por Cargo / Permissão</option>
+                                        <option value="UNIDADE">Por Academia / Unidade</option>
+                                    </>
+                                )}
                             </select>
                         </div>
                         {tipoAlvo === 'ROLE' && (

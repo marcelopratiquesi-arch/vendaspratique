@@ -66,7 +66,7 @@ export const JanelaNaoContatar = ({ pessoa, unidade, quem, onFechar, onFeito }) 
 
     return (
         <Moldura titulo="Não contatar" subtitulo={pessoa.nome} icone={Ban} cor="bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400" onFechar={onFechar}>
-            <p className="px-5 pt-4 text-xs font-bold text-slate-500 dark:text-slate-400">A pessoa sai de todas as listas de contato da rede (Base, Kanban, Lista, Migração e Contatos de hoje). Só Líder e Admin podem tirar da lista depois.</p>
+            <p className="px-5 pt-4 text-xs font-bold text-slate-500 dark:text-slate-400">A pessoa sai de todas as listas de contato da rede (Base, Kanban, Lista, Migração e Contatos de hoje). Só Líder, Mentor e Admin podem tirar da lista depois.</p>
             <EscolhaComOutro opcoes={MOTIVOS_NAO_CONTATAR} valor={valor} setValor={setValor} outro={outro} setOutro={setOutro} />
             <div className="px-5 pb-5 flex justify-end gap-2">
                 <button type="button" onClick={onFechar} className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">Cancelar</button>

@@ -6,7 +6,7 @@ import { carregarListaNaoContatar, tirarNaoContatar } from './contatosFeitos';
 // ==========================================
 // ABA "NÃO CONTATAR"
 // Pessoas que pediram para não receber contato. Ficam fora de todas as listas do CRM (rede inteira).
-// Só Líder e Admin podem tirar da lista (o banco também confere).
+// Só Líder, Mentor e Admin podem tirar da lista (o banco também confere).
 // A aba "Geladeira" (contatos Perdidos, 30 dias) é outra coisa e continua igual.
 // ==========================================
 
@@ -18,7 +18,7 @@ const AbaNaoContatar = ({ unidade, operador, usuarioLogado, versao = 0, onMudou 
     const [tirando, setTirando] = useState(null);
 
     const unidadeChave = String(unidade || '').toUpperCase().trim();
-    const podeTirar = ['ADMIN', 'LIDER'].includes(papelReal(usuarioLogado));
+    const podeTirar = ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuarioLogado));
 
     const carregar = useCallback(async () => {
         setCarregando(true);
@@ -56,7 +56,7 @@ const AbaNaoContatar = ({ unidade, operador, usuarioLogado, versao = 0, onMudou 
                         <Ban className="w-6 h-6 text-rose-500" /> Não contatar
                         {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1">Pediram para não receber contato. Não aparecem na Base, Kanban, Lista, Migração nem em Contatos de hoje.{podeTirar ? '' : ' Só Líder e Admin podem tirar alguém da lista.'}</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1">Pediram para não receber contato. Não aparecem na Base, Kanban, Lista, Migração nem em Contatos de hoje.{podeTirar ? '' : ' Só Líder, Mentor e Admin podem tirar alguém da lista.'}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="relative">

@@ -45,7 +45,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
     const DIAS_ATRASADOS = 7;
     const inicioAtrasados = diaISO(-DIAS_ATRASADOS);
     const unidadeChave = String(unidade || '').toUpperCase().trim();
-    const podeEditarMensagens = ['ADMIN', 'LIDER'].includes(papelReal(usuarioLogado));
+    const podeEditarMensagens = ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuarioLogado));
 
     const carregar = useCallback(async () => {
         if (!unidadeChave) return;

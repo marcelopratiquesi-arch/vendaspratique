@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient.js';
-import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2 } from 'lucide-react';
+import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2, Building2, AlertTriangle } from 'lucide-react';
+import ModalUnidadesMentor from '../components/Modals/ModalUnidadesMentor.jsx';
+
+// Mentor: quantas etiquetas de unidade aparecem no cartão antes do "+N"
+const MAX_ETIQUETAS_MENTOR = 4;
+const normalizarUnidade = (texto) => String(texto || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
 
 const Configuracoes = ({ unidades = [], setUnidades }) => {
     const [abaAtiva, setAbaAtiva] = useState('acessos'); 
@@ -15,12 +20,29 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
     const [acessoRole, setAcessoRole] = useState('');
     const [acessoUnidade, setAcessoUnidade] = useState('');
 
+    // MENTOR ↔ UNIDADES: vínculos de todos os mentores numa consulta só (e-mail -> lista de unidades)
+    const [vinculosMentor, setVinculosMentor] = useState({});
+    const [mentorEditando, setMentorEditando] = useState(null);
+
+    const carregarVinculosMentor = async () => {
+        const { data, error } = await supabase.from('mentor_unidades').select('mentor_email, unidade');
+        if (error) { console.error('Erro ao carregar as unidades dos mentores:', error); return; }
+        const mapa = {};
+        (data || []).forEach(l => {
+            const email = String(l.mentor_email || '').toLowerCase().trim();
+            (mapa[email] = mapa[email] || []).push(l.unidade);
+        });
+        setVinculosMentor(mapa);
+    };
+    const unidadesDoMentor = (email) => vinculosMentor[String(email || '').toLowerCase().trim()] || [];
+
     useEffect(() => {
         const carregarUsuarios = async () => {
             const { data } = await supabase.from('usuarios_sistema').select('*');
             if (data) setUsuariosAcesso(data);
         };
         carregarUsuarios();
+        carregarVinculosMentor();
     }, []);
 
     useEffect(() => {
@@ -61,6 +83,12 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         e.preventDefault();
         if (!acessoEmail.trim() || !acessoSenha || !acessoRole || !acessoUnidade) return;
 
+        // Mentor que muda de perfil perde as unidades vinculadas (o banco apaga sozinho e registra)
+        const existente = usuariosAcesso.find(u => u.email === acessoEmail.toLowerCase().trim());
+        const qtdVinculos = unidadesDoMentor(acessoEmail).length;
+        if (existente?.role === 'MENTOR' && acessoRole.toUpperCase() !== 'MENTOR' && qtdVinculos > 0
+            && !window.confirm(`Este login tem ${qtdVinculos} ${qtdVinculos === 1 ? 'unidade vinculada' : 'unidades vinculadas'} como Mentor. Elas serão removidas.\n\nContinuar?`)) return;
+
         const { error: authError } = await supabase.auth.signUp({
             email: acessoEmail.toLowerCase().trim(),
             password: acessoSenha
@@ -85,6 +113,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             setUsuariosAcesso([...listaFiltrada, data[0]]);
             
             setAcessoEmail(''); setAcessoSenha(''); setAcessoNome(''); setAcessoRole(''); setAcessoUnidade('');
+            carregarVinculosMentor();
             mostrarSucesso();
         } else {
             alert('Erro ao salvar permissões: ' + error?.message);
@@ -95,7 +124,38 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         if(window.confirm(`Atenção! Deseja realmente revogar o acesso de ${email}? Ele não poderá mais fazer login no sistema.`)) {
             await supabase.from('usuarios_sistema').delete().eq('email', email);
             setUsuariosAcesso(usuariosAcesso.filter(u => u.email !== email));
+            carregarVinculosMentor();
         }
+    };
+
+    // Salva as unidades marcadas para o mentor: tira as desmarcadas e inclui as novas (só Admin; o banco confere)
+    const salvarUnidadesMentor = async (nomesMarcados) => {
+        if (!mentorEditando) return false;
+        const atuais = unidadesDoMentor(mentorEditando.email);
+        const marcadasNorm = new Set(nomesMarcados.map(normalizarUnidade));
+        const atuaisNorm = new Set(atuais.map(normalizarUnidade));
+        const remover = atuais.filter(n => !marcadasNorm.has(normalizarUnidade(n)));
+        const incluir = nomesMarcados.filter(n => !atuaisNorm.has(normalizarUnidade(n)));
+
+        const falhou = async (error) => {
+            alert('Não foi possível salvar as unidades do mentor.\n\n' + (error?.message || ''));
+            await carregarVinculosMentor();
+            return false;
+        };
+        if (remover.length > 0) {
+            const { error } = await supabase.from('mentor_unidades').delete()
+                .eq('mentor_email', mentorEditando.email).in('unidade', remover);
+            if (error) return falhou(error);
+        }
+        if (incluir.length > 0) {
+            const { error } = await supabase.from('mentor_unidades')
+                .insert(incluir.map(unidade => ({ mentor_email: mentorEditando.email, unidade })));
+            if (error) return falhou(error);
+        }
+        await carregarVinculosMentor();
+        setMentorEditando(null);
+        mostrarSucesso();
+        return true;
     };
 
     // Estilo unificado para inputs claros (Minimalismo Vivo TECACE)
@@ -156,7 +216,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                 <select value={acessoRole} onChange={(e) => setAcessoRole(e.target.value)} required className={`${inputCSS} cursor-pointer appearance-none`}>
                                     <option value="" disabled>Selecione o Nível...</option>
                                     <option value="ADMIN">Administrador Global (Admin)</option>
-                                    <option value="MENTOR">Mentor / Gerência Global</option>
+                                    <option value="MENTOR">Mentor (unidades vinculadas)</option>
                                     <option value="LIDER">Líder de Unidade</option>
                                     <option value="RECEPCAO">Recepção / Consultor</option>
                                 </select>
@@ -233,7 +293,8 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                             {/* LISTA ACESSOS */}
                             {abaAtiva === 'acessos' && (
                                 usuariosAcesso.map(u => (
-                                    <div key={u.email} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-all group">
+                                    <div key={u.email} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-3 hover:shadow-md transition-all group">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-lg font-black shadow-inner shrink-0">
                                                 {u.nome.charAt(0)}
@@ -256,6 +317,11 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">
                                                 <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3 text-slate-400" /> {u.unidade}</span>
                                                 
+                                                {u.role === 'MENTOR' && (
+                                                    <button onClick={() => setMentorEditando(u)} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 hover:text-blue-700 transition-colors px-2.5 py-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-md shadow-sm text-[10px] font-black uppercase tracking-widest" title="Escolher as unidades deste mentor">
+                                                        <Building2 className="w-3.5 h-3.5" /> Unidades
+                                                    </button>
+                                                )}
                                                 {u.role !== 'ADMIN' && (
                                                     <button onClick={() => handleDeleteAcesso(u.email)} className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-md shadow-sm" title="Revogar Acesso">
                                                         <UserMinus className="w-3.5 h-3.5" />
@@ -263,6 +329,25 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                                 )}
                                             </div>
                                         </div>
+                                    </div>
+                                    {u.role === 'MENTOR' && (() => {
+                                        const lista = unidadesDoMentor(u.email);
+                                        if (lista.length === 0) return (
+                                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-[10px] font-black uppercase tracking-widest">
+                                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Sem unidades: este mentor não vê nada no sistema
+                                            </div>
+                                        );
+                                        const ordenada = [...lista].sort((a, b) => String(a).localeCompare(String(b), 'pt-BR', { numeric: true }));
+                                        const extras = ordenada.length - MAX_ETIQUETAS_MENTOR;
+                                        return (
+                                            <div className="flex flex-wrap items-center gap-1.5" title={ordenada.join(', ')}>
+                                                {ordenada.slice(0, MAX_ETIQUETAS_MENTOR).map(nome => (
+                                                    <span key={nome} className="px-2 py-1 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 text-[9px] font-black uppercase tracking-widest">{nome}</span>
+                                                ))}
+                                                {extras > 0 && <span className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest">+{extras}</span>}
+                                            </div>
+                                        );
+                                    })()}
                                     </div>
                                 ))
                             )}
@@ -296,6 +381,16 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                 </div>
 
             </div>
+
+            {mentorEditando && (
+                <ModalUnidadesMentor
+                    mentor={mentorEditando}
+                    unidades={unidades}
+                    marcadasIniciais={unidadesDoMentor(mentorEditando.email)}
+                    onCancelar={() => setMentorEditando(null)}
+                    onSalvar={salvarUnidadesMentor}
+                />
+            )}
         </div>
     );
 };

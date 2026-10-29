@@ -4,7 +4,7 @@ import { useI18n } from './i18n/I18nContext.jsx';
 
 import { 
     ShoppingCart, History, PieChart, Wallet, 
-    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone 
+    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone, Building2
 } from 'lucide-react';
 
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
@@ -431,7 +431,58 @@ export default function App() {
             Object.values(pendentes).forEach(p => clearTimeout(p.timer));
             supabase.removeChannel(realtimeChannel);
         };
-    }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
+    }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]);
+
+    // ==========================================
+    // MENTOR ↔ UNIDADES: o Mentor só vê as unidades que o Admin marcou para ele (Configurações → Acessos).
+    // Sem nenhuma marcada, não vê nada. Quem garante é o banco (seg_minhas_unidades); aqui a tela acompanha:
+    // carrega a lista uma vez e recarrega sozinha quando o Admin muda (tempo real, juntando os avisos).
+    // ==========================================
+    const ehMentor = usuarioLogado?.role === 'MENTOR';
+    const [unidadesMentor, setUnidadesMentor] = useState(null); // null = carregando (ou não é Mentor)
+
+    useEffect(() => {
+        if (!ehMentor) return;
+        let ativo = true;
+        let timer = null;
+        const carregar = async () => {
+            const { data, error } = await supabase.from('mentor_unidades').select('unidade');
+            if (!ativo) return;
+            if (error) {
+                console.error('Não foi possível carregar as unidades do Mentor:', error);
+                setUnidadesMentor([]);
+                return;
+            }
+            setUnidadesMentor([...new Set((data || []).map(l => normalizarNomeBusca(l.unidade)))]);
+        };
+        carregar();
+
+        const canal = supabase.channel('mentor-unidades')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'mentor_unidades' }, () => {
+                clearTimeout(timer);
+                timer = setTimeout(() => {
+                    if (!ativo) return;
+                    carregar();
+                    fetchUnidades(true); fetchVendas(true); fetchLeads(true); fetchAvaliacoes(true); fetchColaboradores(true);
+                }, 1500);
+            })
+            .subscribe();
+
+        return () => { ativo = false; clearTimeout(timer); supabase.removeChannel(canal); setUnidadesMentor(null); };
+    }, [ehMentor, fetchUnidades, fetchVendas, fetchLeads, fetchAvaliacoes, fetchColaboradores]);
+
+    // Lista de unidades que as telas mostram (seletor, filtros, cadastros): para o Mentor, só as dele
+    const unidadesVisiveis = useMemo(() => {
+        if (!ehMentor) return unidades;
+        const minhas = new Set(unidadesMentor || []);
+        return unidades.filter(u => minhas.has(normalizarNomeBusca(u.nome)));
+    }, [ehMentor, unidades, unidadesMentor]);
+
+    // Se o Admin tirou a unidade que o Mentor estava vendo, volta para "Todas as minhas unidades"
+    useEffect(() => {
+        if (!ehMentor || !unidadesMentor || unidadeGlobal === 'TODAS') return;
+        if (!unidadesMentor.includes(normalizarNomeBusca(unidadeGlobal))) setUnidadeGlobal('TODAS');
+    }, [ehMentor, unidadesMentor, unidadeGlobal]); 
 
     const vendasEnriquecidas = useMemo(() => {
         return dadosAssinaturas.map(v => {
@@ -495,6 +546,11 @@ export default function App() {
 
     const abasPermitidas = todasAbas.filter(aba => aba.permissoes.includes(usuarioLogado.role));
 
+    // Mentor: "Todas as minhas unidades" no seletor; sem unidade marcada, as telas ficam bloqueadas
+    const rotuloTodas = ehMentor ? 'Todas as minhas unidades' : undefined;
+    const mentorCarregando = ehMentor && unidadesMentor === null;
+    const mentorSemUnidade = ehMentor && Array.isArray(unidadesMentor) && unidadesMentor.length === 0;
+
     return (
         <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
             
@@ -503,14 +559,14 @@ export default function App() {
             <SidebarDesktop 
                 isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
                 abasPermitidas={abasPermitidas} activeTab={activeTab} setActiveTab={handleNavigation}
-                ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades}
+                ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidadesVisiveis} rotuloTodas={rotuloTodas}
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
             <SidebarMobile 
                 isMobileMenuOpen={isMobileMenuOpen} fecharMobile={() => setIsMobileMenuOpen(false)}
                 abasPermitidas={abasPermitidas} activeTab={activeTab} setActiveTab={handleNavigation}
-                ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidades}
+                ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidadesVisiveis} rotuloTodas={rotuloTodas}
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
@@ -527,7 +583,8 @@ export default function App() {
                     podeTrocarUnidade={ehChefe}
                     unidadeGlobal={unidadeGlobal}
                     setUnidadeGlobal={setUnidadeGlobal}
-                    unidades={unidades}
+                    unidades={unidadesVisiveis}
+                    rotuloTodas={rotuloTodas}
                 />
 
                 <BlockingGate 
@@ -536,10 +593,25 @@ export default function App() {
                 />
 
                 <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-5 relative z-0 h-full w-full">
+                    {(mentorCarregando || mentorSemUnidade) ? (
+                        <div className="h-full flex items-center justify-center p-4">
+                            {mentorCarregando ? (
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Carregando suas unidades...</p>
+                            ) : (
+                                <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-8 text-center">
+                                    <Building2 className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
+                                    <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Sem unidades</h2>
+                                    <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
+                                        Nenhuma unidade vinculada ao seu acesso. Fale com o administrador.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    ) : (<>
                     {activeTab === 'lancamento' && (
                         <LancamentoVendas 
                             usuarioLogado={usuarioVirtual} 
-                            unidades={unidades} 
+                            unidades={unidadesVisiveis} 
                             onAddMultiple={handleAddLancamentos} 
                             planos={planos} 
                             produtos={produtos} 
@@ -560,7 +632,7 @@ export default function App() {
                             usuarioReal={usuarioLogado}
                             unidadeGlobal={unidadeGlobal}
                             setUnidadeGlobal={setUnidadeGlobal}
-                            unidades={unidades}
+                            unidades={unidadesVisiveis}
                             planos={planos}
                             vendas={vendasEnriquecidas}
                             avaliacoes={avaliacoesEnriquecidas}
@@ -590,9 +662,10 @@ export default function App() {
                             onVoltarParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
-                    {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidades} />}
-                    {activeTab === 'comunicados' && <CentralComunicados usuarioLogado={usuarioLogado} unidades={unidades} />}
+                    {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} />}
+                    {activeTab === 'comunicados' && <CentralComunicados usuarioLogado={usuarioLogado} unidades={unidadesVisiveis} />}
                     {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
+                    </>)}
                 </main>
             </div>
         </div>
