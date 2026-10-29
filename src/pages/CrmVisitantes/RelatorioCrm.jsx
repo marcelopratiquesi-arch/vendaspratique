@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Calendar, CalendarDays, Sun, Download, TrendingUp, Activity, Loader2, AlertTriangle } from 'lucide-react';
-import { dataDoLead, dataLocalISO } from './utils';
+import { Calendar, CalendarDays, Sun, Download, TrendingUp, Activity, Loader2, AlertTriangle, Snowflake } from 'lucide-react';
+import { dataDoLead, dataLocalISO, grupoMotivoPerda } from './utils';
 
 // ============================================================================
 // UTILITÁRIOS INTERNOS (Isolados para não depender de arquivos externos)
@@ -166,6 +166,24 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
         return linhas.sort((a, b) => b.total - a.total);
     }, [leadsFiltrados]);
 
+    // POR QUE PERDEMOS: motivos dos contatos que estão em Perdido no período ("Outro: ..." contam juntos)
+    const motivosPerda = useMemo(() => {
+        const mapa = new Map();
+        const perdidos = leadsFiltrados.filter(l => l.status === 'Perdido');
+        perdidos.forEach(l => {
+            const motivo = grupoMotivoPerda(l.motivo_perda);
+            const atual = mapa.get(motivo) || { motivo, qtd: 0, exemplos: [] };
+            atual.qtd++;
+            if (motivo === 'Outro' && atual.exemplos.length < 10) atual.exemplos.push(String(l.motivo_perda));
+            mapa.set(motivo, atual);
+        });
+        const linhas = [...mapa.values()]
+            .map(m => ({ ...m, pct: perdidos.length ? Math.round((m.qtd / perdidos.length) * 100) : 0 }))
+            // "Sem motivo informado" sempre por último
+            .sort((a, b) => (a.motivo === 'Sem motivo informado') - (b.motivo === 'Sem motivo informado') || b.qtd - a.qtd);
+        return { total: perdidos.length, linhas, semMotivo: mapa.get('Sem motivo informado')?.qtd || 0 };
+    }, [leadsFiltrados]);
+
     // 3. TOTAIS GERAIS (Rodapé da Tabela)
     const totaisGerais = relatorioUnidades.reduce((acc, row) => {
         acc.total += row.total;
@@ -186,6 +204,11 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
         });
 
         csv += `TOTAL GERAL;${totaisGerais.total};${totaisGerais.emAtendimento};${totaisGerais.fechados};${totaisGerais.perdidos};${taxaConversaoGeral}%\n`;
+
+        if (motivosPerda.total > 0) {
+            csv += '\nPor que perdemos;Quantidade;%\n';
+            motivosPerda.linhas.forEach(m => { csv += `${m.motivo};${m.qtd};${m.pct}%\n`; });
+        }
 
         const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF força o UTF-8 no Excel Excel
         const link = document.createElement("a");
@@ -323,6 +346,36 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                         </tfoot>
                     )}
                 </table>
+            </div>
+
+            {/* POR QUE PERDEMOS (Bloco 4): motivos dos contatos Perdidos do período */}
+            <div className="mt-6 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-5">
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2 mb-1">
+                    <Snowflake className="w-4 h-4 text-rose-500" /> Por que perdemos
+                </h3>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">
+                    {motivosPerda.total} {motivosPerda.total === 1 ? 'contato perdido' : 'contatos perdidos'} no período
+                </p>
+                {motivosPerda.total === 0 ? (
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600">Nenhum contato perdido no período.</p>
+                ) : (
+                    <div className="space-y-2.5">
+                        {motivosPerda.linhas.map(m => (
+                            <div key={m.motivo} title={m.exemplos.length ? m.exemplos.join('\n') : undefined}>
+                                <div className="flex justify-between items-baseline gap-3 mb-1">
+                                    <span className={`text-xs font-black uppercase tracking-wide ${m.motivo === 'Sem motivo informado' ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>{m.motivo}</span>
+                                    <span className="text-xs font-black text-rose-600 dark:text-rose-400">{m.qtd} <span className="text-slate-400 font-bold">({m.pct}%)</span></span>
+                                </div>
+                                <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                                    <div className={`h-2 rounded-full ${m.motivo === 'Sem motivo informado' ? 'bg-slate-300 dark:bg-slate-600' : 'bg-rose-500'}`} style={{ width: `${m.pct}%` }}></div>
+                                </div>
+                            </div>
+                        ))}
+                        {motivosPerda.semMotivo > 0 && (
+                            <p className="text-[10px] font-bold text-slate-400 pt-1">"Sem motivo informado" = perdidos antes de o motivo passar a ser pedido.</p>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );

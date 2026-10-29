@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, linkWhatsApp as montarLinkWhatsApp } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, linkWhatsApp as montarLinkWhatsApp, situacaoProximoContato, formatarDiaCurto } from './utils';
 import { carregarResumoDoDia } from './contatosFeitos';
 import { 
     MessageCircle, X, Copy, Send, Phone, IdCard, Info, 
     PenTool, History, Loader2, Trophy, Target, UserPlus, MoveRight, 
-    CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban
+    CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban, CalendarClock, Snowflake
 } from 'lucide-react';
 
 const Modais = ({
@@ -14,7 +14,9 @@ const Modais = ({
     mostrarRelatorio, setMostrarRelatorio, progressoHoje = [], 
     consultorAtivo, usuarioLogado, META_DIARIA = 150,
     visitantes = [], setConsultorAtivo,
-    onNaoContatar
+    onNaoContatar,
+    onProximoContato,
+    aoEnviarWhatsApp
 }) => {
     const [novaNota, setNovaNota] = useState('');
     const [textoRelatorio, setTextoRelatorio] = useState('');
@@ -84,7 +86,10 @@ const Modais = ({
         await registrarHistorico(modalWpp.lead.id, 'WhatsApp', `Mensagem enviada: "${modalWpp.texto}"`);
         const linkWhatsApp = montarLinkWhatsApp(modalWpp.lead.telefone, modalWpp.texto);
         window.open(linkWhatsApp, '_blank');
+        const leadContatado = modalWpp.lead;
         setModalWpp({ show: false, lead: null, texto: '' });
+        // Contato marcado para hoje (ou atrasado): o CRM já pergunta quando é o próximo
+        if (aoEnviarWhatsApp) aoEnviarWhatsApp(leadContatado);
     };
 
     const adicionarNotaManual = async (e) => {
@@ -305,7 +310,29 @@ const Modais = ({
                                         >
                                             {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
                                         </select>
+                                        {modalDetalhe.lead.status === 'Perdido' && modalDetalhe.lead.motivo_perda && (
+                                            <p className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl px-3 py-2">
+                                                <Snowflake className="w-3.5 h-3.5 shrink-0" /> Motivo da perda: {modalDetalhe.lead.motivo_perda}
+                                            </p>
+                                        )}
                                     </div>
+
+                                    {/* PRÓXIMO CONTATO (Bloco 4) */}
+                                    {onProximoContato && ['Novo', 'Em Contato'].includes(modalDetalhe.lead.status) && (() => {
+                                        const situacao = situacaoProximoContato(modalDetalhe.lead);
+                                        const cor = situacao === 'atrasado' ? 'text-rose-600 dark:text-rose-400' : situacao === 'hoje' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200';
+                                        return (
+                                            <div>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><CalendarClock className="w-4 h-4"/> Próximo contato</label>
+                                                <button type="button" onClick={() => onProximoContato(modalDetalhe.lead)} className="w-full flex items-center justify-between gap-3 border-2 border-blue-100 dark:border-blue-500/20 hover:border-blue-300 dark:hover:border-blue-500/40 bg-blue-50/50 dark:bg-blue-500/5 rounded-xl px-4 py-3 transition-colors">
+                                                    <span className={`text-xs font-black uppercase tracking-widest ${cor}`}>
+                                                        {situacao ? `${situacao === 'atrasado' ? 'Atrasado · ' : situacao === 'hoje' ? 'Hoje · ' : ''}${formatarDiaCurto(modalDetalhe.lead.proximo_contato)}` : 'Sem data marcada'}
+                                                    </span>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">{situacao ? 'Mudar' : 'Marcar'}</span>
+                                                </button>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* INFORMAÇÕES DE CADASTRO */}
                                     <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
@@ -367,13 +394,17 @@ const Modais = ({
                                                 else if(h.tipo_acao === 'Ligação') { IconeAcao = Phone; corAcao = 'bg-blue-500'; }
                                                 else if(h.tipo_acao === 'Mudança de Fase') { IconeAcao = MoveRight; corAcao = 'bg-orange-500'; }
                                                 else if(h.tipo_acao === 'Observação') { IconeAcao = PenTool; corAcao = 'bg-purple-500'; }
+                                                else if(h.tipo_acao === 'Agendamento') { IconeAcao = CalendarClock; corAcao = 'bg-blue-500'; }
+                                                // Contato feito SEM WhatsApp: em vermelho, para o Líder conferir
+                                                const semWhatsApp = /SEM WhatsApp/.test(String(h.observacao || ''));
+                                                if (semWhatsApp) corAcao = 'bg-rose-600';
                                                 
                                                 return (
                                                     <div key={h.id} className="flex gap-4 relative animate-[fadeIn_0.3s_ease-out]">
                                                         <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-white border-4 border-slate-50 dark:border-slate-800 shadow-sm relative z-10 ${corAcao}`}>
                                                             <IconeAcao className="w-5 h-5" />
                                                         </div>
-                                                        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex-1 mb-2 hover:shadow-md transition-shadow">
+                                                        <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm flex-1 mb-2 hover:shadow-md transition-shadow ${semWhatsApp ? 'border-rose-300 dark:border-rose-500/40' : 'border-slate-200 dark:border-slate-800'}`}>
                                                             <div className="flex justify-between items-start mb-3 border-b border-slate-50 dark:border-slate-800 pb-3">
                                                                 <span className="text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{h.tipo_acao}</span>
                                                                 <span className="text-[11px] font-bold text-slate-400">{formatarDataHora(h.data_registro)}</span>

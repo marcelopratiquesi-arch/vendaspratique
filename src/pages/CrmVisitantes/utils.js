@@ -83,6 +83,59 @@ export const JUSTIFICATIVAS_SEM_WHATSAPP = ['Liguei', 'Falei pessoalmente'];
 // Motivos para colocar alguém em "Não contatar"
 export const MOTIVOS_NAO_CONTATAR = ['Pediu para não receber mensagens', 'Pediu para não receber ligações', 'Reclamou dos contatos', 'Número errado / não é a pessoa'];
 
+// ==========================================
+// BLOCO 4: MOTIVO DA PERDA, "PARADO HÁ X DIAS" E PRÓXIMO CONTATO (decisões do dono, 29/10/2026)
+// Campos novos na tabela leads: motivo_perda (texto) e proximo_contato (data AAAA-MM-DD).
+// ==========================================
+// Motivos ao mover para Perdido. "Outro" (escrito pela recepcionista) é gravado como "Outro: texto".
+export const MOTIVOS_PERDA = ['Preço', 'Horário', 'Distância / localização', 'Fechou em outra academia', 'Sem interesse / mudou de ideia', 'Não respondeu'];
+export const PREFIXO_MOTIVO_OUTRO = 'Outro: ';
+// Agrupa o motivo para o relatório (todos os "Outro: ..." contam juntos)
+export const grupoMotivoPerda = (motivo) => {
+    const texto = String(motivo || '').trim();
+    if (!texto) return 'Sem motivo informado';
+    return texto.startsWith(PREFIXO_MOTIVO_OUTRO) || texto === 'Outro' ? 'Outro' : texto;
+};
+
+// Parado: dias sem nenhuma ação no contato (WhatsApp, ligação, anotação, mudança de fase ou puxar para a fila).
+// Amarelo a partir de 5 dias, vermelho a partir de 10. Só vale para quem está em Novo ou Em Contato.
+export const DIAS_PARADO_AMARELO = 5;
+export const DIAS_PARADO_VERMELHO = 10;
+export const ACOES_QUE_TIRAM_DO_PARADO = ['WhatsApp', 'Ligação', 'Observação', 'Mudança de Fase', 'Fila de Trabalho'];
+
+const diasEntre = (isoInicio, isoFim) => {
+    const [a1, m1, d1] = String(isoInicio).split('-').map(Number);
+    const [a2, m2, d2] = String(isoFim).split('-').map(Number);
+    return Math.round((new Date(a2, m2 - 1, d2) - new Date(a1, m1 - 1, d1)) / 86400000);
+};
+
+// Dias parado (null quando não se aplica). "ultimaAcao" vem do histórico; sem histórico, conta desde que foi puxado/entrou.
+export const diasParado = (lead, ultimaAcao) => {
+    if (!lead || !['Novo', 'Em Contato'].includes(lead.status)) return null;
+    const desde = dataLocalISO(ultimaAcao || lead.puxado_em || dataDoLead(lead));
+    if (!desde) return null;
+    return Math.max(0, diasEntre(desde, dataLocalISO(new Date())));
+};
+export const nivelParado = (dias) => {
+    if (dias === null || dias === undefined) return null;
+    if (dias >= DIAS_PARADO_VERMELHO) return 'vermelho';
+    if (dias >= DIAS_PARADO_AMARELO) return 'amarelo';
+    return null;
+};
+
+// Próximo contato: 'atrasado' (a data já passou), 'hoje' ou 'futuro' (null = sem data)
+export const situacaoProximoContato = (lead) => {
+    const data = String(lead?.proximo_contato || '').slice(0, 10);
+    if (!data) return null;
+    const hoje = dataLocalISO(new Date());
+    if (data < hoje) return 'atrasado';
+    return data === hoje ? 'hoje' : 'futuro';
+};
+export const formatarDiaCurto = (iso) => {
+    const [a, m, d] = String(iso || '').slice(0, 10).split('-');
+    return a && m && d ? `${d}/${m}` : '';
+};
+
 const capitalizar = (texto) => String(texto || '').toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 
 // Troca {nome} pelo primeiro nome e {unidade} pelo nome da unidade

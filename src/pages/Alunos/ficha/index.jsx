@@ -128,7 +128,9 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                         ...h,
                         created_at: h.created_at || h.data_registro,
                         descricao: h.descricao || h.observacao,
-                        autor: h.autor || h.consultor
+                        autor: h.autor || h.consultor,
+                        // Contato do funil feito SEM WhatsApp: em vermelho, para o Líder conferir
+                        alerta: /SEM WhatsApp/.test(String(h.observacao || ''))
                     }));
                 }
 
@@ -146,7 +148,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 timeline.push({ id: `cad_${aluno.id}`, data_real: new Date(aluno.created_at), tipo: 'CADASTRO', titulo: 'Cadastro Realizado', descricao: `Aluno cadastrado no sistema (${aluno.unidade || 'Sem Vínculo'}).`, icone: UserPlus, corBg: 'bg-indigo-500' });
                 vendasAll.forEach(v => timeline.push({ id: `venda_${v.id}`, data_real: new Date(v.data || v.created_at), tipo: 'VENDA', titulo: `Compra: ${v.produto}`, descricao: `Por ${v.vendedor || 'Sistema'} na unidade ${v.unidade}.`, icone: ShoppingCart, corBg: 'bg-blue-500' }));
                 avaliacoesAll.forEach(av => timeline.push({ id: `aval_${av.id}`, data_real: new Date(av.data || av.created_at), tipo: 'AVALIACAO', titulo: 'Avaliação Física', descricao: `Avaliador: ${av.professor || 'N/I'}. Peso: ${av.peso}kg | Gordura: ${av.pgc}%`, icone: Dumbbell, corBg: 'bg-emerald-500' }));
-                leadsAll.forEach(l => timeline.push({ id: `crm_lead_${l.id}`, data_real: new Date(l.created_at || l.data), tipo: 'CRM', titulo: `Funil CRM: ${l.status || l.fase || 'CONTATO'}`, descricao: `Consultor: ${l.vendedor || l.consultor || 'N/I'}.`, icone: MessageCircle, corBg: 'bg-amber-500' }));
+                leadsAll.forEach(l => timeline.push({ id: `crm_lead_${l.id}`, data_real: new Date(l.created_at || l.data), tipo: 'CRM', titulo: `Funil CRM: ${l.status || l.fase || 'CONTATO'}`, descricao: `Consultor: ${l.vendedor || l.consultor || 'N/I'}.${l.status === 'Perdido' && l.motivo_perda ? ` Motivo da perda: ${l.motivo_perda}.` : ''}`, icone: MessageCircle, corBg: 'bg-amber-500' }));
                 // Contatos do CRM marcados no pop-up "Contatos de hoje" e na Migração (aniversário, 24h, 48h, migração).
                 // Feito SEM WhatsApp aparece em vermelho, com a justificativa (para o Líder conferir).
                 const contatosFeitos = await carregarContatosDoAluno(aluno.id, leadsAll.map(l => String(l.id)));

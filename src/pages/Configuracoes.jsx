@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../supabaseClient.js';
+import { supabase, conexaoParaCriarLogin } from '../supabaseClient.js';
 import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2, Building2, AlertTriangle } from 'lucide-react';
 import ModalUnidadesMentor from '../components/Modals/ModalUnidadesMentor.jsx';
 
@@ -89,7 +89,8 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         if (existente?.role === 'MENTOR' && acessoRole.toUpperCase() !== 'MENTOR' && qtdVinculos > 0
             && !window.confirm(`Este login tem ${qtdVinculos} ${qtdVinculos === 1 ? 'unidade vinculada' : 'unidades vinculadas'} como Mentor. Elas serão removidas.\n\nContinuar?`)) return;
 
-        const { error: authError } = await supabase.auth.signUp({
+        // Conexão separada: o Admin continua conectado como ele mesmo (quem grava a permissão abaixo é o Admin)
+        const { error: authError } = await conexaoParaCriarLogin().auth.signUp({
             email: acessoEmail.toLowerCase().trim(),
             password: acessoSenha
         });

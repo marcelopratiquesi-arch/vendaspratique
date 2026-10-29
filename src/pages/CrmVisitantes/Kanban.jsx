@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, classeTipoLead } from './utils';
-import { PhoneCall, MessageCircle, CalendarClock, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
+import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
+import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 
 // ==========================================
 // CARD DO LEAD (Memoizado para Alta Performance)
@@ -13,6 +14,7 @@ const LeadCard = memo(({
     onMoverStatus,
     onDeletar,
     onSalvarNota,
+    onProximo,
     isDeleting,
     isSendingNota,
     notaSalva,
@@ -43,6 +45,8 @@ const LeadCard = memo(({
                     <span className={`inline-block px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${classeTipoLead(lead.tipo_lead)}`}>
                         {lead.tipo_lead || 'Não Informado'}
                     </span>
+                    <EtiquetaProximo lead={lead} />
+                    <EtiquetaParado lead={lead} />
                 </div>
 
                 {podeApagar && (
@@ -111,6 +115,15 @@ const LeadCard = memo(({
                     >
                         <Info className="w-4 h-4" />
                     </button>
+                    {onProximo && (
+                        <button
+                            onClick={() => onProximo(lead)}
+                            className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm"
+                            title="Marcar o próximo contato"
+                        >
+                            <CalendarPlus className="w-4 h-4" />
+                        </button>
+                    )}
                 </div>
 
                 <select
@@ -160,7 +173,8 @@ const Kanban = ({
     setModalDetalhe,
     carregarHistoricoLead,
     registrarHistorico,
-    podeApagar = false
+    podeApagar = false,
+    onProximoContato
 }) => {
     const [deletingIds, setDeletingIds] = useState(() => new Set());
     const [sendingNotaIds, setSendingNotaIds] = useState(() => new Set());
@@ -301,6 +315,7 @@ const Kanban = ({
                                     onMoverStatus={alterarStatus}
                                     onDeletar={handleDeletar}
                                     onSalvarNota={handleSalvarNota}
+                                    onProximo={onProximoContato}
                                     isDeleting={deletingIds.has(v.id)}
                                     isSendingNota={sendingNotaIds.has(v.id)}
                                     notaSalva={notasSalvasIds.has(v.id)}

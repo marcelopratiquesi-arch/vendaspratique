@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
 
-import { formatarCPF, cpfValido, apenasDigitos, mesmoNome, podeApagarLeads, ehRecepcao, dataDoLead, normalizarStatus, classeTipoLead, tipoPeloStatusTecace, marcaFeitoPor } from './utils';
+import { formatarCPF, cpfValido, apenasDigitos, mesmoNome, podeApagarLeads, ehRecepcao, dataDoLead, normalizarStatus, classeTipoLead, tipoPeloStatusTecace, marcaFeitoPor, contatoCombinaComBusca, ACOES_QUE_TIRAM_DO_PARADO, situacaoProximoContato } from './utils';
 import Metricas from './Metricas';
 import Kanban from './Kanban';
 import Lista from './Lista';
@@ -11,11 +11,12 @@ import PainelInicialCrm from './PainelInicialCrm';
 import ContatosDeHoje from './ContatosDeHoje';
 import AbaMigracao from './AbaMigracao';
 import AbaNaoContatar from './AbaNaoContatar';
-import { JanelaNaoContatar } from './JanelasContato';
+import AbaHoje from './AbaHoje';
+import { JanelaNaoContatar, JanelaMotivoPerda, JanelaProximoContato } from './JanelasContato';
 import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar } from './contatosFeitos';
 import { diaISO, contarPessoasDaMeta } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
-import { Repeat, Ban } from 'lucide-react';
+import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Database, Users, ArrowRightCircle, ClipboardPaste, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, UserPlus, Loader2, CalendarCheck } from 'lucide-react';
 
 // O App só carrega leads dos últimos 90 dias. O CRM busca à parte os leads mais antigos que ainda estão em aberto
@@ -26,6 +27,12 @@ const STATUS_ENCERRADOS = ['Fechado', 'Arquivado'];
 const INTERVALO_ATUALIZACAO = 60000;
 // Ações que contam na meta diária (a meta soma PESSOAS diferentes que receberam alguma dessas ações) (puxar fila, capturar e importar não contam)
 const ACOES_DA_META = ['WhatsApp', 'Ligação', 'Observação', 'Mudança de Fase'];
+
+// Base (piscina): contatos por página
+const POR_PAGINA_BASE = 50;
+// Campos criados no Bloco 4 (SQL em sql/2026-10-29-crm-bloco4). Enquanto não existirem no banco, o CRM grava sem eles.
+const CAMPOS_BLOCO4 = ['motivo_perda', 'proximo_contato'];
+const faltaCampoBloco4 = (error) => CAMPOS_BLOCO4.some(c => String(error?.message || '').includes(c));
 
 const montarFiltroCpf = (digitos) => `cpf.eq.${digitos},cpf.eq.${formatarCPF(digitos)}`;
 
@@ -109,6 +116,13 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const [estatisticasPaste, setEstatisticasPaste] = useState({ novos: 0, duplicados: 0 }); 
     
     const [selecionadosBase, setSelecionadosBase] = useState([]);
+    const [buscaBase, setBuscaBase] = useState('');
+    const [paginaBase, setPaginaBase] = useState(1);
+
+    // Bloco 4: janela do motivo da perda ({ ids, nome, lote }) e do próximo contato ({ lead, posContato })
+    const [perdaPendente, setPerdaPendente] = useState(null);
+    const [proximoPendente, setProximoPendente] = useState(null);
+    const camposBloco4Faltando = useRef(false);
 
     // MODAIS E HISTÓRICO
     const [modalWpp, setModalWpp] = useState({ show: false, lead: null, texto: '' });
@@ -165,6 +179,38 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         return () => { cancelado = true; };
     }, [consultorAtivo]);
 
+    // "Parado há X dias" (Bloco 4): data da última ação de cada contato da carteira (Novo/Em Contato), lida do histórico.
+    // A lista de ids vira texto para só buscar de novo quando a carteira mudar (ou a cada atualização dos dados).
+    const [ultimasAcoes, setUltimasAcoes] = useState({ carregado: false, mapa: {} });
+    const idsCarteira = useMemo(() => (consultorAtivo
+        ? visitantes.filter(v => v.puxado_em && mesmoNome(v.puxado_por, consultorAtivo.nome) && ['Novo', 'Em Contato'].includes(v.status)).map(v => String(v.id)).sort().join(',')
+        : ''), [visitantes, consultorAtivo]);
+    useEffect(() => {
+        if (!idsCarteira) { setUltimasAcoes({ carregado: true, mapa: {} }); return; }
+        let cancelado = false;
+        (async () => {
+            const ids = idsCarteira.split(',');
+            const mapa = {};
+            // De 100 em 100 contatos (cada um pode ter muitas ações no histórico)
+            for (let i = 0; i < ids.length; i += 100) {
+                const { data, error } = await supabase.from('historico_leads').select('lead_id, data_registro')
+                    .in('lead_id', ids.slice(i, i + 100))
+                    .in('tipo_acao', ACOES_QUE_TIRAM_DO_PARADO)
+                    .order('data_registro', { ascending: false })
+                    .limit(5000);
+                if (cancelado) return;
+                if (error) { console.error('Erro ao ler a última ação dos contatos (parado há X dias):', error); return; }
+                (data || []).forEach(h => { if (!mapa[h.lead_id]) mapa[h.lead_id] = h.data_registro; });
+            }
+            if (!cancelado) setUltimasAcoes(prev => ({ carregado: true, mapa: { ...prev.mapa, ...mapa } }));
+        })();
+        return () => { cancelado = true; };
+    }, [idsCarteira, versaoDados]);
+    const marcarAcaoAgora = useCallback((leadIds) => {
+        const agora = new Date().toISOString();
+        setUltimasAcoes(prev => ({ ...prev, mapa: { ...prev.mapa, ...Object.fromEntries(leadIds.map(id => [String(id), agora])) } }));
+    }, []);
+
     // Contato de aniversário ou migração feito agora: soma na meta na hora (sem esperar recarregar)
     const somarNaMeta = useCallback((observacao, pessoa = null) => {
         setProgressoHoje(prev => [...prev, { tipo: 'Contato CRM', observacao, data_contato: new Date().toISOString(), pessoa }]);
@@ -209,6 +255,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         if (!ignorarMeta) {
             setProgressoHoje(prev => [...prev, { tipo: tipoAcao, observacao: observacao, data_contato: novoRegistro.data_registro, pessoa: `lead:${leadId}` }]);
         }
+        if (ACOES_QUE_TIRAM_DO_PARADO.includes(tipoAcao)) marcarAcaoAgora([leadId]);
 
         await supabase.from('historico_leads').insert([{
             lead_id: String(leadId),
@@ -223,6 +270,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         if (!leadIds.length) return;
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Sistema');
         const observacao = `${observacaoOriginal || ''}${marcaDeQuemFez()}`;
+        if (ACOES_QUE_TIRAM_DO_PARADO.includes(tipoAcao)) marcarAcaoAgora(leadIds);
         const { error } = await supabase.from('historico_leads').insert(leadIds.map(id => ({
             lead_id: String(id), tipo_acao: tipoAcao, consultor: consultorAtual, observacao
         })));
@@ -672,43 +720,92 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         executarPuxada(selecionadosBase, `${selecionadosBase.length} leads selecionados foram para o Kanban!`);
     };
 
-    const alterarStatusEmLote = async (ids, novoStatus) => {
-        const confirmacao = novoStatus === 'Perdido' ? `Enviar ${ids.length} contatos para a Geladeira (Espera de 30 dias)?` : `Mover ${ids.length} contatos para a fase ${novoStatus}?`;
+    // Grava campos dos contatos. Se o banco ainda não tiver os campos do Bloco 4 (motivo_perda, proximo_contato),
+    // grava o resto sem eles e avisa no console (faltaCampo = true).
+    const atualizarLeads = async (ids, campos) => {
+        const semBloco4 = () => Object.fromEntries(Object.entries(campos).filter(([k]) => !CAMPOS_BLOCO4.includes(k)));
+        let enviar = camposBloco4Faltando.current ? semBloco4() : campos;
+        const tirouCampo = Object.keys(enviar).length < Object.keys(campos).length;
+        if (Object.keys(enviar).length === 0) return { error: null, faltaCampo: true };
+        const { error } = await supabase.from('leads').update(enviar).in('id', ids);
+        if (error && !tirouCampo && faltaCampoBloco4(error)) {
+            camposBloco4Faltando.current = true;
+            console.warn('Os campos motivo_perda/proximo_contato ainda não existem na tabela leads. Rode o SQL do Bloco 4 (sql/2026-10-29-crm-bloco4).', error.message);
+            enviar = semBloco4();
+            if (Object.keys(enviar).length === 0) return { error: null, faltaCampo: true };
+            const { error: erro2 } = await supabase.from('leads').update(enviar).in('id', ids);
+            return { error: erro2, faltaCampo: true };
+        }
+        return { error, faltaCampo: tirouCampo };
+    };
 
-        if(window.confirm(confirmacao)) {
-            const dataPerdido = novoStatus === 'Perdido' ? new Date().toISOString() : null;
-            const anteriores = new Map(visitantes.filter(v => ids.includes(v.id)).map(v => [v.id, { status: v.status, perdido_em: v.perdido_em }]));
+    // Campos que mudam junto com a fase. Perdido guarda a data e o motivo; Fechado e Perdido não têm próximo contato.
+    const camposDaFase = (novoStatus, motivoPerda) => {
+        const perdido = novoStatus === 'Perdido';
+        const campos = { status: novoStatus, perdido_em: perdido ? new Date().toISOString() : null, motivo_perda: perdido ? (motivoPerda || null) : null };
+        if (perdido || novoStatus === 'Fechado') campos.proximo_contato = null;
+        return campos;
+    };
+    const textoMotivo = (motivoPerda) => (motivoPerda ? ` · Motivo: ${motivoPerda}` : '');
 
-            setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, status: novoStatus, perdido_em: dataPerdido } : v));
-            const { error } = await supabase.from('leads').update({ status: novoStatus, perdido_em: dataPerdido }).in('id', ids);
+    // Mover para Perdido (sozinho ou em lote) abre antes a janela do motivo (motivoPerda ainda não informado)
+    const alterarStatusEmLote = async (ids, novoStatus, motivoPerda) => {
+        if (novoStatus === 'Perdido' && motivoPerda === undefined) { setPerdaPendente({ ids, lote: true }); return; }
+        // Para Perdido, a janela do motivo já serviu de confirmação
+        if (novoStatus !== 'Perdido' && !window.confirm(`Mover ${ids.length} contatos para a fase ${novoStatus}?`)) return;
 
-            if (error) {
-                setVisitantes(prev => prev.map(v => anteriores.has(v.id) ? { ...v, ...anteriores.get(v.id) } : v));
-                alert("Erro de conexão. Ação revertida.");
-            } else {
-                registrarHistoricoLote(ids, 'Mudança de Fase', `Movido em lote para "${novoStatus}".`);
-                alert("Operação em lote concluída com sucesso!");
-            }
+        const campos = camposDaFase(novoStatus, motivoPerda);
+        const anteriores = new Map(visitantes.filter(v => ids.includes(v.id)).map(v => [v.id, { status: v.status, perdido_em: v.perdido_em, motivo_perda: v.motivo_perda ?? null, proximo_contato: v.proximo_contato ?? null }]));
+
+        setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, ...campos } : v));
+        const { error } = await atualizarLeads(ids, campos);
+
+        if (error) {
+            setVisitantes(prev => prev.map(v => anteriores.has(v.id) ? { ...v, ...anteriores.get(v.id) } : v));
+            alert("Erro de conexão. Ação revertida.");
+        } else {
+            registrarHistoricoLote(ids, 'Mudança de Fase', `Movido em lote para "${novoStatus}".${textoMotivo(motivoPerda)}`);
+            alert("Operação em lote concluída com sucesso!");
         }
     };
 
-    const alterarStatus = async (id, novoStatus) => {
+    const alterarStatus = async (id, novoStatus, motivoPerda) => {
         const leadAtual = visitantes.find(v => v.id === id);
         const statusAntigo = leadAtual ? leadAtual.status : null;
         if (statusAntigo === novoStatus) return;
+        if (novoStatus === 'Perdido' && motivoPerda === undefined) { setPerdaPendente({ ids: [id], nome: leadAtual?.nome }); return; }
 
-        const dataPerdido = novoStatus === 'Perdido' ? new Date().toISOString() : null;
+        const campos = camposDaFase(novoStatus, motivoPerda);
+        const anteriores = { status: statusAntigo, perdido_em: leadAtual?.perdido_em ?? null, motivo_perda: leadAtual?.motivo_perda ?? null, proximo_contato: leadAtual?.proximo_contato ?? null };
 
-        setVisitantes(prev => prev.map(v => v.id === id ? { ...v, status: novoStatus, perdido_em: dataPerdido } : v));
-        if (modalDetalhe.show && modalDetalhe.lead?.id === id) setModalDetalhe({ ...modalDetalhe, lead: { ...modalDetalhe.lead, status: novoStatus, perdido_em: dataPerdido } });
+        setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...campos } : v));
+        setModalDetalhe(m => (m.show && m.lead?.id === id ? { ...m, lead: { ...m.lead, ...campos } } : m));
 
-        await registrarHistorico(id, 'Mudança de Fase', `Movido de "${statusAntigo}" para "${novoStatus}"`);
-        const { error } = await supabase.from('leads').update({ status: novoStatus, perdido_em: dataPerdido }).eq('id', id);
+        await registrarHistorico(id, 'Mudança de Fase', `Movido de "${statusAntigo}" para "${novoStatus}"${textoMotivo(motivoPerda)}`);
+        const { error } = await atualizarLeads([id], campos);
 
         if (error) {
-            setVisitantes(prev => prev.map(v => v.id === id ? { ...v, status: statusAntigo, perdido_em: leadAtual?.perdido_em ?? null } : v));
+            setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...anteriores } : v));
             alert("Erro de conexão. Revertendo ação.");
         }
+    };
+
+    // Próximo contato (Bloco 4): data AAAA-MM-DD ou null para tirar. Não conta na meta nem tira do "parado".
+    const salvarProximoContato = async (lead, data) => {
+        const anterior = lead.proximo_contato ?? null;
+        setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, proximo_contato: data } : v));
+        setModalDetalhe(m => (m.show && m.lead?.id === lead.id ? { ...m, lead: { ...m.lead, proximo_contato: data } } : m));
+        const { error, faltaCampo } = await atualizarLeads([lead.id], { proximo_contato: data });
+        if (error || faltaCampo) {
+            setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, proximo_contato: anterior } : v));
+            setModalDetalhe(m => (m.show && m.lead?.id === lead.id ? { ...m, lead: { ...m.lead, proximo_contato: anterior } } : m));
+            alert(faltaCampo
+                ? 'O "próximo contato" ainda não foi criado no banco. Peça ao administrador para rodar o SQL do Bloco 4 no Supabase.'
+                : 'Erro de conexão. A data não foi salva.');
+            return false;
+        }
+        await registrarHistorico(lead.id, 'Agendamento', data ? `Próximo contato marcado para ${data.split('-').reverse().join('/')}.` : 'Próximo contato desmarcado.', true);
+        return true;
     };
 
     // ==========================================
@@ -740,7 +837,24 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v) && podeContatar(v)).sort((a,b) => new Date(dataDoLead(b)) - new Date(dataDoLead(a)));
     // Nome comparado sem ligar para maiúsculas/acentos (o Novo Visitante grava o consultor em MAIÚSCULAS)
     const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por, consultorLogado) && v.status !== 'Arquivado' && podeContatar(v));
-    const meusLeadsAtivos = meusLeads.filter(v => v.puxado_em && v.status !== 'Perdido');
+    // ultima_acao_em: data da última ação (só existe depois de ler o histórico; antes disso a etiqueta "parado" não aparece)
+    const comUltimaAcao = (v) => (ultimasAcoes.carregado ? { ...v, ultima_acao_em: ultimasAcoes.mapa[String(v.id)] || null } : v);
+    const meusLeadsAtivos = meusLeads.filter(v => v.puxado_em && v.status !== 'Perdido').map(comUltimaAcao);
+    // Aba "Hoje": próximo contato marcado para hoje ou atrasado
+    const pendentesProximo = meusLeadsAtivos.filter(v => ['hoje', 'atrasado'].includes(situacaoProximoContato(v))).length;
+
+    // Base (piscina): busca por nome, CPF ou telefone e páginas de 50
+    const leadsNaBaseFiltrados = buscaBase.trim() ? leadsNaBase.filter(v => contatoCombinaComBusca(v, buscaBase)) : leadsNaBase;
+    const totalPaginasBase = Math.max(1, Math.ceil(leadsNaBaseFiltrados.length / POR_PAGINA_BASE));
+    const paginaBaseAtual = Math.min(paginaBase, totalPaginasBase);
+    const leadsDaPaginaBase = leadsNaBaseFiltrados.slice((paginaBaseAtual - 1) * POR_PAGINA_BASE, paginaBaseAtual * POR_PAGINA_BASE);
+    const paginaBaseToda = leadsDaPaginaBase.length > 0 && leadsDaPaginaBase.every(l => selecionadosBase.includes(l.id));
+    const todosFiltradosSelecionados = leadsNaBaseFiltrados.length > 0 && leadsNaBaseFiltrados.every(l => selecionadosBase.includes(l.id));
+    const marcarPaginaBase = (marcar) => {
+        const idsPagina = leadsDaPaginaBase.map(l => l.id);
+        setSelecionadosBase(prev => (marcar ? [...new Set([...prev, ...idsPagina])] : prev.filter(id => !idsPagina.includes(id))));
+    };
+    const mudarBuscaBase = (texto) => { setBuscaBase(texto); setPaginaBase(1); setSelecionadosBase([]); };
     const meusLeadsGeladeira = meusLeads.filter(v => v.status === 'Perdido');
 
     // Consultor do cadastro manual: só a recepção da unidade de quem opera (igual aos cartões).
@@ -753,6 +867,13 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         return role.includes('LIDER') || role.includes('LÍDER') || role.includes('RECEP');
     });
     const opcoesVendedor = recepcaoDaUnidade.length > 0 ? recepcaoDaUnidade : (vendedoresPermitidos.length > 0 ? vendedoresPermitidos : colaboradoresAtivos);
+
+    // Próximo contato: abrir a janela para marcar/mudar a data. Depois de um WhatsApp num contato que estava
+    // marcado para hoje (ou atrasado), o CRM já pergunta a próxima data.
+    const abrirProximoContato = (lead) => setProximoPendente({ lead, posContato: false });
+    const perguntarProximoSeMarcado = (lead) => {
+        if (['hoje', 'atrasado'].includes(situacaoProximoContato(lead))) setProximoPendente({ lead, posContato: true });
+    };
 
     // Meta: pessoas diferentes contatadas hoje (mandar 5 mensagens para a mesma pessoa conta 1)
     const pessoasHoje = contarPessoasDaMeta(progressoHoje);
@@ -813,6 +934,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'lista' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <List className="w-4 h-4" /> Lista
                 </button>
+                <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title="Contatos com o próximo contato marcado para hoje ou atrasado">
+                    <CalendarClock className="w-4 h-4" /> Hoje
+                    {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[9px] font-black ${visaoAtiva === 'hoje' ? 'bg-white text-blue-700' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
+                </button>
                 <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-cyan-500 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Snowflake className="w-4 h-4" /> Geladeira ({meusLeadsGeladeira.length})
                 </button>
@@ -856,7 +981,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     <div key={v.id} className={`p-5 rounded-2xl border ${liberado ? 'border-emerald-300 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10' : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60'} relative flex flex-col`}>
                                         <h4 className="font-black text-slate-800 dark:text-white uppercase text-sm mb-1 pr-10">{v.nome}</h4>
                                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-4">{v.telefone}</p>
-                                        
+                                        {v.motivo_perda && (
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-lg px-2.5 py-1.5 mb-4 w-fit max-w-full truncate" title={v.motivo_perda}>
+                                                Motivo: {v.motivo_perda}
+                                            </p>
+                                        )}
+
                                         <div className="mt-auto pt-4 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between">
                                             <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md ${liberado ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-200/50 dark:bg-emerald-500/25' : 'text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-800'}`}>
                                                 {diasNaGeladeira} / 30 Dias
@@ -1022,12 +1152,27 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 col-span-1 lg:col-span-2 mt-2">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
                             <div>
                                 <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 tracking-tight">
                                     <Database className="w-5 h-5 text-indigo-500"/> Banco Bruto 
-                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{leadsNaBase.length} Registros</span>
+                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{buscaBase.trim() ? `${leadsNaBaseFiltrados.length} de ${leadsNaBase.length}` : leadsNaBase.length} Registros</span>
                                 </h3>
+                                <div className="relative mt-3">
+                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        value={buscaBase}
+                                        onChange={(e) => mudarBuscaBase(e.target.value)}
+                                        placeholder="Buscar por nome, CPF ou telefone"
+                                        className="w-72 max-w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 shadow-sm"
+                                    />
+                                    {buscaBase && (
+                                        <button type="button" onClick={() => mudarBuscaBase('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title="Limpar busca">
+                                            <X className="w-3.5 h-3.5" />
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             
                             {selecionadosBase.length > 0 && (
@@ -1052,8 +1197,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                             <input 
                                                 type="checkbox" 
                                                 className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer"
-                                                checked={selecionadosBase.length === leadsNaBase.length && leadsNaBase.length > 0}
-                                                onChange={(e) => e.target.checked ? setSelecionadosBase(leadsNaBase.map(l => l.id)) : setSelecionadosBase([])}
+                                                checked={paginaBaseToda}
+                                                onChange={(e) => marcarPaginaBase(e.target.checked)}
+                                                title="Selecionar os contatos desta página"
                                             />
                                         </th>
                                         <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">Aluno / Lead</th>
@@ -1063,7 +1209,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                                    {leadsNaBase.length > 0 ? leadsNaBase.map(v => (
+                                    {leadsDaPaginaBase.length > 0 ? leadsDaPaginaBase.map(v => (
                                         <tr key={v.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors group cursor-pointer" onClick={() => {
                                             if (selecionadosBase.includes(v.id)) setSelecionadosBase(prev => prev.filter(id => id !== v.id));
                                             else setSelecionadosBase(prev => [...prev, v.id]);
@@ -1096,13 +1242,43 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     )) : (
                                         <tr>
                                             <td colSpan="5" className="text-center py-10 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                                                A piscina de leads está vazia. Cole dados no Smart Paste para começar.
+                                                {leadsNaBase.length > 0 ? 'Nenhum contato encontrado nesta busca.' : 'A piscina de leads está vazia. Cole dados no Smart Paste para começar.'}
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* PÁGINAS E SELEÇÃO DE TODOS OS ENCONTRADOS */}
+                        {leadsNaBaseFiltrados.length > 0 && (
+                            <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
+                                <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-3">
+                                    <span>{leadsNaBaseFiltrados.length} contatos{selecionadosBase.length > 0 ? ` · ${selecionadosBase.length} selecionados` : ''}</span>
+                                    {paginaBaseToda && !todosFiltradosSelecionados && (
+                                        <button type="button" onClick={() => setSelecionadosBase(leadsNaBaseFiltrados.map(l => l.id))} className="text-indigo-600 dark:text-indigo-400 hover:underline underline-offset-2">
+                                            Selecionar todos os {leadsNaBaseFiltrados.length} encontrados
+                                        </button>
+                                    )}
+                                    {selecionadosBase.length > 0 && (
+                                        <button type="button" onClick={() => setSelecionadosBase([])} className="text-slate-400 hover:text-slate-700 dark:hover:text-white hover:underline underline-offset-2">
+                                            Limpar seleção
+                                        </button>
+                                    )}
+                                </div>
+                                {totalPaginasBase > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <button type="button" onClick={() => setPaginaBase(Math.max(1, paginaBaseAtual - 1))} disabled={paginaBaseAtual <= 1} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+                                        </button>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Página {paginaBaseAtual} de {totalPaginasBase}</span>
+                                        <button type="button" onClick={() => setPaginaBase(Math.min(totalPaginasBase, paginaBaseAtual + 1))} disabled={paginaBaseAtual >= totalPaginasBase} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
+                                            Próxima <ChevronRight className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -1130,6 +1306,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     registrarHistorico={registrarHistorico}
                     usuarioLogado={usuarioLogado}
                     podeApagar={podeApagar}
+                    onProximoContato={abrirProximoContato}
                 />
             )}
             
@@ -1146,6 +1323,18 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     registrarHistorico={registrarHistorico}
                     podeApagar={podeApagar}
                     usuarioLogado={usuarioLogado}
+                    onNaoContatar={setNaoContatarAlvo}
+                    onProximoContato={abrirProximoContato}
+                />
+            )}
+
+            {visaoAtiva === 'hoje' && (
+                <AbaHoje
+                    visitantes={meusLeadsAtivos}
+                    registrarHistorico={registrarHistorico}
+                    abrirFicha={(lead) => { setModalDetalhe({ show: true, lead }); carregarHistoricoLead(lead.id); }}
+                    onPedirProximo={(lead) => setProximoPendente({ lead, posContato: true })}
+                    onRemarcar={abrirProximoContato}
                     onNaoContatar={setNaoContatarAlvo}
                 />
             )}
@@ -1178,7 +1367,30 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 mostrarRelatorio={mostrarRelatorio} setMostrarRelatorio={setMostrarRelatorio} progressoHoje={progressoHoje} consultorAtivo={consultorAtivo}
                 usuarioLogado={usuarioLogado} META_DIARIA={META_DIARIA} visitantes={meusLeads} setConsultorAtivo={setConsultorAtivo}
                 onNaoContatar={setNaoContatarAlvo}
+                onProximoContato={abrirProximoContato}
+                aoEnviarWhatsApp={perguntarProximoSeMarcado}
             />
+
+            {perdaPendente && (
+                <JanelaMotivoPerda
+                    quantidade={perdaPendente.ids.length}
+                    nome={perdaPendente.nome}
+                    onFechar={() => setPerdaPendente(null)}
+                    onConfirmar={(motivo) => (perdaPendente.lote
+                        ? alterarStatusEmLote(perdaPendente.ids, 'Perdido', motivo)
+                        : alterarStatus(perdaPendente.ids[0], 'Perdido', motivo))}
+                />
+            )}
+
+            {proximoPendente && (
+                <JanelaProximoContato
+                    nome={proximoPendente.lead.nome}
+                    dataAtual={proximoPendente.lead.proximo_contato}
+                    posContato={proximoPendente.posContato}
+                    onFechar={() => setProximoPendente(null)}
+                    onSalvar={(data) => salvarProximoContato(proximoPendente.lead, data)}
+                />
+            )}
 
             {naoContatarAlvo && (
                 <JanelaNaoContatar

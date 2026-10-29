@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, contatoCombinaComBusca, classeTipoLead } from './utils';
-import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus, Search, X, Ban } from 'lucide-react';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, contatoCombinaComBusca, classeTipoLead, diasParado, DIAS_PARADO_AMARELO } from './utils';
+import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus, Search, X, Ban, CalendarPlus, Hourglass } from 'lucide-react';
+import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
 
 const Lista = ({ 
@@ -15,11 +16,14 @@ const Lista = ({
     registrarHistorico,
     podeApagar = false,
     usuarioLogado,
-    onNaoContatar
+    onNaoContatar,
+    onProximoContato
 }) => {
     const [sortConfig, setSortConfig] = useState({ key: 'puxado_em', direction: 'desc' });
     const [filtroStatus, setFiltroStatus] = useState('');
     const [busca, setBusca] = useState('');
+    // "Só parados": contatos há 5 dias ou mais sem nenhuma ação
+    const [soParados, setSoParados] = useState(false);
     // Contato cuja ficha de aluno está aberta no pop-up (o CRM fica aberto por baixo)
     const [contatoFicha, setContatoFicha] = useState(null);
     const [selecionados, setSelecionados] = useState([]);
@@ -56,6 +60,9 @@ const Lista = ({
     }
     if (busca.trim()) {
         leadsExibidos = leadsExibidos.filter(v => contatoCombinaComBusca(v, busca));
+    }
+    if (soParados) {
+        leadsExibidos = leadsExibidos.filter(v => v.ultima_acao_em !== undefined && (diasParado(v, v.ultima_acao_em) ?? -1) >= DIAS_PARADO_AMARELO);
     }
 
     leadsExibidos.sort((a, b) => {
@@ -135,6 +142,15 @@ const Lista = ({
                         )}
                     </div>
 
+                    <button
+                        type="button"
+                        onClick={() => { setSoParados(v => !v); setSelecionados([]); }}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${soParados ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300'}`}
+                        title={`Só os contatos há ${DIAS_PARADO_AMARELO} dias ou mais sem nenhuma ação`}
+                    >
+                        <Hourglass className="w-3.5 h-3.5" /> Só parados
+                    </button>
+
                     <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
                         <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
@@ -202,6 +218,10 @@ const Lista = ({
                                             <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>
                                                 {v.tipo_lead || 'LEAD'}
                                             </span>
+                                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                                <EtiquetaProximo lead={v} />
+                                                <EtiquetaParado lead={v} />
+                                            </div>
                                         </td>
                                         <td className="px-6 py-3">
                                             <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
@@ -229,6 +249,11 @@ const Lista = ({
                                                 <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200 dark:border-slate-800" title="Ficha Completa">
                                                     <Info className="w-4 h-4" />
                                                 </button>
+                                                {onProximoContato && (
+                                                    <button onClick={() => onProximoContato(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title="Marcar o próximo contato">
+                                                        <CalendarPlus className="w-4 h-4" />
+                                                    </button>
+                                                )}
                                                 {onNaoContatar && (
                                                     <button onClick={() => onNaoContatar(v)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title="Não contatar (a pessoa pediu para não receber contato)">
                                                         <Ban className="w-4 h-4" />

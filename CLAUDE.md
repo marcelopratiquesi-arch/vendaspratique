@@ -81,6 +81,12 @@ Sistema de vendas usado por uma rede de academias (Pratique). O dono do projeto 
     - Contato novo é salvo na unidade de quem está operando (nunca "TODAS"). CPF é salvo só com números e conferido no banco inteiro antes de salvar.
     - **O "Day Use (3 Dias)" não existe mais.** O funil tem só Novo → Em Contato → Fechado → Perdido (`COLUNAS` em utils.js). Contato que ainda esteja gravado como Day Use aparece como "Em Contato" (`normalizarStatus`). Não recriar a fase nem textos que ofereçam Day Use.
     - A Base (piscina) e o "puxar fila" mostram só os contatos da unidade de quem está operando.
+    - **Bloco 4 (decisões do dono, 29/10/2026):**
+      - **Base:** busca por nome, CPF ou telefone e páginas de 50. O "selecionar todos" marca a página; o link "Selecionar todos os X encontrados" marca todos da busca.
+      - **"Parado há X dias"** no Kanban, na Lista e na aba Hoje: **amarelo a partir de 5 dias, vermelho a partir de 10** (`DIAS_PARADO_AMARELO`/`DIAS_PARADO_VERMELHO` em utils.js). Conta a última ação do `historico_leads` (WhatsApp, Ligação, Observação, Mudança de Fase, Fila de Trabalho, `ACOES_QUE_TIRAM_DO_PARADO`); sem histórico, conta desde que foi puxado. Só Novo e Em Contato. A Lista tem o filtro "Só parados".
+      - **Motivo da perda (obrigatório):** mover para Perdido (sozinho ou em lote) abre a janela do motivo: Preço, Horário, Distância / localização, Fechou em outra academia, Sem interesse / mudou de ideia, Não respondeu ou Outro (escrito, gravado como "Outro: texto") — `MOTIVOS_PERDA`. Fica no campo `leads.motivo_perda` e no histórico ("· Motivo: ..."). Aparece na Geladeira, na ficha do contato e na ficha do aluno. O Relatório tem o quadro "Por que perdemos". Sair de Perdido apaga o motivo.
+      - **Próximo contato** (campo `leads.proximo_contato`, data): marcado pelo botão de calendário no Kanban/Lista ou na ficha do contato (amanhã, 3 dias, 7 dias ou outra data). **Aba "Hoje"** ([AbaHoje.jsx](src/pages/CrmVisitantes/AbaHoje.jsx)) mostra Atrasados e Para hoje da carteira da recepcionista, com contador. WhatsApp ali já registra o contato; "Feito sem WhatsApp" pede justificativa (fica em vermelho na ficha). **Depois do contato o CRM sempre pergunta "quando é o próximo?"** (só sai escolhendo data ou "Sem próximo contato"); o WhatsApp pela janela normal também pergunta se o contato estava marcado para hoje/atrasado. Fechado e Perdido apagam a data. Marcar data grava "Agendamento" no histórico (não conta na meta nem tira do "parado").
+      - SQL dos campos: [sql/2026-10-29-crm-bloco4/](sql/2026-10-29-crm-bloco4/) (`1_campos_novos.sql`, `9_desfazer.sql`). Sem os campos no banco, o CRM grava o resto sem eles e avisa no console; o "próximo contato" mostra um aviso para rodar o SQL.
     - Quando Líder/Admin/Mentor age no CRM de uma recepcionista, a ação conta para ela, mas o histórico ganha a marca "[feito por NOME (Papel)]".
     - Na Visão Global (seletor do topo em "TODAS"), a tela de entrada mostra o **Painel da Rede** ([PainelRedeCrm.jsx](src/pages/CrmVisitantes/PainelRedeCrm.jsx)): uma linha por unidade com Usando (ação hoje/ontem), Parado (2 a 6 dias) ou Sem uso (7 dias ou mais). Clicar numa unidade filtra os cartões e a planilha.
 
@@ -113,7 +119,7 @@ Em 29/10/2026 o dono mandou publicar tudo (CRM + Histórico com Duplicidades/Lix
 - **Rodado no banco pelo dono:** tabelas e consultas das Etapas B/C, `crm_puxar_migracao` (versão antiga) e `crm_contatos_feitos_do_aluno`.
 - **Rodado no banco em 29/10/2026:** nova `crm_puxar_migracao` (a fila segue a recepcionista do cartão, porque o login da Recepção é da unidade, ex.: "VENEZA"); a conferência não achou nenhum aluno preso na fila de login de unidade.
 - **Pendente de teste:** puxar na Migração pelo login da Recepção, "Contatado hoje", grupo "Atrasados", Não contatar de contato sem CPF.
-- **Depois:** fases restantes do CRM (busca e páginas na Base, "próximo contato" + aba "Hoje", motivo da perda, "parado há X dias"), Fase 3 (ligar CRM a alunos/vendas) e publicar só quando o dono disser "pode publicar".
+- **Depois:** Fase 3 (ligar CRM a alunos/vendas) e publicar só quando o dono disser "pode publicar".
 
 ## Como rodar
 
