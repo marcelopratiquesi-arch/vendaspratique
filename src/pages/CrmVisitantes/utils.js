@@ -1,3 +1,4 @@
+import { localeAtual, tx } from '../../i18n/traduzir.js';
 // ==========================================
 // UTILS: Funções de Apoio do CRM
 // ==========================================
@@ -225,9 +226,9 @@ export const formatarDataHora = (isoString) => {
     if (!isoString) return '';
     const d = new Date(isoString);
     if (isNaN(d.getTime())) return '';
-    const data = d.toLocaleDateString('pt-BR');
-    const hora = d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return `${data} às ${hora}`;
+    const data = d.toLocaleDateString(localeAtual());
+    const hora = d.toLocaleTimeString(localeAtual(), { hour: '2-digit', minute: '2-digit' });
+    return `${data} ${tx('às')} ${hora}`;
 };
 
 // Nova função inteligente para saudação automática baseada na hora do dia

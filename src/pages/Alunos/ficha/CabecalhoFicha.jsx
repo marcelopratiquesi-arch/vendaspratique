@@ -3,6 +3,7 @@ import { supabase } from '../../../supabaseClient.js';
 import { UserRoundPen, ShoppingCart, Dumbbell, IdCard, Phone, Mail } from 'lucide-react';
 import { extrairIniciais, formatarTelefone, limparApenasDigitos } from '../utils.js';
 import CopyButton from './CopyButton.jsx';
+import { tx } from '../../../i18n/traduzir.js';
 
 const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-BR' }) => {
     // Estados para armazenar os dados reais caso o aluno venha da lista de "Recentes" (mascarado)
@@ -57,7 +58,7 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
                         </div>
                     )}
                     {aluno.matricula && aluno.matricula !== 'VISITANTE' && (
-                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm" title="Matrícula Ativa"></div>
+                        <div className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full shadow-sm" title={tx("Matrícula Ativa")}></div>
                     )}
                 </div>
 
@@ -71,9 +72,9 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
                         {/* MATRÍCULA - AZUL */}
                         <div className="flex items-center gap-1.5">
                             <IdCard className="w-3.5 h-3.5 text-blue-500" />
-                            <span className="text-blue-600 font-semibold dark:text-blue-400">{aluno.matricula && aluno.matricula !== 'VISITANTE' ? `#${aluno.matricula}` : 'S/ Matrícula'}</span>
+                            <span className="text-blue-600 font-semibold dark:text-blue-400">{aluno.matricula && aluno.matricula !== 'VISITANTE' ? `#${aluno.matricula}` : tx("S/ Matrícula")}</span>
                             {aluno.matricula && aluno.matricula !== 'VISITANTE' && (
-                                <CopyButton value={aluno.matricula} label="Copiar Matrícula" className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
+                                <CopyButton value={aluno.matricula} label={tx("Copiar Matrícula")} className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
                             )}
                         </div>
 
@@ -84,7 +85,7 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
                             <IdCard className="w-3.5 h-3.5 text-violet-500" />
                             <span>{cpfCompletoExibicao}</span>
                             {cpfLimpo && (
-                                <CopyButton value={cpfLimpo} label="Copiar CPF" className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
+                                <CopyButton value={cpfLimpo} label={tx("Copiar CPF")} className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
                             )}
                         </div>
 
@@ -95,7 +96,7 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
                             <Phone className="w-3.5 h-3.5 text-emerald-500" />
                             <span>{formatarTelefone(telefoneReal)}</span>
                             {telefoneReal && (
-                                <CopyButton value={limparApenasDigitos(telefoneReal)} label="Copiar Telefone" className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
+                                <CopyButton value={limparApenasDigitos(telefoneReal)} label={tx("Copiar Telefone")} className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
                             )}
                         </div>
 
@@ -104,9 +105,9 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
                         {/* E-MAIL - ÂMBER */}
                         <div className="flex items-center gap-1.5 lowercase">
                             <Mail className="w-3.5 h-3.5 text-amber-500" />
-                            <span>{emailReal || 'sem e-mail'}</span>
+                            <span>{emailReal || tx("sem e-mail")}</span>
                             {emailReal && (
-                                <CopyButton value={emailReal} label="Copiar E-mail" className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
+                                <CopyButton value={emailReal} label={tx("Copiar E-mail")} className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
                             )}
                         </div>
 
@@ -116,18 +117,18 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
 
             <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
                 <button onClick={onEditar} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60">
-                    <UserRoundPen className="w-3.5 h-3.5" /> Editar
+                    <UserRoundPen className="w-3.5 h-3.5" />{' '}{tx("Editar")}
                 </button>
                 
                 {onVender && (
                     <button onClick={onVender} className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1.5">
-                        <ShoppingCart className="w-3.5 h-3.5" /> Vender
+                        <ShoppingCart className="w-3.5 h-3.5" />{' '}{tx("Vender")}
                     </button>
                 )}
                 
                 {onAvaliar && (
                     <button onClick={onAvaliar} className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1.5">
-                        <Dumbbell className="w-3.5 h-3.5" /> Avaliação
+                        <Dumbbell className="w-3.5 h-3.5" />{' '}{tx("Avaliação")}
                     </button>
                 )}
             </div>

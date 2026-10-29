@@ -6,6 +6,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { parseSmartPaste, mascaraCPF, formatarTelefone } from './utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const AlunosTab = (props) => {
     const { usuarioLogado, usuarioVirtual } = props;
@@ -141,7 +142,7 @@ const AlunosTab = (props) => {
     // ==========================================
     const analisarDados = async () => {
         if (!rawText.trim()) return;
-        if (isVisaoGlobal) return avisar('Selecione uma unidade específica de destino no menu superior da tela.');
+        if (isVisaoGlobal) return avisar(tx("Selecione uma unidade específica de destino no menu superior da tela."));
 
         setAnalisando(true);
         try {
@@ -309,7 +310,7 @@ const AlunosTab = (props) => {
             setFiltroDashboard('TODOS');
         } catch (err) {
             console.error(err);
-            avisar(`Erro ao analisar os dados cruzados com a nuvem.${err?.message ? `\n\n${err.message}` : ''}`);
+            avisar(tx("Erro ao analisar os dados cruzados com a nuvem.{v1}", { v1: err?.message ? `\n\n${err.message}` : '' }));
         } finally {
             setAnalisando(false);
         }
@@ -331,7 +332,7 @@ const AlunosTab = (props) => {
         );
 
         if (validos.length === 0) return;
-        if (isVisaoGlobal) return avisar('Selecione uma unidade específica de destino.');
+        if (isVisaoGlobal) return avisar(tx("Selecione uma unidade específica de destino."));
 
         setImportando(true);
         setProgresso(0);
@@ -392,7 +393,7 @@ const AlunosTab = (props) => {
                 setProgresso(Math.round((gravados / validos.length) * 100));
             }
 
-            avisar('Integração de alunos e correção de matrículas processada com sucesso!');
+            avisar(tx("Integração de alunos e correção de matrículas processada com sucesso!"));
             setModalPasteOpen(false);
             setRawText('');
             setPreviewData([]);
@@ -401,7 +402,7 @@ const AlunosTab = (props) => {
             carregarAlunos(); 
         } catch (error) {
             console.error("Erro na importação:", error);
-            avisar(`Erro crítico ao gravar os dados. Verifique a conexão com a internet.${error?.message ? `\n\n${error.message}` : ''}`);
+            avisar(tx("Erro crítico ao gravar os dados. Verifique a conexão com a internet.{v1}", { v1: error?.message ? `\n\n${error.message}` : '' }));
         } finally {
             setImportando(false);
             setProgresso(0);
@@ -448,9 +449,9 @@ const AlunosTab = (props) => {
         return (
             <div className="flex flex-col items-center justify-center h-[60vh] bg-rose-50 border-2 border-dashed border-rose-200 rounded-[32px] p-8 text-center animate-[fadeIn_0.3s_ease-out] dark:bg-rose-500/10 dark:border-rose-500/30">
                 <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner dark:bg-rose-500/20 dark:text-rose-400"><ShieldAlert className="w-10 h-10" /></div>
-                <h2 className="text-2xl font-black text-rose-800 uppercase tracking-tight dark:text-rose-300">FALHA DE AUTORIZAÇÃO</h2>
-                <p className="text-sm font-bold text-rose-600 mt-2 max-w-md dark:text-rose-400">Não foi possível identificar a sua unidade de trabalho ativa. Por motivos de segurança, o acesso ao banco de alunos foi bloqueado.</p>
-                <button onClick={() => window.location.reload()} className="mt-8 px-6 py-3 bg-rose-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:bg-rose-700 transition-colors">Recarregar Sistema</button>
+                <h2 className="text-2xl font-black text-rose-800 uppercase tracking-tight dark:text-rose-300">{tx("FALHA DE AUTORIZAÇÃO")}</h2>
+                <p className="text-sm font-bold text-rose-600 mt-2 max-w-md dark:text-rose-400">{tx("Não foi possível identificar a sua unidade de trabalho ativa. Por motivos de segurança, o acesso ao banco de alunos foi bloqueado.")}</p>
+                <button onClick={() => window.location.reload()} className="mt-8 px-6 py-3 bg-rose-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:bg-rose-700 transition-colors">{tx("Recarregar Sistema")}</button>
             </div>
         );
     }
@@ -476,7 +477,7 @@ const AlunosTab = (props) => {
                         <h2 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{t('students.title', {defaultValue: 'Banco de Alunos'})}</h2>
                         <div className="flex items-center gap-2 mt-0.5">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                UNIDADE ATUAL: <span className="text-blue-600 dark:text-blue-400">{isVisaoGlobal ? 'VISÃO GLOBAL' : unidadeAtiva}</span>
+                                {tx("UNIDADE ATUAL:")}{' '}<span className="text-blue-600 dark:text-blue-400">{isVisaoGlobal ? tx("VISÃO GLOBAL") : unidadeAtiva}</span>
                             </p>
                         </div>
                     </div>
@@ -485,13 +486,13 @@ const AlunosTab = (props) => {
                 <div className="flex w-full sm:w-auto gap-3">
                     <button 
                         onClick={() => {
-                            if (isVisaoGlobal) return avisar("Selecione uma unidade específica no menu do cabeçalho da página antes de colar dados.");
+                            if (isVisaoGlobal) return avisar(tx("Selecione uma unidade específica no menu do cabeçalho da página antes de colar dados."));
                             setModalPasteOpen(true);
                         }} 
                         disabled={isVisaoGlobal}
                         className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
                     >
-                        <ClipboardPaste className="w-4 h-4" /> Smart Paste (Colar Dados)
+                        <ClipboardPaste className="w-4 h-4" />{' '}{tx("Smart Paste (Colar Dados)")}
                     </button>
                 </div>
             </div>
@@ -503,7 +504,7 @@ const AlunosTab = (props) => {
                         <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={t('students.search', {defaultValue: 'Buscar por Nome ou CPF...'})} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
                     </div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest self-end sm:self-center">
-                        {totalItems} {isVisaoGlobal ? 'ALUNOS NA REDE' : `ALUNOS REGISTRADOS EM ${unidadeAtiva}`}
+                        {totalItems} {isVisaoGlobal ? tx("ALUNOS NA REDE") : tx("ALUNOS REGISTRADOS EM {unidadeAtiva}", { unidadeAtiva: unidadeAtiva })}
                     </div>
                 </div>
                 
@@ -518,7 +519,7 @@ const AlunosTab = (props) => {
                                 <tr>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.name')}</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.cpf')}</th>
-                                    {isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center dark:border-slate-800">VÍNCULOS</th>}
+                                    {isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center dark:border-slate-800">{tx("VÍNCULOS")}</th>}
                                     {!isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.enrollment')}</th>}
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.contact')}</th>
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.created')}</th>
@@ -539,7 +540,7 @@ const AlunosTab = (props) => {
                                             {isVisaoGlobal && (
                                                 <td className="px-6 py-4 text-center">
                                                     <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${a.total_vinculos > 1 ? 'text-purple-700 bg-purple-100 border-purple-200 dark:text-purple-400 dark:bg-purple-500/20 dark:border-purple-500/30' : a.total_vinculos === 1 ? 'text-blue-700 bg-blue-100 border-blue-200 dark:text-blue-400 dark:bg-blue-500/20 dark:border-blue-500/30' : 'text-slate-500 bg-slate-100 border-slate-200 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-800'}`}>
-                                                        {a.total_vinculos === 0 ? 'SEM VÍNCULO' : a.total_vinculos > 1 ? 'MULTIPLO' : a.unidade_vinculo}
+                                                        {a.total_vinculos === 0 ? tx("SEM VÍNCULO") : a.total_vinculos > 1 ? tx("MULTIPLO") : a.unidade_vinculo}
                                                     </span>
                                                 </td>
                                             )}
@@ -572,7 +573,7 @@ const AlunosTab = (props) => {
                                             <div className="flex flex-col items-center justify-center">
                                                 <Users className="w-12 h-12 text-slate-200 mb-3" />
                                                 <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] dark:text-slate-400">
-                                                    NENHUM ALUNO CADASTRADO PARA A UNIDADE: <span className="text-blue-600 dark:text-blue-400">{unidadeAtiva}</span>
+                                                    {tx("NENHUM ALUNO CADASTRADO PARA A UNIDADE:")}{' '}<span className="text-blue-600 dark:text-blue-400">{unidadeAtiva}</span>
                                                 </p>
                                             </div>
                                         </td>
@@ -603,9 +604,9 @@ const AlunosTab = (props) => {
                             <div className="flex items-center gap-4">
                                 <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><ClipboardPaste className="w-6 h-6" /></div>
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">Smart Paste: Importação TECACE</h3>
+                                    <h3 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Smart Paste: Importação TECACE")}</h3>
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1.5 dark:text-slate-400">
-                                        Importando dados para: <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded dark:text-emerald-400 dark:bg-emerald-500/10">{unidadeAtiva}</span>
+                                        {tx("Importando dados para:")}{' '}<span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded dark:text-emerald-400 dark:bg-emerald-500/10">{unidadeAtiva}</span>
                                     </p>
                                 </div>
                             </div>
@@ -618,19 +619,19 @@ const AlunosTab = (props) => {
                                     <div className="bg-blue-50 border border-blue-200 p-5 rounded-2xl text-blue-800 text-sm font-semibold shadow-inner mb-6 flex gap-4 items-start dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">
                                         <Info className="w-6 h-6 text-blue-500 shrink-0" />
                                         <div>
-                                            <span className="font-black tracking-tight block mb-1 text-base">Como Copiar e Colar (Integração TECACE)?</span>
-                                            Exporte a lista de alunos do TECACE, copie as linhas do Excel (com o cabeçalho) e <strong>cole diretamente na caixa abaixo</strong>. O motor lerá as colunas de "Documento" (CPF) e "Matrícula" e ajustará a sua base de dados automaticamente. Se houver divergência de matrícula antiga, o sistema pedirá a sua confirmação.
+                                            <span className="font-black tracking-tight block mb-1 text-base">{tx("Como Copiar e Colar (Integração TECACE)?")}</span>
+                                            {tx("Exporte a lista de alunos do TECACE, copie as linhas do Excel (com o cabeçalho) e")}{' '}<strong>{tx("cole diretamente na caixa abaixo")}</strong>{tx(". O motor lerá as colunas de \"Documento\" (CPF) e \"Matrícula\" e ajustará a sua base de dados automaticamente. Se houver divergência de matrícula antiga, o sistema pedirá a sua confirmação.")}
                                         </div>
                                     </div>
                                     <textarea 
                                         value={rawText} 
                                         onChange={(e) => setRawText(e.target.value)} 
                                         className="flex-1 w-full bg-white border border-slate-200 rounded-2xl p-6 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 resize-none shadow-sm transition-all dark:bg-slate-900 dark:border-slate-800"
-                                        placeholder="Cole as colunas copiadas do Excel do TECACE aqui (Ctrl+V)..."
+                                        placeholder={tx("Cole as colunas copiadas do Excel do TECACE aqui (Ctrl+V)...")}
                                     ></textarea>
                                     <div className="flex justify-end mt-6">
                                         <button onClick={analisarDados} disabled={!rawText.trim() || analisando} className="bg-slate-800 hover:bg-slate-900 text-white px-8 py-4 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md flex items-center gap-2 disabled:opacity-50 border border-slate-700">
-                                            {analisando ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />} Auditar Dados
+                                            {analisando ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />}{' '}{tx("Auditar Dados")}
                                         </button>
                                     </div>
                                 </div>
@@ -643,7 +644,7 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'NOVOS' ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-200 scale-[1.02] dark:bg-emerald-500/10' : 'bg-white border-emerald-200 hover:border-emerald-400 dark:bg-slate-900 dark:border-emerald-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-emerald-50/50"><CheckCircle2 className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1 relative z-10 dark:text-emerald-400">Novos Alunos</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1 relative z-10 dark:text-emerald-400">{tx("Novos Alunos")}</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.novos}</p>
                                         </button>
                                         
@@ -652,9 +653,9 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'VINCULOS' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 scale-[1.02] dark:bg-blue-500/10' : 'bg-white border-blue-200 hover:border-blue-400 dark:bg-slate-900 dark:border-blue-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-blue-50/50"><Link className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10 dark:text-blue-400">Novos Vínculos</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10 dark:text-blue-400">{tx("Novos Vínculos")}</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.vinculos}</p>
-                                            <p className="text-[10px] font-bold text-slate-400 relative z-10 mt-1">Já cadastrados, sem unidade</p>
+                                            <p className="text-[10px] font-bold text-slate-400 relative z-10 mt-1">{tx("Já cadastrados, sem unidade")}</p>
                                         </button>
 
                                         {/* TRANSFERÊNCIAS: alunos que saem de outra unidade e passam a ser só desta */}
@@ -663,14 +664,14 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'TRANSFERIR' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 scale-[1.02] dark:bg-blue-500/10' : 'bg-white border-blue-200 hover:border-blue-400 dark:bg-slate-900 dark:border-blue-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-blue-50/50"><ArrowRightLeft className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10 dark:text-blue-400">Transferidos p/ {unidadeAtiva}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10 dark:text-blue-400">{tx("Transferidos p/")}{' '}{unidadeAtiva}</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.transferir}</p>
                                             {dashboardStats.origens.length > 0 && (
                                                 <div className="relative z-10 mt-1 space-y-0.5">
                                                     {dashboardStats.origens.slice(0, 3).map(([origem, qtd]) => (
-                                                        <p key={origem} className="text-[10px] font-bold text-blue-500 uppercase truncate" title={`${qtd} saem de ${origem}`}>{qtd} de {origem}</p>
+                                                        <p key={origem} className="text-[10px] font-bold text-blue-500 uppercase truncate" title={tx("{qtd} saem de {origem}", { qtd: qtd, origem: origem })}>{qtd}{' '}{tx("de")}{' '}{origem}</p>
                                                     ))}
-                                                    {dashboardStats.origens.length > 3 && <p className="text-[10px] font-bold text-slate-400">+ {dashboardStats.origens.length - 3} unidades</p>}
+                                                    {dashboardStats.origens.length > 3 && <p className="text-[10px] font-bold text-slate-400">+ {dashboardStats.origens.length - 3}{' '}{tx("unidades")}</p>}
                                                 </div>
                                             )}
                                         </button>
@@ -680,7 +681,7 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ATUALIZACOES' ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-200 scale-[1.02] dark:bg-amber-500/10' : 'bg-white border-amber-200 hover:border-amber-400 dark:bg-slate-900 dark:border-amber-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-amber-50/50"><RefreshCcw className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1 relative z-10 dark:text-amber-400">Matrículas Novas</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1 relative z-10 dark:text-amber-400">{tx("Matrículas Novas")}</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.atualizacoes}</p>
                                         </button>
                                         
@@ -689,7 +690,7 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'CONFLITOS' ? 'bg-rose-100 border-rose-500 ring-2 ring-rose-300 scale-[1.02] dark:bg-rose-500/20' : dashboardStats.conflitosGerais > 0 ? 'bg-rose-50 border-rose-300 hover:border-rose-400 ring-2 ring-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30' : 'bg-white border-rose-200 hover:border-rose-300 dark:bg-slate-900 dark:border-rose-500/30 dark:hover:border-rose-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-rose-500/10"><AlertTriangle className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 mb-1 relative z-10 dark:text-rose-400">Ação Necessária</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 mb-1 relative z-10 dark:text-rose-400">{tx("Ação Necessária")}</p>
                                             <p className="text-3xl font-black text-rose-700 relative z-10 dark:text-rose-400">{dashboardStats.conflitosGerais}</p>
                                         </button>
                                         
@@ -698,7 +699,7 @@ const AlunosTab = (props) => {
                                             className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ERROS' ? 'bg-slate-100 border-slate-500 ring-2 ring-slate-200 scale-[1.02] dark:bg-slate-800' : 'bg-white border-slate-200 hover:border-slate-400 dark:bg-slate-900 dark:border-slate-800'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-slate-100"><ShieldAlert className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 relative z-10 dark:text-slate-400">Erros e Dados Repetidos</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 relative z-10 dark:text-slate-400">{tx("Erros e Dados Repetidos")}</p>
                                             <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.errosIniciais}</p>
                                         </button>
                                     </div>
@@ -708,18 +709,18 @@ const AlunosTab = (props) => {
                                         <table className="w-full text-left text-[10px] whitespace-nowrap">
                                             <thead className="bg-slate-100 font-black text-slate-500 uppercase tracking-widest sticky top-0 z-10 shadow-sm border-b border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800">
                                                 <tr>
-                                                    <th className="p-4 pl-6">Relatório de Decisão</th>
-                                                    <th className="p-4">CPF Analisado</th>
-                                                    <th className="p-4">Matrícula (TECACE)</th>
-                                                    <th className="p-4">Nome do Aluno</th>
-                                                    <th className="p-4">Ação Especial</th>
+                                                    <th className="p-4 pl-6">{tx("Relatório de Decisão")}</th>
+                                                    <th className="p-4">{tx("CPF Analisado")}</th>
+                                                    <th className="p-4">{tx("Matrícula (TECACE)")}</th>
+                                                    <th className="p-4">{tx("Nome do Aluno")}</th>
+                                                    <th className="p-4">{tx("Ação Especial")}</th>
                                                 </tr>
                                             </thead>
                                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                                 {dadosExibicao.length === 0 ? (
                                                     <tr>
                                                         <td colSpan="5" className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest">
-                                                            Nenhum registro encontrado para este filtro.
+                                                            {tx("Nenhum registro encontrado para este filtro.")}
                                                         </td>
                                                     </tr>
                                                 ) : (
@@ -765,7 +766,7 @@ const AlunosTab = (props) => {
                                                                             {linha.matricula || '-'}
                                                                         </span>
                                                                         {linha.matriculaAntiga && (
-                                                                            <span className="text-[10px] font-bold text-slate-400 line-through">Antiga: {linha.matriculaAntiga}</span>
+                                                                            <span className="text-[10px] font-bold text-slate-400 line-through">{tx("Antiga:")}{' '}{linha.matriculaAntiga}</span>
                                                                         )}
                                                                     </div>
                                                                 </td>
@@ -781,7 +782,7 @@ const AlunosTab = (props) => {
                                                                                 onClick={() => handleForcarTroca(i)}
                                                                                 className={`px-3 py-1.5 rounded font-black text-[10px] uppercase tracking-widest transition-all ${linha.forcarTroca ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm'}`}
                                                                             >
-                                                                                {linha.forcarTroca ? 'Desfazer' : 'Confirmar e Roubar Matrícula'}
+                                                                                {linha.forcarTroca ? tx("Desfazer") : tx("Confirmar e Roubar Matrícula")}
                                                                             </button>
                                                                         </div>
                                                                     )}
@@ -792,7 +793,7 @@ const AlunosTab = (props) => {
                                                                     )}
                                                                     {!isConflito && linha.origem && (
                                                                         <span className="inline-flex items-center gap-1 text-blue-600 font-black text-[10px] uppercase tracking-widest dark:text-blue-400">
-                                                                            <ArrowRightLeft className="w-3 h-3" /> Sai de {linha.origem}
+                                                                            <ArrowRightLeft className="w-3 h-3" />{' '}{tx("Sai de")}{' '}{linha.origem}
                                                                         </span>
                                                                     )}
                                                                     {!isConflito && !linha.origem && linha.status !== 'DADO DE OUTRO ALUNO' && <span className="text-slate-300">-</span>}
@@ -808,15 +809,15 @@ const AlunosTab = (props) => {
                                     {/* RODAPÉ E AÇÕES DE IMPORTAÇÃO */}
                                     <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0 gap-4 dark:bg-slate-900 dark:border-slate-800">
                                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                            {previewData.length} Linhas • {dashboardStats.totalParaImportar} prontas para aplicar na nuvem.
+                                            {previewData.length}{' '}{tx("Linhas •")}{' '}{dashboardStats.totalParaImportar}{' '}{tx("prontas para aplicar na nuvem.")}
                                         </div>
                                         <div className="flex gap-3 w-full sm:w-auto">
-                                            <button onClick={handleCloseModal} className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">Voltar</button>
+                                            <button onClick={handleCloseModal} className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">{tx("Voltar")}</button>
                                             <button onClick={importarAlunosValidos} disabled={importando || dashboardStats.totalParaImportar === 0} className="flex-1 sm:flex-none px-8 py-3.5 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                                                 {importando ? (
-                                                    <><Loader2 className="w-4 h-4 animate-spin" /> SALVANDO: {progresso}%</>
+                                                    <><Loader2 className="w-4 h-4 animate-spin" />{' '}{tx("SALVANDO:")}{' '}{progresso}%</>
                                                 ) : (
-                                                    <><Save className="w-4 h-4" /> APLICAR ATUALIZAÇÕES</>
+                                                    <><Save className="w-4 h-4" />{' '}{tx("APLICAR ATUALIZAÇÕES")}</>
                                                 )}
                                             </button>
                                         </div>

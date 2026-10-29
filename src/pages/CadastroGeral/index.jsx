@@ -11,6 +11,7 @@ import ModalSetor from './ModalSetor.jsx';
 import AlunosTab from './AlunosTab.jsx'; 
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
 const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
@@ -65,7 +66,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             }
             setModalColabAberto(false);
         } catch (error) {
-            avisar(`Erro ao salvar: ${error.message}`);
+            avisar(tx("Erro ao salvar: {message}", { message: error.message }));
         } finally {
             setIsSubmitting(false);
         }
@@ -79,7 +80,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             ? `Deseja REATIVAR o acesso de ${colab.nome}? Ele voltará a aparecer nas listas de vendas.` 
             : `Deseja DESLIGAR o colaborador ${colab.nome}? Ele não aparecerá mais para novas vendas, mas seu histórico financeiro será preservado.`;
 
-        if (!window.confirm(`Atenção! ${msg}`)) return;
+        if (!window.confirm(tx("Atenção! {msg}", { msg: msg }))) return;
 
         setIsSubmitting(true);
         try {
@@ -87,7 +88,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             if (error) throw error;
             if (data) setColaboradores(colaboradores.map(c => c.id === colab.id ? data[0] : c));
         } catch (error) {
-            avisar(`Erro ao atualizar status: ${error.message}`);
+            avisar(tx("Erro ao atualizar status: {message}", { message: error.message }));
         } finally {
             setIsSubmitting(false);
         }
@@ -99,7 +100,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
         try {
             const jaExiste = catalogoCompleto.find(item => item.nome === payload.nome && item.tipo === payload.tipo && item.id !== payload.id);
             if (jaExiste) {
-                avisar(`Atenção: O item "${payload.nome}" já está cadastrado nesta categoria!`);
+                avisar(tx("Atenção: O item \"{nome}\" já está cadastrado nesta categoria!", { nome: payload.nome }));
                 setIsSubmitting(false);
                 return;
             }
@@ -117,7 +118,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             }
             setModalCatAberto(false);
         } catch (error) {
-            avisar(`Erro ao salvar no catálogo: ${error.message}`);
+            avisar(tx("Erro ao salvar no catálogo: {message}", { message: error.message }));
         } finally {
             setIsSubmitting(false);
         }
@@ -131,7 +132,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             ? `Deseja REATIVAR a oferta "${item.nome}"? Ela voltará a aparecer para vendas.` 
             : `Deseja DESCONTINUAR a oferta "${item.nome}"? Ela sairá da tela de vendas, mas o histórico financeiro continuará preservado.`;
 
-        if (!window.confirm(`Atenção! ${msg}`)) return;
+        if (!window.confirm(tx("Atenção! {msg}", { msg: msg }))) return;
 
         setIsSubmitting(true);
         try {
@@ -139,7 +140,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             if (error) throw error;
             if (data) atualizaArrayLocal(item.tipo, data[0], 'UPDATE');
         } catch (error) {
-            avisar(`Erro ao atualizar status: ${error.message}`);
+            avisar(tx("Erro ao atualizar status: {message}", { message: error.message }));
         } finally {
             setIsSubmitting(false);
         }
@@ -162,7 +163,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
         try {
             const jaExiste = listaSetores.find(s => s.nome === payload.nome && s.id !== payload.id);
             if (jaExiste) {
-                avisar(`Atenção: O setor "${payload.nome}" já existe!`);
+                avisar(tx("Atenção: O setor \"{nome}\" já existe!", { nome: payload.nome }));
                 setIsSubmitting(false);
                 return;
             }
@@ -179,20 +180,20 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
             }
             setModalSetorAberto(false);
         } catch (error) {
-            avisar(`Erro ao salvar setor: ${error.message}`);
+            avisar(tx("Erro ao salvar setor: {message}", { message: error.message }));
         } finally {
             setIsSubmitting(false);
         }
     };
 
     const handleDeleteSetor = async (id, nome) => {
-        if (!window.confirm(`Atenção! Tem certeza que deseja apagar o setor: ${nome}?`)) return;
+        if (!window.confirm(tx("Atenção! Tem certeza que deseja apagar o setor: {nome}?", { nome: nome }))) return;
         try {
             const { error } = await supabase.from('setores').delete().eq('id', id);
             if (error) throw error;
             setListaSetores(listaSetores.filter(s => s.id !== id));
         } catch (error) {
-            avisar(`Erro ao excluir setor: ${error.message}`);
+            avisar(tx("Erro ao excluir setor: {message}", { message: error.message }));
         }
     };
 
@@ -208,8 +209,8 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                         <Database className="w-7 h-7" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">Gestão de Cadastros</h2>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Configuração Modular do Sistema</p>
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Gestão de Cadastros")}</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{tx("Configuração Modular do Sistema")}</p>
                     </div>
                 </div>
 
@@ -218,13 +219,13 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                         <UserCircle className="w-4 h-4" /> {t('management.tabs.students', {defaultValue: 'Alunos'})}
                     </button>
                     <button onClick={() => setAbaAtiva('equipe')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <Users className="w-4 h-4" /> Equipe
+                        <Users className="w-4 h-4" />{' '}{tx("Equipe")}
                     </button>
                     <button onClick={() => setAbaAtiva('catalogo')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'catalogo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <Layers className="w-4 h-4" /> Catálogo Geral
+                        <Layers className="w-4 h-4" />{' '}{tx("Catálogo Geral")}
                     </button>
                     <button onClick={() => setAbaAtiva('setores')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'setores' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <LayoutGrid className="w-4 h-4" /> Setores
+                        <LayoutGrid className="w-4 h-4" />{' '}{tx("Setores")}
                     </button>
                 </div>
             </div>

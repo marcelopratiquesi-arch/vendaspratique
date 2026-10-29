@@ -4,6 +4,7 @@ import { JanelaJustificativa } from './JanelasContato';
 import { EtiquetaParado } from './EtiquetasCrm';
 import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, linkWhatsApp, classeTipoLead } from './utils';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // ABA "HOJE" (Bloco 4): contatos com o próximo contato marcado para hoje ou já atrasado.
@@ -34,7 +35,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
     }, [visitantes]);
 
     const abrirWhatsApp = async (lead) => {
-        if (!lead.telefone) return avisar('Este contato está sem telefone cadastrado.');
+        if (!lead.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
         const texto = gerarTextoWhatsApp(lead);
         window.open(linkWhatsApp(lead.telefone, texto), '_blank');
         setRegistrando(lead.id);
@@ -55,9 +56,9 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                     <CalendarCheck className="w-7 h-7" />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Contatos marcados para hoje</h2>
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{tx("Contatos marcados para hoje")}</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
-                        Quem tem o "próximo contato" para hoje ou atrasado. {futuros > 0 && <span className="font-bold">{futuros} marcado(s) para os próximos dias.</span>}
+                        {tx("Quem tem o \"próximo contato\" para hoje ou atrasado.")}{' '}{futuros > 0 && <span className="font-bold">{futuros}{' '}{tx("marcado(s) para os próximos dias.")}</span>}
                     </p>
                 </div>
             </div>
@@ -70,42 +71,42 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                         <div className="flex items-center gap-2 mb-3">
                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${g.cor}`}><Icone className="w-4 h-4" /></div>
                             <div>
-                                <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{g.titulo} <span className="text-slate-400">({lista.length})</span></p>
-                                <p className="text-[10px] font-bold text-slate-400">{g.sub}</p>
+                                <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{tx(g.titulo)} <span className="text-slate-400">({lista.length})</span></p>
+                                <p className="text-[10px] font-bold text-slate-400">{tx(g.sub)}</p>
                             </div>
                         </div>
                         {lista.length === 0 ? (
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600 pl-10">Nenhum pendente</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600 pl-10">{tx("Nenhum pendente")}</p>
                         ) : (
                             <div className="space-y-2">
                                 {lista.map(v => (
                                     <div key={v.id} className={`flex flex-col md:flex-row md:items-center justify-between gap-3 border rounded-xl px-4 py-3 ${g.chave === 'atrasado' ? 'bg-rose-50/40 dark:bg-rose-500/5 border-rose-200 dark:border-rose-500/30' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800'}`}>
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <button type="button" onClick={() => abrirFicha(v)} className="text-sm font-black text-slate-800 dark:text-white uppercase truncate hover:text-blue-600 dark:hover:text-blue-400 text-left" title="Ver ficha e histórico">{v.nome}</button>
-                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{v.tipo_lead || 'LEAD'}</span>
+                                                <button type="button" onClick={() => abrirFicha(v)} className="text-sm font-black text-slate-800 dark:text-white uppercase truncate hover:text-blue-600 dark:hover:text-blue-400 text-left" title={tx("Ver ficha e histórico")}>{v.nome}</button>
+                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{tx(v.tipo_lead || 'LEAD')}</span>
                                                 <EtiquetaParado lead={v} />
                                             </div>
                                             <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
-                                                {v.telefone || 'Sem telefone'} · {v.status}
-                                                {g.chave === 'atrasado' && <span className="text-rose-600 dark:text-rose-400"> · marcado para {formatarDiaCurto(v.proximo_contato)}</span>}
+                                                {v.telefone || tx("Sem telefone")} · {tx(v.status)}
+                                                {g.chave === 'atrasado' && <span className="text-rose-600 dark:text-rose-400">{' '}{tx("· marcado para")}{' '}{formatarDiaCurto(v.proximo_contato)}</span>}
                                             </p>
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                            <button type="button" onClick={() => abrirWhatsApp(v)} disabled={registrando === v.id} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title="Abre o WhatsApp e já registra o contato">
-                                                {registrando === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} WhatsApp
+                                            <button type="button" onClick={() => abrirWhatsApp(v)} disabled={registrando === v.id} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato")}>
+                                                {registrando === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                             </button>
-                                            <button type="button" onClick={() => setJustificando(v)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title="Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)">
-                                                <Check className="w-3.5 h-3.5" /> Feito sem WhatsApp
+                                            <button type="button" onClick={() => setJustificando(v)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
+                                                <Check className="w-3.5 h-3.5" />{' '}{tx("Feito sem WhatsApp")}
                                             </button>
-                                            <button type="button" onClick={() => onRemarcar(v)} className="p-2 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" title="Mudar a data do próximo contato">
+                                            <button type="button" onClick={() => onRemarcar(v)} className="p-2 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" title={tx("Mudar a data do próximo contato")}>
                                                 <CalendarClock className="w-4 h-4" />
                                             </button>
-                                            <button type="button" onClick={() => abrirFicha(v)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 transition-colors" title="Ver ficha">
+                                            <button type="button" onClick={() => abrirFicha(v)} className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 transition-colors" title={tx("Ver ficha")}>
                                                 <Info className="w-4 h-4" />
                                             </button>
                                             {onNaoContatar && (
-                                                <button type="button" onClick={() => onNaoContatar(v)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title="Não contatar (a pessoa pediu para não receber contato)">
+                                                <button type="button" onClick={() => onNaoContatar(v)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title={tx("Não contatar (a pessoa pediu para não receber contato)")}>
                                                     <Ban className="w-4 h-4" />
                                                 </button>
                                             )}

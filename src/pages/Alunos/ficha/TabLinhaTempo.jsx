@@ -1,5 +1,6 @@
 import React from 'react';
 import { Clock } from 'lucide-react';
+import { tx, localeAtual } from '../../../i18n/traduzir.js';
 
 const TabLinhaTempo = ({ eventos, alunoNome }) => {
     if (!eventos || eventos.length === 0) return null;
@@ -9,7 +10,7 @@ const TabLinhaTempo = ({ eventos, alunoNome }) => {
             <div className="flex items-center gap-3 mb-8 bg-slate-50 dark:bg-slate-800/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700/60">
                 <Clock className="w-5 h-5 text-slate-400" />
                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                    Todas as interações e compras de <strong className="uppercase">{alunoNome}</strong>, ordenadas por data.
+                    {tx("Todas as interações e compras de")}{' '}<strong className="uppercase">{alunoNome}</strong>{tx(", ordenadas por data.")}
                 </p>
             </div>
 
@@ -23,12 +24,12 @@ const TabLinhaTempo = ({ eventos, alunoNome }) => {
                             </div>
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow">
                                 <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-1 mb-1.5">
-                                    <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 tracking-tight uppercase">{e.titulo}</h4>
+                                    <h4 className="text-sm font-black text-slate-800 dark:text-slate-200 tracking-tight uppercase">{tx(e.titulo)}</h4>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded">
-                                        {e.data_real.toLocaleDateString('pt-BR')}
+                                        {e.data_real.toLocaleDateString(localeAtual())}
                                     </span>
                                 </div>
-                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{e.descricao}</p>
+                                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{tx(e.descricao)}</p>
                             </div>
                         </div>
                     );

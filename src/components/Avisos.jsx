@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { CheckCircle2, AlertTriangle, XCircle, X } from 'lucide-react';
 
 import { ouvintesDeAvisos } from './avisar.js';
+import { tx } from '../i18n/traduzir.js';
 
 // Central que desenha os avisos de avisar() no canto da tela (montada uma vez só, no main.jsx)
 const ESTILO = {
@@ -40,8 +41,8 @@ export const CentralDeAvisos = () => {
                         <div className="flex items-start gap-3 pl-5 pr-3 py-3.5">
                             <Icone className={`w-5 h-5 shrink-0 mt-0.5 ${e.cor}`} />
                             <div className="flex-1 min-w-0">
-                                <p className={`text-[10px] font-black uppercase tracking-widest ${e.cor}`}>{e.titulo}</p>
-                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 whitespace-pre-line break-words max-h-60 overflow-y-auto custom-scrollbar mt-0.5">{a.texto}</p>
+                                <p className={`text-[10px] font-black uppercase tracking-widest ${e.cor}`}>{tx(e.titulo)}</p>
+                                <p className="text-sm font-bold text-slate-700 dark:text-slate-200 whitespace-pre-line break-words max-h-60 overflow-y-auto custom-scrollbar mt-0.5">{tx(a.texto)}</p>
                             </div>
                             <button type="button" onClick={() => fechar(a.id)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar aviso">
                                 <X className="w-4 h-4" />

@@ -9,6 +9,7 @@ import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
 import { pendenciasCadastroAluno } from '../Alunos/utils.js';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const IconBraco = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.2 10.4a4.1 4.1 0 0 0-1.8-1.8 19 19 0 0 0-6.1-1.7c-2.4-.3-4.6-.2-6.5.6a4.1 4.1 0 0 0-2.3 2.3 4.1 4.1 0 0 0 .5 3.6c.9 1.4 2.5 2.4 4.5 2.8 1.9.4 4.1.2 6.5-.6.5-.2 1-.3 1.5-.5.6-.2 1.3-.4 1.9-.7a11.1 11.1 0 0 0 3-2 4 4 0 0 0 .6-3.8z" /></svg>);
 const IconPerna = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v9l-3 4-2 6h4l1-3 3-1V2h-3z" /></svg>);
@@ -54,7 +55,7 @@ const sectionClass = "bg-white dark:bg-slate-900/50 p-6 md:p-8 rounded-[24px] bo
 const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, disabled, req, example }) => (
     <div className="flex flex-col relative">
         <label className={labelClass}>
-            {label} {req && <span className="text-rose-500">*</span>}
+            {tx(label)} {req && <span className="text-rose-500">*</span>}
         </label>
         <div className="relative">
             <input type="text" inputMode="decimal" name={name} value={value} onChange={onChange} className={`${inputClass} pr-10`} placeholder={placeholder} disabled={disabled} />
@@ -257,7 +258,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
         } catch (error) {
             console.error("Erro na leitura do arquivo:", error);
-            avisar("Falha inesperada ao ler o documento. Verifique a consola.");
+            avisar(tx("Falha inesperada ao ler o documento. Verifique a consola."));
             setArquivoInBody(null);
         } finally {
             setTimeout(() => { 
@@ -295,10 +296,10 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         e.preventDefault();
         
         if (!alunoEncontrado) return avisar(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
-        if (pendenciasCadastro.length > 0) return avisar(`Cadastro incompleto. Falta: ${pendenciasCadastro.join(', ')}. Clique em "Completar cadastro" antes de lançar a avaliação.`);
+        if (pendenciasCadastro.length > 0) return avisar(tx("Cadastro incompleto. Falta: {v1}. Clique em \"Completar cadastro\" antes de lançar a avaliação.", { v1: pendenciasCadastro.join(', ') }));
         const unidadeFinal = unidadeDestino || usuarioLogado?.unidade;
         if (!unidadeFinal || unidadeFinal === 'TODAS') return avisar(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
-        if (!avaliadorResponsavel) return avisar("Selecione o Avaliador Responsável."); // 🔥 Validação do avaliador
+        if (!avaliadorResponsavel) return avisar(tx("Selecione o Avaliador Responsável.")); // 🔥 Validação do avaliador
 
         if (p === null || p <= 0 || p > 300) return avisar(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
         if (alt === null || alt < 0.5 || alt > 2.5) return avisar(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida ou não informada.'}));
@@ -318,7 +319,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             }
             if (p.obrigatorio) {
                 const resp = respostasFinais[p.id];
-                if (!resp || (Array.isArray(resp) && resp.length === 0)) { avisar(`A pergunta "${p.pergunta}" é obrigatória.`); return; }
+                if (!resp || (Array.isArray(resp) && resp.length === 0)) { avisar(tx("A pergunta \"{pergunta}\" é obrigatória.", { pergunta: p.pergunta })); return; }
             }
         }
 
@@ -334,7 +335,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 const { data: uploadData, error: uploadError } = await supabase.storage.from('exames_inbody').upload(`avaliacoes/${nomeArquivo}`, arquivoInBody);
                 if (uploadError) {
                     console.error("Erro ao subir arquivo no Storage:", uploadError);
-                    avisar("A avaliação será salva, mas houve um erro ao guardar o anexo PDF/Imagem. Confirme as permissões do Bucket.");
+                    avisar(tx("A avaliação será salva, mas houve um erro ao guardar o anexo PDF/Imagem. Confirme as permissões do Bucket."));
                 } else if (uploadData) {
                     const { data: { publicUrl } } = supabase.storage.from('exames_inbody').getPublicUrl(`avaliacoes/${nomeArquivo}`);
                     urlArquivoInBody = publicUrl;
@@ -383,7 +384,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-100 dark:border-blue-800">
                             <Sparkles className="w-10 h-10 animate-pulse" />
                         </div>
-                        <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Análise IA Multi-Escala</h3>
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">{tx("Análise IA Multi-Escala")}</h3>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-relaxed min-h-[32px]">{iaStatusText}</p>
                     </div>
                 </div>
@@ -395,7 +396,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200 dark:border-slate-700">
                             <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mb-6 shadow-inner border border-emerald-200 dark:border-emerald-800"><CheckCircle2 className="w-10 h-10" /></div>
                             <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight mb-2">
-                                {avaliacaoEditando ? 'Avaliação Atualizada!' : t('assessment.form.savedTitle')}
+                                {avaliacaoEditando ? tx("Avaliação Atualizada!") : t('assessment.form.savedTitle')}
                             </h3>
                         </div>
                     </div>
@@ -404,9 +405,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700/50 rounded-[24px] p-6 shadow-md gap-4">
                     <div>
                         <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                            {avaliacaoEditando ? 'Editar Avaliação Física' : t('assessment.form.title')}
+                            {avaliacaoEditando ? tx("Editar Avaliação Física") : t('assessment.form.title')}
                         </h2>
-                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('assessment.prof')}: {avaliadorResponsavel || (professorAtivo?.avaliadorAberto ? 'A definir' : professorAtivo.nome)}</p>
+                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('assessment.prof')}: {avaliadorResponsavel || (professorAtivo?.avaliadorAberto ? tx("A definir") : professorAtivo.nome)}</p>
                     </div>
                     <button type="button" onClick={voltar} className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors w-full md:w-auto">{t('assessment.form.cancel')}</button>
                 </div>
@@ -417,8 +418,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             <User className="w-6 h-6" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Dados do Aluno</h3>
-                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Localize o aluno e defina o responsável</p>
+                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Dados do Aluno")}</h3>
+                            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Localize o aluno e defina o responsável")}</p>
                         </div>
                     </div>
 
@@ -427,7 +428,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         <div className="w-full lg:w-64 shrink-0 flex flex-col gap-5">
                             <div>
                                 <label className="block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
-                                    CPF do Aluno <span className="text-rose-500">*</span>
+                                    {tx("CPF do Aluno")}{' '}<span className="text-rose-500">*</span>
                                 </label>
                                 <div className="relative">
                                     <input 
@@ -444,11 +445,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     {statusCpf === 'erro' && <AlertTriangle className="w-5 h-5 text-rose-500 absolute right-4 top-1/2 -translate-y-1/2" />}
                                 </div>
                                 <div className="mt-2">
-                                    {cpfErro && <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest ml-1">CPF Inválido</span>}
+                                    {cpfErro && <span className="text-rose-500 text-[10px] font-black uppercase tracking-widest ml-1">{tx("CPF Inválido")}</span>}
                                     {statusCpf === 'encontrado' && (
                                         <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-2 rounded-xl border border-emerald-100 dark:border-emerald-800 animate-[fadeIn_0.2s_ease-out]">
                                             <CheckCircle2 className="w-4 h-4" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Cadastro localizado</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest">{tx("Cadastro localizado")}</span>
                                         </div>
                                     )}
                                     {statusCpf === 'novo' && (
@@ -456,11 +457,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                             <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
                                                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                                                 <div>
-                                                    <span className="text-[11px] font-black uppercase tracking-widest block">Não encontrado</span>
-                                                    <span className="text-[10px] font-bold opacity-80 leading-tight">Proceda com o cadastro.</span>
+                                                    <span className="text-[11px] font-black uppercase tracking-widest block">{tx("Não encontrado")}</span>
+                                                    <span className="text-[10px] font-bold opacity-80 leading-tight">{tx("Proceda com o cadastro.")}</span>
                                                 </div>
                                             </div>
-                                            <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">Cadastrar</button>
+                                            <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">{tx("Cadastrar")}</button>
                                         </div>
                                     )}
                                 </div>
@@ -468,7 +469,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                             <div>
                                 <label className="block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
-                                    Avaliador Responsável <span className="text-rose-500">*</span>
+                                    {tx("Avaliador Responsável")}{' '}<span className="text-rose-500">*</span>
                                 </label>
                                 <select
                                     value={avaliadorResponsavel}
@@ -476,7 +477,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm cursor-pointer"
                                     required
                                 >
-                                    <option value="" disabled>Selecione...</option>
+                                    <option value="" disabled>{tx("Selecione...")}</option>
                                     {colaboradoresDoSelect.map(c => (
                                         <option key={c.id} value={c.nome}>{c.nome}</option>
                                     ))}
@@ -494,51 +495,51 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                 <div className="flex items-center gap-2 group">
                                                     <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">{alunoEncontrado.nome}</h4>
                                                     <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shrink-0"><Check className="w-3 h-3 text-white stroke-[3]" /></div>
-                                                    <CopyButton textToCopy={alunoEncontrado.nome} label="Copiar Nome" />
+                                                    <CopyButton textToCopy={alunoEncontrado.nome} label={tx("Copiar Nome")} />
                                                 </div>
                                                 <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
-                                                    {alunoEncontrado.matricula ? (<span className="flex items-center gap-1.5"><IdCard className="w-3.5 h-3.5 text-slate-400" /> Matrícula: {alunoEncontrado.matricula}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><IdCard className="w-3.5 h-3.5" /> Sem Matrícula</span>)}
+                                                    {alunoEncontrado.matricula ? (<span className="flex items-center gap-1.5"><IdCard className="w-3.5 h-3.5 text-slate-400" />{' '}{tx("Matrícula:")}{' '}{alunoEncontrado.matricula}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><IdCard className="w-3.5 h-3.5" />{' '}{tx("Sem Matrícula")}</span>)}
                                                     <span className="text-slate-300 dark:text-slate-600 hidden sm:block">|</span>
-                                                    {alunoEncontrado.data_nascimento ? (<span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {new Date(alunoEncontrado.data_nascimento + 'T12:00:00').toLocaleDateString(langAtual)}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><CalendarDays className="w-3.5 h-3.5" /> Data N/I</span>)}
+                                                    {alunoEncontrado.data_nascimento ? (<span className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5 text-slate-400" /> {new Date(alunoEncontrado.data_nascimento + 'T12:00:00').toLocaleDateString(langAtual)}</span>) : (<span className="flex items-center gap-1.5 opacity-50"><CalendarDays className="w-3.5 h-3.5" />{' '}{tx("Data N/I")}</span>)}
                                                 </div>
                                             </div>
                                         </div>
-                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-slate-800 border-2 border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm shrink-0"><UserRoundPen className="w-4 h-4" /> Editar Dados</button>
+                                        <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full sm:w-auto px-5 py-2.5 bg-white dark:bg-slate-800 border-2 border-blue-100 dark:border-blue-900/50 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-700 rounded-[14px] text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm shrink-0"><UserRoundPen className="w-4 h-4" />{' '}{tx("Editar Dados")}</button>
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:divide-x divide-slate-200/80 dark:divide-slate-700">
                                         <div className="flex items-center gap-3 sm:pr-5 shrink-0">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><Phone className="w-4 h-4" /></div>
                                             <div className="flex flex-col group">
-                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Telefone</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tx("Telefone")}</span>
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.telefone ? formatarTelefone(alunoEncontrado.telefone) : 'N/I'}</span>
-                                                    {alunoEncontrado.telefone && <CopyButton textToCopy={alunoEncontrado.telefone} label="Copiar Telefone" />}
+                                                    {alunoEncontrado.telefone && <CopyButton textToCopy={alunoEncontrado.telefone} label={tx("Copiar Telefone")} />}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 sm:px-5 flex-1 min-w-0">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><Mail className="w-4 h-4" /></div>
                                             <div className="flex flex-col min-w-0 group">
-                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">E-mail</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tx("E-mail")}</span>
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">{alunoEncontrado.email || 'N/I'}</span>
-                                                    {alunoEncontrado.email && <CopyButton textToCopy={alunoEncontrado.email} label="Copiar E-mail" />}
+                                                    {alunoEncontrado.email && <CopyButton textToCopy={alunoEncontrado.email} label={tx("Copiar E-mail")} />}
                                                 </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3 sm:pl-5 shrink-0">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><User className="w-4 h-4" /></div>
                                             <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Idade</span>
-                                                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.data_nascimento ? `${calcularIdade(alunoEncontrado.data_nascimento)} anos` : 'N/I'}</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{tx("Idade")}</span>
+                                                <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.data_nascimento ? tx("{v1} anos", { v1: calcularIdade(alunoEncontrado.data_nascimento) }) : 'N/I'}</span>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             ) : (
                                 <div className="h-full flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl bg-slate-50/50 dark:bg-slate-800/30">
-                                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-4">Localize o aluno para iniciar</p>
+                                    <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center px-4">{tx("Localize o aluno para iniciar")}</p>
                                 </div>
                             )}
                         </div>
@@ -563,9 +564,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             </div>
                             <div>
                                 <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                                    Preenchimento Inteligente <span className="bg-blue-600 dark:bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
+                                    {tx("Preenchimento Inteligente")}{' '}<span className="bg-blue-600 dark:bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
                                 </h3>
-                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-lg leading-relaxed">Faça o upload do exame InBody ou Superbio. A IA extrairá as medidas automaticamente.</p>
+                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-lg leading-relaxed">{tx("Faça o upload do exame InBody ou Superbio. A IA extrairá as medidas automaticamente.")}</p>
                             </div>
                         </div>
                         
@@ -573,7 +574,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             <input type="file" accept="image/*,application/pdf" ref={fileInputRef} onChange={handleUploadInBody} className="hidden" />
                             {!arquivoInBody ? (
                                 <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full md:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-[16px] text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(37,99,235,0.3)] flex items-center justify-center gap-3 hover:-translate-y-0.5">
-                                    <UploadCloud className="w-5 h-5" /> Anexar Exame
+                                    <UploadCloud className="w-5 h-5" />{' '}{tx("Anexar Exame")}
                                 </button>
                             ) : (
                                 <div className="flex flex-col items-center gap-2 w-full">
@@ -584,7 +585,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         </span>
                                     </div>
                                     <button type="button" onClick={removerArquivo} className="text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors dark:hover:text-rose-400">
-                                        Remover Arquivo
+                                        {tx("Remover Arquivo")}
                                     </button>
                                 </div>
                             )}
@@ -598,13 +599,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     <Ruler className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Medidas Iniciais</h3>
-                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registre o peso e a altura atual do aluno.</p>
+                                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Medidas Iniciais")}</h3>
+                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Registre o peso e a altura atual do aluno.")}</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-2 gap-5">
-                                <InputComIcone label="Peso (Kg)" name="peso" value={form.peso} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={Scale} example="Ex.: 75.5" />
-                                <InputComIcone label="Altura (m)" name="altura" value={form.altura} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={PersonStanding} example="Ex.: 1.75" />
+                                <InputComIcone label={tx("Peso (Kg)")} name="peso" value={form.peso} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={Scale} example="Ex.: 75.5" />
+                                <InputComIcone label={tx("Altura (m)")} name="altura" value={form.altura} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={PersonStanding} example="Ex.: 1.75" />
                             </div>
                         </div>
 
@@ -615,19 +616,19 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         <HeartPulse className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Pressão Arterial</h3>
-                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Registre a pressão arterial.</p>
+                                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Pressão Arterial")}</h3>
+                                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Registre a pressão arterial.")}</p>
                                     </div>
                                 </div>
                                 {form.sistolica && form.diastolica ? (
-                                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border shadow-sm transition-colors ${pressao.bg} ${pressao.cor} ${getBorderClass(pressao.cor)} shrink-0`}>{pressao.status}</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border shadow-sm transition-colors ${pressao.bg} ${pressao.cor} ${getBorderClass(pressao.cor)} shrink-0`}>{tx(pressao.status)}</span>
                                 ) : (
-                                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 shrink-0">Não Aferida</span>
+                                    <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 shrink-0">{tx("Não Aferida")}</span>
                                 )}
                             </div>
                             <div className="grid grid-cols-2 gap-5">
-                                <InputComIcone label="Sistólica (mmHg)" name="sistolica" value={form.sistolica} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={HeartPulse} example="Ex.: 120" />
-                                <InputComIcone label="Diastólica (mmHg)" name="diastolica" value={form.diastolica} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={HeartPulse} example="Ex.: 80" />
+                                <InputComIcone label={tx("Sistólica (mmHg)")} name="sistolica" value={form.sistolica} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={HeartPulse} example="Ex.: 120" />
+                                <InputComIcone label={tx("Diastólica (mmHg)")} name="diastolica" value={form.diastolica} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={HeartPulse} example="Ex.: 80" />
                             </div>
                         </div>
                     </div>
@@ -638,8 +639,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 <Activity className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">Bioimpedância (Massa e Gordura)</h3>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Preencha os valores obtidos na avaliação.</p>
+                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Bioimpedância (Massa e Gordura)")}</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Preencha os valores obtidos na avaliação.")}</p>
                             </div>
                         </div>
                         
@@ -647,15 +648,15 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             <div className="flex items-center gap-3 mb-5 border-b border-slate-50 dark:border-slate-800 pb-3">
                                 <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-black shrink-0">1</div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Massa Segmentar</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe a massa (kg) de cada segmento.</p>
+                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">{tx("Massa Segmentar")}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">{tx("Informe a massa (kg) de cada segmento.")}</p>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                                <InputComIcone label="Braço Esquerdo (Kg)" name="bracoEsq" value={form.bracoEsq} onChange={handleChange} disabled={!alunoEncontrado} icon={IconBraco} />
-                                <InputComIcone label="Braço Direito (Kg)" name="bracoDir" value={form.bracoDir} onChange={handleChange} disabled={!alunoEncontrado} icon={IconBraco} />
-                                <InputComIcone label="Perna Esquerda (Kg)" name="pernaEsq" value={form.pernaEsq} onChange={handleChange} disabled={!alunoEncontrado} icon={IconPerna} />
-                                <InputComIcone label="Perna Direita (Kg)" name="pernaDir" value={form.pernaDir} onChange={handleChange} disabled={!alunoEncontrado} icon={IconPerna} />
+                                <InputComIcone label={tx("Braço Esquerdo (Kg)")} name="bracoEsq" value={form.bracoEsq} onChange={handleChange} disabled={!alunoEncontrado} icon={IconBraco} />
+                                <InputComIcone label={tx("Braço Direito (Kg)")} name="bracoDir" value={form.bracoDir} onChange={handleChange} disabled={!alunoEncontrado} icon={IconBraco} />
+                                <InputComIcone label={tx("Perna Esquerda (Kg)")} name="pernaEsq" value={form.pernaEsq} onChange={handleChange} disabled={!alunoEncontrado} icon={IconPerna} />
+                                <InputComIcone label={tx("Perna Direita (Kg)")} name="pernaDir" value={form.pernaDir} onChange={handleChange} disabled={!alunoEncontrado} icon={IconPerna} />
                             </div>
                         </div>
 
@@ -663,15 +664,15 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             <div className="flex items-center gap-3 mb-5 border-b border-slate-50 dark:border-slate-800 pb-3">
                                 <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-black shrink-0">2</div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Composição Corporal</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Informe os dados gerais.</p>
+                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">{tx("Composição Corporal")}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">{tx("Informe os dados gerais.")}</p>
                                 </div>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-5">
                                 <div className="flex flex-col">
                                     <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
-                                        Água Total (L) <InfoTooltip text="Água Corporal Total: Pode sinalizar tanto para um quadro de desidratação quanto de retenção de líquidos." />
+                                        {tx("Água Total (L)")}{' '}<InfoTooltip text="Água Corporal Total: Pode sinalizar tanto para um quadro de desidratação quanto de retenção de líquidos." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="aguaTotal" value={form.aguaTotal} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -680,7 +681,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 </div>
                                 <div className="flex flex-col">
                                     <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
-                                        Relação Cintura Quadril <InfoTooltip text="RCQ: Cálculo feito a partir das medidas da cintura e do quadril para verificar risco cardiovascular." />
+                                        {tx("Relação Cintura Quadril")}{' '}<InfoTooltip text="RCQ: Cálculo feito a partir das medidas da cintura e do quadril para verificar risco cardiovascular." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="rcq" value={form.rcq} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -689,7 +690,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 </div>
                                 <div className="flex flex-col">
                                     <label className="flex items-center gap-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1">
-                                        Gordura Visceral <InfoTooltip text="GV: Gordura abdominal profunda." />
+                                        {tx("Gordura Visceral")}{' '}<InfoTooltip text="GV: Gordura abdominal profunda." />
                                     </label>
                                     <div className="relative">
                                         <input type="text" inputMode="decimal" name="gv" value={form.gv} onChange={handleChange} className={`${inputClass} pr-10`} disabled={!alunoEncontrado}/>
@@ -699,8 +700,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                <InputComIcone label="Massa Muscular Esquelética (MME)" name="mme" value={form.mme} onChange={handleChange} disabled={!alunoEncontrado} icon={Dumbbell} example="Ex.: 24.3" />
-                                <InputComIcone label="Percentual de Gordura (PGC)" name="pgc" value={form.pgc} onChange={handleChange} disabled={!alunoEncontrado} icon={Percent} example="Ex.: 47.0" />
+                                <InputComIcone label={tx("Massa Muscular Esquelética (MME)")} name="mme" value={form.mme} onChange={handleChange} disabled={!alunoEncontrado} icon={Dumbbell} example="Ex.: 24.3" />
+                                <InputComIcone label={tx("Percentual de Gordura (PGC)")} name="pgc" value={form.pgc} onChange={handleChange} disabled={!alunoEncontrado} icon={Percent} example="Ex.: 47.0" />
                             </div>
                         </div>
 
@@ -708,8 +709,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             <div className="flex items-center gap-3 mb-5 border-b border-slate-50 dark:border-slate-800 pb-3">
                                 <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs font-black shrink-0">3</div>
                                 <div>
-                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">Resultados Calculados</h4>
-                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">Baseados nos dados informados.</p>
+                                    <h4 className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">{tx("Resultados Calculados")}</h4>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-0.5">{tx("Baseados nos dados informados.")}</p>
                                 </div>
                             </div>
                             
@@ -719,11 +720,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 flex items-center justify-center shrink-0 shadow-inner"><Dumbbell className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
-                                                <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Resultado SMI</p>
+                                                <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">{tx("Resultado SMI")}</p>
                                             </div>
                                             <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(smi.valor) > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-300 dark:text-slate-600'}`}>{parseFloat(smi.valor) > 0 ? smi.valor : '0.00'}</p>
                                             <div className="self-start">
-                                                <span className={`px-3 py-1 rounded-md border font-black uppercase text-[10px] tracking-widest shadow-sm ${smi.bg} ${smi.cor} ${getBorderClass(smi.cor)}`}>{smi.status}</span>
+                                                <span className={`px-3 py-1 rounded-md border font-black uppercase text-[10px] tracking-widest shadow-sm ${smi.bg} ${smi.cor} ${getBorderClass(smi.cor)}`}>{tx(smi.status)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -737,11 +738,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         <div className="w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-inner"><Droplet className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
-                                                <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Hidratação</p>
+                                                <p className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">{tx("Hidratação")}</p>
                                             </div>
                                             <p className={`text-4xl font-black tracking-tighter mb-2 ${parseFloat(hidratacao.valor) > 0 ? 'text-slate-800 dark:text-white' : 'text-slate-300 dark:text-slate-600'}`}>{parseFloat(hidratacao.valor) > 0 ? `${hidratacao.valor}%` : '0.0%'}</p>
                                             <div className="self-start">
-                                                <span className={`px-3 py-1 rounded-md border font-black uppercase text-[10px] tracking-widest shadow-sm ${hidratacao.bg} ${hidratacao.cor} ${getBorderClass(hidratacao.cor)}`}>{hidratacao.status}</span>
+                                                <span className={`px-3 py-1 rounded-md border font-black uppercase text-[10px] tracking-widest shadow-sm ${hidratacao.bg} ${hidratacao.cor} ${getBorderClass(hidratacao.cor)}`}>{tx(hidratacao.status)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -759,15 +760,15 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 <ListChecks className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Questionário de Anamnese</h3>
-                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Responda as perguntas abaixo.</p>
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Questionário de Anamnese")}</h3>
+                                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Responda as perguntas abaixo.")}</p>
                             </div>
                         </div>
 
                         {loadingPerguntas ? (
                             <div className="flex justify-center py-10"><Loader2 className="w-8 h-8 text-blue-500 animate-spin" /></div>
                         ) : perguntasDinamicas.length === 0 ? (
-                            <p className="text-xs font-bold text-slate-400 text-center py-6">Nenhuma pergunta configurada.</p>
+                            <p className="text-xs font-bold text-slate-400 text-center py-6">{tx("Nenhuma pergunta configurada.")}</p>
                         ) : (
                             <div className="flex flex-col">
                                 {perguntasDinamicas.map((p, index) => {
@@ -782,16 +783,16 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                     <span className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md text-[11px] font-black tracking-widest shrink-0 shadow-sm border border-slate-200 dark:border-slate-700">{String(index + 1).padStart(2, '0')}</span>
                                                     <h4 className="text-[14px] font-black text-slate-800 dark:text-white tracking-tight leading-snug">{p.pergunta} {p.obrigatorio && <span className="text-rose-500">*</span>}</h4>
                                                 </div>
-                                                {p.descricao && (<p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-4 leading-relaxed pr-4">{p.descricao}</p>)}
+                                                {p.descricao && (<p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-4 leading-relaxed pr-4">{tx(p.descricao)}</p>)}
                                                 <div className="mt-3">
                                                     {p.tipo === 'TEXTO_CURTO' && (
                                                         <input type="text" className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-3 px-4 transition-all shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500" 
-                                                            disabled={!alunoEncontrado} placeholder="Digite sua resposta..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
+                                                            disabled={!alunoEncontrado} placeholder={tx("Digite sua resposta...")} value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
                                                     )}
                                                     {p.tipo === 'TEXTO_LONGO' && (
                                                         <div className="relative">
                                                             <textarea className="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-2xl text-sm font-medium text-slate-700 dark:text-white outline-none p-4 transition-all resize-none shadow-sm placeholder:text-slate-400 dark:placeholder:text-slate-500 pb-8" 
-                                                                rows="3" disabled={!alunoEncontrado} placeholder="Ex.: observações sobre lesões..." value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
+                                                                rows="3" disabled={!alunoEncontrado} placeholder={tx("Ex.: observações sobre lesões...")} value={respostasDinamicas[p.id] || ''} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} />
                                                             <span className="absolute bottom-3 right-4 text-[10px] font-black text-slate-300 dark:text-slate-600 tracking-widest">{respostasDinamicas[p.id]?.length || 0}/200</span>
                                                         </div>
                                                     )}
@@ -806,9 +807,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                                     <React.Fragment key={o}>
                                                                         <label className={`cursor-pointer px-5 py-2.5 rounded-full border text-xs font-bold transition-all select-none flex items-center justify-center min-w-[80px] gap-2 ${isChecked ? 'bg-blue-100/50 dark:bg-blue-900/30 border-blue-500 text-blue-700 dark:text-blue-400' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/80'}`}>
                                                                             <input type={p.tipo === 'SELECT' ? 'radio' : 'checkbox'} name={p.tipo === 'SELECT' ? p.id : undefined} value={o} checked={isChecked} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} className="hidden" disabled={!alunoEncontrado} />
-                                                                            {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white dark:text-slate-900 shrink-0" />} {o || 'Opção Vazia'}
+                                                                            {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white dark:text-slate-900 shrink-0" />} {o || tx("Opção Vazia")}
                                                                         </label>
-                                                                        {isOutro && isChecked && (<input type="text" placeholder="Especifique a resposta..." disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
+                                                                        {isOutro && isChecked && (<input type="text" placeholder={tx("Especifique a resposta...")} disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
                                                                     </React.Fragment>
                                                                 )
                                                             })}
@@ -824,7 +825,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
 
                     <button type="submit" disabled={isSubmitting || !avaliacaoLiberada} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-5 rounded-[20px] shadow-[0_4px_15px_rgba(249,115,22,0.3)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
-                        {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('assessment.form.savingBtn', {defaultValue: 'Salvando...'})}</> : <><Send className="w-5 h-5" /> {avaliacaoEditando ? 'Atualizar Avaliação Física' : t('assessment.form.saveBtn', {defaultValue: 'Salvar Avaliação Física'})}</>}
+                        {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('assessment.form.savingBtn', {defaultValue: 'Salvando...'})}</> : <><Send className="w-5 h-5" /> {avaliacaoEditando ? tx("Atualizar Avaliação Física") : t('assessment.form.saveBtn', {defaultValue: 'Salvar Avaliação Física'})}</>}
                     </button>
                 </div>
             </form>

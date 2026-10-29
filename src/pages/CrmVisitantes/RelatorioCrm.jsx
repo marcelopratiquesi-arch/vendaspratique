@@ -1,19 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Calendar, CalendarDays, Sun, Download, TrendingUp, Activity, Loader2, AlertTriangle, Snowflake } from 'lucide-react';
+import { Download, TrendingUp, Activity, Loader2, AlertTriangle, Snowflake } from 'lucide-react';
+import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
+import { usePeriodoPadrao } from '../../components/periodoPadrao.js';
 import { dataDoLead, dataLocalISO, grupoMotivoPerda } from './utils';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ============================================================================
 // UTILITÁRIOS INTERNOS (Isolados para não depender de arquivos externos)
 // ============================================================================
-const meses = [
-    { val: 'TODOS', label: 'Todos os Meses' }, { val: '01', label: '01 - Janeiro' }, { val: '02', label: '02 - Fevereiro' },
-    { val: '03', label: '03 - Março' }, { val: '04', label: '04 - Abril' }, { val: '05', label: '05 - Maio' },
-    { val: '06', label: '06 - Junho' }, { val: '07', label: '07 - Julho' }, { val: '08', label: '08 - Agosto' },
-    { val: '09', label: '09 - Setembro' }, { val: '10', label: '10 - Outubro' }, { val: '11', label: '11 - Novembro' },
-    { val: '12', label: '12 - Dezembro' }
-];
-
 // Dia no horário local (um contato das 22h não cai no dia seguinte)
 const safeIsoDate = (dStr) => dataLocalISO(dStr);
 
@@ -31,16 +26,8 @@ const somarDias = (iso, dias) => {
 // COMPONENTE PRINCIPAL DO RELATÓRIO DO CRM
 // ============================================================================
 const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
-    const hojePadrao = dataLocalISO(new Date());
-    const mesPadrao = String(new Date().getMonth() + 1).padStart(2, '0');
-    const anoPadrao = new Date().getFullYear().toString();
-
-    const [tipoFiltroData, setTipoFiltroData] = useState('mes'); 
-    const [filtroMes, setFiltroMes] = useState(mesPadrao);
-    const [filtroAno, setFiltroAno] = useState(anoPadrao);
-    const [dataInicio, setDataInicio] = useState('');
-    const [dataFim, setDataFim] = useState('');
-    const [diaEspecifico, setDiaEspecifico] = useState(hojePadrao);
+    // Filtro de período padrão do sistema (começa em "Este mês", como antes)
+    const periodo = usePeriodoPadrao('este_mes');
 
     // O App só carrega 90 dias de contatos (e no máximo 3 mil na Visão Global). O relatório busca
     // no banco os contatos do período escolhido, para fechados antigos também entrarem na conta.
@@ -49,17 +36,13 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
     const [cortado, setCortado] = useState(false);
     const unidadeDoUsuario = !temVisaoGlobal && usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : '';
 
-    // Faixa de datas do filtro (AAAA-MM-DD). Vazio = sem limite daquele lado.
+    // Faixa de datas do filtro (AAAA-MM-DD, fim incluído). Vazio = sem limite daquele lado.
     const faixa = useMemo(() => {
-        if (tipoFiltroData === 'mes') {
-            if (filtroAno === 'TODOS') return { inicio: '', fim: '' };
-            if (filtroMes === 'TODOS') return { inicio: `${filtroAno}-01-01`, fim: `${filtroAno}-12-31` };
-            const ultimoDia = new Date(Number(filtroAno), Number(filtroMes), 0).getDate();
-            return { inicio: `${filtroAno}-${filtroMes}-01`, fim: `${filtroAno}-${filtroMes}-${String(ultimoDia).padStart(2, '0')}` };
-        }
-        if (tipoFiltroData === 'periodo') return { inicio: dataInicio || '', fim: dataFim || '' };
-        return { inicio: diaEspecifico || '', fim: diaEspecifico || '' };
-    }, [tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
+        const { inicio, fim } = periodo.faixa;
+        const ultimoDia = fim ? new Date(fim.getFullYear(), fim.getMonth(), fim.getDate() - 1) : null;
+        return { inicio: inicio ? dataLocalISO(inicio) : '', fim: ultimoDia ? dataLocalISO(ultimoDia) : '' };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- a faixa muda junto com periodo.chave
+    }, [periodo.chave]);
 
     useEffect(() => {
         let cancelado = false;
@@ -98,12 +81,6 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
 
     const fonte = leadsDoBanco || visitantes;
 
-    const anosUnicos = useMemo(() => {
-        const anos = [...new Set(visitantes.map(v => safeIsoDate(dataDoLead(v)).split('-')[0]))].filter(Boolean).sort((a,b) => b-a); 
-        if(anos.length === 0) anos.push(anoPadrao);
-        return anos;
-    }, [visitantes, anoPadrao]);
-
     // 1. FILTRAGEM DE DATA (Mantém apenas os leads do período selecionado)
     const leadsFiltrados = useMemo(() => {
         return fonte.filter(v => {
@@ -114,23 +91,12 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
             if (!dataBase) return false;
             
             const isoDate = safeIsoDate(dataBase);
-            const partes = isoDate.split('-');
-            if (partes.length !== 3) return false;
-            const [y, m, d] = partes;
-
-            if (tipoFiltroData === 'mes') {
-                if (filtroMes !== 'TODOS' && m !== filtroMes) return false;
-                if (filtroAno !== 'TODOS' && y !== filtroAno) return false;
-            } else if (tipoFiltroData === 'periodo') {
-                if (dataInicio && isoDate < dataInicio) return false;
-                if (dataFim && isoDate > dataFim) return false;
-            } else if (tipoFiltroData === 'dia') {
-                if (diaEspecifico && isoDate !== diaEspecifico) return false;
-            }
+            if (faixa.inicio && isoDate < faixa.inicio) return false;
+            if (faixa.fim && isoDate > faixa.fim) return false;
 
             return true;
         });
-    }, [fonte, temVisaoGlobal, usuarioLogado, tipoFiltroData, filtroMes, filtroAno, dataInicio, dataFim, diaEspecifico]);
+    }, [fonte, temVisaoGlobal, usuarioLogado, faixa]);
 
     // 2. CONSOLIDAÇÃO DOS DADOS POR UNIDADE
     const relatorioUnidades = useMemo(() => {
@@ -213,7 +179,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
         const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' }); // \uFEFF força o UTF-8 no Excel Excel
         const link = document.createElement("a");
         link.href = URL.createObjectURL(blob);
-        link.setAttribute("download", `Relatorio_Visitantes_${tipoFiltroData}.csv`);
+        link.setAttribute("download", `Relatorio_Visitantes_${String(periodo.rotulo).replace(/[^\w-]+/g, '_')}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -226,62 +192,27 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
             <div className="flex flex-col xl:flex-row justify-between items-start gap-6 mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
                 <div>
                     <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
-                        <Activity className="w-6 h-6 text-blue-600 dark:text-blue-400" /> Relatório Global de Conversão
+                        <Activity className="w-6 h-6 text-blue-600 dark:text-blue-400" />{' '}{tx("Relatório Global de Conversão")}
                     </h2>
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? `Unidade ${usuarioLogado.unidade}` : 'Visão consolidada de todas as unidades'}</p>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? tx("Unidade {unidade}", { unidade: usuarioLogado.unidade }) : tx("Visão consolidada de todas as unidades")}</p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-800 w-full sm:w-auto overflow-x-auto custom-scrollbar shadow-inner">
-                        <button onClick={() => setTipoFiltroData('mes')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'mes' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                            <Calendar className="w-4 h-4" /> Mês
-                        </button>
-                        <button onClick={() => setTipoFiltroData('periodo')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'periodo' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                            <CalendarDays className="w-4 h-4" /> Período
-                        </button>
-                        <button onClick={() => setTipoFiltroData('dia')} className={`flex-1 sm:min-w-[90px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroData === 'dia' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                            <Sun className="w-4 h-4" /> Dia
-                        </button>
-                    </div>
+                    <SeletorPeriodo {...periodo.propsSeletor} />
 
                     <button onClick={exportarCSV} disabled={relatorioUnidades.length === 0} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
-                        <Download className="w-4 h-4" /> Exportar Planilha
+                        <Download className="w-4 h-4" />{' '}{tx("Exportar Planilha")}
                     </button>
                 </div>
-            </div>
-
-            {/* CONTROLES DE DATA */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 mb-6">
-                {tipoFiltroData === 'mes' && (
-                    <>
-                        <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer">
-                            {meses.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
-                        </select>
-                        <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer">
-                            {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
-                        </select>
-                    </>
-                )}
-                {tipoFiltroData === 'periodo' && (
-                    <>
-                        <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer" />
-                        <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer" />
-                    </>
-                )}
-                {tipoFiltroData === 'dia' && (
-                    <div className="sm:col-span-2">
-                        <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm cursor-pointer" />
-                    </div>
-                )}
             </div>
 
             {(carregando || cortado || !leadsDoBanco) && (
                 <div className={`mb-4 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-2 border ${carregando ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`}>
                     {carregando
-                        ? <><Loader2 className="w-4 h-4 animate-spin shrink-0" /> Buscando os contatos do período no banco...</>
+                        ? <><Loader2 className="w-4 h-4 animate-spin shrink-0" />{' '}{tx("Buscando os contatos do período no banco...")}</>
                         : cortado
-                            ? <><AlertTriangle className="w-4 h-4 shrink-0" /> Período muito grande: o relatório usou os primeiros {(PAGINA * MAX_PAGINAS).toLocaleString('pt-BR')} contatos. Escolha um período menor para números exatos.</>
-                            : <><AlertTriangle className="w-4 h-4 shrink-0" /> Não foi possível buscar no banco: mostrando só os contatos carregados na tela (últimos 90 dias).</>}
+                            ? <><AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Período muito grande: o relatório usou os primeiros")}{' '}{(PAGINA * MAX_PAGINAS).toLocaleString(localeAtual())}{' '}{tx("contatos. Escolha um período menor para números exatos.")}</>
+                            : <><AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Não foi possível buscar no banco: mostrando só os contatos carregados na tela (últimos 90 dias).")}</>}
                 </div>
             )}
 
@@ -290,17 +221,17 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-800 text-white sticky top-0 z-10 shadow-md">
                         <tr>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900">Unidade</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">Total Entradas</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">Em Atendimento (Kanban)</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-emerald-400">Convertidos (Matriculou)</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-rose-400">Perdidos (Geladeira)</th>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-right">Taxa de Conversão</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900">{tx("Unidade")}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">{tx("Total Entradas")}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">{tx("Em Atendimento (Kanban)")}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-emerald-400">{tx("Convertidos (Matriculou)")}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-rose-400">{tx("Perdidos (Geladeira)")}</th>
+                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-right">{tx("Taxa de Conversão")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {relatorioUnidades.length === 0 ? (
-                            <tr><td colSpan="6" className="text-center py-16 text-slate-400 font-bold uppercase tracking-widest text-xs bg-white dark:bg-slate-900">Nenhum dado encontrado para o período.</td></tr>
+                            <tr><td colSpan="6" className="text-center py-16 text-slate-400 font-bold uppercase tracking-widest text-xs bg-white dark:bg-slate-900">{tx("Nenhum dado encontrado para o período.")}</td></tr>
                         ) : (
                             relatorioUnidades.map((row, idx) => (
                                 <tr key={row.unidade} className="hover:bg-blue-50/50 dark:hover:bg-blue-500/10 transition-colors">
@@ -336,7 +267,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                     {relatorioUnidades.length > 0 && (
                         <tfoot className="bg-slate-100 dark:bg-slate-800 sticky bottom-0 border-t-2 border-slate-300 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
                             <tr>
-                                <td className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest border-r border-slate-200 dark:border-slate-800">Total Global</td>
+                                <td className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest border-r border-slate-200 dark:border-slate-800">{tx("Total Global")}</td>
                                 <td className="px-6 py-5 text-center font-black text-slate-800 dark:text-white text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.total}</td>
                                 <td className="px-6 py-5 text-center font-black text-slate-600 dark:text-slate-300 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.emAtendimento}</td>
                                 <td className="px-6 py-5 text-center font-black text-emerald-700 dark:text-emerald-300 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.fechados}</td>
@@ -351,19 +282,19 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
             {/* POR QUE PERDEMOS (Bloco 4): motivos dos contatos Perdidos do período */}
             <div className="mt-6 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-5">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2 mb-1">
-                    <Snowflake className="w-4 h-4 text-rose-500" /> Por que perdemos
+                    <Snowflake className="w-4 h-4 text-rose-500" />{' '}{tx("Por que perdemos")}
                 </h3>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-4">
-                    {motivosPerda.total} {motivosPerda.total === 1 ? 'contato perdido' : 'contatos perdidos'} no período
+                    {motivosPerda.total} {motivosPerda.total === 1 ? tx("contato perdido") : tx("contatos perdidos")}{' '}{tx("no período")}
                 </p>
                 {motivosPerda.total === 0 ? (
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600">Nenhum contato perdido no período.</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600">{tx("Nenhum contato perdido no período.")}</p>
                 ) : (
                     <div className="space-y-2.5">
                         {motivosPerda.linhas.map(m => (
                             <div key={m.motivo} title={m.exemplos.length ? m.exemplos.join('\n') : undefined}>
                                 <div className="flex justify-between items-baseline gap-3 mb-1">
-                                    <span className={`text-xs font-black uppercase tracking-wide ${m.motivo === 'Sem motivo informado' ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>{m.motivo}</span>
+                                    <span className={`text-xs font-black uppercase tracking-wide ${m.motivo === 'Sem motivo informado' ? 'text-slate-400' : 'text-slate-700 dark:text-slate-200'}`}>{tx(m.motivo)}</span>
                                     <span className="text-xs font-black text-rose-600 dark:text-rose-400">{m.qtd} <span className="text-slate-400 font-bold">({m.pct}%)</span></span>
                                 </div>
                                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
@@ -372,7 +303,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                             </div>
                         ))}
                         {motivosPerda.semMotivo > 0 && (
-                            <p className="text-[10px] font-bold text-slate-400 pt-1">"Sem motivo informado" = perdidos antes de o motivo passar a ser pedido.</p>
+                            <p className="text-[10px] font-bold text-slate-400 pt-1">{tx("\"Sem motivo informado\" = perdidos antes de o motivo passar a ser pedido.")}</p>
                         )}
                     </div>
                 )}

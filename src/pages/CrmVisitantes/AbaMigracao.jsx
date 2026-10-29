@@ -9,6 +9,7 @@ import {
 import { JanelaNaoContatar, JanelaJustificativa } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // ABA MIGRAÇÃO
@@ -153,7 +154,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             .filter(l => l.disponivel && (!planoPuxar || l.ultimo_plano === planoPuxar))
             .sort((a, b) => String(b.data_compra || '').localeCompare(String(a.data_compra || '')))
             .slice(0, qtdPuxar);
-        if (candidatos.length === 0) return avisar('Não há alunos disponíveis para puxar com esse filtro.');
+        if (candidatos.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
         setPuxando(true);
         try {
             const confirmados = await puxarParaFilaMigracao({ alunoIds: candidatos.map(c => c.aluno_id), unidade: unidadeChave, operador });
@@ -163,11 +164,11 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             setVisao('FILA');
             setFiltroAndamento('PENDENTES');
             const perdidos = candidatos.length - confirmados.length;
-            if (confirmados.length === 0) avisar('Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada.');
-            else if (perdidos > 0) avisar(`${confirmados.length} aluno(s) puxado(s). ${perdidos} já tinha(m) sido puxado(s) por outra pessoa.`);
+            if (confirmados.length === 0) avisar(tx("Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada."));
+            else if (perdidos > 0) avisar(tx("{length} aluno(s) puxado(s). {perdidos} já tinha(m) sido puxado(s) por outra pessoa.", { length: confirmados.length, perdidos: perdidos }));
         } catch (err) {
             console.error('Erro ao puxar alunos da migração:', err);
-            avisar(`Não foi possível puxar.\n\n${err?.message || ''}`);
+            avisar(tx("Não foi possível puxar.\n\n{v1}", { v1: err?.message || '' }));
         } finally {
             setPuxando(false);
         }
@@ -194,14 +195,14 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             }
         } catch (err) {
             console.error('Erro ao registrar contato de migração:', err);
-            avisar(`Não foi possível registrar o contato.\n\n${err?.message || ''}`);
+            avisar(tx("Não foi possível registrar o contato.\n\n{v1}", { v1: err?.message || '' }));
         } finally {
             setSalvando('');
         }
     };
 
     const abrirWhatsApp = async (linha) => {
-        if (!linha.telefone) return avisar('Este aluno está sem telefone cadastrado.');
+        if (!linha.telefone) return avisar(tx("Este aluno está sem telefone cadastrado."));
         window.open(linkWhatsApp(linha.telefone, preencherMensagem(mensagem, { nome: linha.nome, unidade: unidadeChave })), '_blank');
         await registrarContato(linha, { canal: 'WHATSAPP' });
     };
@@ -213,7 +214,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             await salvarAndamentoMigracao({ aluno_id: linha.aluno_id, unidade: unidadeChave, status: novo, quem: operador });
             atualizarLocal(linha.aluno_id, { status: novo });
         } catch (err) {
-            avisar(`Não foi possível salvar.\n\n${err?.message || ''}`);
+            avisar(tx("Não foi possível salvar.\n\n{v1}", { v1: err?.message || '' }));
         } finally {
             setSalvando('');
         }
@@ -225,7 +226,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             await devolverDaFilaMigracao({ aluno_id: linha.aluno_id, unidade: unidadeChave, quem: operador });
             atualizarLocal(linha.aluno_id, { status: 'NA_FILA', puxado_por: null, puxado_em: null });
         } catch (err) {
-            avisar(`Não foi possível devolver.\n\n${err?.message || ''}`);
+            avisar(tx("Não foi possível devolver.\n\n{v1}", { v1: err?.message || '' }));
         } finally {
             setSalvando('');
         }
@@ -239,80 +240,80 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             <div className="flex flex-wrap justify-between items-start gap-4 mb-5 border-b border-slate-100 dark:border-slate-800 pb-5">
                 <div>
                     <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-                        <Repeat className="w-6 h-6 text-blue-500" /> Migração para plano com nutricionista
+                        <Repeat className="w-6 h-6 text-blue-500" />{' '}{tx("Migração para plano com nutricionista")}
                         {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1">Alunos de {unidadeChave} cujo último plano comprado não tem NUTRI. Puxe alguns para a sua fila e trabalhe aos poucos.</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1">{tx("Alunos de")}{' '}{unidadeChave}{' '}{tx("cujo último plano comprado não tem NUTRI. Puxe alguns para a sua fila e trabalhe aos poucos.")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(ANDAMENTOS).map(([chave, a]) => (
-                        <span key={chave} className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{contagem[chave]} {a.rotulo}</span>
+                        <span key={chave} className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{contagem[chave]} {tx(a.rotulo)}</span>
                     ))}
                 </div>
             </div>
 
             {indisponivel && (
                 <div className="mb-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> A Migração precisa dos comandos da Etapa C no Supabase (tabela crm_migracao e consulta crm_migracao_alunos).
+                    <AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("A Migração precisa dos comandos da Etapa C no Supabase (tabela crm_migracao e consulta crm_migracao_alunos).")}
                 </div>
             )}
 
             {/* PUXAR PARA A MINHA FILA */}
             <div className="mb-5 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">Puxar para a minha fila:</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para a minha fila:")}</span>
                 <select value={planoPuxar} onChange={(e) => setPlanoPuxar(e.target.value)} className={seletor}>
-                    <option value="">Todos os planos</option>
+                    <option value="">{tx("Todos os planos")}</option>
                     {planosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
                 <select value={qtdPuxar} onChange={(e) => setQtdPuxar(Number(e.target.value))} className={seletor}>
-                    {QUANTIDADES_PUXAR.map(q => <option key={q} value={q}>{q} alunos</option>)}
+                    {QUANTIDADES_PUXAR.map(q => <option key={q} value={q}>{q}{' '}{tx("alunos")}</option>)}
                 </select>
                 <button type="button" onClick={puxar} disabled={puxando || totalDisponiveis === 0} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                    {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />} Puxar
+                    {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}{' '}{tx("Puxar")}
                 </button>
-                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis} disponível(is){planoPuxar ? ` em ${planoPuxar}` : ''} · os que compraram mais recentemente vêm primeiro</span>
+                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis}{' '}{tx("disponível(is)")}{planoPuxar ? " " + tx("em {planoPuxar}", { planoPuxar: planoPuxar }) + "" : ''}{' '}{tx("· os que compraram mais recentemente vêm primeiro")}</span>
             </div>
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                     {VISOES.map(v => (
                         <button key={v.val} type="button" onClick={() => setVisao(v.val)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visao === v.val ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                            {v.label}
+                            {tx(v.label)}
                         </button>
                     ))}
                 </div>
                 <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, CPF ou telefone" className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30" />
+                    <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar por nome, CPF ou telefone")} className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30" />
                     {busca && <button type="button" onClick={() => setBusca('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-3.5 h-3.5" /></button>}
                 </div>
                 <select value={filtroAndamento} onChange={(e) => setFiltroAndamento(e.target.value)} className={seletor}>
-                    {FILTROS_ANDAMENTO.map(f => <option key={f.val} value={f.val}>{f.label}</option>)}
+                    {FILTROS_ANDAMENTO.map(f => <option key={f.val} value={f.val}>{tx(f.label)}</option>)}
                 </select>
                 <select value={filtroPlano} onChange={(e) => setFiltroPlano(e.target.value)} className={seletor}>
-                    <option value="">Todos os planos</option>
+                    <option value="">{tx("Todos os planos")}</option>
                     {planosDaVisao.map(p => <option key={p} value={p}>{p}</option>)}
                 </select>
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{filtradas.length} aluno(s)</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{filtradas.length}{' '}{tx("aluno(s)")}</span>
             </div>
 
             <div className="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-50 dark:bg-slate-800/60">
                         <tr>
-                            <th className={th}>Aluno</th>
-                            <th className={th}>Último plano</th>
-                            <th className={th}>Compra</th>
-                            <th className={th}>Telefone</th>
-                            <th className={th}>Andamento</th>
-                            {visao === 'TODOS' && <th className={th}>Na fila de</th>}
-                            <th className={`${th} text-right`}>Ações</th>
+                            <th className={th}>{tx("Aluno")}</th>
+                            <th className={th}>{tx("Último plano")}</th>
+                            <th className={th}>{tx("Compra")}</th>
+                            <th className={th}>{tx("Telefone")}</th>
+                            <th className={th}>{tx("Andamento")}</th>
+                            {visao === 'TODOS' && <th className={th}>{tx("Na fila de")}</th>}
+                            <th className={`${th} text-right`}>{tx("Ações")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {filtradas.length === 0 ? (
                             <tr><td colSpan={visao === 'TODOS' ? 7 : 6} className="text-center py-12 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                {carregando ? 'Carregando...' : visao === 'FILA' ? 'Sua fila está vazia. Use "Puxar" para pegar alunos para trabalhar.' : 'Nenhum aluno neste filtro.'}
+                                {carregando ? tx("Carregando...") : visao === 'FILA' ? tx("Sua fila está vazia. Use \"Puxar\" para pegar alunos para trabalhar.") : tx("Nenhum aluno neste filtro.")}
                             </td></tr>
                         ) : filtradas.slice(0, limite).map(l => {
                             const a = ANDAMENTOS[l.situacao];
@@ -323,45 +324,45 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                             return (
                                 <tr key={l.aluno_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                     <td className="px-4 py-3">
-                                        <button type="button" onClick={() => setContatoFicha(l)} className="text-xs font-black text-slate-800 dark:text-white uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2" title="Abrir a ficha do aluno">{l.nome}</button>
+                                        <button type="button" onClick={() => setContatoFicha(l)} className="text-xs font-black text-slate-800 dark:text-white uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2" title={tx("Abrir a ficha do aluno")}>{l.nome}</button>
                                     </td>
                                     <td className="px-4 py-3 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{l.ultimo_plano}</td>
                                     <td className="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{l.data_compra ? String(l.data_compra).split('-').reverse().join('/') : '—'}</td>
                                     <td className="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{l.telefone || '—'}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{a.rotulo}</span>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{tx(a.rotulo)}</span>
                                     </td>
-                                    {visao === 'TODOS' && <td className="px-4 py-3 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">{l.disponivel ? 'Disponível' : (l.dono ? String(l.dono).split(' ')[0] : '—')}</td>}
+                                    {visao === 'TODOS' && <td className="px-4 py-3 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">{l.disponivel ? tx("Disponível") : (l.dono ? String(l.dono).split(' ')[0] : '—')}</td>}
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-1.5">
                                             {podeTrabalhar && (
                                                 <>
-                                                    <button type="button" onClick={() => abrirWhatsApp(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title="Abre o WhatsApp com a mensagem de migração e já registra o contato">
-                                                        {ocupado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} WhatsApp
+                                                    <button type="button" onClick={() => abrirWhatsApp(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Abre o WhatsApp com a mensagem de migração e já registra o contato")}>
+                                                        {ocupado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>
                                                     {jaHoje ? (
-                                                        <span className="px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title="O contato de hoje já foi registrado. Abrir o WhatsApp de novo não soma outra vez.">
-                                                            <Check className="w-3.5 h-3.5" /> Contatado hoje
+                                                        <span className="px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("O contato de hoje já foi registrado. Abrir o WhatsApp de novo não soma outra vez.")}>
+                                                            <Check className="w-3.5 h-3.5" />{' '}{tx("Contatado hoje")}
                                                         </span>
                                                     ) : (
-                                                        <button type="button" onClick={() => setJustificando(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title="Contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)">
-                                                            <Check className="w-3.5 h-3.5" /> Registrar contato
+                                                        <button type="button" onClick={() => setJustificando(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title={tx("Contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
+                                                            <Check className="w-3.5 h-3.5" />{' '}{tx("Registrar contato")}
                                                         </button>
                                                     )}
                                                     {l.situacao !== 'NAO_CONTATADO' && (
-                                                        <button type="button" onClick={() => mudarInteresse(l)} disabled={ocupado} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 border disabled:opacity-60 ${l.situacao === 'INTERESSADO' ? 'bg-amber-500 text-white border-amber-600' : 'border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`} title="Marcar/desmarcar como interessado">
-                                                            <Star className="w-3.5 h-3.5" /> Interessado
+                                                        <button type="button" onClick={() => mudarInteresse(l)} disabled={ocupado} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 border disabled:opacity-60 ${l.situacao === 'INTERESSADO' ? 'bg-amber-500 text-white border-amber-600' : 'border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`} title={tx("Marcar/desmarcar como interessado")}>
+                                                            <Star className="w-3.5 h-3.5" />{' '}{tx("Interessado")}
                                                         </button>
                                                     )}
                                                     {l.situacao === 'NAO_CONTATADO' && (
-                                                        <button type="button" onClick={() => devolver(l)} disabled={ocupado} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 dark:hover:text-blue-400" title="Devolver para os Disponíveis">
+                                                        <button type="button" onClick={() => devolver(l)} disabled={ocupado} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 dark:hover:text-blue-400" title={tx("Devolver para os Disponíveis")}>
                                                             <Undo2 className="w-4 h-4" />
                                                         </button>
                                                     )}
                                                 </>
                                             )}
                                             {l.situacao !== 'MIGROU' && (
-                                                <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title="Não contatar">
+                                                <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title={tx("Não contatar")}>
                                                     <Ban className="w-4 h-4" />
                                                 </button>
                                             )}
@@ -375,7 +376,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             </div>
             {filtradas.length > limite && (
                 <button type="button" onClick={() => setLimite(n => n + POR_PAGINA)} className="w-full mt-3 py-3 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl flex items-center justify-center gap-1.5">
-                    <ChevronDown className="w-4 h-4" /> Ver mais ({filtradas.length - limite} restantes)
+                    <ChevronDown className="w-4 h-4" />{' '}{tx("Ver mais (")}{filtradas.length - limite}{' '}{tx("restantes)")}
                 </button>
             )}
 

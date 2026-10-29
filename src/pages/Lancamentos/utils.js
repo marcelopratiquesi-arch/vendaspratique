@@ -1,3 +1,4 @@
+import { localeAtual } from '../../i18n/traduzir.js';
 export const safeNumber = (val) => {
     if (typeof val === 'number') return val;
     if (!val) return 0;
@@ -7,7 +8,7 @@ export const safeNumber = (val) => {
 };
 
 export const formatMoney = (val) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safeNumber(val));
+    return new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(safeNumber(val));
 };
 
 // ESSA FUNÇÃO SALVA SUA VIDA CONTRA O BUG DO FUSO HORÁRIO

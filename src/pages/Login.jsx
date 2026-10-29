@@ -6,14 +6,24 @@ import {
     Zap, ShieldAlert, Mail, Lock, Loader2, ArrowRight, ShieldCheck, Eye, EyeOff,
     ShoppingCart, Coins, Users, ClipboardList, AlertTriangle, CheckCircle2, ArrowLeft, KeyRound
 } from 'lucide-react';
+import { tx, localeAtual } from '../i18n/traduzir.js';
 
 // ==========================================
 // CONFIGURAÇÕES
 // ==========================================
 const CHAVE_EMAIL_LEMBRADO = 'pratique_lembrar_email';
 const LARGURA_TELA_GRANDE = '(min-width: 1024px)';
-const DIAS = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
-const MESES = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
+// Dias e meses do relógio, no idioma escolhido
+const DIAS = {
+    'pt-BR': ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'],
+    'en-US': ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'],
+    'es-AR': ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB']
+};
+const MESES = {
+    'pt-BR': ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'],
+    'en-US': ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'],
+    'es-AR': ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC']
+};
 
 // Animações da tela (nomes com prefixo "pl-" para não conflitar com o resto do sistema)
 const CSS_ANIMACOES = `
@@ -91,7 +101,7 @@ const SeletorIdioma = ({ tema }) => {
 
     const escuro = tema === 'escuro';
     return (
-        <div role="group" aria-label="Idioma" className={`flex gap-0.5 p-[3px] rounded-[11px] ${escuro ? 'bg-white/[0.07]' : 'bg-slate-100'}`}>
+        <div role="group" aria-label={tx("Idioma")} className={`flex gap-0.5 p-[3px] rounded-[11px] ${escuro ? 'bg-white/[0.07]' : 'bg-slate-100'}`}>
             {opcoes.map(({ rotulo, codigo }) => {
                 const ativo = atual.startsWith(rotulo.toLowerCase());
                 return (
@@ -106,7 +116,7 @@ const SeletorIdioma = ({ tema }) => {
                                 : `font-bold ${escuro ? 'text-slate-300 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`
                         }`}
                     >
-                        {rotulo}
+                        {tx(rotulo)}
                     </button>
                 );
             })}
@@ -142,7 +152,8 @@ const RelogioOrbital = ({ escala }) => {
     const anguloMinutos = m * 6 + s * 0.1;
     const anguloSegundos = s * 6;
     const horaTexto = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-    const dataTexto = `${DIAS[agora.getDay()]} ${String(agora.getDate()).padStart(2, '0')} ${MESES[agora.getMonth()]}`;
+    const idioma = DIAS[localeAtual()] ? localeAtual() : 'pt-BR';
+    const dataTexto = `${DIAS[idioma][agora.getDay()]} ${String(agora.getDate()).padStart(2, '0')} ${MESES[idioma][agora.getMonth()]}`;
     const fonteMono = { fontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace" };
 
     return (
@@ -151,7 +162,7 @@ const RelogioOrbital = ({ escala }) => {
                 className="relative"
                 style={{ width: 500, height: 500, transform: `scale(${escala})`, transformOrigin: 'top left' }}
                 role="img"
-                aria-label={`Relógio marcando ${horaTexto}, com vendas, comissões, alunos e avaliações em órbita`}
+                aria-label={tx("Relógio marcando {horaTexto}, com vendas, comissões, alunos e avaliações em órbita", { horaTexto: horaTexto })}
             >
                 <div className="absolute inset-0 rounded-full border border-dashed border-white/[0.14]" aria-hidden="true" />
 
@@ -225,7 +236,7 @@ const RelogioOrbital = ({ escala }) => {
                                 <span className={`w-[52px] h-[52px] rounded-2xl bg-[#111a2e] border flex items-center justify-center ${cor === 'ciano' ? 'border-cyan-300/45 text-cyan-300' : 'border-violet-300/50 text-violet-300'}`}>
                                     <Icone className="w-[22px] h-[22px]" />
                                 </span>
-                                <span className="text-[12px] font-extrabold text-slate-200">{rotulo}</span>
+                                <span className="text-[12px] font-extrabold text-slate-200">{tx(rotulo)}</span>
                             </div>
                         </div>
                     ))}
@@ -426,7 +437,7 @@ export default function Login({ onLogin }) {
     // Funções de desenho (não componentes): assim os campos não perdem o foco a cada tecla digitada
     const renderCampo = (id, rotulo, Icone, children) => (
         <div className="flex flex-col gap-2">
-            <label htmlFor={id} className={`text-[12px] font-bold cursor-pointer ${c.rotulo}`}>{rotulo}</label>
+            <label htmlFor={id} className={`text-[12px] font-bold cursor-pointer ${c.rotulo}`}>{tx(rotulo)}</label>
             <div className={`group ${c.alturaCampo} rounded-2xl flex items-center gap-3 pl-[18px] pr-2 transition-all ${c.campo}`}>
                 <Icone className={`w-[18px] h-[18px] shrink-0 transition-colors ${c.icone}`} />
                 {children}
@@ -442,7 +453,7 @@ export default function Login({ onLogin }) {
             disabled={loading}
             className={`${c.alturaBotao} mt-1.5 rounded-2xl text-white text-[15px] font-extrabold flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:opacity-60 outline-none focus-visible:ring-4 focus-visible:ring-blue-400/40 ${c.botao}`}
         >
-            {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> {textoCarregando}</> : <>{texto} <ArrowRight className="w-4 h-4" strokeWidth={2.5} /></>}
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin" /> {textoCarregando}</> : <>{tx(texto)} <ArrowRight className="w-4 h-4" strokeWidth={2.5} /></>}
         </button>
     );
 
@@ -470,7 +481,7 @@ export default function Login({ onLogin }) {
             {modo === 'login' && (
                 <form onSubmit={handleLogin} className="flex flex-col gap-[18px]">
                     {renderCampo("login-email", t('auth.emailLabel'), Mail, (<>
-                        <input id="login-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="nome@pratique.com" className={classeInput} />
+                        <input id="login-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={tx("nome@pratique.com")} className={classeInput} />
                     </>))}
 
                     <div className="flex flex-col gap-2">
@@ -488,7 +499,7 @@ export default function Login({ onLogin }) {
                                 placeholder="••••••••"
                                 className={classeInput}
                             />
-                            <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${c.olho}`}>
+                            <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? tx("Ocultar senha") : tx("Mostrar senha")} className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${c.olho}`}>
                                 {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                             </button>
                         </>))}
@@ -516,7 +527,7 @@ export default function Login({ onLogin }) {
             {modo === 'esqueci' && (
                 <form onSubmit={handleEsqueci} className="flex flex-col gap-[18px]">
                     {renderCampo("reset-email", t('auth.emailLabel'), Mail, (<>
-                        <input id="reset-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="nome@pratique.com" className={classeInput} />
+                        <input id="reset-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={tx("nome@pratique.com")} className={classeInput} />
                     </>))}
                     {renderBotao(tr('auth.sendLink', 'Enviar link'), tr('auth.sending', 'Enviando...'))}
                     <button type="button" onClick={() => trocarModo('login')} className={`flex items-center justify-center gap-1.5 text-[13px] font-bold min-h-[44px] transition-colors ${c.link}`}>
@@ -529,7 +540,7 @@ export default function Login({ onLogin }) {
                 <form onSubmit={handleNovaSenha} className="flex flex-col gap-[18px]">
                     {renderCampo("nova-senha", tr('auth.newPassword', 'Nova senha'), KeyRound, (<>
                         <input id="nova-senha" type={showPassword ? 'text' : 'password'} autoComplete="new-password" value={novaSenha} onChange={(e) => setNovaSenha(e.target.value)} required minLength={6} className={classeInput} />
-                        <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${c.olho}`}>
+                        <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? tx("Ocultar senha") : tx("Mostrar senha")} className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 transition-colors ${c.olho}`}>
                             {showPassword ? <EyeOff className="w-[18px] h-[18px]" /> : <Eye className="w-[18px] h-[18px]" />}
                         </button>
                     </>))}
@@ -559,8 +570,8 @@ export default function Login({ onLogin }) {
                 </div>
             )}
             <div className={escuro ? 'flex items-center gap-2.5' : 'flex flex-col gap-px'}>
-                <span className={`text-[16px] font-black tracking-[-0.02em] ${escuro ? 'text-white' : 'text-slate-900'}`}>PRATIQUE</span>
-                <span className={`text-[9px] font-extrabold tracking-[0.24em] ${escuro ? 'text-cyan-300' : 'text-blue-600'}`}>VENDAS</span>
+                <span className={`text-[16px] font-black tracking-[-0.02em] ${escuro ? 'text-white' : 'text-slate-900'}`}>{tx("PRATIQUE")}</span>
+                <span className={`text-[9px] font-extrabold tracking-[0.24em] ${escuro ? 'text-cyan-300' : 'text-blue-600'}`}>{tx("VENDAS")}</span>
             </div>
         </div>
     );

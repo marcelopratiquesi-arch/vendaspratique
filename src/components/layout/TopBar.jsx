@@ -3,6 +3,7 @@ import { Search, Bell, Sun, Moon, Monitor, Menu, Globe, Building2, ChevronDown, 
 import LanguageSwitcher from '../LanguageSwitcher.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx';
+import { tx } from '../../i18n/traduzir.js';
 
 // ---------- Textos (com português de reserva: nunca aparece chave crua na tela) ----------
 const TITULOS = {
@@ -222,7 +223,7 @@ export default function TopBar({
                         <Menu className="w-5 h-5" />
                     </button>
                     <div className="hidden sm:flex flex-col min-w-0">
-                        <h2 className="text-[16px] font-black text-slate-800 dark:text-white leading-none tracking-tight truncate">{titulo}</h2>
+                        <h2 className="text-[16px] font-black text-slate-800 dark:text-white leading-none tracking-tight truncate">{tx(titulo)}</h2>
                         {mostrarSeletor ? (
                             <SeletorUnidadeTopo
                                 unidadeGlobal={unidadeGlobal}
@@ -232,7 +233,7 @@ export default function TopBar({
                                 rotuloTodas={rotuloTodas}
                             />
                         ) : (
-                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{subtitulo}</span>
+                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{tx(subtitulo)}</span>
                         )}
                     </div>
                 </div>
@@ -252,7 +253,7 @@ export default function TopBar({
                             <span className="text-[13px] font-semibold truncate sm:hidden">{tr('topbar.searchShort', 'Buscar...')}</span>
                         </span>
                         <span className="hidden lg:flex items-center gap-1 shrink-0">
-                            <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded text-[10px] font-black border border-slate-200 dark:border-slate-700 shadow-sm">{isMac ? '⌘' : 'Ctrl'}</kbd>
+                            <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded text-[10px] font-black border border-slate-200 dark:border-slate-700 shadow-sm">{isMac ? '⌘' : tx("Ctrl")}</kbd>
                             <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded text-[10px] font-black border border-slate-200 dark:border-slate-700 shadow-sm">K</kbd>
                         </span>
                     </button>

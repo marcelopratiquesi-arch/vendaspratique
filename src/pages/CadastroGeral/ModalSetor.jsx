@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, LayoutGrid, Loader2, Check } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
     const [nome, setNome] = useState('');
@@ -19,7 +20,7 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!nome.trim()) return avisar("O nome do setor é obrigatório.");
+        if (!nome.trim()) return avisar(tx("O nome do setor é obrigatório."));
         
         onSave({
             id: dadosEdicao?.id,
@@ -42,7 +43,7 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
                             <LayoutGrid className="w-5 h-5" />
                         </div>
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">{dadosEdicao ? 'Editar Setor' : 'Novo Setor'}</h2>
+                            <h2 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">{dadosEdicao ? tx("Editar Setor") : tx("Novo Setor")}</h2>
                         </div>
                     </div>
                     <button onClick={onClose} disabled={isSubmitting} className="w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-50 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-400">
@@ -54,8 +55,8 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
                 <div className="p-6">
                     <form id="form-setor" onSubmit={handleSubmit} className="space-y-6">
                         <div>
-                            <label className={labelBase}>Nome do Setor / Cargo</label>
-                            <input type="text" value={nome} onChange={e => setNome(e.target.value)} required placeholder="Ex: RECEPÇÃO" className={inputBase} />
+                            <label className={labelBase}>{tx("Nome do Setor / Cargo")}</label>
+                            <input type="text" value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: RECEPÇÃO")} className={inputBase} />
                         </div>
                     </form>
                 </div>
@@ -63,11 +64,11 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
                 {/* Footer */}
                 <div className="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end dark:border-slate-800 dark:bg-slate-800/60">
                     <button type="button" onClick={onClose} disabled={isSubmitting} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-200 transition-colors disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700">
-                        Cancelar
+                        {tx("Cancelar")}
                     </button>
                     <button type="submit" form="form-setor" disabled={isSubmitting} className={`px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-white shadow-md transition-all flex items-center gap-2 disabled:opacity-50 ${dadosEdicao ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}>
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
-                        {dadosEdicao ? 'Atualizar' : 'Salvar Setor'}
+                        {dadosEdicao ? tx("Atualizar") : tx("Salvar Setor")}
                     </button>
                 </div>
             </div>

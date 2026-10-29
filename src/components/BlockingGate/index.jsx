@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { ShieldAlert, CheckCircle, HelpCircle, Loader2, AlertTriangle, FileText, Lock } from 'lucide-react';
+import { tx } from '../../i18n/traduzir.js';
 
 export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
     const { t, locale, language } = useI18n(); // 🛡️ Proteção dupla de idioma
@@ -110,10 +111,10 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                     </div>
                     <div>
                         <h2 className={`text-base font-black uppercase tracking-widest leading-none mb-1 ${bloqueioFatal ? 'text-rose-700 dark:text-rose-400' : 'text-blue-700 dark:text-blue-400'}`}>
-                            {bloqueioFatal ? 'SISTEMA BLOQUEADO' : t('communications.mandatoryNotice', { defaultValue: 'Aviso Operacional Obrigatório' })}
+                            {bloqueioFatal ? tx("SISTEMA BLOQUEADO") : t('communications.mandatoryNotice', { defaultValue: 'Aviso Operacional Obrigatório' })}
                         </h2>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400">
-                            {bloqueioFatal ? 'Você atingiu o limite de tentativas de resposta.' : 'A navegação foi interrompida para leitura deste documento.'}
+                            {bloqueioFatal ? tx("Você atingiu o limite de tentativas de resposta.") : tx("A navegação foi interrompida para leitura deste documento.")}
                         </p>
                     </div>
                 </div>
@@ -127,7 +128,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                     </div>
 
                     <div className="space-y-6 mb-10">
-                        {comunicadoBloqueante.imagem_url && <img src={comunicadoBloqueante.imagem_url} alt="Comunicado" className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
+                        {comunicadoBloqueante.imagem_url && <img src={comunicadoBloqueante.imagem_url} alt={tx("Comunicado")} className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
 
                         {comunicadoBloqueante.pdf_url && (
                             <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
@@ -136,11 +137,11 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                         <FileText className="w-6 h-6" />
                                     </div>
                                     <div>
-                                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase">Documento Anexo</p>
-                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Formato PDF</p>
+                                        <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{tx("Documento Anexo")}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Formato PDF")}</p>
                                     </div>
                                 </div>
-                                <a href={comunicadoBloqueante.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm dark:hover:bg-blue-500/10 dark:hover:text-blue-400">Abrir Documento</a>
+                                <a href={comunicadoBloqueante.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm dark:hover:bg-blue-500/10 dark:hover:text-blue-400">{tx("Abrir Documento")}</a>
                             </div>
                         )}
 
@@ -154,7 +155,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
 
                         {urlVideoExterno && (
                             <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 shadow-md bg-black" style={{ paddingTop: '56.25%' }}>
-                                <iframe className="absolute top-0 left-0 w-full h-full" src={urlVideoExterno} title="YouTube video" frameBorder="0" allowFullScreen></iframe>
+                                <iframe className="absolute top-0 left-0 w-full h-full" src={urlVideoExterno} title={tx("YouTube video")} frameBorder="0" allowFullScreen></iframe>
                             </div>
                         )}
                     </div>
@@ -165,7 +166,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                             <div className="space-y-8">
                                 <div className="border-b border-slate-200 dark:border-white/5 pb-4 mb-4">
                                     <p className="text-sm font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest flex items-center gap-2">
-                                        <HelpCircle className="w-5 h-5" /> Responda para liberar o acesso:
+                                        <HelpCircle className="w-5 h-5" />{' '}{tx("Responda para liberar o acesso:")}
                                     </p>
                                 </div>
                                 
@@ -210,7 +211,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                         disabled={validando || !formularioCompleto || resultado?.sucesso}
                                         className="w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
                                     >
-                                        {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? 'Acesso Liberado!' : 'Confirmar Respostas'}
+                                        {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? tx("Acesso Liberado!") : tx("Confirmar Respostas")}
                                     </button>
                                 )}
                             </div>
@@ -220,7 +221,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                             <div className="text-center space-y-6">
                                 {resultado && !resultado.sucesso && (
                                     <div className="p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30">
-                                        <ShieldAlert className="w-5 h-5" /> Erro ao registrar confirmação.
+                                        <ShieldAlert className="w-5 h-5" />{' '}{tx("Erro ao registrar confirmação.")}
                                     </div>
                                 )}
                                 
@@ -229,7 +230,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                     disabled={validando || resultado?.sucesso}
                                     className="w-full bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
                                 >
-                                    {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? <><CheckCircle className="w-5 h-5" /> Acesso Liberado!</> : <><CheckCircle className="w-5 h-5" /> Li e estou ciente</>}
+                                    {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? <><CheckCircle className="w-5 h-5" />{' '}{tx("Acesso Liberado!")}</> : <><CheckCircle className="w-5 h-5" />{' '}{tx("Li e estou ciente")}</>}
                                 </button>
                             </div>
                         )}

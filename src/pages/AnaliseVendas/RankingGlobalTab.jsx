@@ -13,18 +13,28 @@ import {
 import { useResgateCpf } from './relatorio/useResgateCpf.js';
 import ModalAuditoria from './relatorio/ModalAuditoria.jsx';
 import {
-    Trophy,
     Download,
     Share2,
     ArrowUpDown,
     FileX2,
-    ShieldAlert,
-    Building2,
-    Layers,
-    Package,
-    Briefcase
+    ShieldAlert
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
+
+// Visual limpo (decisão do dono, 29/10/2026): números em cinza escuro, uma cor só (azul) e
+// a célula fica mais azul quanto maior o número na coluna. Zero = "—".
+const tomDaCelula = (valor, maximo) => {
+    if (!valor || !maximo) return '';
+    const r = valor / maximo;
+    if (r >= 1) return 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:border-blue-500';
+    if (r >= 0.66) return 'bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-200 dark:bg-blue-500/30 dark:text-blue-200 dark:border-blue-500/30';
+    if (r >= 0.33) return 'bg-blue-50 text-blue-800 border-blue-100 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/20';
+    return 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 dark:bg-slate-900 dark:text-slate-200 dark:border-slate-800 dark:hover:bg-slate-800';
+};
+
+const MEDALHAS = ['🥇', '🥈', '🥉'];
+const doisDigitos = (n) => String(n || 0).padStart(2, '0');
 
 const RankingGlobalTab = ({
     vendasFiltradas = [],
@@ -51,23 +61,6 @@ const RankingGlobalTab = ({
         registros: [],
         totalItensUnicos: 0
     });
-
-    // 🔒 BLINDAGEM DE SEGURANÇA: Oculta completamente para Líder e Recepção
-    if (!temVisaoGlobal) {
-        return (
-            <div className="bg-white rounded-[24px] border border-rose-200 p-12 flex flex-col items-center justify-center text-center shadow-sm dark:bg-slate-900 dark:border-rose-500/30">
-                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 border border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30">
-                    <ShieldAlert className="w-8 h-8" />
-                </div>
-                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest dark:text-white">
-                    Acesso Restrito à Diretoria / Mentoria
-                </h3>
-                <p className="text-xs font-medium text-slate-500 mt-1 max-w-md dark:text-slate-400">
-                    A Matriz Executiva e o Ranking Global da rede estão disponíveis exclusivamente para perfis com visão global (Admin e Mentor).
-                </p>
-            </div>
-        );
-    }
 
     // 🧠 Motor de Consolidação Único
     const {
@@ -112,6 +105,34 @@ const RankingGlobalTab = ({
             return true;
         });
     }, [criterioRanking]);
+
+    // Maior número de cada coluna (para o tom azul da célula)
+    const maximoPorColuna = useMemo(() => {
+        const m = { TOTAL: 0, PLANOS: 0 };
+        rankingUnidades.forEach(u => {
+            m.TOTAL = Math.max(m.TOTAL, u.vendas || 0);
+            m.PLANOS = Math.max(m.PLANOS, u.totalPlanos || 0);
+            COLUNAS_MATRIZ.forEach(c => { m[c.key] = Math.max(m[c.key] || 0, u.colunas[c.key] || 0); });
+        });
+        return m;
+    }, [rankingUnidades]);
+
+    // 🔒 BLINDAGEM DE SEGURANÇA: Oculta completamente para Líder e Recepção (depois dos hooks, regra do React)
+    if (!temVisaoGlobal) {
+        return (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 flex flex-col items-center justify-center text-center shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                <div className="w-14 h-14 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 border border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30">
+                    <ShieldAlert className="w-7 h-7" />
+                </div>
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">
+                    {tx("Acesso Restrito à Diretoria / Mentoria")}
+                </h3>
+                <p className="text-xs font-medium text-slate-500 mt-1 max-w-md dark:text-slate-400">
+                    {tx("A Matriz Executiva e o Ranking Global da rede estão disponíveis exclusivamente para perfis com visão global (Admin e Mentor).")}
+                </p>
+            </div>
+        );
+    }
 
     const handleTrocarEscopoRanking = (novoEscopo) => {
         setCriterioRanking(novoEscopo);
@@ -176,8 +197,43 @@ const RankingGlobalTab = ({
         ? totaisRedeMatriz.totalServicos
         : vendasGlobal;
 
+    const valorDoEscopo = (uni) => (criterioRanking === 'PLANOS'
+        ? uni.totalPlanos
+        : criterioRanking === 'PRODUTOS'
+        ? uni.totalProdutos
+        : criterioRanking === 'SERVICOS'
+        ? uni.totalServicos
+        : uni.vendas);
+
+    const registrosDoEscopo = (uni) => (criterioRanking === 'PLANOS'
+        ? uni.registrosPlanosUnidade
+        : criterioRanking === 'PRODUTOS'
+        ? uni.registrosProdutosUnidade
+        : criterioRanking === 'SERVICOS'
+        ? uni.registrosServicosUnidade
+        : uni.todosRegistrosUnidade);
+
+    const rotuloDoEscopo = criterioRanking === 'PLANOS'
+        ? 'Planos Vendidos'
+        : criterioRanking === 'PRODUTOS'
+        ? 'Produtos Vendidos'
+        : criterioRanking === 'SERVICOS'
+        ? 'Serviços Vendidos'
+        : 'Vendas Totais';
+
+    const pctDaRede = (v) => (totalEscopoAtivoRede > 0 ? Math.round((v / totalEscopoAtivoRede) * 100) : 0);
+
+    const escopos = [
+        ['TOTAL', 'Total geral', vendasGlobal],
+        ['PLANOS', 'Só planos', totaisRedeMatriz.totalPlanos],
+        ['PRODUTOS', 'Só produtos', totaisRedeMatriz.totalProdutos],
+        ['SERVICOS', 'Só serviços', totaisRedeMatriz.totalServicos],
+    ];
+
+    const classeBotaoNumero = 'inline-flex items-center justify-center min-w-[40px] px-2.5 py-1 rounded-lg text-[12px] font-black border tabular-nums transition-colors cursor-pointer';
+
     return (
-        <div className="space-y-8 animate-[fadeIn_0.3s_ease-out] pb-10">
+        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
             {/* Modal de Auditoria c/ Busca Interna e Exportação */}
             <ModalAuditoria
                 modalConfig={modalConfig}
@@ -188,358 +244,149 @@ const RankingGlobalTab = ({
                 extrairDadosPessoa={extrairDadosPessoa}
             />
 
-            {/* 📌 BARRA DE TOPO: KPIs RÁPIDOS DA REDE + EXPORTAÇÃO GLOBAL */}
-            <div className="bg-white p-5 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-6 items-stretch xl:items-center justify-between dark:bg-slate-900 dark:border-slate-800">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
-                    <div className="bg-slate-900 text-white p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
-                        <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-amber-400 shrink-0">
-                            <Trophy className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Total Rede</span>
-                            <span className="text-xl font-black leading-none">{String(vendasGlobal).padStart(2, '0')}</span>
-                        </div>
+            {/* RESUMO DA REDE (faixa fina) + EXPORTAÇÃO */}
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 dark:bg-slate-900 dark:border-slate-800">
+                <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2">
+                    <div className="flex items-baseline gap-1.5">
+                        <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx("Total Rede")}</span>
+                        <span className="text-lg font-black text-slate-800 tabular-nums dark:text-white">{vendasGlobal}</span>
                     </div>
-
-                    <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl flex items-center gap-3.5 dark:bg-emerald-500/10 dark:border-emerald-500/30">
-                        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0 dark:bg-emerald-500/20 dark:text-emerald-400">
-                            <Layers className="w-5 h-5" />
+                    <div className="h-5 w-px bg-slate-200 hidden sm:block self-center dark:bg-slate-700" />
+                    {[['Planos', totaisRedeMatriz.totalPlanos], ['Produtos', totaisRedeMatriz.totalProdutos], ['Serviços', totaisRedeMatriz.totalServicos]].map(([rotulo, valor]) => (
+                        <div key={rotulo} className="flex items-baseline gap-1.5">
+                            <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx(rotulo)}</span>
+                            <span className="text-base font-black text-slate-700 tabular-nums dark:text-slate-200">{valor}</span>
                         </div>
-                        <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700/70 block">Planos</span>
-                            <span className="text-xl font-black text-emerald-700 leading-none dark:text-emerald-400">{String(totaisRedeMatriz.totalPlanos).padStart(2, '0')}</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl flex items-center gap-3.5 dark:bg-amber-500/10 dark:border-amber-500/30">
-                        <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0 dark:bg-amber-500/20 dark:text-amber-400">
-                            <Package className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700/70 block">Produtos</span>
-                            <span className="text-xl font-black text-amber-700 leading-none dark:text-amber-400">{String(totaisRedeMatriz.totalProdutos).padStart(2, '0')}</span>
-                        </div>
-                    </div>
-
-                    <div className="bg-violet-50/70 border border-violet-200 p-4 rounded-2xl flex items-center gap-3.5 dark:bg-violet-500/10 dark:border-violet-500/30">
-                        <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center shrink-0 dark:bg-violet-500/20 dark:text-violet-400">
-                            <Briefcase className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-violet-700/70 block">Serviços</span>
-                            <span className="text-xl font-black text-violet-700 leading-none dark:text-violet-400">{String(totaisRedeMatriz.totalServicos).padStart(2, '0')}</span>
-                        </div>
-                    </div>
+                    ))}
                 </div>
 
-                {/* Controles de Exportação Global (Planilha e WhatsApp da Rede) */}
-                <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto dark:bg-slate-800 dark:border-slate-800">
-                        <button
-                            type="button"
-                            onClick={() => setVisaoDetalhada(false)}
-                            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!visaoDetalhada ? 'bg-white shadow-sm text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-                        >
-                            Resumo
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setVisaoDetalhada(true)}
-                            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visaoDetalhada ? 'bg-white shadow-sm text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-                        >
-                            Detalhado
-                        </button>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800">
+                        {[[false, 'Resumo'], [true, 'Detalhado']].map(([valor, rotulo]) => (
+                            <button key={rotulo} type="button" onClick={() => setVisaoDetalhada(valor)}
+                                className={`h-8 px-3 rounded-lg text-[12px] transition-colors ${visaoDetalhada === valor ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
+                                {tx(rotulo)}
+                            </button>
+                        ))}
                     </div>
-
-                    <div className="flex w-full sm:w-auto gap-2.5">
-                        <button
-                            type="button"
-                            onClick={handleExportarCSV}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-800"
-                        >
-                            <Download className="w-4 h-4" /> Planilha
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleGerarWhatsappGlobal}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
-                        >
-                            <Share2 className="w-4 h-4" /> WhatsApp Rede
-                        </button>
-                    </div>
+                    <button type="button" onClick={handleExportarCSV}
+                        className="h-10 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-bold flex items-center gap-2 transition-colors dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800 dark:text-slate-200">
+                        <Download className="w-4 h-4" />{tx("Planilha")}
+                    </button>
+                    <button type="button" onClick={handleGerarWhatsappGlobal}
+                        className="h-10 px-3.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-[12px] font-bold flex items-center gap-2 transition-colors dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800 dark:text-slate-200">
+                        <Share2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />{tx("WhatsApp Rede")}
+                    </button>
                 </div>
             </div>
 
-            {/* 🏆 MATRIZ EXECUTIVA ALINHADA + PÓDIO TOP 3 */}
+            {/* RANKING + MATRIZ */}
             {baseRankingUnidades.length === 0 ? (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60 dark:bg-slate-900 dark:border-slate-800">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 dark:bg-slate-800">
-                        <FileX2 className="w-8 h-8 text-slate-400" />
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center justify-center h-56 dark:bg-slate-900 dark:border-slate-800">
+                    <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mb-4 dark:bg-slate-800">
+                        <FileX2 className="w-7 h-7 text-slate-400" />
                     </div>
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
-                        Nenhuma venda encontrada para o período selecionado.
+                    <p className="text-xs font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
+                        {tx("Nenhuma venda encontrada para o período selecionado.")}
                     </p>
                 </div>
             ) : (
-                <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-                    {/* CABEÇALHO DO RANKING + 4 BOTÕES DE CATEGORIA */}
-                    <div className="p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:border-slate-800 dark:bg-slate-900">
-                        <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 shadow-inner dark:bg-amber-500/10 dark:border-amber-500/30">
-                                <Building2 className="w-5 h-5" />
-                            </div>
-                            <div>
-                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">
-                                    Ranking Global & Matriz de Composição
-                                </h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                    Clique nos números para auditar os alunos ou no título da coluna para ordenar • {rankingUnidades.length} Unidades Ativas
-                                </p>
-                            </div>
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+                    {/* Cabeçalho + categoria */}
+                    <div className="px-5 py-4 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3 dark:border-slate-800">
+                        <div>
+                            <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx("Ranking da rede")}</h3>
+                            <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
+                                {tx("Clique nos números para auditar os alunos ou no título da coluna para ordenar •")}{' '}{rankingUnidades.length}{' '}{tx("Unidades Ativas")}
+                            </p>
                         </div>
-
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Categoria:</span>
-                            <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 dark:bg-slate-800 dark:border-slate-800">
-                                <button
-                                    type="button"
-                                    onClick={() => handleTrocarEscopoRanking('TOTAL')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'TOTAL' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-                                >
-                                    Total Geral ({vendasGlobal})
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleTrocarEscopoRanking('PLANOS')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'PLANOS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-                                >
-                                    Só Planos ({totaisRedeMatriz.totalPlanos})
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleTrocarEscopoRanking('PRODUTOS')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'PRODUTOS' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-                                >
-                                    Só Produtos ({totaisRedeMatriz.totalProdutos})
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleTrocarEscopoRanking('SERVICOS')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'SERVICOS' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
-                                >
-                                    Só Serviços ({totaisRedeMatriz.totalServicos})
-                                </button>
-                            </div>
+                        <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 max-w-full dark:bg-slate-800" role="tablist" aria-label={tx("Categoria:")}>
+                            {escopos.map(([id, rotulo, qtd]) => {
+                                const ativo = criterioRanking === id;
+                                return (
+                                    <button key={id} type="button" role="tab" aria-selected={ativo} onClick={() => handleTrocarEscopoRanking(id)}
+                                        className={`h-8 px-3 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-1.5 transition-colors ${ativo ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
+                                        {tx(rotulo)}
+                                        <span className={`text-[11px] tabular-nums ${ativo ? 'text-blue-500' : 'text-slate-400'}`}>{qtd}</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    {/* 🥇🥈🥉 PÓDIO TOP 3 DINÂMICO */}
+                    {/* Pódio (faixa fina) */}
                     {top3Unidades.length > 0 && (
-                        <div className="p-6 bg-slate-50/70 border-b border-slate-200/80 grid grid-cols-1 md:grid-cols-3 gap-4 dark:bg-slate-800/40 dark:border-slate-800">
+                        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200 border-b border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:divide-slate-800 dark:border-slate-800">
                             {top3Unidades.map((uni, idx) => {
-                                const valorPrincipalPodio = criterioRanking === 'PLANOS'
-                                    ? uni.totalPlanos
-                                    : criterioRanking === 'PRODUTOS'
-                                    ? uni.totalProdutos
-                                    : criterioRanking === 'SERVICOS'
-                                    ? uni.totalServicos
-                                    : uni.vendas;
-
-                                const labelPrincipalPodio = criterioRanking === 'PLANOS'
-                                    ? 'Planos Vendidos'
-                                    : criterioRanking === 'PRODUTOS'
-                                    ? 'Produtos Vendidos'
-                                    : criterioRanking === 'SERVICOS'
-                                    ? 'Serviços Vendidos'
-                                    : 'Vendas Totais';
-
-                                const registrosDoPodio = criterioRanking === 'PLANOS'
-                                    ? uni.registrosPlanosUnidade
-                                    : criterioRanking === 'PRODUTOS'
-                                    ? uni.registrosProdutosUnidade
-                                    : criterioRanking === 'SERVICOS'
-                                    ? uni.registrosServicosUnidade
-                                    : uni.todosRegistrosUnidade;
-
-                                const pctShareRede = totalEscopoAtivoRede > 0
-                                    ? Math.round((valorPrincipalPodio / totalEscopoAtivoRede) * 100)
-                                    : 0;
-
-                                const estilosPodio = [
-                                    {
-                                        medalha: '🥇 1º LUGAR',
-                                        card: 'bg-gradient-to-br from-amber-50/90 via-white to-white border-amber-300 ring-1 ring-amber-200/60 dark:border-amber-500/30',
-                                        badge: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30',
-                                        numero: 'text-amber-600 dark:text-amber-400'
-                                    },
-                                    {
-                                        medalha: '🥈 2º LUGAR',
-                                        card: 'bg-gradient-to-br from-slate-100/80 via-white to-white border-slate-300 dark:border-slate-700',
-                                        badge: 'bg-slate-200/80 text-slate-700 border-slate-300 dark:text-slate-200 dark:border-slate-700',
-                                        numero: 'text-slate-700 dark:text-slate-200'
-                                    },
-                                    {
-                                        medalha: '🥉 3º LUGAR',
-                                        card: 'bg-gradient-to-br from-orange-50/70 via-white to-white border-orange-200 dark:border-orange-500/30',
-                                        badge: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30',
-                                        numero: 'text-orange-600 dark:text-orange-400'
-                                    }
-                                ][idx];
-
+                                const valor = valorDoEscopo(uni);
+                                const itensTop = criterioRanking === 'PRODUTOS' ? uni.itensProdutosDetalhados : criterioRanking === 'SERVICOS' ? uni.itensServicosDetalhados : null;
                                 return (
-                                    <div
+                                    <button
                                         key={uni.nome}
-                                        onClick={() => abrirModalAuditoria(`${labelPrincipalPodio} — ${uni.nome}`, uni.nome, 'VENDA', registrosDoPodio, valorPrincipalPodio)}
-                                        className={`p-5 rounded-2xl border shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between ${estilosPodio.card}`}
-                                        title="Clique para auditar os alunos desta unidade"
+                                        type="button"
+                                        onClick={() => abrirModalAuditoria(`${rotuloDoEscopo} — ${uni.nome}`, uni.nome, 'VENDA', registrosDoEscopo(uni), valor)}
+                                        className="text-left px-5 py-3.5 hover:bg-white transition-colors flex items-center gap-3 min-w-0 dark:hover:bg-slate-900"
+                                        title={tx("Clique para auditar os alunos desta unidade")}
                                     >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${estilosPodio.badge}`}>
-                                                        {estilosPodio.medalha}
-                                                    </span>
-                                                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 dark:bg-slate-800 dark:border-slate-800">
-                                                        {pctShareRede}% da Rede
-                                                    </span>
-                                                </div>
-                                                <h4 className="text-base font-black text-slate-800 uppercase tracking-tight truncate mt-2 dark:text-white" title={uni.nome}>
-                                                    {uni.nome}
-                                                </h4>
-                                            </div>
-                                            <div className="text-right shrink-0">
-                                                <span className={`text-3xl font-black leading-none ${estilosPodio.numero}`}>
-                                                    {String(valorPrincipalPodio).padStart(2, '0')}
-                                                </span>
-                                                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
-                                                    {labelPrincipalPodio}
-                                                </span>
-                                            </div>
+                                        <span className="text-xl shrink-0" aria-label={tx("{pos}º lugar", { pos: idx + 1 })}>{MEDALHAS[idx]}</span>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[13px] font-black text-slate-800 uppercase tracking-tight truncate dark:text-white" title={uni.nome}>{uni.nome}</p>
+                                            <p className="text-[11px] font-semibold text-slate-500 truncate dark:text-slate-400">
+                                                {itensTop
+                                                    ? itensTop.slice(0, 2).map(([nome, d]) => `${d.total}× ${nome}`).join(' · ')
+                                                    : criterioRanking === 'PLANOS'
+                                                    ? `NUTRI ${uni.colunas.NUTRI || 0} · PLUS ${uni.colunas.PLUS || 0} · FIT ${uni.colunas.FIT || 0}`
+                                                    : tx("{p} planos · {pr} produtos · {s} serviços", { p: uni.totalPlanos, pr: uni.totalProdutos, s: uni.totalServicos })}
+                                            </p>
                                         </div>
-
-                                        <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800">
-                                            {criterioRanking === 'TOTAL' && (() => {
-                                                const tot = uni.vendas || 1;
-                                                const pctPlanos = Math.round((uni.totalPlanos / tot) * 100);
-                                                const pctProd = Math.round((uni.totalProdutos / tot) * 100);
-                                                const pctServ = Math.max(0, 100 - pctPlanos - pctProd);
-                                                return (
-                                                    <>
-                                                        <div className="flex flex-wrap justify-between text-[10px] font-black uppercase tracking-wider mb-1.5 gap-1">
-                                                            <span className="text-emerald-600 dark:text-emerald-400">📋 {String(uni.totalPlanos).padStart(2, '0')} Planos ({pctPlanos}%)</span>
-                                                            <span className="text-amber-600 dark:text-amber-400">🛍️ {String(uni.totalProdutos).padStart(2, '0')} Prod ({pctProd}%)</span>
-                                                            <span className="text-violet-600 dark:text-violet-400">🧾 {String(uni.totalServicos).padStart(2, '0')} Serv ({pctServ}%)</span>
-                                                        </div>
-                                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex dark:bg-slate-700">
-                                                            <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${pctPlanos}%` }}></div>
-                                                            <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${pctProd}%` }}></div>
-                                                            <div className="bg-violet-500 h-full transition-all duration-500" style={{ width: `${pctServ}%` }}></div>
-                                                        </div>
-                                                    </>
-                                                );
-                                            })()}
-
-                                            {criterioRanking === 'PLANOS' && (() => {
-                                                const totP = uni.totalPlanos || 1;
-                                                const pNutri = Math.round(((uni.colunas.NUTRI || 0) / totP) * 100);
-                                                const pPlus = Math.round(((uni.colunas.PLUS || 0) / totP) * 100);
-                                                const pFit = Math.round(((uni.colunas.FIT || 0) / totP) * 100);
-                                                const pOutros = Math.max(0, 100 - pNutri - pPlus - pFit);
-                                                return (
-                                                    <>
-                                                        <div className="flex flex-wrap justify-between text-[10px] font-black uppercase tracking-wider mb-1.5 gap-1">
-                                                            <span className="text-emerald-600 dark:text-emerald-400">🥗 Nutri: {String(uni.colunas.NUTRI || 0).padStart(2, '0')}</span>
-                                                            <span className="text-blue-600 dark:text-blue-400">⭐ Plus: {String(uni.colunas.PLUS || 0).padStart(2, '0')}</span>
-                                                            <span className="text-blue-600 dark:text-blue-400">🏃 Fit: {String(uni.colunas.FIT || 0).padStart(2, '0')}</span>
-                                                            <span className="text-rose-600 dark:text-rose-400">🏋️ Pers/Out: {String((uni.colunas.PERSONAL || 0) + (uni.colunas.OUTROS_PLANOS || 0)).padStart(2, '0')}</span>
-                                                        </div>
-                                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex dark:bg-slate-700">
-                                                            <div className="bg-emerald-500 h-full" style={{ width: `${pNutri}%` }}></div>
-                                                            <div className="bg-blue-500 h-full" style={{ width: `${pPlus}%` }}></div>
-                                                            <div className="bg-blue-500 h-full" style={{ width: `${pFit}%` }}></div>
-                                                            <div className="bg-rose-400 h-full" style={{ width: `${pOutros}%` }}></div>
-                                                        </div>
-                                                    </>
-                                                );
-                                            })()}
-
-                                            {criterioRanking === 'PRODUTOS' && (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {uni.itensProdutosDetalhados.slice(0, 3).map(([nomeItem, d]) => (
-                                                        <span key={nomeItem} className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded text-[10px] font-black uppercase truncate max-w-[140px] dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
-                                                            {String(d.total).padStart(2, '0')}x {nomeItem}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
-
-                                            {criterioRanking === 'SERVICOS' && (
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {uni.itensServicosDetalhados.slice(0, 3).map(([nomeItem, d]) => (
-                                                        <span key={nomeItem} className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-800 px-2 py-0.5 rounded text-[10px] font-black uppercase truncate max-w-[140px] dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-300">
-                                                            {String(d.total).padStart(2, '0')}x {nomeItem}
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            )}
+                                        <div className="text-right shrink-0">
+                                            <p className="text-lg font-black text-slate-800 leading-none tabular-nums dark:text-white">{valor}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 mt-1">{pctDaRede(valor)}{tx("% da Rede")}</p>
                                         </div>
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
                     )}
 
-                    {/* 📊 TABELA MATRIZ EXECUTIVA ALINHADA */}
+                    {/* Matriz */}
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[750px]">
                             <thead>
-                                <tr className="border-b border-slate-200 bg-slate-100/70 dark:border-slate-800">
-                                    <th className="py-3.5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16 text-center">Pos</th>
-                                    <th className="py-3.5 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest min-w-[180px] sticky left-0 bg-slate-100/95 backdrop-blur z-10 dark:text-slate-400">Unidade</th>
+                                <tr className="border-b border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-800">
+                                    <th className="py-3 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-14 text-center dark:text-slate-400">{tx("Pos")}</th>
+                                    <th className="py-3 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest min-w-[180px] sticky left-0 bg-slate-50 z-10 dark:bg-slate-800 dark:text-slate-400">{tx("Unidade")}</th>
 
                                     {criterioRanking === 'TOTAL' && (
-                                        <th
-                                            onClick={() => setColunaOrdemMatriz(null)}
-                                            className="py-3.5 px-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center bg-slate-200/60 w-28 cursor-pointer hover:bg-slate-200 transition-colors dark:text-white dark:hover:bg-slate-700"
-                                            title="Ordenar pelo Total Geral"
-                                        >
-                                            Total Geral
+                                        <th onClick={() => setColunaOrdemMatriz(null)} title={tx("Ordenar pelo Total Geral")}
+                                            className={`py-3 px-3 text-[10px] font-black uppercase tracking-widest text-center w-24 cursor-pointer select-none transition-colors ${colunaOrdemMatriz === null ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                            {tx("Total Geral")}
                                         </th>
                                     )}
 
                                     {(criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') && (
-                                        <th
-                                            onClick={() => setColunaOrdemMatriz(null)}
-                                            className="py-3.5 px-3 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-center bg-emerald-50/70 border-x border-slate-200/70 w-28 cursor-pointer hover:bg-emerald-100/60 transition-colors dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-slate-800 dark:hover:bg-emerald-500/20"
-                                            title="Ordenar pelo Total de Planos"
-                                        >
-                                            {criterioRanking === 'PLANOS' ? 'Total Planos' : 'Planos'}
+                                        <th onClick={() => setColunaOrdemMatriz(null)} title={tx("Ordenar pelo Total de Planos")}
+                                            className={`py-3 px-3 text-[10px] font-black uppercase tracking-widest text-center w-24 cursor-pointer select-none border-r border-slate-200 transition-colors dark:border-slate-800 ${criterioRanking === 'PLANOS' && colunaOrdemMatriz === null ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                            {criterioRanking === 'PLANOS' ? tx("Total Planos") : tx("Planos")}
                                         </th>
                                     )}
 
                                     {colunasMatrizVisiveis.map(col => {
                                         const isOrdenada = colunaOrdemMatriz === col.key;
                                         return (
-                                            <th
-                                                key={col.key}
-                                                onClick={() => handleOrdenarPorColunaMatriz(col.key)}
-                                                className={`py-3.5 px-2.5 text-[10px] font-black uppercase tracking-wider text-center w-28 cursor-pointer select-none transition-colors ${isOrdenada ? 'bg-blue-50/80 ring-1 ring-inset ring-blue-300 dark:bg-blue-500/10' : 'hover:bg-slate-200/50'}`}
-                                                title={`Clique para ordenar por ${col.label}`}
-                                            >
-                                                <div className="flex flex-col items-center justify-center leading-tight">
-                                                    <span className="text-xs mb-0.5">{col.icone}</span>
-                                                    <span className={`flex items-center gap-0.5 ${col.headerColor}`}>
-                                                        {col.label}
-                                                        <ArrowUpDown className={`w-2.5 h-2.5 ${isOrdenada ? 'opacity-100 text-blue-600 dark:text-blue-400' : 'opacity-30'}`} />
-                                                    </span>
-                                                </div>
+                                            <th key={col.key} onClick={() => handleOrdenarPorColunaMatriz(col.key)} title={tx("Clique para ordenar por {label}", { label: col.label })}
+                                                className={`py-3 px-2.5 text-[10px] font-black uppercase tracking-wider text-center w-24 cursor-pointer select-none transition-colors ${isOrdenada ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                                <span className="inline-flex items-center gap-1">
+                                                    {tx(col.label)}
+                                                    <ArrowUpDown className={`w-3 h-3 ${isOrdenada ? 'opacity-100' : 'opacity-30'}`} />
+                                                </span>
                                             </th>
                                         );
                                     })}
 
                                     {(criterioRanking === 'PRODUTOS' || criterioRanking === 'SERVICOS') && (
-                                        <th className="py-3.5 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
-                                            Composição de Itens Vendidos (Clique para auditar)
+                                        <th className="py-3 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
+                                            {tx("Composição de Itens Vendidos (Clique para auditar)")}
                                         </th>
                                     )}
                                 </tr>
@@ -548,122 +395,84 @@ const RankingGlobalTab = ({
                                 {rankingUnidades.length === 0 ? (
                                     <tr>
                                         <td colSpan="12" className="py-12 text-center text-xs font-black text-slate-400 uppercase tracking-widest">
-                                            Nenhuma venda registrada nesta categoria para o período selecionado.
+                                            {tx("Nenhuma venda registrada nesta categoria para o período selecionado.")}
                                         </td>
                                     </tr>
                                 ) : (
                                     rankingUnidades.map((uni, idx) => {
-                                        const isTop1 = idx === 0;
-                                        const isTop2 = idx === 1;
-                                        const isTop3 = idx === 2;
-
-                                        const posBadge = isTop1
-                                            ? 'bg-amber-400 text-slate-900 shadow-sm dark:text-white'
-                                            : isTop2
-                                            ? 'bg-slate-300 text-slate-800 dark:text-white'
-                                            : isTop3
-                                            ? 'bg-orange-200 text-orange-900 dark:text-orange-300'
-                                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
-
-                                        const valorEscopoUnidade = criterioRanking === 'PLANOS'
-                                            ? uni.totalPlanos
-                                            : criterioRanking === 'PRODUTOS'
-                                            ? uni.totalProdutos
-                                            : criterioRanking === 'SERVICOS'
-                                            ? uni.totalServicos
-                                            : uni.vendas;
-
-                                        const pctRedeUnidade = totalEscopoAtivoRede > 0
-                                            ? Math.round((valorEscopoUnidade / totalEscopoAtivoRede) * 100)
-                                            : 0;
-
+                                        const valorEscopoUnidade = valorDoEscopo(uni);
                                         const listaItensEspecificos = criterioRanking === 'PRODUTOS'
                                             ? uni.itensProdutosDetalhados
                                             : uni.itensServicosDetalhados;
 
                                         return (
-                                            <tr key={uni.nome} className={`transition-colors hover:bg-blue-50/30 dark:hover:bg-blue-500/10 ${isTop1 ? 'bg-amber-50/15 dark:bg-amber-500/10' : 'bg-white dark:bg-slate-900'}`}>
-                                                <td className="py-3.5 px-4 text-center">
-                                                    <span className={`w-7 h-7 mx-auto rounded-lg flex items-center justify-center text-[11px] font-black ${posBadge}`}>
-                                                        {idx + 1}º
-                                                    </span>
+                                            <tr key={uni.nome} className="bg-white hover:bg-slate-50 transition-colors dark:bg-slate-900 dark:hover:bg-slate-800/40">
+                                                <td className="py-3 px-4 text-center">
+                                                    {idx < 3
+                                                        ? <span className="text-base" aria-label={tx("{pos}º lugar", { pos: idx + 1 })}>{MEDALHAS[idx]}</span>
+                                                        : <span className="text-[12px] font-black text-slate-400 tabular-nums">{idx + 1}º</span>}
                                                 </td>
-                                                <td className="py-3.5 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white/95 backdrop-blur z-10 border-r border-slate-100 dark:text-white dark:bg-slate-900/95 dark:border-slate-800">
+                                                <td className="py-3 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white z-10 border-r border-slate-100 dark:text-white dark:bg-slate-900 dark:border-slate-800">
                                                     <div className="flex items-center justify-between gap-2">
                                                         <span className="truncate">{uni.nome}</span>
-                                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0 dark:bg-slate-800" title="Participação no total da rede">
-                                                            {pctRedeUnidade}%
+                                                        <span className="text-[10px] font-bold text-slate-400 tabular-nums shrink-0" title={tx("Participação no total da rede")}>
+                                                            {pctDaRede(valorEscopoUnidade)}%
                                                         </span>
                                                     </div>
                                                 </td>
 
                                                 {criterioRanking === 'TOTAL' && (
-                                                    <td className="py-3.5 px-3 text-center bg-slate-50/70 dark:bg-slate-800/40">
-                                                        <button
-                                                            type="button"
+                                                    <td className="py-3 px-3 text-center">
+                                                        <button type="button"
                                                             onClick={() => abrirModalAuditoria(`Todas as Vendas — ${uni.nome}`, uni.nome, 'VENDA', uni.todosRegistrosUnidade, uni.vendas)}
-                                                            className="inline-flex items-center justify-center min-w-[42px] px-2.5 py-1 rounded-lg text-xs font-black bg-slate-800 text-white hover:bg-blue-600 transition-colors shadow-sm"
-                                                            title="Auditar todas as vendas da unidade"
-                                                        >
-                                                            {String(uni.vendas).padStart(2, '0')}
+                                                            className={`${classeBotaoNumero} ${tomDaCelula(uni.vendas, maximoPorColuna.TOTAL)}`}
+                                                            title={tx("Auditar todas as vendas da unidade")}>
+                                                            {doisDigitos(uni.vendas)}
                                                         </button>
                                                     </td>
                                                 )}
 
                                                 {(criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') && (
-                                                    <td className="py-3.5 px-3 text-center bg-emerald-50/20 border-x border-slate-100 dark:bg-emerald-500/10 dark:border-slate-800">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => abrirModalAuditoria(`Todos os Planos — ${uni.nome}`, uni.nome, 'VENDA', uni.registrosPlanosUnidade, uni.totalPlanos)}
-                                                            className="inline-flex items-center justify-center min-w-[42px] px-2.5 py-1 rounded-lg text-xs font-black text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200 border border-emerald-300 transition-colors shadow-sm dark:text-emerald-300 dark:bg-emerald-500/20 dark:border-emerald-500/30"
-                                                            title="Auditar apenas os planos vendidos nesta unidade"
-                                                        >
-                                                            {String(uni.totalPlanos).padStart(2, '0')}
-                                                        </button>
+                                                    <td className="py-3 px-3 text-center border-r border-slate-100 dark:border-slate-800">
+                                                        {uni.totalPlanos > 0 ? (
+                                                            <button type="button"
+                                                                onClick={() => abrirModalAuditoria(`Todos os Planos — ${uni.nome}`, uni.nome, 'VENDA', uni.registrosPlanosUnidade, uni.totalPlanos)}
+                                                                className={`${classeBotaoNumero} ${tomDaCelula(uni.totalPlanos, maximoPorColuna.PLANOS)}`}
+                                                                title={tx("Auditar apenas os planos vendidos nesta unidade")}>
+                                                                {doisDigitos(uni.totalPlanos)}
+                                                            </button>
+                                                        ) : <span className="text-slate-300 font-bold text-xs select-none dark:text-slate-600">—</span>}
                                                     </td>
                                                 )}
 
                                                 {colunasMatrizVisiveis.map(col => {
                                                     const valorCel = uni.colunas[col.key] || 0;
                                                     const regsCel = uni.registrosPorColuna[col.key] || [];
-                                                    const isColOrdenada = colunaOrdemMatriz === col.key;
-
                                                     return (
-                                                        <td key={col.key} className={`py-3.5 px-2.5 text-center ${isColOrdenada ? 'bg-blue-50/20 dark:bg-blue-500/10' : ''}`}>
+                                                        <td key={col.key} className="py-3 px-2.5 text-center">
                                                             {valorCel > 0 ? (
-                                                                <button
-                                                                    type="button"
+                                                                <button type="button"
                                                                     onClick={() => abrirModalAuditoria(`${col.label} — ${uni.nome}`, uni.nome, 'VENDA', regsCel, valorCel)}
-                                                                    className={`inline-flex items-center justify-center min-w-[38px] px-2.5 py-1 rounded-lg text-[11px] font-black border transition-all shadow-sm cursor-pointer ${col.badgeBg}`}
-                                                                    title={`Clique para auditar ${valorCel} registro(s) de ${col.label} em ${uni.nome}`}
-                                                                >
-                                                                    {String(valorCel).padStart(2, '0')}
+                                                                    className={`${classeBotaoNumero} ${tomDaCelula(valorCel, maximoPorColuna[col.key])}`}
+                                                                    title={tx("Clique para auditar {valorCel} registro(s) de {label} em {nome}", { valorCel: valorCel, label: col.label, nome: uni.nome })}>
+                                                                    {doisDigitos(valorCel)}
                                                                 </button>
                                                             ) : (
-                                                                <span className="text-slate-300 font-bold text-xs select-none">—</span>
+                                                                <span className="text-slate-300 font-bold text-xs select-none dark:text-slate-600">—</span>
                                                             )}
                                                         </td>
                                                     );
                                                 })}
 
                                                 {(criterioRanking === 'PRODUTOS' || criterioRanking === 'SERVICOS') && (
-                                                    <td className="py-3.5 px-4">
+                                                    <td className="py-3 px-4">
                                                         <div className="flex flex-wrap gap-1.5">
                                                             {listaItensEspecificos.map(([nomeItem, itemData]) => (
-                                                                <button
-                                                                    key={nomeItem}
-                                                                    type="button"
+                                                                <button key={nomeItem} type="button"
                                                                     onClick={() => abrirModalAuditoria(`${nomeItem} — ${uni.nome}`, uni.nome, 'VENDA', itemData.vendasAuditaveis, itemData.total)}
-                                                                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all shadow-sm cursor-pointer ${
-                                                                        criterioRanking === 'PRODUTOS'
-                                                                            ? 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200 hover:border-amber-300 dark:bg-slate-900 dark:hover:bg-amber-500/10 dark:text-slate-200 dark:border-slate-800 dark:hover:border-amber-500/30'
-                                                                            : 'bg-white hover:bg-violet-50 text-slate-700 border-slate-200 hover:border-violet-300 dark:bg-slate-900 dark:hover:bg-violet-500/10 dark:text-slate-200 dark:border-slate-800 dark:hover:border-violet-500/30'
-                                                                    }`}
-                                                                    title={`Auditar ${nomeItem}`}
-                                                                >
-                                                                    <span className={criterioRanking === 'PRODUTOS' ? 'text-amber-600 dark:text-amber-400' : 'text-violet-600 dark:text-violet-400'}>
-                                                                        {String(itemData.total).padStart(2, '0')}x
-                                                                    </span>
+                                                                    className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-white hover:bg-blue-50 text-slate-700 border-slate-200 hover:border-blue-300 transition-colors cursor-pointer dark:bg-slate-900 dark:hover:bg-blue-500/10 dark:text-slate-200 dark:border-slate-800 dark:hover:border-blue-500/30"
+                                                                    title={tx("Auditar {nomeItem}", { nomeItem: nomeItem })}>
+                                                                    <span className="font-black text-blue-700 tabular-nums dark:text-blue-400">{itemData.total}×</span>
                                                                     <span className="uppercase truncate max-w-[180px]">{nomeItem}</span>
                                                                 </button>
                                                             ))}
@@ -676,32 +485,28 @@ const RankingGlobalTab = ({
                                 )}
                             </tbody>
 
-                            {/* RODAPÉ TOTALIZADOR DA REDE */}
+                            {/* Linha de total da rede */}
                             {rankingUnidades.length > 1 && (
                                 <tfoot>
-                                    <tr className="bg-slate-900 text-white font-black border-t-2 border-slate-300 dark:border-slate-700">
-                                        <td className="py-3.5 px-4 text-center text-[10px] uppercase tracking-widest text-amber-400">∑</td>
-                                        <td className="py-3.5 px-4 text-[11px] uppercase tracking-widest sticky left-0 bg-slate-900 z-10">
-                                            TOTAL DA REDE
+                                    <tr className="bg-slate-50 border-t-2 border-slate-200 font-black dark:bg-slate-800/60 dark:border-slate-700">
+                                        <td className="py-3 px-4 text-center text-[11px] text-slate-400">∑</td>
+                                        <td className="py-3 px-4 text-[11px] uppercase tracking-widest text-slate-700 sticky left-0 bg-slate-50 z-10 dark:bg-slate-800 dark:text-slate-200">
+                                            {tx("TOTAL DA REDE")}
                                         </td>
                                         {criterioRanking === 'TOTAL' && (
-                                            <td className="py-3.5 px-3 text-center text-xs text-amber-400 bg-slate-800">
-                                                {String(vendasGlobal).padStart(2, '0')}
-                                            </td>
+                                            <td className="py-3 px-3 text-center text-[13px] text-slate-800 tabular-nums dark:text-white">{doisDigitos(vendasGlobal)}</td>
                                         )}
                                         {(criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') && (
-                                            <td className="py-3.5 px-3 text-center text-xs text-emerald-400 bg-slate-800/80 border-x border-slate-700">
-                                                {String(totaisRedeMatriz.totalPlanos).padStart(2, '0')}
-                                            </td>
+                                            <td className="py-3 px-3 text-center text-[13px] text-slate-800 tabular-nums border-r border-slate-200 dark:text-white dark:border-slate-800">{doisDigitos(totaisRedeMatriz.totalPlanos)}</td>
                                         )}
                                         {colunasMatrizVisiveis.map(col => (
-                                            <td key={col.key} className="py-3.5 px-2.5 text-center text-xs text-slate-200">
-                                                {totaisRedeMatriz[col.key] > 0 ? String(totaisRedeMatriz[col.key]).padStart(2, '0') : '—'}
+                                            <td key={col.key} className="py-3 px-2.5 text-center text-[13px] text-slate-700 tabular-nums dark:text-slate-200">
+                                                {totaisRedeMatriz[col.key] > 0 ? doisDigitos(totaisRedeMatriz[col.key]) : '—'}
                                             </td>
                                         ))}
                                         {(criterioRanking === 'PRODUTOS' || criterioRanking === 'SERVICOS') && (
-                                            <td className="py-3.5 px-4 text-[10px] text-slate-400 uppercase tracking-widest">
-                                                100% da Categoria na Rede
+                                            <td className="py-3 px-4 text-[10px] text-slate-400 uppercase tracking-widest">
+                                                {tx("100% da Categoria na Rede")}
                                             </td>
                                         )}
                                     </tr>
@@ -709,6 +514,9 @@ const RankingGlobalTab = ({
                             )}
                         </table>
                     </div>
+                    <p className="px-5 py-2.5 border-t border-slate-100 text-[11px] font-semibold text-slate-400 dark:border-slate-800">
+                        {tx("Quanto mais azul a célula, maior o número naquela coluna. O mais forte é o maior da rede.")}
+                    </p>
                 </div>
             )}
         </div>

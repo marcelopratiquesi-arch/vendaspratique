@@ -3,6 +3,7 @@ import ptBR from './locales/pt-BR.js';
 import enUS from './locales/en-US.js';
 import esAR from './locales/es-AR.js';
 import { setGlobalLocale } from '../pages/AnaliseVendas/utils.js'; // Ajuste o caminho se seu utils estiver em outro lugar
+import { definirIdioma } from './traduzir.js';
 
 const dicionarios = {
     'pt-BR': ptBR,
@@ -24,6 +25,9 @@ export const I18nProvider = ({ children }) => {
         return 'pt-BR';
     });
 
+    // A tradução por frase (tx) precisa saber o idioma ANTES de as telas serem desenhadas
+    definirIdioma(locale);
+
     useEffect(() => {
         // Persiste a escolha, avisa o HTML (para Screen Readers) e avisa nosso utils.js
         localStorage.setItem('pratique_locale', locale);
@@ -32,14 +36,16 @@ export const I18nProvider = ({ children }) => {
     }, [locale]);
 
     const t = useCallback((chave, variaveis = {}) => {
-        // Tenta achar a chave no idioma atual. Se falhar, tenta no Português. Se falhar, exibe a própria chave (Fallback seguro)
-        let texto = dicionarios[locale]?.[chave] || dicionarios['pt-BR']?.[chave] || chave;
-        
-        // Interpolação dinâmica. Ex: t('ola', { name: 'João' }) -> "Olá João"
-        Object.keys(variaveis).forEach(variavel => {
-            texto = texto.replace(`{${variavel}}`, variaveis[variavel]);
+        // Procura no idioma atual, depois no Português, depois usa a frase reserva (defaultValue).
+        // Nunca mostra o código da chave na tela quando existe uma frase reserva.
+        const { defaultValue, ...valores } = variaveis || {};
+        let texto = dicionarios[locale]?.[chave] ?? dicionarios['pt-BR']?.[chave] ?? defaultValue ?? chave;
+
+        // Interpolação dinâmica. Ex: t('ola', { name: 'João' }) -> "Olá João" (troca todas as ocorrências)
+        Object.keys(valores).forEach(variavel => {
+            texto = String(texto).split(`{${variavel}}`).join(valores[variavel]);
         });
-        
+
         return texto;
     }, [locale]);
 

@@ -1,4 +1,5 @@
 import { avisar } from '../../components/avisar.js';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 // ==========================================
 // 🧠 UTILITÁRIOS GLOBAIS DE SISTEMA (B2B SaaS)
 // Otimizado para Performance e Segurança
@@ -42,8 +43,9 @@ export const safeIsoDate = (dInput) => {
     return dStr;
 };
 
-// 🔥 PERFORMANCE: Formatter instanciado uma única vez na memória global (Cache)
-const brlFormatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+// 🔥 PERFORMANCE: um formatador por idioma, guardado na memória (Cache). O valor é sempre em R$.
+const brlFormatters = {};
+const brlFormatter = { format: (n) => (brlFormatters[localeAtual()] ||= new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' })).format(n) };
 
 export const formatMoney = (val) => {
     return brlFormatter.format(safeNumber(val));
@@ -70,7 +72,7 @@ export const extrairHoraCriacao = (isoString, comSegundos = false) => {
     // Valida se a conversão do Date falhou
     if (isNaN(dataObj)) return '';
     // Com segundos: usado na aba Duplicidades para enxergar clique duplo
-    return dataObj.toLocaleTimeString('pt-BR', comSegundos
+    return dataObj.toLocaleTimeString(localeAtual(), comSegundos
         ? { hour: '2-digit', minute: '2-digit', second: '2-digit' }
         : { hour: '2-digit', minute: '2-digit' });
 };
@@ -165,11 +167,11 @@ export const MOTIVO_EXCLUSAO_MINIMO = 5;
 
 // Pergunta o motivo. Devolve o texto, ou null se a pessoa cancelou ou não escreveu o suficiente.
 export const pedirMotivoExclusao = () => {
-    const resposta = window.prompt('Excluir esta venda?\n\nA venda vai para a LIXEIRA (o Admin ou o Mentor pode restaurar), com o seu nome e a data.\n\nEscreva o MOTIVO da exclusão (ex.: "lançada em duplicidade"):');
+    const resposta = window.prompt(tx("Excluir esta venda?\n\nA venda vai para a LIXEIRA (o Admin ou o Mentor pode restaurar), com o seu nome e a data.\n\nEscreva o MOTIVO da exclusão (ex.: \"lançada em duplicidade\"):"));
     if (resposta === null) return null;
     const motivo = resposta.trim();
     if (motivo.length < MOTIVO_EXCLUSAO_MINIMO) {
-        avisar(`Exclusão cancelada: o motivo precisa ter pelo menos ${MOTIVO_EXCLUSAO_MINIMO} letras.`);
+        avisar(tx("Exclusão cancelada: o motivo precisa ter pelo menos {MOTIVO_EXCLUSAO_MINIMO} letras.", { MOTIVO_EXCLUSAO_MINIMO: MOTIVO_EXCLUSAO_MINIMO }));
         return null;
     }
     return motivo;

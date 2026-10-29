@@ -6,6 +6,7 @@ import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import { anexarUnidades } from '../Alunos/utils.js';
 import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
 import { apenasDigitos } from './utils';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // FICHA DO ALUNO EM POP-UP, POR CIMA DO CRM
@@ -61,7 +62,7 @@ const FichaAlunoPopup = ({ contato, usuarioLogado, onFechar }) => {
                 {carregando ? (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl p-16 flex flex-col items-center justify-center">
                         <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Abrindo a ficha do aluno...</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Abrindo a ficha do aluno...")}</p>
                     </div>
                 ) : naoEncontrado ? (
                     <div className="bg-white dark:bg-slate-900 rounded-2xl p-10 flex flex-col items-center text-center max-w-md mx-auto">
@@ -71,11 +72,11 @@ const FichaAlunoPopup = ({ contato, usuarioLogado, onFechar }) => {
                         <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{contato?.nome}</p>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2">
                             {alunoId || cpf.length === 11
-                                ? 'Este contato ainda não tem cadastro de aluno.'
-                                : 'Este contato não tem CPF completo, então não dá para achar o cadastro de aluno.'}
+                                ? tx("Este contato ainda não tem cadastro de aluno.")
+                                : tx("Este contato não tem CPF completo, então não dá para achar o cadastro de aluno.")}
                         </p>
                         <button type="button" onClick={onFechar} className="mt-6 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors">
-                            <ArrowLeft className="w-4 h-4" /> Voltar para o CRM
+                            <ArrowLeft className="w-4 h-4" />{' '}{tx("Voltar para o CRM")}
                         </button>
                     </div>
                 ) : (

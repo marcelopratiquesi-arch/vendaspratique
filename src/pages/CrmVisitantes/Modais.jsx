@@ -7,6 +7,7 @@ import {
     CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban, CalendarClock, Snowflake
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const Modais = ({
     modalWpp, setModalWpp,
@@ -222,7 +223,7 @@ const Modais = ({
                     <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(400px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         <div onMouseDown={handleMouseDownWpp} className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
                             <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest flex items-center gap-2 pointer-events-none">
-                                <MessageCircle className="w-5 h-5 text-emerald-500" /> Revisão de Mensagem
+                                <MessageCircle className="w-5 h-5 text-emerald-500" />{' '}{tx("Revisão de Mensagem")}
                             </h3>
                             <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setModalWpp({ show: false, lead: null, texto: '' })} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
                                 <X className="w-6 h-6" />
@@ -230,17 +231,17 @@ const Modais = ({
                         </div>
                         <div className="flex-1 p-6 flex flex-col overflow-hidden">
                             <div className="flex items-center gap-3 mb-4 shrink-0">
-                                <span className={`inline-block px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase border shadow-sm ${STATUS_TOKENS[modalWpp.lead.status]?.bg} ${STATUS_TOKENS[modalWpp.lead.status]?.text} ${STATUS_TOKENS[modalWpp.lead.status]?.border}`}>Fase: {modalWpp.lead.status}</span>
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Enviando para: <strong className="text-slate-800 dark:text-white">{modalWpp.lead.nome}</strong></span>
+                                <span className={`inline-block px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase border shadow-sm ${STATUS_TOKENS[modalWpp.lead.status]?.bg} ${STATUS_TOKENS[modalWpp.lead.status]?.text} ${STATUS_TOKENS[modalWpp.lead.status]?.border}`}>{tx("Fase:")}{' '}{tx(modalWpp.lead.status)}</span>
+                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{tx("Enviando para:")}{' '}<strong className="text-slate-800 dark:text-white">{modalWpp.lead.nome}</strong></span>
                             </div>
                             <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
                         </div>
                         <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-4 shrink-0">
-                            <button onClick={() => { navigator.clipboard.writeText(modalWpp.texto); avisar("Texto copiado!"); }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
-                                <Copy className="w-4 h-4" /> Copiar
+                            <button onClick={() => { navigator.clipboard.writeText(modalWpp.texto); avisar(tx("Texto copiado!")); }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                                <Copy className="w-4 h-4" />{' '}{tx("Copiar")}
                             </button>
                             <button onClick={enviarWppDireto} className="flex-[2] py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
-                                <Send className="w-4 h-4" /> Enviar Mensagem
+                                <Send className="w-4 h-4" />{' '}{tx("Enviar Mensagem")}
                             </button>
                         </div>
                     </div>
@@ -259,7 +260,7 @@ const Modais = ({
                             <div className="pointer-events-none">
                                 <div className="flex flex-wrap items-center gap-3 mb-2">
                                     <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase break-words">{modalDetalhe.lead.nome}</h2>
-                                    <span className={`px-2.5 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${modalDetalhe.lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : String(modalDetalhe.lead.tipo_lead || '').toUpperCase() === 'CANCELADO' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>{modalDetalhe.lead.tipo_lead || 'LEAD'}</span>
+                                    <span className={`px-2.5 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${modalDetalhe.lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : String(modalDetalhe.lead.tipo_lead || '').toUpperCase() === 'CANCELADO' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>{tx(modalDetalhe.lead.tipo_lead || 'LEAD')}</span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm font-bold text-slate-400">
                                     <span className="flex items-center gap-2 text-blue-300"><Phone className="w-4 h-4" /> {modalDetalhe.lead.telefone}</span>
@@ -283,37 +284,37 @@ const Modais = ({
                                         className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-200 dark:border-blue-500/30 py-4 rounded-2xl transition-all shadow-sm group"
                                     >
                                         <PhoneCall className="w-6 h-6" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">Ligar</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{tx("Ligar")}</span>
                                     </button>
                                     <button 
                                         onClick={() => abrirWhatsAppPelaFicha(modalDetalhe.lead)} 
                                         className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-200 dark:border-emerald-500/30 py-4 rounded-2xl transition-all shadow-sm group"
                                     >
                                         <MessageCircle className="w-6 h-6" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">WhatsApp</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest">{tx("WhatsApp")}</span>
                                     </button>
                                 </div>
 
                                 {onNaoContatar && (
-                                    <button type="button" onClick={() => onNaoContatar(modalDetalhe.lead)} className="mx-6 mt-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors" title="A pessoa pediu para não receber contato">
-                                        <Ban className="w-4 h-4" /> Não contatar
+                                    <button type="button" onClick={() => onNaoContatar(modalDetalhe.lead)} className="mx-6 mt-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors" title={tx("A pessoa pediu para não receber contato")}>
+                                        <Ban className="w-4 h-4" />{' '}{tx("Não contatar")}
                                     </button>
                                 )}
 
                                 <div className="p-6 space-y-6 flex-1">
                                     {/* MUDAR FASE */}
                                     <div>
-                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><AlignLeft className="w-4 h-4"/> Fase Atual no Funil</label>
+                                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><AlignLeft className="w-4 h-4"/>{' '}{tx("Fase Atual no Funil")}</label>
                                         <select 
                                             value={modalDetalhe.lead.status} 
                                             onChange={(e) => alterarStatus(modalDetalhe.lead.id, e.target.value)}
                                             className={`w-full text-xs font-black uppercase tracking-widest border-2 rounded-xl p-4 outline-none cursor-pointer shadow-sm transition-all focus:ring-4 focus:ring-blue-500/20 ${STATUS_TOKENS[modalDetalhe.lead.status]?.bg} ${STATUS_TOKENS[modalDetalhe.lead.status]?.text} ${STATUS_TOKENS[modalDetalhe.lead.status]?.border}`}
                                         >
-                                            {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
+                                            {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                                         </select>
                                         {modalDetalhe.lead.status === 'Perdido' && modalDetalhe.lead.motivo_perda && (
                                             <p className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl px-3 py-2">
-                                                <Snowflake className="w-3.5 h-3.5 shrink-0" /> Motivo da perda: {modalDetalhe.lead.motivo_perda}
+                                                <Snowflake className="w-3.5 h-3.5 shrink-0" />{' '}{tx("Motivo da perda:")}{' '}{tx(modalDetalhe.lead.motivo_perda)}
                                             </p>
                                         )}
                                     </div>
@@ -324,12 +325,12 @@ const Modais = ({
                                         const cor = situacao === 'atrasado' ? 'text-rose-600 dark:text-rose-400' : situacao === 'hoje' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-700 dark:text-slate-200';
                                         return (
                                             <div>
-                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><CalendarClock className="w-4 h-4"/> Próximo contato</label>
+                                                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><CalendarClock className="w-4 h-4"/>{' '}{tx("Próximo contato")}</label>
                                                 <button type="button" onClick={() => onProximoContato(modalDetalhe.lead)} className="w-full flex items-center justify-between gap-3 border-2 border-blue-100 dark:border-blue-500/20 hover:border-blue-300 dark:hover:border-blue-500/40 bg-blue-50/50 dark:bg-blue-500/5 rounded-xl px-4 py-3 transition-colors">
                                                     <span className={`text-xs font-black uppercase tracking-widest ${cor}`}>
-                                                        {situacao ? `${situacao === 'atrasado' ? 'Atrasado · ' : situacao === 'hoje' ? 'Hoje · ' : ''}${formatarDiaCurto(modalDetalhe.lead.proximo_contato)}` : 'Sem data marcada'}
+                                                        {situacao ? `${situacao === 'atrasado' ? tx('Atrasado') + ' · ' : situacao === 'hoje' ? tx('Hoje') + ' · ' : ''}${formatarDiaCurto(modalDetalhe.lead.proximo_contato)}` : tx("Sem data marcada")}
                                                     </span>
-                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">{situacao ? 'Mudar' : 'Marcar'}</span>
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">{situacao ? tx("Mudar") : tx("Marcar")}</span>
                                                 </button>
                                             </div>
                                         );
@@ -342,8 +343,8 @@ const Modais = ({
                                                 <User className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Consultor Responsável</p>
-                                                <p className="font-black text-slate-700 dark:text-slate-200 uppercase leading-tight">{modalDetalhe.lead.vendedor || 'Não Atribuído'}</p>
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">{tx("Consultor Responsável")}</p>
+                                                <p className="font-black text-slate-700 dark:text-slate-200 uppercase leading-tight">{modalDetalhe.lead.vendedor || tx("Não Atribuído")}</p>
                                             </div>
                                         </div>
                                         
@@ -352,7 +353,7 @@ const Modais = ({
                                                 <Calendar className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Data de Captura</p>
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">{tx("Data de Captura")}</p>
                                                 <p className="font-bold text-slate-700 dark:text-slate-200 leading-tight">{formatarDataHora(modalDetalhe.lead.puxado_em || dataDoLead(modalDetalhe.lead))}</p>
                                             </div>
                                         </div>
@@ -363,7 +364,7 @@ const Modais = ({
                                                     <CreditCard className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Golden Record (CPF)</p>
+                                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">{tx("Golden Record (CPF)")}</p>
                                                     <p className="font-black text-slate-700 dark:text-slate-200 leading-tight">{modalDetalhe.lead.cpf}</p>
                                                 </div>
                                             </div>
@@ -376,7 +377,7 @@ const Modais = ({
                             <div className="flex-1 p-0 flex flex-col bg-white dark:bg-slate-900 overflow-hidden relative">
                                 <div className="p-6 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 shrink-0">
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
-                                        <History className="w-5 h-5 text-blue-500" /> Linha do Tempo e Anotações
+                                        <History className="w-5 h-5 text-blue-500" />{' '}{tx("Linha do Tempo e Anotações")}
                                     </h3>
                                 </div>
                                 
@@ -385,7 +386,7 @@ const Modais = ({
                                     {loadingHistorico ? (
                                         <div className="flex items-center justify-center h-full text-slate-400"><Loader2 className="w-8 h-8 animate-spin" /></div>
                                     ) : historicoLead.length === 0 ? (
-                                        <p className="text-center text-slate-400 font-bold text-sm mt-10 uppercase tracking-widest">Nenhum histórico registrado.</p>
+                                        <p className="text-center text-slate-400 font-bold text-sm mt-10 uppercase tracking-widest">{tx("Nenhum histórico registrado.")}</p>
                                     ) : (
                                         <div className="space-y-6 relative">
                                             {historicoLead.map(h => {
@@ -411,7 +412,7 @@ const Modais = ({
                                                                 <span className="text-[11px] font-bold text-slate-400">{formatarDataHora(h.data_registro)}</span>
                                                             </div>
                                                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{h.observacao}</p>
-                                                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4 text-right">— Por: {h.consultor}</p>
+                                                            <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4 text-right">{tx("— Por:")}{' '}{h.consultor}</p>
                                                         </div>
                                                     </div>
                                                 );
@@ -427,11 +428,11 @@ const Modais = ({
                                             type="text" 
                                             value={novaNota} 
                                             onChange={(e) => setNovaNota(e.target.value)} 
-                                            placeholder="Descreva o que aconteceu neste contato..." 
+                                            placeholder={tx("Descreva o que aconteceu neste contato...")} 
                                             className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner dark:focus:bg-slate-900"
                                         />
                                         <button type="submit" disabled={!novaNota.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-8 py-4 rounded-xl transition-all shadow-[0_4px_15px_rgba(37,99,235,0.3)] flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest shrink-0">
-                                            <Save className="w-5 h-5" /> Salvar Nota
+                                            <Save className="w-5 h-5" />{' '}{tx("Salvar Nota")}
                                         </button>
                                     </div>
                                 </form>
@@ -460,7 +461,7 @@ const Modais = ({
                                     {contarPessoasDaMeta(progressoHoje) >= META_DIARIA ? <Trophy className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                                 </div>
                                 <div>
-                                    <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest leading-none">Fechamento de Turno</h3>
+                                    <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest leading-none">{tx("Fechamento de Turno")}</h3>
                                 </div>
                             </div>
                             <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setMostrarRelatorio(false)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
@@ -469,7 +470,7 @@ const Modais = ({
                         </div>
                         
                         <div className="flex-1 p-5 flex flex-col overflow-hidden bg-white dark:bg-slate-900">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 shrink-0">Edite as informações adicionais antes de enviar:</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 shrink-0">{tx("Edite as informações adicionais antes de enviar:")}</p>
                             <textarea 
                                 value={textoRelatorio} 
                                 onChange={(e) => setTextoRelatorio(e.target.value)} 
@@ -480,22 +481,22 @@ const Modais = ({
                         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-3 shrink-0 flex-col">
                             <div className="flex gap-2 w-full">
                                 <button 
-                                    onClick={() => { navigator.clipboard.writeText(textoRelatorio); avisar("Relatório copiado!"); }} 
+                                    onClick={() => { navigator.clipboard.writeText(textoRelatorio); avisar(tx("Relatório copiado!")); }} 
                                     className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
                                 >
-                                    <Copy className="w-4 h-4" /> Copiar 
+                                    <Copy className="w-4 h-4" />{' '}{tx("Copiar")} 
                                 </button>
                                 
                                 <button 
                                     onClick={() => { 
                                         navigator.clipboard.writeText(textoRelatorio); 
-                                        avisar("Turno finalizado! Relatório copiado para a área de transferência.");
+                                        avisar(tx("Turno finalizado! Relatório copiado para a área de transferência."));
                                         setMostrarRelatorio(false);
                                         if(setConsultorAtivo) setConsultorAtivo(null); 
                                     }} 
                                     className="flex-[2] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-md flex items-center justify-center gap-2"
                                 >
-                                    <CheckCircle2 className="w-4 h-4" /> Finalizar Trampo
+                                    <CheckCircle2 className="w-4 h-4" />{' '}{tx("Finalizar Trampo")}
                                 </button>
                             </div>
                         </div>

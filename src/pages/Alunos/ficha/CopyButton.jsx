@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { tx } from '../../../i18n/traduzir.js';
 
 export default function CopyButton({ value, label = 'Copiar', className = '' }) {
     const [copiado, setCopiado] = useState(false);
@@ -41,8 +42,8 @@ export default function CopyButton({ value, label = 'Copiar', className = '' }) 
         <button
             type="button"
             onClick={handleCopy}
-            title={copiado ? 'Copiado!' : label}
-            aria-label={copiado ? 'Copiado!' : label}
+            title={copiado ? tx("Copiado!") : label}
+            aria-label={copiado ? tx("Copiado!") : label}
             aria-live="polite"
             // Reduzido para w-6 h-6 (24x24px) - Bem pequeno e sutil
             className={`flex items-center justify-center shrink-0 w-6 h-6 rounded-md bg-white border border-slate-200 text-slate-400 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition-colors focus:outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-blue-500/10 dark:hover:text-blue-400 dark:hover:border-blue-500/30 ${className}`}

@@ -5,6 +5,7 @@ import ModalEvolucaoAluno from './ModalEvolucaoAluno.jsx';
 import { FundoGlobalComFotos } from './FundoGlobal.jsx';
 import PainelInicial from './PainelInicial.jsx';
 import PainelAvaliador from './PainelAvaliador.jsx';
+import { tx } from '../../i18n/traduzir.js';
 
 const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], alunoPreSelecionado = null, limparPreSelecao, onVoltarParaAluno }) => {
     const [professorAtivo, setProfessorAtivo] = useState(null); 
@@ -66,11 +67,11 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], a
                     <div className="flex items-center justify-between bg-slate-900 dark:bg-slate-800/90 dark:backdrop-blur-xl dark:border dark:border-slate-700/50 rounded-[24px] p-6 shadow-md transition-colors">
                         <div>
                             <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
-                                <ListChecks className="w-6 h-6 text-blue-400" /> Construtor de Anamnese
+                                <ListChecks className="w-6 h-6 text-blue-400" />{' '}{tx("Construtor de Anamnese")}
                             </h2>
                         </div>
                         <button type="button" onClick={() => setAbaAtiva('relatorio')} className="bg-white/10 hover:bg-white/20 dark:bg-slate-700/50 dark:hover:bg-slate-600/60 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors border border-white/5 dark:border-white/10">
-                            Voltar ao Painel
+                            {tx("Voltar ao Painel")}
                         </button>
                     </div>
                     <TabPerguntasAvaliacao usuarioLogado={usuarioLogado} />

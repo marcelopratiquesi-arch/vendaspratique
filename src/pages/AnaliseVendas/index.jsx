@@ -7,13 +7,15 @@ import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
 import RelatorioTab from './RelatorioTab.jsx';
 import RankingGlobalTab from './RankingGlobalTab.jsx';
+import SaudeUnidadeTab from './SaudeUnidadeTab.jsx';
 import { 
-    BarChart3, Target, FileText, Trophy, RefreshCw,
+    BarChart3, Target, FileText, Trophy, RefreshCw, HeartPulse,
     Bookmark, Package, Briefcase, Users, X
 } from 'lucide-react';
 import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -260,9 +262,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
         if (error) {
             console.error("Erro no banco:", error);
-            avisar("Erro ao salvar as metas no banco de dados.");
+            avisar(tx("Erro ao salvar as metas no banco de dados."));
         } else {
-            avisar("Metas atualizadas com sucesso!");
+            avisar(tx("Metas atualizadas com sucesso!"));
         }
     };
 
@@ -345,6 +347,20 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         if (tipoFiltro === 'dia') return !diaEspecifico || dataFormatada === diaEspecifico;
         return true;
     });
+
+    // Saúde da unidade: período do filtro em datas (fim incluído). Sem começo/fim = sem comparação.
+    const faixaSaude = useMemo(() => {
+        if (tipoFiltro === 'dia') return diaEspecifico ? { inicio: diaEspecifico, fim: diaEspecifico } : null;
+        if (tipoFiltro === 'periodo') return dataInicio ? { inicio: dataInicio, fim: dataFim || getLocalISODate() } : null;
+        if (tipoFiltro === 'mes') {
+            if (!filtroAno || filtroAno === 'TODOS') return null;
+            if (!filtroMes || filtroMes === 'TODOS') return { inicio: `${filtroAno}-01-01`, fim: `${filtroAno}-12-31`, anoInteiro: true };
+            const ultimoDia = new Date(Number(filtroAno), Number(filtroMes), 0).getDate();
+            return { inicio: `${filtroAno}-${filtroMes}-01`, fim: `${filtroAno}-${filtroMes}-${String(ultimoDia).padStart(2, '0')}`, mesInteiro: true };
+        }
+        return null;
+    }, [tipoFiltro, diaEspecifico, dataInicio, dataFim, filtroMes, filtroAno]);
+    const unidadesPermitidas = useMemo(() => [...new Set(vendas.map(v => v.unidade).filter(Boolean))], [vendas]);
 
     const labelFiltroAtual = (() => {
         if (tipoFiltro === 'mes') {
@@ -432,12 +448,13 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
                 {/* Abas | o que está sendo exibido + período */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 dark:bg-slate-800" role="tablist" aria-label="Seções">
+                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 dark:bg-slate-800" role="tablist" aria-label={tx("Seções")}>
                         {[
                             ['dashboard', 'Dashboard', BarChart3],
                             ['visaoGeral', 'Metas da unidade', Target],
                             ['relatorio', 'Relatórios', FileText],
                             ...(temVisaoGlobal ? [['rankingGlobal', 'Ranking global', Trophy]] : []),
+                            ['saude', 'Saúde da unidade', HeartPulse],
                         ].map(([id, rotulo, Icone]) => {
                             const ativa = abaPrincipal === id;
                             return (
@@ -449,7 +466,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                                     onClick={() => setAbaPrincipal(id)}
                                     className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}
                                 >
-                                    <Icone className={`w-4 h-4 ${id === 'rankingGlobal' ? 'text-amber-500' : ''}`} /> {rotulo}
+                                    <Icone className={`w-4 h-4 ${id === 'rankingGlobal' ? 'text-amber-500' : ''}`} /> {tx(rotulo)}
                                 </button>
                             );
                         })}
@@ -457,7 +474,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                            {descricaoPeriodo} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? 'Todas as unidades' : filtroUnidade) : (usuarioLogado?.unidade || '')}
+                            {tx(descricaoPeriodo)} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? tx("Todas as unidades") : filtroUnidade) : (usuarioLogado?.unidade || '')}
                         </span>
                         <SeletorPeriodo
                             rotulo={rotuloPeriodo}
@@ -477,26 +494,26 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
                 {/* Filtros lado a lado */}
                 <div className="flex flex-wrap gap-2.5">
-                    <FiltroMultiplo rotulo="Consultores" icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
-                    <FiltroMultiplo rotulo="Planos" icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
-                    <FiltroMultiplo rotulo="Produtos" icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
-                    <FiltroMultiplo rotulo="Serviços" icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
+                    <FiltroMultiplo rotulo={tx("Consultores")} icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
+                    <FiltroMultiplo rotulo={tx("Planos")} icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
+                    <FiltroMultiplo rotulo={tx("Produtos")} icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
+                    <FiltroMultiplo rotulo={tx("Serviços")} icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
                 </div>
 
                 {/* Filtros ativos */}
                 {(filtrosAtivos.length > 0 || temFiltroAtivo) && (
                     <div className="flex flex-wrap items-center gap-2">
-                        {filtrosAtivos.length > 0 && <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Filtros ativos:</span>}
+                        {filtrosAtivos.length > 0 && <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx("Filtros ativos:")}</span>}
                         {filtrosAtivos.map(f => (
                             <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                                {f.texto}
-                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
+                                {tx(f.texto)}
+                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
                                     <X className="w-3 h-3" strokeWidth={3} />
                                 </button>
                             </span>
                         ))}
                         <button type="button" onClick={limparFiltros} className="h-7 px-2.5 rounded-lg text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
-                            <RefreshCw className="w-3.5 h-3.5" /> Limpar filtros
+                            <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
                         </button>
                     </div>
                 )}
@@ -559,6 +576,23 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
                     usuarioLogado={usuarioLogado}
+                />
+            )}
+
+            {abaPrincipal === 'saude' && (
+                <SaudeUnidadeTab
+                    vendas={vendas}
+                    faixa={faixaSaude}
+                    rotuloPeriodo={rotuloPeriodo}
+                    catalogoGeral={catalogoGeral}
+                    temVisaoGlobal={temVisaoGlobal}
+                    filtroUnidade={filtroUnidade}
+                    unidadeUsuario={usuarioLogado?.unidade}
+                    unidadesPermitidas={unidadesPermitidas}
+                    vendedoresOcultos={vendedoresOcultos}
+                    planosOcultos={planosOcultos}
+                    produtosOcultos={produtosOcultos}
+                    servicosOcultos={servicosOcultos}
                 />
             )}
 

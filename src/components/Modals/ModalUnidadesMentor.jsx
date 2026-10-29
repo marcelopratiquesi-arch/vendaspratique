@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Building2, Search, X, Check, Loader2, CheckSquare, Eraser } from 'lucide-react';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // JANELA "UNIDADES DO MENTOR" (Configurações → Acessos, só Admin)
@@ -61,12 +62,12 @@ const ModalUnidadesMentor = ({ mentor, unidades = [], marcadasIniciais = [], onC
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                             <h3 id="titulo-unidades-mentor" className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                                <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Unidades do Mentor
+                                <Building2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />{' '}{tx("Unidades do Mentor")}
                             </h3>
                             <p className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase truncate mt-1.5">{mentor?.nome}</p>
                             <p className="text-[11px] font-semibold text-slate-400 lowercase truncate">{mentor?.email}</p>
                         </div>
-                        <button type="button" onClick={onCancelar} disabled={salvando} aria-label="Fechar" className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
+                        <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx("Fechar")} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
                             <X className="w-4 h-4" />
                         </button>
                     </div>
@@ -78,11 +79,11 @@ const ModalUnidadesMentor = ({ mentor, unidades = [], marcadasIniciais = [], onC
                             type="text"
                             value={busca}
                             onChange={(e) => setBusca(e.target.value)}
-                            placeholder="Buscar unidade por nome ou número"
+                            placeholder={tx("Buscar unidade por nome ou número")}
                             className="w-full pl-9 pr-8 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500"
                         />
                         {busca && (
-                            <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white">
+                            <button type="button" onClick={() => setBusca('')} aria-label={tx("Limpar busca")} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-white">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -90,14 +91,14 @@ const ModalUnidadesMentor = ({ mentor, unidades = [], marcadasIniciais = [], onC
 
                     <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
                         <span className={`text-[10px] font-black uppercase tracking-widest ${total === 0 ? 'text-rose-600 dark:text-rose-300' : 'text-blue-600 dark:text-blue-300'}`}>
-                            {total} {total === 1 ? 'unidade selecionada' : 'unidades selecionadas'}
+                            {total} {total === 1 ? tx("unidade selecionada") : tx("unidades selecionadas")}
                         </span>
                         <div className="flex gap-2">
                             <button type="button" onClick={marcarTodas} disabled={salvando || visiveis.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
-                                <CheckSquare className="w-3.5 h-3.5" /> Marcar todas
+                                <CheckSquare className="w-3.5 h-3.5" />{' '}{tx("Marcar todas")}
                             </button>
                             <button type="button" onClick={limpar} disabled={salvando || total === 0} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
-                                <Eraser className="w-3.5 h-3.5" /> Limpar
+                                <Eraser className="w-3.5 h-3.5" />{' '}{tx("Limpar")}
                             </button>
                         </div>
                     </div>
@@ -105,7 +106,7 @@ const ModalUnidadesMentor = ({ mentor, unidades = [], marcadasIniciais = [], onC
 
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-2">
                     {visiveis.length === 0 ? (
-                        <p className="text-center py-10 text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhuma unidade encontrada.</p>
+                        <p className="text-center py-10 text-xs font-bold text-slate-400 uppercase tracking-widest">{tx("Nenhuma unidade encontrada.")}</p>
                     ) : visiveis.map(u => {
                         const marcada = marcadas.has(normalizar(u.nome));
                         return (
@@ -119,14 +120,14 @@ const ModalUnidadesMentor = ({ mentor, unidades = [], marcadasIniciais = [], onC
 
                 <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-3">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {total === 0 ? 'Sem unidades: este mentor não verá nada.' : 'O acesso muda na hora para o mentor.'}
+                        {total === 0 ? tx("Sem unidades: este mentor não verá nada.") : tx("O acesso muda na hora para o mentor.")}
                     </p>
                     <div className="flex gap-2">
                         <button type="button" onClick={onCancelar} disabled={salvando} className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 text-[10px] font-black uppercase tracking-widest disabled:opacity-50">
-                            Cancelar
+                            {tx("Cancelar")}
                         </button>
                         <button type="button" onClick={salvar} disabled={salvando} className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest shadow-sm disabled:opacity-60">
-                            {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Salvar
+                            {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}{' '}{tx("Salvar")}
                         </button>
                     </div>
                 </div>

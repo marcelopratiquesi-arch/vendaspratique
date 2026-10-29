@@ -1,6 +1,7 @@
 import React from 'react';
 import { Hourglass, CalendarClock } from 'lucide-react';
 import { diasParado, nivelParado, situacaoProximoContato, formatarDiaCurto } from './utils';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // ETIQUETAS DO KANBAN E DA LISTA (Bloco 4)
@@ -17,8 +18,8 @@ export const EtiquetaParado = ({ lead }) => {
         ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30'
         : 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30';
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title="Dias sem nenhuma ação neste contato (WhatsApp, ligação, anotação, mudança de fase)">
-            <Hourglass className="w-3 h-3" /> Parado há {dias} dias
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title={tx("Dias sem nenhuma ação neste contato (WhatsApp, ligação, anotação, mudança de fase)")}>
+            <Hourglass className="w-3 h-3" />{' '}{tx("Parado há")}{' '}{dias}{' '}{tx("dias")}
         </span>
     );
 };
@@ -31,10 +32,10 @@ export const EtiquetaProximo = ({ lead }) => {
         : situacao === 'hoje'
             ? 'bg-blue-600 text-white border-blue-600'
             : 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30';
-    const texto = situacao === 'hoje' ? 'Contatar hoje' : `${situacao === 'atrasado' ? 'Atrasado · ' : 'Próximo: '}${formatarDiaCurto(lead.proximo_contato)}`;
+    const texto = situacao === 'hoje' ? tx('Contatar hoje') : `${situacao === 'atrasado' ? tx('Atrasado') + ' · ' : tx('Próximo:') + ' '}${formatarDiaCurto(lead.proximo_contato)}`;
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title="Data marcada para o próximo contato">
-            <CalendarClock className="w-3 h-3" /> {texto}
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title={tx("Data marcada para o próximo contato")}>
+            <CalendarClock className="w-3 h-3" /> {tx(texto)}
         </span>
     );
 };

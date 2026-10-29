@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, classeTipoLead } from './utils';
 import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // CARD DO LEAD (Memoizado para Alta Performance)
@@ -43,7 +44,7 @@ const LeadCard = memo(({
             <div className="flex justify-between items-start mb-3 relative z-10">
                 <div className="flex flex-wrap gap-2 items-center">
                     <span className={`inline-block px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(lead.tipo_lead)}`}>
-                        {lead.tipo_lead || 'Não Informado'}
+                        {lead.tipo_lead ? tx(lead.tipo_lead) : tx("Não Informado")}
                     </span>
                     <EtiquetaProximo lead={lead} />
                     <EtiquetaParado lead={lead} />
@@ -54,7 +55,7 @@ const LeadCard = memo(({
                         onClick={handleDeletar}
                         disabled={isDeleting}
                         className="text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-white dark:bg-slate-900 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Excluir Definitivamente do Banco"
+                        title={tx("Excluir Definitivamente do Banco")}
                     >
                         {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                     </button>
@@ -65,7 +66,7 @@ const LeadCard = memo(({
                 <h4
                     onClick={() => onDetalhe(lead)}
                     className="font-black text-slate-800 dark:text-white text-[15px] leading-tight uppercase cursor-pointer hover:text-blue-600 dark:hover:text-blue-400 transition-colors pr-2"
-                    title="Ver Ficha e Histórico Completo"
+                    title={tx("Ver Ficha e Histórico Completo")}
                 >
                     {lead.nome}
                 </h4>
@@ -96,7 +97,7 @@ const LeadCard = memo(({
                         onClick={() => onLigar(lead)}
                         disabled={!lead.telefone}
                         className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Ligar (MicroSIP)"
+                        title={tx("Ligar (MicroSIP)")}
                     >
                         <PhoneCall className="w-4 h-4" />
                     </button>
@@ -104,14 +105,14 @@ const LeadCard = memo(({
                         onClick={() => onWpp(lead)}
                         disabled={!lead.telefone}
                         className="flex-1 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-100 dark:border-emerald-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Chamar no WhatsApp"
+                        title={tx("Chamar no WhatsApp")}
                     >
                         <MessageCircle className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => onDetalhe(lead)}
                         className="flex-1 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-white border border-slate-200 dark:border-slate-800 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm"
-                        title="Ver Detalhes / Ficha"
+                        title={tx("Ver Detalhes / Ficha")}
                     >
                         <Info className="w-4 h-4" />
                     </button>
@@ -119,7 +120,7 @@ const LeadCard = memo(({
                         <button
                             onClick={() => onProximo(lead)}
                             className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm"
-                            title="Marcar o próximo contato"
+                            title={tx("Marcar o próximo contato")}
                         >
                             <CalendarPlus className="w-4 h-4" />
                         </button>
@@ -131,14 +132,14 @@ const LeadCard = memo(({
                     onChange={(e) => onMoverStatus(lead.id, e.target.value)}
                     className="w-full text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-2 bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-900 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors outline-none shadow-sm"
                 >
-                    <option disabled value="">Mover fase...</option>
-                    {COLUNAS.map(c => <option key={c} value={c}>Para: {c}</option>)}
+                    <option disabled value="">{tx("Mover fase...")}</option>
+                    {COLUNAS.map(c => <option key={c} value={c}>{tx("Para:")}{' '}{tx(c)}</option>)}
                 </select>
 
                 <div className="w-full flex items-center gap-1.5 pt-1">
                     <input
                         type="text"
-                        placeholder="Nota rápida..."
+                        placeholder={tx("Nota rápida...")}
                         value={nota}
                         onChange={(e) => setNota(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleSalvar(); }}
@@ -149,7 +150,7 @@ const LeadCard = memo(({
                         onClick={handleSalvar}
                         disabled={!nota.trim() || isSendingNota}
                         className={`h-9 w-9 flex items-center justify-center rounded-lg transition-colors shadow-sm disabled:opacity-50 ${notaSalva ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white disabled:hover:bg-slate-100 disabled:hover:text-slate-500 dark:disabled:hover:bg-slate-800 dark:disabled:hover:text-slate-400'}`}
-                        title="Salvar Nota"
+                        title={tx("Salvar Nota")}
                     >
                         {notaSalva ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}
                     </button>
@@ -293,7 +294,7 @@ const Kanban = ({
                         <div className={`p-4 border-b ${token.border} ${token.bg} rounded-t-[20px] flex justify-between items-center sticky top-0 backdrop-blur-sm z-10`}>
                             <h3 className={`font-black ${token.text} text-[11px] flex items-center gap-2 uppercase tracking-widest`}>
                                 <span className={`w-2 h-2 rounded-full ${token.accent} shadow-sm`}></span>
-                                {coluna}
+                                {tx(coluna)}
                             </h3>
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-md shadow-sm border bg-white dark:bg-slate-900 ${token.text} ${token.border}`}>
                                 {leadsDaColuna.length}
@@ -326,7 +327,7 @@ const Kanban = ({
                             {leadsDaColuna.length === 0 && (
                                 <div className="flex flex-col items-center justify-center py-10 opacity-40">
                                     <Inbox className="w-8 h-8 text-slate-400 mb-2" />
-                                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Coluna Vazia</p>
+                                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tx("Coluna Vazia")}</p>
                                 </div>
                             )}
                         </div>

@@ -11,6 +11,7 @@ import {
 } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
 import { avisar } from '../../components/avisar.js';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ==========================================
 // POP-UP "CONTATOS DE HOJE"
@@ -78,7 +79,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
             chave: chaveContatoFeito(tipo, String(l.id), dia),
             tipo, referencia: dia, lead: l, lead_id: String(l.id), aluno_id: null,
             nome: l.nome, telefone: l.telefone, cpf: l.cpf,
-            detalhe: `${atrasado ? 'ATRASADO · ' : ''}Visitou em ${dia.split('-').reverse().join('/')}${l.vendedor ? ` · atendido por ${String(l.vendedor).split(' ')[0]}` : ''}`
+            detalhe: `${atrasado ? tx('ATRASADO') + ' · ' : ''}${tx('Visitou em {dia}', { dia: dia.split('-').reverse().join('/') })}${l.vendedor ? ` · ${tx('atendido por {nome}', { nome: String(l.vendedor).split(' ')[0] })}` : ''}`
         });
         const v24 = visitantes.filter(l => dataDaVisita(l) === ontem).map(l => pessoaDoLead(l, 'VISITANTE_24H', ontem));
         const v48 = visitantes.filter(l => dataDaVisita(l) === anteontem).map(l => pessoaDoLead(l, 'VISITANTE_48H', anteontem));
@@ -93,7 +94,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                 chave: chaveContatoFeito('ANIVERSARIO', String(a.aluno_id), hoje),
                 tipo: 'ANIVERSARIO', referencia: hoje, lead: null, lead_id: null, aluno_id: a.aluno_id,
                 nome: a.nome, telefone: a.telefone, cpf: a.cpf,
-                detalhe: a.data_nascimento ? `Faz ${new Date().getFullYear() - Number(String(a.data_nascimento).slice(0, 4))} anos hoje` : 'Aniversário hoje'
+                detalhe: a.data_nascimento ? tx('Faz {idade} anos hoje', { idade: new Date().getFullYear() - Number(String(a.data_nascimento).slice(0, 4)) }) : tx('Aniversário hoje')
             }));
         const naoFeitos = (lista) => lista.filter(p => !feitos.has(p.chave));
         return { VISITANTE_24H: naoFeitos(v24), VISITANTE_48H: naoFeitos(v48), ATRASADOS: naoFeitos(atrasados), ANIVERSARIO: naoFeitos(aniv) };
@@ -106,7 +107,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
 
     // Anti-golpe: abrir o WhatsApp JÁ conta como feito (canal WHATSAPP) e tira a pessoa da lista
     const abrirWhatsApp = async (pessoa) => {
-        if (!pessoa.telefone) return avisar('Este contato está sem telefone cadastrado.');
+        if (!pessoa.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
         const texto = textoDe(pessoa);
         window.open(linkWhatsApp(pessoa.telefone, texto), '_blank');
         if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'WhatsApp', `Mensagem enviada: "${texto}"`);
@@ -137,7 +138,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
             setFeitos(prev => new Set(prev).add(pessoa.chave));
         } catch (err) {
             console.error('Erro ao marcar contato como feito:', err);
-            avisar(`Não foi possível marcar como feito.\n\n${err?.message || ''}`);
+            avisar(tx("Não foi possível marcar como feito.\n\n{v1}", { v1: err?.message || '' }));
         } finally {
             setMarcando('');
         }
@@ -152,22 +153,22 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><CalendarCheck className="w-5 h-5" /></div>
                         <div>
-                            <h3 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">Contatos de hoje</h3>
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{unidadeChave} · {new Date().toLocaleDateString('pt-BR')} · {totalPendentes} pendente(s)</p>
+                            <h3 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx("Contatos de hoje")}</h3>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{unidadeChave} · {new Date().toLocaleDateString(localeAtual())} · {totalPendentes}{' '}{tx("pendente(s)")}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         {podeEditarMensagens && (
                             <button type="button" onClick={() => setEditandoMensagens(true)} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center gap-1.5 transition-colors">
-                                <PenSquare className="w-3.5 h-3.5" /> Mensagens
+                                <PenSquare className="w-3.5 h-3.5" />{' '}{tx("Mensagens")}
                             </button>
                         )}
-                        <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title="Fechar"><X className="w-4 h-4" /></button>
+                        <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title={tx("Fechar")}><X className="w-4 h-4" /></button>
                     </div>
                 </div>
 
                 <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                    {carregando && <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Loader2 className="w-4 h-4 animate-spin" /> Atualizando...</div>}
+                    {carregando && <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Loader2 className="w-4 h-4 animate-spin" />{' '}{tx("Atualizando...")}</div>}
                     {GRUPOS.map(g => {
                         const Icone = g.icone;
                         const lista = pendentes[g.tipo];
@@ -176,28 +177,28 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                 <div className="flex items-center gap-2 mb-3">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${g.cor}`}><Icone className="w-4 h-4" /></div>
                                     <div>
-                                        <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{g.titulo} <span className="text-slate-400">({lista.length})</span></p>
-                                        <p className="text-[10px] font-bold text-slate-400">{g.sub}</p>
+                                        <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{tx(g.titulo)} <span className="text-slate-400">({lista.length})</span></p>
+                                        <p className="text-[10px] font-bold text-slate-400">{tx(g.sub)}</p>
                                     </div>
                                 </div>
                                 {lista.length === 0 ? (
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600 pl-10">Nenhum pendente</p>
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-300 dark:text-slate-600 pl-10">{tx("Nenhum pendente")}</p>
                                 ) : (
                                     <div className="space-y-2">
                                         {lista.map(p => (
                                             <div key={p.chave} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3">
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-black text-slate-800 dark:text-white uppercase truncate">{p.nome}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 truncate">{p.telefone || 'Sem telefone'} · {p.detalhe}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 truncate">{p.telefone || tx("Sem telefone")} · {p.detalhe}</p>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={`Abre o WhatsApp e já registra o contato:\n\n${textoDe(p)}`}>
-                                                        {marcando === p.chave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} WhatsApp
+                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: textoDe(p) })}>
+                                                        {marcando === p.chave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>
-                                                    <button type="button" onClick={() => setJustificando(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title="Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)">
-                                                        <Check className="w-3.5 h-3.5" /> Feito sem WhatsApp
+                                                    <button type="button" onClick={() => setJustificando(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
+                                                        <Check className="w-3.5 h-3.5" />{' '}{tx("Feito sem WhatsApp")}
                                                     </button>
-                                                    <button type="button" onClick={() => setBloqueando(p)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title="Não contatar (a pessoa pediu para não receber contato)">
+                                                    <button type="button" onClick={() => setBloqueando(p)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title={tx("Não contatar (a pessoa pediu para não receber contato)")}>
                                                         <Ban className="w-4 h-4" />
                                                     </button>
                                                 </div>

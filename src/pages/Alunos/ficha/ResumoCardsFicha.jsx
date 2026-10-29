@@ -1,6 +1,7 @@
 import React from 'react';
 import { CalendarDays, Bookmark, ShoppingBag, Activity, MessageCircle, Loader2 } from 'lucide-react';
 import { formatarDataBR } from '../utils.js';
+import { tx } from '../../../i18n/traduzir.js';
 
 const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
     
@@ -23,35 +24,35 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
 
     const cards = [
         {
-            titulo: 'Cadastro',
+            titulo: tx("Cadastro"),
             valor: formatarDataBR(aluno.created_at),
             subvalor: 'Data de cadastro',
             icone: CalendarDays,
             bgIcon: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
         },
         {
-            titulo: 'Último Plano',
+            titulo: tx("Último Plano"),
             valor: loading ? '...' : ultimoPlano,
             subvalor: loading ? '' : dataUltimoPlano,
             icone: Bookmark,
             bgIcon: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
         },
         {
-            titulo: 'Última Compra (Extra)',
+            titulo: tx("Última Compra (Extra)"),
             valor: loading ? '...' : ultimaCompraExtra,
             subvalor: loading ? '' : dataUltimaCompraExtra,
             icone: ShoppingBag,
             bgIcon: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
         },
         {
-            titulo: 'Última Avaliação',
+            titulo: tx("Última Avaliação"),
             valor: loading ? '...' : dataUltimaAvaliacao,
             subvalor: loading ? '' : profUltimaAvaliacao,
             icone: Activity,
             bgIcon: 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400',
         },
         {
-            titulo: 'Último Contato CRM',
+            titulo: tx("Último Contato CRM"),
             valor: loading ? '...' : ultimoCrm,
             subvalor: loading ? '' : dataUltimoCrm,
             icone: MessageCircle,
@@ -70,7 +71,7 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
                                 <Icone className="w-3.5 h-3.5" strokeWidth={2.5} />
                             </div>
                             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate dark:text-slate-400">
-                                {c.titulo}
+                                {tx(c.titulo)}
                             </span>
                         </div>
                         

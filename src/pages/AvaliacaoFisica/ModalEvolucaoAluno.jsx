@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { X, TrendingUp, TrendingDown, Minus, Calendar, Dumbbell, Percent, Scale, Clock, Activity, AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { tx } from '../../i18n/traduzir.js';
 
 // 🔥 P0: Parsing numérico seguro
 const parseNumber = (val) => {
@@ -24,30 +25,30 @@ const CustomTooltip = ({ active, payload, label }) => {
         const dados = payload[0].payload.raw;
         return (
             <div className="bg-slate-900 border border-slate-700 p-4 rounded-xl shadow-xl text-white min-w-[200px] z-50">
-                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-700 pb-2">{label}</p>
+                <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-700 pb-2">{tx(label)}</p>
                 <div className="space-y-2">
                     {dados.mme != null && (
                         <div className="flex justify-between items-center gap-4 text-sm font-bold">
-                            <span className="text-blue-400 flex items-center gap-1.5"><Dumbbell className="w-3.5 h-3.5"/> MME:</span>
-                            <span>{dados.mme} kg</span>
+                            <span className="text-blue-400 flex items-center gap-1.5"><Dumbbell className="w-3.5 h-3.5"/>{' '}{tx("MME:")}</span>
+                            <span>{dados.mme}{' '}{tx("kg")}</span>
                         </div>
                     )}
                     {dados.pgc != null && (
                         <div className="flex justify-between items-center gap-4 text-sm font-bold">
-                            <span className="text-orange-400 flex items-center gap-1.5"><Percent className="w-3.5 h-3.5"/> PGC:</span>
+                            <span className="text-orange-400 flex items-center gap-1.5"><Percent className="w-3.5 h-3.5"/>{' '}{tx("PGC:")}</span>
                             <span>{dados.pgc}%</span>
                         </div>
                     )}
                     {dados.peso != null && (
                         <div className="flex justify-between items-center gap-4 text-sm font-bold">
-                            <span className="text-blue-400 flex items-center gap-1.5"><Scale className="w-3.5 h-3.5"/> Peso:</span>
-                            <span>{dados.peso} kg</span>
+                            <span className="text-blue-400 flex items-center gap-1.5"><Scale className="w-3.5 h-3.5"/>{' '}{tx("Peso:")}</span>
+                            <span>{dados.peso}{' '}{tx("kg")}</span>
                         </div>
                     )}
                 </div>
                 {dados.professor && (
                     <p className="text-[10px] text-slate-500 mt-3 pt-2 border-t border-slate-700 italic dark:text-slate-400">
-                        Avaliador: {dados.professor}
+                        {tx("Avaliador:")}{' '}{dados.professor}
                     </p>
                 )}
             </div>
@@ -58,10 +59,10 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // 🔥 P1: Interpretação visual neutra e inteligente
 const IndicadorVariacao = ({ valor, tipo = 'padrao', sufixo = '' }) => {
-    if (valor === null || valor === undefined || isNaN(valor)) return <span className="text-slate-400 text-[10px] font-bold">Sem dados comparativos</span>;
+    if (valor === null || valor === undefined || isNaN(valor)) return <span className="text-slate-400 text-[10px] font-bold">{tx("Sem dados comparativos")}</span>;
     
     const num = parseFloat(valor);
-    if (num === 0) return <div className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-slate-500 w-fit dark:bg-slate-800 dark:text-slate-400"><Minus className="w-3 h-3"/> <span className="text-[10px] font-black uppercase tracking-widest">Estável</span></div>;
+    if (num === 0) return <div className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-slate-500 w-fit dark:bg-slate-800 dark:text-slate-400"><Minus className="w-3 h-3"/> <span className="text-[10px] font-black uppercase tracking-widest">{tx("Estável")}</span></div>;
 
     let isPositivo = num > 0;
     
@@ -199,13 +200,13 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                         <div className="min-w-0 truncate pr-4">
                             <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight truncate dark:text-white">{aluno.nome}</h2>
                             <div className="flex items-center gap-2 text-[10px] md:text-[11px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest truncate">
-                                {aluno.cpf && <span>CPF: {mascaraCPF(aluno.cpf)}</span>}
-                                {metricas && <span className="hidden sm:inline">• Avaliações: {metricas.qtd}</span>}
+                                {aluno.cpf && <span>{tx("CPF:")}{' '}{mascaraCPF(aluno.cpf)}</span>}
+                                {metricas && <span className="hidden sm:inline">{tx("• Avaliações:")}{' '}{metricas.qtd}</span>}
                             </div>
                         </div>
                     </div>
                     
-                    <button onClick={onClose} aria-label="Fechar painel" className="w-8 h-8 bg-transparent hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center transition-colors relative z-10 shrink-0 border border-transparent hover:border-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-200 dark:hover:border-slate-800">
+                    <button onClick={onClose} aria-label={tx("Fechar painel")} className="w-8 h-8 bg-transparent hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center transition-colors relative z-10 shrink-0 border border-transparent hover:border-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-200 dark:hover:border-slate-800">
                         <X className="w-4 h-4"/>
                     </button>
                 </div>
@@ -215,20 +216,20 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64">
                             <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-4"/>
-                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Carregando evolução...</p>
+                            <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{tx("Carregando evolução...")}</p>
                         </div>
                     ) : historicoTotal.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-64 text-center">
                             <AlertCircle className="w-12 h-12 text-slate-300 mb-3"/>
-                            <h3 className="text-lg font-black text-slate-700 dark:text-slate-200">Nenhum registro encontrado</h3>
-                            <p className="text-xs font-bold text-slate-500 mt-1 dark:text-slate-400">Este aluno ainda não possui avaliações no sistema.</p>
+                            <h3 className="text-lg font-black text-slate-700 dark:text-slate-200">{tx("Nenhum registro encontrado")}</h3>
+                            <p className="text-xs font-bold text-slate-500 mt-1 dark:text-slate-400">{tx("Este aluno ainda não possui avaliações no sistema.")}</p>
                         </div>
                     ) : (
                         <div className="space-y-6">
                             
                             {/* CONTROLE DE PERÍODO */}
                             <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-4 dark:bg-slate-900 dark:border-slate-800">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 hidden sm:block">Janela Temporal</span>
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 hidden sm:block">{tx("Janela Temporal")}</span>
                                 <div className="flex gap-1 w-full sm:w-auto">
                                     {[3, 6, 12, 'TODO'].map(meses => (
                                         <button 
@@ -236,7 +237,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                             onClick={() => setPeriodo(meses)}
                                             className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${periodo === meses ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
                                         >
-                                            {meses === 'TODO' ? 'Todo o Histórico' : `${meses} Meses`}
+                                            {meses === 'TODO' ? tx("Todo o Histórico") : tx("{meses} Meses", { meses: meses })}
                                         </button>
                                     ))}
                                 </div>
@@ -247,8 +248,8 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 flex items-start gap-4 dark:bg-blue-500/10 dark:border-blue-500/30">
                                     <Info className="w-6 h-6 text-blue-500 shrink-0"/>
                                     <div>
-                                        <h4 className="text-sm font-black text-blue-900 dark:text-blue-300">Apenas uma avaliação no período</h4>
-                                        <p className="text-xs font-medium text-blue-700 mt-1 dark:text-blue-400">Ainda não há dados suficientes para gerar a linha do tempo comparativa. Os indicadores atuais estão detalhados abaixo.</p>
+                                        <h4 className="text-sm font-black text-blue-900 dark:text-blue-300">{tx("Apenas uma avaliação no período")}</h4>
+                                        <p className="text-xs font-medium text-blue-700 mt-1 dark:text-blue-400">{tx("Ainda não há dados suficientes para gerar a linha do tempo comparativa. Os indicadores atuais estão detalhados abaixo.")}</p>
                                     </div>
                                 </div>
                             )}
@@ -260,11 +261,11 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                         <div className="absolute right-0 top-0 w-16 h-16 bg-blue-50 rounded-bl-[40px] flex items-center justify-center dark:bg-blue-500/10">
                                             <Dumbbell className="w-6 h-6 text-blue-400 translate-x-2 -translate-y-2"/>
                                         </div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Massa Muscular (MME)</h3>
-                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.mmeAtual != null ? `${metricas.mmeAtual} kg` : '-'}</p>
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{tx("Massa Muscular (MME)")}</h3>
+                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.mmeAtual != null ? tx("{mmeAtual} kg", { mmeAtual: metricas.mmeAtual }) : '-'}</p>
                                         <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Evolução</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Evolução")}</span>
                                                 <IndicadorVariacao sufixo=" kg" tipo="musculo" valor={metricas.varMmeKg}/>
                                             </div>
                                         </div>
@@ -274,11 +275,11 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                         <div className="absolute right-0 top-0 w-16 h-16 bg-orange-50 rounded-bl-[40px] flex items-center justify-center dark:bg-orange-500/10">
                                             <Percent className="w-6 h-6 text-orange-400 translate-x-2 -translate-y-2"/>
                                         </div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Gordura Corporal (PGC)</h3>
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{tx("Gordura Corporal (PGC)")}</h3>
                                         <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.pgcAtual != null ? `${metricas.pgcAtual}%` : '-'}</p>
                                         <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Evolução</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Evolução")}</span>
                                                 <IndicadorVariacao sufixo=" p.p." tipo="gordura" valor={metricas.varPgcPP}/>
                                             </div>
                                         </div>
@@ -288,11 +289,11 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                         <div className="absolute right-0 top-0 w-16 h-16 bg-slate-50 rounded-bl-[40px] flex items-center justify-center dark:bg-slate-800/60">
                                             <Scale className="w-6 h-6 text-slate-400 translate-x-2 -translate-y-2"/>
                                         </div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Peso Total</h3>
-                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.pesoAtual != null ? `${metricas.pesoAtual} kg` : '-'}</p>
+                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{tx("Peso Total")}</h3>
+                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.pesoAtual != null ? tx("{pesoAtual} kg", { pesoAtual: metricas.pesoAtual }) : '-'}</p>
                                         <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Variação</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Variação")}</span>
                                                 <IndicadorVariacao sufixo=" kg" tipo="padrao" valor={metricas.varPesoKg}/>
                                             </div>
                                         </div>
@@ -305,7 +306,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                 <div className="space-y-6">
                                     <div className="bg-white border border-slate-200 rounded-[20px] p-4 md:p-6 shadow-sm min-w-0 dark:bg-slate-900 dark:border-slate-800">
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 dark:text-white">
-                                            <TrendingUp className="w-4 h-4 text-blue-500"/> Composição Corporal (MME vs PGC)
+                                            <TrendingUp className="w-4 h-4 text-blue-500"/>{' '}{tx("Composição Corporal (MME vs PGC)")}
                                         </h3>
                                         <div className="h-[250px] md:h-[300px] w-full">
                                             <ResponsiveContainer height="100%" width="100%">
@@ -325,7 +326,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
 
                                     <div className="bg-white border border-slate-200 rounded-[20px] p-4 md:p-6 shadow-sm min-w-0 dark:bg-slate-900 dark:border-slate-800">
                                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 dark:text-white">
-                                            <Scale className="w-4 h-4 text-slate-500 dark:text-slate-400"/> Curva de Peso
+                                            <Scale className="w-4 h-4 text-slate-500 dark:text-slate-400"/>{' '}{tx("Curva de Peso")}
                                         </h3>
                                         <div className="h-[150px] md:h-[200px] w-full">
                                             <ResponsiveContainer height="100%" width="100%">
@@ -345,7 +346,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                             {/* LINHA DO TEMPO DETALHADA OTIMIZADA */}
                             <div className="bg-white border border-slate-200 rounded-[20px] p-5 md:p-6 shadow-sm dark:bg-slate-900 dark:border-slate-800">
                                 <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 dark:text-white">
-                                    <Clock className="w-4 h-4 text-slate-500 dark:text-slate-400"/> Registros Cronológicos
+                                    <Clock className="w-4 h-4 text-slate-500 dark:text-slate-400"/>{' '}{tx("Registros Cronológicos")}
                                 </h3>
                                 <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-slate-100 before:z-0 dark:before:bg-slate-800">
                                     {[...avaliacoesFiltradas].reverse().map((a, idx) => (
@@ -356,20 +357,20 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                             <div className="w-[calc(100%-3.5rem)] md:w-[calc(50%-2.5rem)] bg-slate-50 border border-slate-200 p-4 rounded-2xl shadow-sm group-hover:shadow-md transition-shadow dark:bg-slate-800/60 dark:border-slate-800">
                                                 <div className="flex items-center justify-between mb-3 border-b border-slate-200 pb-2 dark:border-slate-800">
                                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{formatarDataSegura(a.data || a.created_at)}</span>
-                                                    <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500 truncate max-w-[120px] dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">{a.professor || 'SISTEMA'}</span>
+                                                    <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-0.5 rounded text-slate-500 truncate max-w-[120px] dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400">{a.professor || tx("SISTEMA")}</span>
                                                 </div>
                                                 <div className="grid grid-cols-3 gap-2 text-center divide-x divide-slate-200 dark:divide-slate-800">
                                                     <div>
                                                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">MME</span>
-                                                        <span className={`text-xs md:text-sm font-black ${a.mme ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300'}`}>{a.mme ? `${a.mme} kg` : '-'}</span>
+                                                        <span className={`text-xs md:text-sm font-black ${a.mme ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300'}`}>{a.mme ? tx("{mme} kg", { mme: a.mme }) : '-'}</span>
                                                     </div>
                                                     <div>
                                                         <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">PGC</span>
                                                         <span className={`text-xs md:text-sm font-black ${a.pgc ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300'}`}>{a.pgc ? `${a.pgc}%` : '-'}</span>
                                                     </div>
                                                     <div>
-                                                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Peso</span>
-                                                        <span className={`text-xs md:text-sm font-black ${a.peso ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300'}`}>{a.peso ? `${a.peso} kg` : '-'}</span>
+                                                        <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Peso")}</span>
+                                                        <span className={`text-xs md:text-sm font-black ${a.peso ? 'text-slate-700 dark:text-slate-200' : 'text-slate-300'}`}>{a.peso ? tx("{peso} kg", { peso: a.peso }) : '-'}</span>
                                                     </div>
                                                 </div>
                                             </div>

@@ -8,6 +8,7 @@ import {
     BarChart3, Users, Lock, Unlock, ArrowLeft, ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
     const { locale, language } = useI18n(); 
@@ -64,7 +65,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
     }, [comunicado.id]);
 
     const handleResetarTentativas = async (inboxId, nome) => {
-        if (!window.confirm(`Deseja perdoar as falhas e liberar uma nova chance para ${nome}? O histórico de erros será mantido na auditoria.`)) return;
+        if (!window.confirm(tx("Deseja perdoar as falhas e liberar uma nova chance para {nome}? O histórico de erros será mantido na auditoria.", { nome: nome }))) return;
         
         try {
             const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -80,10 +81,10 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
             if (error) throw error;
             
             setInboxes(prev => prev.map(i => i.id === inboxId ? { ...i, tentativas: 0, status_leitura: 'PENDENTE' } : i));
-            avisar("Nova chance liberada com sucesso!");
+            avisar(tx("Nova chance liberada com sucesso!"));
         } catch (err) {
             console.error("ERRO DO SUPABASE:", err);
-            avisar("Erro ao liberar nova chance: " + (err.message || "Erro desconhecido"));
+            avisar(tx("Erro ao liberar nova chance: {v2}", { v2: err.message || "Erro desconhecido" }));
         }
     };
 
@@ -108,7 +109,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl p-6 rounded-[32px] border border-slate-200/50 dark:border-white/5 shadow-sm">
                 <div>
                     <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors mb-4 dark:text-slate-400 dark:hover:text-blue-400">
-                        <ArrowLeft className="w-3.5 h-3.5" /> Voltar para Central
+                        <ArrowLeft className="w-3.5 h-3.5" />{' '}{tx("Voltar para Central")}
                     </button>
                     <div className="flex items-center gap-3 mb-1">
                         <span className="bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-500/20">
@@ -122,19 +123,19 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Users className="w-3.5 h-3.5" /> Enviados</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Users className="w-3.5 h-3.5" />{' '}{tx("Enviados")}</span>
                     <span className="text-3xl font-black text-slate-800 dark:text-white">{loading ? '-' : totalEnviados}</span>
                 </div>
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Eye className="w-3.5 h-3.5" /> Abertos</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Eye className="w-3.5 h-3.5" />{' '}{tx("Abertos")}</span>
                     <span className="text-3xl font-black text-blue-600 dark:text-blue-400">{loading ? '-' : totalAbertos}</span>
                 </div>
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><CheckCircle className="w-3.5 h-3.5" /> Concluídos</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><CheckCircle className="w-3.5 h-3.5" />{' '}{tx("Concluídos")}</span>
                     <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{loading ? '-' : totalConcluidos}</span>
                 </div>
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-rose-200/50 dark:border-rose-500/20 shadow-sm flex flex-col bg-rose-50/30 dark:bg-rose-500/5">
-                    <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Lock className="w-3.5 h-3.5" /> Bloqueados (Falhas)</span>
+                    <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Lock className="w-3.5 h-3.5" />{' '}{tx("Bloqueados (Falhas)")}</span>
                     <span className="text-3xl font-black text-rose-600 dark:text-rose-400">{loading ? '-' : totalBloqueados}</span>
                 </div>
             </div>
@@ -143,14 +144,14 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                 <div className="p-5 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row gap-4 justify-between bg-slate-50/50 dark:bg-black/10">
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input type="text" placeholder="Buscar destinatário..." value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} className="w-full bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500" />
+                        <input type="text" placeholder={tx("Buscar destinatário...")} value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} className="w-full bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500" />
                     </div>
                     <select value={filtroStatus} onChange={(e) => { setFiltroStatus(e.target.value); setPagina(1); }} className="w-full sm:w-48 bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white outline-none cursor-pointer">
-                        <option value="TODOS">Todos os Status</option>
-                        <option value="CONCLUIDO">Concluídos</option>
-                        <option value="PENDENTE">Pendentes</option>
-                        <option value="NAO_LIDO">Não Lidos</option>
-                        <option value="BLOQUEADO">Bloqueados</option>
+                        <option value="TODOS">{tx("Todos os Status")}</option>
+                        <option value="CONCLUIDO">{tx("Concluídos")}</option>
+                        <option value="PENDENTE">{tx("Pendentes")}</option>
+                        <option value="NAO_LIDO">{tx("Não Lidos")}</option>
+                        <option value="BLOQUEADO">{tx("Bloqueados")}</option>
                     </select>
                 </div>
 
@@ -161,10 +162,10 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                         <table className="w-full text-left border-collapse min-w-[800px]">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-200/50 dark:border-white/5">
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Destinatário</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Tentativas</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ação de Auditoria</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Destinatário")}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{tx("Tentativas")}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{tx("Status")}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{tx("Ação de Auditoria")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -192,10 +193,10 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                                         <td className="px-6 py-4 text-right">
                                             {item.status_leitura === 'BLOQUEADO' ? (
                                                 <button onClick={() => handleResetarTentativas(item.id, item.nome)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:border-rose-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm dark:text-rose-400">
-                                                    <Unlock className="w-3.5 h-3.5" /> Liberar
+                                                    <Unlock className="w-3.5 h-3.5" />{' '}{tx("Liberar")}
                                                 </button>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-slate-400 italic">Sem ação pendente</span>
+                                                <span className="text-[10px] font-bold text-slate-400 italic">{tx("Sem ação pendente")}</span>
                                             )}
                                         </td>
                                     </tr>
@@ -203,7 +204,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                                 {dadosPaginados.length === 0 && (
                                     <tr>
                                         <td colSpan="4" className="px-6 py-12 text-center text-sm font-bold text-slate-400 uppercase tracking-widest">
-                                            Nenhum destinatário encontrado.
+                                            {tx("Nenhum destinatário encontrado.")}
                                         </td>
                                     </tr>
                                 )}
@@ -214,7 +215,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
 
                 {totalPaginas > 1 && (
                     <div className="p-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/10">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Página {pagina} de {totalPaginas}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Página")}{' '}{pagina}{' '}{tx("de")}{' '}{totalPaginas}</span>
                         <div className="flex gap-2">
                             <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
                             <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
@@ -337,7 +338,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
 
     const excluirComunicado = async (e, comunicadoId, titulo) => {
         e.stopPropagation(); 
-        if (window.confirm(`TEM CERTEZA?\n\nExcluir "${titulo}" removerá a mensagem da Caixa de Entrada de todos os destinatários imediatamente.`)) {
+        if (window.confirm(tx("TEM CERTEZA?\n\nExcluir \"{titulo}\" removerá a mensagem da Caixa de Entrada de todos os destinatários imediatamente.", { titulo: titulo }))) {
             setLoading(true);
             try {
                 const { data: { user } } = await supabase.auth.getUser();
@@ -347,7 +348,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                 fetchDados(); 
             } catch (err) {
                 console.error("Erro ao excluir:", err);
-                avisar("Erro ao excluir comunicado.");
+                avisar(tx("Erro ao excluir comunicado."));
             }
         }
     };
@@ -403,7 +404,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                     <div>
                         <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{t('communications.title', { defaultValue: 'Central de Comunicados' })}</h2>
                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5">
-                            Comunicação Corporativa e Operacional
+                            {tx("Comunicação Corporativa e Operacional")}
                         </p>
                     </div>
                 </div>
@@ -461,33 +462,33 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
 
                                 {!isAuthor && (
                                     <div className="mb-4">
-                                        {isCompleted && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"><CheckCircle className="w-3 h-3"/> Concluído</span>}
-                                        {isPending && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"><Loader2 className="w-3 h-3 animate-spin"/> Pendente</span>}
-                                        {isBlocked && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20"><Lock className="w-3 h-3"/> Bloqueado</span>}
-                                        {isUnread && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> Não Lido</span>}
+                                        {isCompleted && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20"><CheckCircle className="w-3 h-3"/>{' '}{tx("Concluído")}</span>}
+                                        {isPending && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20"><Loader2 className="w-3 h-3 animate-spin"/>{' '}{tx("Pendente")}</span>}
+                                        {isBlocked && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/20"><Lock className="w-3 h-3"/>{' '}{tx("Bloqueado")}</span>}
+                                        {isUnread && <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20"><span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>{' '}{tx("Não Lido")}</span>}
                                     </div>
                                 )}
 
                                 {isAuthor && card.metrics && (
                                     <div className="mb-4 py-3 border-t border-b border-slate-100 dark:border-white/5 grid grid-cols-4 gap-1 text-center">
-                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enviados</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
-                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Abertos</span><span className="text-xs font-black text-blue-600 dark:text-blue-400">{card.metrics.lidos}</span></div>
-                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ok</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.concluidos}</span></div>
-                                        <div className="flex flex-col"><span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Block</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{card.metrics.bloqueados}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Enviados")}</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Abertos")}</span><span className="text-xs font-black text-blue-600 dark:text-blue-400">{card.metrics.lidos}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Ok")}</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.concluidos}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">{tx("Block")}</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{card.metrics.bloqueados}</span></div>
                                     </div>
                                 )}
 
                                 <div className="flex items-center justify-end gap-2 mt-auto">
                                     <button onClick={() => abrirViewer(card)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
-                                        <Eye className="w-3.5 h-3.5" /> Ver
+                                        <Eye className="w-3.5 h-3.5" />{' '}{tx("Ver")}
                                     </button>
                                     
                                     {isAuthor && (
                                         <>
                                             <button onClick={(e) => abrirRelatorio(e, com)} className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
-                                                <BarChart3 className="w-3.5 h-3.5" /> Relatório
+                                                <BarChart3 className="w-3.5 h-3.5" />{' '}{tx("Relatório")}
                                             </button>
-                                            <button onClick={(e) => excluirComunicado(e, com.id, getTextoLocalizado(com, 'titulo'))} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-transparent hover:border-rose-100 dark:bg-transparent dark:hover:bg-rose-500/10 dark:hover:border-rose-500/20 dark:hover:text-rose-400 rounded-xl transition-all" title="Excluir">
+                                            <button onClick={(e) => excluirComunicado(e, com.id, getTextoLocalizado(com, 'titulo'))} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-transparent hover:border-rose-100 dark:bg-transparent dark:hover:bg-rose-500/10 dark:hover:border-rose-500/20 dark:hover:text-rose-400 rounded-xl transition-all" title={tx("Excluir")}>
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </>
@@ -520,7 +521,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl"><Eye className="w-5 h-5" /></div>
                                     <div>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">VISUALIZAÇÃO DE CONTEÚDO</p>
+                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("VISUALIZAÇÃO DE CONTEÚDO")}</p>
                                         <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{new Date(com.inicio_em).toLocaleString(langAtual)}</p>
                                     </div>
                                 </div>
@@ -532,17 +533,17 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                 <div className="text-sm md:text-base font-semibold text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-10">{getTextoLocalizado(com, 'conteudo')}</div>
 
                                 <div className="space-y-6 mb-10">
-                                    {com.imagem_url && <img src={com.imagem_url} alt="Banner" className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
+                                    {com.imagem_url && <img src={com.imagem_url} alt={tx("Banner")} className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
                                     {com.pdf_url && (
                                         <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 rounded-xl flex items-center justify-center"><FileText className="w-6 h-6" /></div>
                                                 <div>
-                                                    <p className="text-sm font-black text-slate-800 dark:text-white uppercase">Documento Anexo</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Formato PDF</p>
+                                                    <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{tx("Documento Anexo")}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Formato PDF")}</p>
                                                 </div>
                                             </div>
-                                            <a href={com.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm dark:hover:bg-blue-500/10 dark:hover:text-blue-400">Abrir Arquivo</a>
+                                            <a href={com.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm dark:hover:bg-blue-500/10 dark:hover:text-blue-400">{tx("Abrir Arquivo")}</a>
                                         </div>
                                     )}
                                     {com.video_url && (
@@ -552,14 +553,14 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                     )}
                                     {urlVideoExterno && (
                                         <div className="relative w-full overflow-hidden rounded-3xl border border-slate-200 dark:border-white/10 shadow-md bg-black" style={{ paddingTop: '56.25%' }}>
-                                            <iframe className="absolute top-0 left-0 w-full h-full" src={urlVideoExterno} title="Video" frameBorder="0" allowFullScreen></iframe>
+                                            <iframe className="absolute top-0 left-0 w-full h-full" src={urlVideoExterno} title={tx("Video")} frameBorder="0" allowFullScreen></iframe>
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="mt-8 p-4 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-widest text-center">
                                     <Info className="w-5 h-5" />
-                                    Esta é apenas a visualização de mídia.<br/>A interação com o comunicado (Confirmação/Prova) ocorre no momento do Bloqueio de Tela do Usuário.
+                                    {tx("Esta é apenas a visualização de mídia.")}<br/>{tx("A interação com o comunicado (Confirmação/Prova) ocorre no momento do Bloqueio de Tela do Usuário.")}
                                 </div>
                             </div>
                         </div>

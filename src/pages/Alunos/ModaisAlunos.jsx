@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, X, AlertTriangle, Loader2, ShieldAlert } from 'lucide-react';
 import { formatarCPF, executarExclusaoAluno } from './utils.js';
+import { tx } from '../../i18n/traduzir.js';
 
 export const ModalConfirmarExclusaoAluno = ({
     isOpen,
@@ -59,10 +60,10 @@ export const ModalConfirmarExclusaoAluno = ({
                         </div>
                         <div>
                             <h3 className="text-base font-black text-white uppercase tracking-tight">
-                                Excluir Aluno
+                                {tx("Excluir Aluno")}
                             </h3>
                             <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">
-                                Ação exclusiva Admin • Auditada
+                                {tx("Ação exclusiva Admin • Auditada")}
                             </p>
                         </div>
                     </div>
@@ -81,7 +82,7 @@ export const ModalConfirmarExclusaoAluno = ({
                             {aluno.nome}
                         </p>
                         <p className="text-xs font-mono font-bold text-slate-500 mt-1 dark:text-slate-400">
-                            CPF: {formatarCPF(aluno.cpf)} {aluno.matricula ? `• Matrícula #${aluno.matricula}` : ''}
+                            {tx("CPF:")}{' '}{formatarCPF(aluno.cpf)} {aluno.matricula ? tx("• Matrícula #{matricula}", { matricula: aluno.matricula }) : ''}
                         </p>
                     </div>
 
@@ -96,14 +97,14 @@ export const ModalConfirmarExclusaoAluno = ({
                         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 p-3.5 rounded-xl flex items-start gap-2.5">
                             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 dark:text-amber-400" />
                             <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 leading-snug">
-                                Se este aluno possuir vendas ou avaliações vinculadas, o banco bloqueará a exclusão automaticamente para proteger o histórico financeiro.
+                                {tx("Se este aluno possuir vendas ou avaliações vinculadas, o banco bloqueará a exclusão automaticamente para proteger o histórico financeiro.")}
                             </p>
                         </div>
                     )}
 
                     <div>
                         <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 dark:text-slate-400">
-                            Motivo para o Registro de Auditoria *
+                            {tx("Motivo para o Registro de Auditoria *")}
                         </label>
                         <input
                             type="text"
@@ -120,7 +121,7 @@ export const ModalConfirmarExclusaoAluno = ({
                             onClick={onClose}
                             className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
-                            Cancelar
+                            {tx("Cancelar")}
                         </button>
                         <button
                             type="submit"
@@ -128,7 +129,7 @@ export const ModalConfirmarExclusaoAluno = ({
                             className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
                         >
                             {excluindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                            Confirmar Exclusão
+                            {tx("Confirmar Exclusão")}
                         </button>
                     </div>
                 </form>

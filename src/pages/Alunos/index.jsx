@@ -55,7 +55,7 @@ const ModuloAlunos360 = ({
     const [filtroPlano, setFiltroPlano] = useState('TODOS');
     const [filtroUnidade, setFiltroUnidade] = useState(unidadeTravada);
     
-    const [filtroPeriodo, setFiltroPeriodo] = useState('Hoje');
+    const [filtroPeriodo, setFiltroPeriodo] = useState('hoje');
     const [dataInicio, setDataInicio] = useState(hojeStr);
     const [dataFim, setDataFim] = useState(hojeStr);
 
@@ -289,7 +289,7 @@ const ModuloAlunos360 = ({
         setBuscaDebounced('');
         setFiltroPlano('TODOS');
         const hojeStrReset = getBRDateString();
-        setFiltroPeriodo('Hoje');
+        setFiltroPeriodo('hoje');
         setDataInicio(hojeStrReset);
         setDataFim(hojeStrReset);
         if (temVisaoGlobal) handleChangeUnidade('TODAS');

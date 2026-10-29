@@ -11,6 +11,7 @@ import {
 } from './utils.js';
 import { TrendingUp, X, Users, Loader2, CheckCircle2 } from 'lucide-react'; 
 import { avisar } from '../../components/avisar.js';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ==========================================
 // 🧠 COMPONENTE: JANELA FLUTUANTE (DRAGGABLE & RESIZABLE)
@@ -153,7 +154,7 @@ const DashboardTab = ({
     // ABERTURA DO PAINEL FLUTUANTE
     const handleAbrirModalAtivos = () => {
         if (unidadeAtual === 'TODOS') {
-            avisar("Selecione uma unidade específica no filtro acima para editar os ativos.");
+            avisar(tx("Selecione uma unidade específica no filtro acima para editar os ativos."));
             return;
         }
         setAtivosInput(ativosAtualBanco !== null ? String(ativosAtualBanco) : '0');
@@ -396,7 +397,7 @@ const DashboardTab = ({
             <DraggableWindow
                 isOpen={modalProdOpen}
                 onClose={() => setModalProdOpen(false)}
-                title="Memória de Cálculo"
+                title={tx("Memória de Cálculo")}
                 subtitle="Transparência dos dados e conversão"
                 icon={TrendingUp}
                 iconColor="text-rose-500"
@@ -406,7 +407,7 @@ const DashboardTab = ({
                 <div className="p-6 md:p-8 space-y-8">
                     <div>
                         <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 dark:text-slate-400">
-                            <i data-lucide="layers" className="w-4 h-4 text-blue-500"></i> Planos Vendidos no Período
+                            <i data-lucide="layers" className="w-4 h-4 text-blue-500"></i>{' '}{tx("Planos Vendidos no Período")}
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {todosPlanosDetalhados.map((p, i) => (
@@ -416,32 +417,32 @@ const DashboardTab = ({
                                 </div>
                             ))}
                             {todosPlanosDetalhados.length === 0 && (
-                                <p className="text-xs font-bold text-slate-400 italic col-span-full">Nenhum plano registrado neste filtro.</p>
+                                <p className="text-xs font-bold text-slate-400 italic col-span-full">{tx("Nenhum plano registrado neste filtro.")}</p>
                             )}
                         </div>
                     </div>
 
                     <div>
                         <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 dark:text-slate-400">
-                            <i data-lucide="calculator" className="w-4 h-4 text-rose-500"></i> Fórmula de Upsell Aplicada
+                            <i data-lucide="calculator" className="w-4 h-4 text-rose-500"></i>{' '}{tx("Fórmula de Upsell Aplicada")}
                         </h4>
                         <div className="bg-white border border-slate-200 rounded-[20px] p-6 shadow-sm space-y-5 dark:bg-slate-900 dark:border-slate-800">
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">1. Total de Entradas (Todos os Planos)</span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">{tx("1. Total de Entradas (Todos os Planos)")}</span>
                                 <span className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg dark:text-white dark:bg-slate-800">{totalPlanos}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">2. Quantidade de Planos "FIT" (Básicos)</span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">{tx("2. Quantidade de Planos \"FIT\" (Básicos)")}</span>
                                 <span className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg dark:text-white dark:bg-slate-800">{totalFit}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">3. Percentual FIT <span className="text-[10px] lowercase normal-case text-slate-400">(Fit ÷ Entradas × 100)</span></span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">{tx("3. Percentual FIT")}{' '}<span className="text-[10px] lowercase normal-case text-slate-400">{tx("(Fit ÷ Entradas × 100)")}</span></span>
                                 <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-lg dark:text-rose-400 dark:bg-rose-500/10">{percentualFit.toFixed(1)}%</span>
                             </div>
                             <div className="pt-5 border-t border-slate-200 flex justify-between items-center dark:border-slate-800">
                                 <div>
-                                    <span className="block text-xs font-black text-slate-800 uppercase tracking-widest dark:text-white">Produtividade Final</span>
-                                    <span className="block text-[10px] font-bold text-slate-400 mt-0.5">100% - Percentual FIT</span>
+                                    <span className="block text-xs font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx("Produtividade Final")}</span>
+                                    <span className="block text-[10px] font-bold text-slate-400 mt-0.5">{tx("100% - Percentual FIT")}</span>
                                 </div>
                                 <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{produtividadeUpsell.toFixed(1)}%</span>
                             </div>
@@ -454,7 +455,7 @@ const DashboardTab = ({
             <DraggableWindow
                 isOpen={modalAtivosOpen}
                 onClose={() => { if (!isSalvandoAtivos && !sucessoAtivos) setModalAtivosOpen(false) }}
-                title="Ativos da Unidade"
+                title={tx("Ativos da Unidade")}
                 subtitle={`${unidadeAtual} • ${String(filtroMes).padStart(2, '0')}/${filtroAno}`}
                 icon={Users}
                 iconColor="text-emerald-500"
@@ -467,14 +468,14 @@ const DashboardTab = ({
                             <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-inner border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
-                            <h4 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">Ativos Atualizados!</h4>
-                            <p className="text-xs font-bold text-slate-500 mt-1 text-center dark:text-slate-400">O Dashboard já foi sincronizado.</p>
+                            <h4 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">{tx("Ativos Atualizados!")}</h4>
+                            <p className="text-xs font-bold text-slate-500 mt-1 text-center dark:text-slate-400">{tx("O Dashboard já foi sincronizado.")}</p>
                         </div>
                     ) : (
                         <>
                             <div>
                                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block text-center dark:text-slate-400">
-                                    Quantidade de alunos ativos
+                                    {tx("Quantidade de alunos ativos")}
                                 </label>
                                 <input 
                                     type="number" 
@@ -497,9 +498,9 @@ const DashboardTab = ({
                                 `}
                             >
                                 {isSalvandoAtivos ? (
-                                    <><Loader2 className="w-5 h-5 animate-spin" /> Salvando...</>
+                                    <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Salvando...")}</>
                                 ) : (
-                                    <><Users className="w-5 h-5" /> Salvar atualização</>
+                                    <><Users className="w-5 h-5" />{' '}{tx("Salvar atualização")}</>
                                 )}
                             </button>
                         </>
@@ -518,25 +519,25 @@ const DashboardTab = ({
                 {/* NOVO CARD: ATIVOS DA UNIDADE */}
                 <div 
                     onClick={handleAbrirModalAtivos}
-                    title="Clique para atualizar a quantidade de alunos ativos"
+                    title={tx("Clique para atualizar a quantidade de alunos ativos")}
                     className="bg-gradient-to-br from-emerald-500 to-teal-700 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden group cursor-pointer hover:ring-4 hover:ring-emerald-500/30 hover:-translate-y-1 transition-all duration-300"
                 >
                     <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                         <Users className="w-32 h-32" />
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2 relative z-10 flex items-center gap-1.5">
-                        Ativos da Unidade <i data-lucide="info" className="w-3 h-3 opacity-70"></i>
+                        {tx("Ativos da Unidade")}{' '}<i data-lucide="info" className="w-3 h-3 opacity-70"></i>
                     </p>
                     <div className="relative z-10">
                         {isCarregandoAtivos ? (
                             <div className="flex items-center gap-2 mt-2">
                                 <Loader2 className="w-6 h-6 animate-spin opacity-80" />
-                                <span className="text-xs font-bold opacity-80 uppercase tracking-widest">Sincronizando</span>
+                                <span className="text-xs font-bold opacity-80 uppercase tracking-widest">{tx("Sincronizando")}</span>
                             </div>
                         ) : ativosAtualBanco !== null ? (
-                            <p className="text-3xl font-black tracking-tight">{Number(ativosAtualBanco).toLocaleString('pt-BR')}</p>
+                            <p className="text-3xl font-black tracking-tight">{Number(ativosAtualBanco).toLocaleString(localeAtual())}</p>
                         ) : (
-                            <p className="text-2xl font-black tracking-tight opacity-90 mt-1">Não Informado</p>
+                            <p className="text-2xl font-black tracking-tight opacity-90 mt-1">{tx("Não Informado")}</p>
                         )}
                     </div>
                 </div>
@@ -544,13 +545,13 @@ const DashboardTab = ({
                 <div 
                     onClick={() => setModalProdOpen(true)}
                     className="bg-gradient-to-br from-pink-600 to-rose-800 rounded-[18px] p-4 text-white shadow-md relative overflow-hidden group cursor-pointer hover:ring-4 hover:ring-rose-500/30 hover:-translate-y-1 transition-all duration-300"
-                    title="Clique para ver a Memória de Cálculo"
+                    title={tx("Clique para ver a Memória de Cálculo")}
                 >
                     <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                         <TrendingUp className="w-32 h-32" />
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest opacity-90 mb-2 relative z-10 flex items-center gap-1.5">
-                        Produtividade <i data-lucide="info" className="w-3 h-3 opacity-70"></i>
+                        {tx("Produtividade")}{' '}<i data-lucide="info" className="w-3 h-3 opacity-70"></i>
                     </p>
                     <div className="flex items-baseline gap-1 relative z-10">
                         <p className="text-3xl font-black tracking-tight">{produtividadeUpsell.toFixed(0)}</p>
@@ -598,7 +599,7 @@ const DashboardTab = ({
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-slate-400 text-[10px] font-bold">{perc.toFixed(0)}%</span>
-                                            <span className="bg-white px-2 py-0.5 rounded text-[10px] border shadow-sm font-black dark:bg-slate-900">{String(data.total).padStart(2, '0')} un</span>
+                                            <span className="bg-white px-2 py-0.5 rounded text-[10px] border shadow-sm font-black dark:bg-slate-900">{String(data.total).padStart(2, '0')}{' '}{tx("un")}</span>
                                         </div>
                                     </div>
                                     <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1 dark:bg-slate-700">
@@ -609,7 +610,7 @@ const DashboardTab = ({
                                             {Object.entries(data.detalhes).sort((a,b)=>b[1]-a[1]).map(([nomePlano, qtdPlano]) => (
                                                 <div key={nomePlano} className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase dark:text-slate-300">
                                                     <span className="truncate max-w-[180px] pl-2 border-l-2 border-slate-300 dark:border-slate-700">{nomePlano}</span>
-                                                    <span className="bg-white border border-slate-100 px-1.5 rounded shadow-sm dark:bg-slate-900 dark:border-slate-800">{String(qtdPlano).padStart(2, '0')} un</span>
+                                                    <span className="bg-white border border-slate-100 px-1.5 rounded shadow-sm dark:bg-slate-900 dark:border-slate-800">{String(qtdPlano).padStart(2, '0')}{' '}{tx("un")}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -620,7 +621,7 @@ const DashboardTab = ({
                         {Object.keys(gruposPlanos).every(k => gruposPlanos[k].total === 0) && <p className="text-center text-xs font-bold text-slate-400 py-12">{t('analytics.dashboard.emptyPlans', { defaultValue: 'Nenhum plano vendido.' })}</p>}
                     </div>
                     <button onClick={dispararModalMetas} className="mt-4 w-full bg-blue-600 text-white py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-sm shrink-0">
-                        <i data-lucide="share-2" className="w-4 h-4 text-blue-200"></i> ALERTAR METAS (WHATSAPP)
+                        <i data-lucide="share-2" className="w-4 h-4 text-blue-200"></i>{' '}{tx("ALERTAR METAS (WHATSAPP)")}
                     </button>
                 </div>
 
@@ -632,7 +633,7 @@ const DashboardTab = ({
                         {topProdutosLista.map((item, idx) => (
                             <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 dark:bg-slate-800/60 dark:border-slate-800">
                                 <span className="text-[10px] font-black text-slate-700 uppercase dark:text-slate-200"><span className="text-slate-400 font-bold w-4 mr-2">{idx + 1}º</span>{item[0]}</span>
-                                <span className="bg-white px-3 py-1 rounded-lg border text-[10px] font-black text-amber-600 dark:bg-slate-900 dark:text-amber-400">{String(item[1]).padStart(2, '0')} un</span>
+                                <span className="bg-white px-3 py-1 rounded-lg border text-[10px] font-black text-amber-600 dark:bg-slate-900 dark:text-amber-400">{String(item[1]).padStart(2, '0')}{' '}{tx("un")}</span>
                             </div>
                         ))}
                         {topProdutosLista.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">{t('analytics.dashboard.emptyProducts', { defaultValue: 'Nenhum produto físico vendido.' })}</p>}
@@ -653,12 +654,12 @@ const DashboardTab = ({
                                         {idx+1}º {nome.split(' ')[0]}
                                     </span>
                                     <div className="flex items-center gap-3">
-                                        <span className="flex gap-1" aria-label={`${preenchidos} de 3`}>
+                                        <span className="flex gap-1" aria-label={tx("{preenchidos} de 3", { preenchidos: preenchidos })}>
                                             {[0, 1, 2].map(i => (
                                                 <span key={i} className={`w-2.5 h-2.5 rounded-[3px] ${i < preenchidos ? 'bg-emerald-500' : (qtd === 0 ? 'bg-rose-200' : 'bg-slate-200 dark:bg-slate-700')}`} />
                                             ))}
                                         </span>
-                                        <span className={`text-[10px] font-black bg-white px-2 py-0.5 rounded border shadow-sm dark:bg-slate-900 ${qtd === 0 ? 'text-rose-500 border-rose-200 dark:border-rose-500/30' : 'text-emerald-600 border-slate-200 dark:text-emerald-400 dark:border-slate-800'}`}>{String(qtd).padStart(2, '0')} un</span>
+                                        <span className={`text-[10px] font-black bg-white px-2 py-0.5 rounded border shadow-sm dark:bg-slate-900 ${qtd === 0 ? 'text-rose-500 border-rose-200 dark:border-rose-500/30' : 'text-emerald-600 border-slate-200 dark:text-emerald-400 dark:border-slate-800'}`}>{String(qtd).padStart(2, '0')}{' '}{tx("un")}</span>
                                     </div>
                                 </div>
                             )

@@ -12,8 +12,9 @@ import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
 import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/contatosFeitos.js';
 import { avisar } from '../../../components/avisar.js';
+import { tx } from '../../../i18n/traduzir.js';
 
-const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEditar, onVender, onAvaliar, usuarioLogado }) => {
+const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), onEditar, onVender, onAvaliar, usuarioLogado }) => {
     const [abaAtiva, setAbaAtiva] = useState('dados');
     const [loadingDados, setLoadingDados] = useState(true);
     const [dadosFicha, setDadosFicha] = useState({
@@ -146,9 +147,9 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 }
 
                 const timeline = [];
-                timeline.push({ id: `cad_${aluno.id}`, data_real: new Date(aluno.created_at), tipo: 'CADASTRO', titulo: 'Cadastro Realizado', descricao: `Aluno cadastrado no sistema (${aluno.unidade || 'Sem Vínculo'}).`, icone: UserPlus, corBg: 'bg-blue-500' });
+                timeline.push({ id: `cad_${aluno.id}`, data_real: new Date(aluno.created_at), tipo: 'CADASTRO', titulo: tx("Cadastro Realizado"), descricao: `Aluno cadastrado no sistema (${aluno.unidade || 'Sem Vínculo'}).`, icone: UserPlus, corBg: 'bg-blue-500' });
                 vendasAll.forEach(v => timeline.push({ id: `venda_${v.id}`, data_real: new Date(v.data || v.created_at), tipo: 'VENDA', titulo: `Compra: ${v.produto}`, descricao: `Por ${v.vendedor || 'Sistema'} na unidade ${v.unidade}.`, icone: ShoppingCart, corBg: 'bg-blue-500' }));
-                avaliacoesAll.forEach(av => timeline.push({ id: `aval_${av.id}`, data_real: new Date(av.data || av.created_at), tipo: 'AVALIACAO', titulo: 'Avaliação Física', descricao: `Avaliador: ${av.professor || 'N/I'}. Peso: ${av.peso}kg | Gordura: ${av.pgc}%`, icone: Dumbbell, corBg: 'bg-emerald-500' }));
+                avaliacoesAll.forEach(av => timeline.push({ id: `aval_${av.id}`, data_real: new Date(av.data || av.created_at), tipo: 'AVALIACAO', titulo: tx("Avaliação Física"), descricao: `Avaliador: ${av.professor || 'N/I'}. Peso: ${av.peso}kg | Gordura: ${av.pgc}%`, icone: Dumbbell, corBg: 'bg-emerald-500' }));
                 leadsAll.forEach(l => timeline.push({ id: `crm_lead_${l.id}`, data_real: new Date(l.created_at || l.data), tipo: 'CRM', titulo: `Funil CRM: ${l.status || l.fase || 'CONTATO'}`, descricao: `Consultor: ${l.vendedor || l.consultor || 'N/I'}.${l.status === 'Perdido' && l.motivo_perda ? ` Motivo da perda: ${l.motivo_perda}.` : ''}`, icone: MessageCircle, corBg: 'bg-amber-500' }));
                 // Contatos do CRM marcados no pop-up "Contatos de hoje" e na Migração (aniversário, 24h, 48h, migração).
                 // Feito SEM WhatsApp aparece em vermelho, com a justificativa (para o Líder conferir).
@@ -201,11 +202,11 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
     }, [aluno.id, aluno.cpf, aluno.telefone, aluno.created_at, aluno.unidade, versaoDados]);
 
     const excluirAvaliacao = async (id) => {
-        if (!window.confirm('Tem certeza que deseja excluir esta avaliação? Essa ação não pode ser desfeita.')) return;
+        if (!window.confirm(tx("Tem certeza que deseja excluir esta avaliação? Essa ação não pode ser desfeita."))) return;
         const { error } = await supabase.from('avaliacoes_realizadas').delete().eq('id', id);
         if (error) {
             console.error('Erro ao excluir avaliação:', error);
-            avisar('Não foi possível excluir a avaliação. Tente novamente.');
+            avisar(tx("Não foi possível excluir a avaliação. Tente novamente."));
             return;
         }
         // Remove da aba Avaliações e também do Histórico, sem precisar recarregar
@@ -217,12 +218,12 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
     };
 
     const abasMenu = [
-        { id: 'dados', label: 'Dados', icon: User },
-        { id: 'planos', label: 'Planos', icon: Bookmark },
-        { id: 'produtos', label: 'Produtos', icon: ShoppingBag },
-        { id: 'avaliacoes', label: 'Avaliações', icon: Dumbbell },
-        { id: 'crm', label: 'Contatos', icon: MessageCircle },
-        { id: 'timeline', label: 'Histórico', icon: Clock }
+        { id: 'dados', label: tx("Dados"), icon: User },
+        { id: 'planos', label: tx("Planos"), icon: Bookmark },
+        { id: 'produtos', label: tx("Produtos"), icon: ShoppingBag },
+        { id: 'avaliacoes', label: tx("Avaliações"), icon: Dumbbell },
+        { id: 'crm', label: tx("Contatos"), icon: MessageCircle },
+        { id: 'timeline', label: tx("Histórico"), icon: Clock }
     ];
 
     return (
@@ -256,7 +257,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'
                             }`}
                         >
-                            <Icone className="w-3.5 h-3.5" strokeWidth={ativo ? 2.5 : 2} /> {aba.label}
+                            <Icone className="w-3.5 h-3.5" strokeWidth={ativo ? 2.5 : 2} /> {tx(aba.label)}
                         </button>
                     )
                 })}
@@ -266,7 +267,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 {loadingDados ? (
                     <div className="py-16 flex flex-col items-center justify-center">
                         <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sincronizando...</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Sincronizando...")}</p>
                     </div>
                 ) : (
                     <>

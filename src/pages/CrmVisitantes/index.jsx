@@ -19,6 +19,7 @@ import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
 import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Database, Users, ArrowRightCircle, ClipboardPaste, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, UserPlus, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // O App só carrega leads dos últimos 90 dias. O CRM busca à parte os leads mais antigos que ainda estão em aberto
 // (Base, Kanban e Geladeira) para nenhum contato sumir. Fechados antigos não precisam ser trabalhados.
@@ -345,21 +346,21 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         e.preventDefault();
         
         if (leadDuplicadoManual) {
-            avisar(`🚨 BLOQUEADO: Este CPF já está registrado no sistema para o aluno ${leadDuplicadoManual.nome}.`);
+            avisar(tx("🚨 BLOQUEADO: Este CPF já está registrado no sistema para o aluno {nome}.", { nome: leadDuplicadoManual.nome }));
             return;
         }
 
         if (!formData.nome.trim() || !cpfValido(formData.cpf) || !formData.telefone.trim() || !formData.tipo_lead || !formData.vendedor) {
-            avisar('Preencha todos os campos corretamente.'); return;
+            avisar(tx("Preencha todos os campos corretamente.")); return;
         }
-        if (!unidadeOperacao) { avisar('Não foi possível saber a unidade deste contato. Escolha uma unidade no topo ou a recepcionista que está operando.'); return; }
+        if (!unidadeOperacao) { avisar(tx("Não foi possível saber a unidade deste contato. Escolha uma unidade no topo ou a recepcionista que está operando.")); return; }
 
         setIsSubmitting(true);
 
         const cpfDigitos = apenasDigitos(formData.cpf);
         const existente = await buscarCpfNoBanco(cpfDigitos);
         if (existente) {
-            avisar(`🚨 BLOQUEADO: Este CPF já está no CRM para ${existente.nome} (${existente.status}${existente.unidade ? ` · ${existente.unidade}` : ''}).`);
+            avisar(tx("🚨 BLOQUEADO: Este CPF já está no CRM para {nome} ({status}{v3}).", { nome: existente.nome, status: existente.status, v3: existente.unidade ? ` · ${existente.unidade}` : '' }));
             setIsSubmitting(false);
             return;
         }
@@ -385,8 +386,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         const { data, error } = await supabase.from('leads').insert([novoLead]).select();
 
         if (error) {
-            if (error.code === '23505') avisar("Erro do Banco de Dados: Este CPF já está registrado na nuvem de forma definitiva.");
-            else avisar("Erro ao salvar o contato: " + error.message);
+            if (error.code === '23505') avisar(tx("Erro do Banco de Dados: Este CPF já está registrado na nuvem de forma definitiva."));
+            else avisar(tx("Erro ao salvar o contato: {message}", { message: error.message }));
         } else if (data && data[0]) {
             adicionarLeads([data[0]]);
             setSucesso(true);
@@ -537,18 +538,18 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     };
 
     const confirmarSmartPaste = async () => {
-        if (pasteSemTipo) return avisar('Esta lista não é do TECACE (não tem a coluna Status). Escolha no seletor se o lote é VISITANTE, CANCELADO ou INATIVO.');
+        if (pasteSemTipo) return avisar(tx("Esta lista não é do TECACE (não tem a coluna Status). Escolha no seletor se o lote é VISITANTE, CANCELADO ou INATIVO."));
         const leadsValidos = previewLeads.filter(l => !l.isDuplicado);
         
         if (leadsValidos.length === 0) {
-            avisar("Nenhum lead novo para salvar. Todos os registros colados já existem na base.");
+            avisar(tx("Nenhum lead novo para salvar. Todos os registros colados já existem na base."));
             setTextoSmartPaste('');
             setPreviewLeads([]);
             setEstatisticasPaste({ novos: 0, duplicados: 0 });
             return;
         }
 
-        if (!unidadeOperacao) { avisar('Não foi possível saber a unidade destes contatos. Escolha uma unidade no topo ou a recepcionista que está operando.'); return; }
+        if (!unidadeOperacao) { avisar(tx("Não foi possível saber a unidade destes contatos. Escolha uma unidade no topo ou a recepcionista que está operando.")); return; }
 
         setProcessandoPaste(true);
 
@@ -570,7 +571,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
         const paraSalvar = leadsValidos.filter(lead => {
             const cpf = apenasDigitos(lead.cpf);
-            if (cpf && cpfsNoBanco.has(cpf)) { recusados.push(`${lead.nome} — CPF já está no CRM`); return false; }
+            if (cpf && cpfsNoBanco.has(cpf)) { recusados.push(`${lead.nome} — ${tx('CPF já está no CRM')}`); return false; }
             return true;
         });
 
@@ -599,7 +600,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             } else {
                 for (const lead of paraSalvar) {
                     const { data: um, error: erroUm } = await supabase.from('leads').insert([montarLead(lead)]).select();
-                    if (erroUm) recusados.push(`${lead.nome} — ${erroUm.code === '23505' ? 'CPF já está no CRM' : erroUm.message}`);
+                    if (erroUm) recusados.push(`${lead.nome} — ${erroUm.code === '23505' ? tx('CPF já está no CRM') : erroUm.message}`);
                     else if (um?.[0]) salvos.push(um[0]);
                 }
             }
@@ -610,10 +611,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             await registrarHistoricoLote(salvos.map(l => l.id), 'Importação em Lote', 'Inserido na Base via Smart Paste.');
         }
 
-        let mensagem = `${salvos.length} leads inseridos na Base com sucesso!`;
+        let mensagem = tx('{qtd} leads inseridos na Base com sucesso!', { qtd: salvos.length });
         if (recusados.length > 0) {
-            mensagem += `\n\n${recusados.length} não foram salvos:\n` + recusados.slice(0, 15).join('\n');
-            if (recusados.length > 15) mensagem += `\n...e mais ${recusados.length - 15}.`;
+            mensagem += '\n\n' + tx('{qtd} não foram salvos:', { qtd: recusados.length }) + '\n' + recusados.slice(0, 15).join('\n');
+            if (recusados.length > 15) mensagem += '\n' + tx('...e mais {qtd}.', { qtd: recusados.length - 15 });
         }
         avisar(mensagem);
 
@@ -635,7 +636,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const excluirSelecionadosBase = async () => {
         if (selecionadosBase.length === 0 || !podeApagar) return;
 
-        if(window.confirm(`ATENÇÃO DELETAR DADOS: Deseja EXCLUIR DEFINITIVAMENTE os ${selecionadosBase.length} contatos da base bruta do Supabase?\n\nIsso apagará os dados do banco e liberará os CPFs. Esta ação NÃO pode ser desfeita.`)) {
+        if(window.confirm(tx("ATENÇÃO DELETAR DADOS: Deseja EXCLUIR DEFINITIVAMENTE os {length} contatos da base bruta do Supabase?\n\nIsso apagará os dados do banco e liberará os CPFs. Esta ação NÃO pode ser desfeita.", { length: selecionadosBase.length }))) {
             const backupVisitantes = [...visitantes];
             const ids = [...selecionadosBase];
             setVisitantes(prev => prev.filter(v => !ids.includes(v.id)));
@@ -644,9 +645,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             if (error) {
                 restaurarLeads(backupVisitantes, ids);
-                avisar("Erro ao excluir os contatos no banco. Ação revertida.");
+                avisar(tx("Erro ao excluir os contatos no banco. Ação revertida."));
             } else {
-                avisar(`${selecionadosBase.length} leads foram apagados definitivamente do sistema!`);
+                avisar(tx("{length} leads foram apagados definitivamente do sistema!", { length: selecionadosBase.length }));
                 setSelecionadosBase([]);
             }
         }
@@ -654,7 +655,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
     const deletarLeadsEmLote = async (ids) => {
         if (!podeApagar || ids.length === 0) return;
-        if(window.confirm(`ATENÇÃO LIXEIRA: Deseja EXCLUIR DEFINITIVAMENTE os ${ids.length} leads selecionados do banco de dados?\n\nEles sumirão do funil e os CPFs serão liberados. Esta ação NÃO pode ser desfeita.`)) {
+        if(window.confirm(tx("ATENÇÃO LIXEIRA: Deseja EXCLUIR DEFINITIVAMENTE os {length} leads selecionados do banco de dados?\n\nEles sumirão do funil e os CPFs serão liberados. Esta ação NÃO pode ser desfeita.", { length: ids.length }))) {
             const backupVisitantes = [...visitantes];
             setVisitantes(prev => prev.filter(v => !ids.includes(v.id)));
 
@@ -662,9 +663,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             if (error) {
                 restaurarLeads(backupVisitantes, ids);
-                avisar("Erro ao excluir. Ação revertida.");
+                avisar(tx("Erro ao excluir. Ação revertida."));
             } else {
-                avisar(`${ids.length} leads foram apagados permanentemente!`);
+                avisar(tx("{length} leads foram apagados permanentemente!", { length: ids.length }));
             }
         }
     };
@@ -672,7 +673,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const deletarLead = async (id) => {
         if (!podeApagar) return;
         const lead = visitantes.find(v => v.id === id);
-        if(window.confirm(`EXCLUIR DEFINITIVAMENTE ${lead?.nome ? `"${lead.nome}"` : 'este Lead'} do banco de dados?\nEle desaparecerá do funil e o CPF ficará livre para um novo cadastro no futuro. Esta ação NÃO pode ser desfeita.`)) {
+        if(window.confirm(tx("EXCLUIR DEFINITIVAMENTE {v1} do banco de dados?\nEle desaparecerá do funil e o CPF ficará livre para um novo cadastro no futuro. Esta ação NÃO pode ser desfeita.", { v1: lead?.nome ? `"${lead.nome}"` : 'este Lead' }))) {
             const backupVisitantes = [...visitantes];
             setVisitantes(prev => prev.filter(v => v.id !== id));
 
@@ -680,7 +681,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             if (error) {
                 restaurarLeads(backupVisitantes, [id]);
-                avisar("Erro ao excluir do banco de dados.");
+                avisar(tx("Erro ao excluir do banco de dados."));
             } else {
                 if (modalDetalhe.show && modalDetalhe.lead?.id === id) setModalDetalhe({ show: false, lead: null });
             }
@@ -692,7 +693,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     // ==========================================
     const executarPuxada = async (idsParaPuxar, msgSucesso) => {
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
-        if (!consultorAtual) return avisar("Selecione um operador primeiro!");
+        if (!consultorAtual) return avisar(tx("Selecione um operador primeiro!"));
 
         const agora = new Date().toISOString();
         setVisitantes(prev => prev.map(v => idsParaPuxar.includes(v.id) ? { ...v, puxado_em: agora, puxado_por: consultorAtual, vendedor: consultorAtual } : v));
@@ -700,7 +701,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         const { error } = await supabase.from('leads').update({ puxado_em: agora, puxado_por: consultorAtual, vendedor: consultorAtual }).in('id', idsParaPuxar);
 
         if (error) {
-            avisar("Erro de conexão. A fila não foi puxada corretamente.");
+            avisar(tx("Erro de conexão. A fila não foi puxada corretamente."));
         } else {
             registrarHistoricoLote(idsParaPuxar, 'Fila de Trabalho', 'Lead puxado da base para atendimento.');
             avisar(msgSucesso);
@@ -711,14 +712,14 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
     const puxarLote = async (quantidade) => {
         const leadsLivres = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v)).sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, quantidade);
-        if (leadsLivres.length === 0) return avisar("A Base de Leads está vazia!");
+        if (leadsLivres.length === 0) return avisar(tx("A Base de Leads está vazia!"));
         const ids = leadsLivres.map(l => l.id);
-        executarPuxada(ids, `${leadsLivres.length} leads foram enviados para o seu Kanban!`);
+        executarPuxada(ids, tx('{qtd} leads foram enviados para o seu Kanban!', { qtd: leadsLivres.length }));
     };
 
     const puxarSelecionados = async () => {
         if (selecionadosBase.length === 0) return;
-        executarPuxada(selecionadosBase, `${selecionadosBase.length} leads selecionados foram para o Kanban!`);
+        executarPuxada(selecionadosBase, tx('{qtd} leads selecionados foram para o Kanban!', { qtd: selecionadosBase.length }));
     };
 
     // Grava campos dos contatos. Se o banco ainda não tiver os campos do Bloco 4 (motivo_perda, proximo_contato),
@@ -753,7 +754,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const alterarStatusEmLote = async (ids, novoStatus, motivoPerda) => {
         if (novoStatus === 'Perdido' && motivoPerda === undefined) { setPerdaPendente({ ids, lote: true }); return; }
         // Para Perdido, a janela do motivo já serviu de confirmação
-        if (novoStatus !== 'Perdido' && !window.confirm(`Mover ${ids.length} contatos para a fase ${novoStatus}?`)) return;
+        if (novoStatus !== 'Perdido' && !window.confirm(tx("Mover {length} contatos para a fase {novoStatus}?", { length: ids.length, novoStatus: novoStatus }))) return;
 
         const campos = camposDaFase(novoStatus, motivoPerda);
         const anteriores = new Map(visitantes.filter(v => ids.includes(v.id)).map(v => [v.id, { status: v.status, perdido_em: v.perdido_em, motivo_perda: v.motivo_perda ?? null, proximo_contato: v.proximo_contato ?? null }]));
@@ -763,10 +764,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
         if (error) {
             setVisitantes(prev => prev.map(v => anteriores.has(v.id) ? { ...v, ...anteriores.get(v.id) } : v));
-            avisar("Erro de conexão. Ação revertida.");
+            avisar(tx("Erro de conexão. Ação revertida."));
         } else {
             registrarHistoricoLote(ids, 'Mudança de Fase', `Movido em lote para "${novoStatus}".${textoMotivo(motivoPerda)}`);
-            avisar("Operação em lote concluída com sucesso!");
+            avisar(tx("Operação em lote concluída com sucesso!"));
         }
     };
 
@@ -787,7 +788,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
         if (error) {
             setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...anteriores } : v));
-            avisar("Erro de conexão. Revertendo ação.");
+            avisar(tx("Erro de conexão. Revertendo ação."));
         }
     };
 
@@ -801,8 +802,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, proximo_contato: anterior } : v));
             setModalDetalhe(m => (m.show && m.lead?.id === lead.id ? { ...m, lead: { ...m.lead, proximo_contato: anterior } } : m));
             avisar(faltaCampo
-                ? 'O "próximo contato" ainda não foi criado no banco. Peça ao administrador para rodar o SQL do Bloco 4 no Supabase.'
-                : 'Erro de conexão. A data não foi salva.');
+                ? tx("O \"próximo contato\" ainda não foi criado no banco. Peça ao administrador para rodar o SQL do Bloco 4 no Supabase.")
+                : tx("Erro de conexão. A data não foi salva."));
             return false;
         }
         await registrarHistorico(lead.id, 'Agendamento', data ? `Próximo contato marcado para ${data.split('-').reverse().join('/')}.` : 'Próximo contato desmarcado.', true);
@@ -893,10 +894,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     <div className="flex-1 max-w-xl">
                         <div className="flex justify-between items-end mb-1.5">
                             <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">
-                                Operador: <strong className="text-blue-600 dark:text-blue-400">{consultorLogado}</strong>
+                                {tx("Operador:")}{' '}<strong className="text-blue-600 dark:text-blue-400">{consultorLogado}</strong>
                                 {unidadeOperacao && <span className="ml-2 px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{unidadeOperacao}</span>}
                             </span>
-                            <span className={`text-xs font-black transition-colors ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{pessoasHoje} / {META_DIARIA} Pessoas contatadas</span>
+                            <span className={`text-xs font-black transition-colors ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{pessoasHoje} / {META_DIARIA}{' '}{tx("Pessoas contatadas")}</span>
                         </div>
                         <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner">
                             <div className={`h-2.5 rounded-full transition-all duration-500 ease-out ${metaBatida ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${pctMeta}%` }}></div>
@@ -906,13 +907,13 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                     <button onClick={() => setContatosHojeAberto(true)} className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 border ${pendentesHoje.total > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-700' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-slate-200 dark:border-slate-800'}`}>
-                        <CalendarCheck className="w-4 h-4" /> Contatos de hoje{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
+                        <CalendarCheck className="w-4 h-4" />{' '}{tx("Contatos de hoje")}{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
                     </button>
                     <button onClick={() => setConsultorAtivo(null)} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-800">
-                        <LogOut className="w-4 h-4" /> {lideraOuAcompanha ? 'Voltar ao Painel' : 'Trocar'}
+                        <LogOut className="w-4 h-4" /> {lideraOuAcompanha ? tx("Voltar ao Painel") : tx("Trocar")}
                     </button>
                     <button onClick={() => setMostrarRelatorio(true)} className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-[0_4px_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 text-white hover:bg-black border border-slate-700 shadow-md'}`}>
-                        <FileText className="w-4 h-4" /> Fechar Turno
+                        <FileText className="w-4 h-4" />{' '}{tx("Fechar Turno")}
                     </button>
                 </div>
             </div>
@@ -920,40 +921,40 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             {lideraOuAcompanha && (
                 <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-800 dark:text-blue-300 rounded-xl px-4 py-2.5 text-[11px] font-bold flex items-center gap-2">
                     <Info className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                    Você está vendo o CRM de <strong className="uppercase">{consultorLogado}</strong>. O que você fizer aqui conta para {consultorLogado.split(' ')[0]}, com a marca "feito por {usuarioLogado?.nome?.split(' ')[0] || 'você'}" no histórico.
+                    {tx("Você está vendo o CRM de")}{' '}<strong className="uppercase">{consultorLogado}</strong>{tx(". O que você fizer aqui conta para")}{' '}{consultorLogado.split(' ')[0]}{tx(", com a marca \"feito por")}{' '}{usuarioLogado?.nome?.split(' ')[0] || tx("você")}{tx("\" no histórico.")}
                 </div>
             )}
 
             {/* BARRA DE NAVEGAÇÃO / ABAS */}
             <div className="flex bg-slate-200 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-300/60 dark:border-slate-700 shadow-inner w-full max-w-6xl mx-auto overflow-x-auto custom-scrollbar">
                 <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Database className="w-4 h-4" /> Base ({leadsNaBase.length})
+                    <Database className="w-4 h-4" />{' '}{tx("Base (")}{leadsNaBase.length})
                 </button>
                 <button onClick={() => setVisaoAtiva('kanban')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'kanban' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <KanbanIcon className="w-4 h-4" /> Kanban
+                    <KanbanIcon className="w-4 h-4" />{' '}{tx("Kanban")}
                 </button>
                 <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'lista' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <List className="w-4 h-4" /> Lista
+                    <List className="w-4 h-4" />{' '}{tx("Lista")}
                 </button>
-                <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title="Contatos com o próximo contato marcado para hoje ou atrasado">
-                    <CalendarClock className="w-4 h-4" /> Hoje
+                <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title={tx("Contatos com o próximo contato marcado para hoje ou atrasado")}>
+                    <CalendarClock className="w-4 h-4" />{' '}{tx("Hoje")}
                     {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[10px] font-black ${visaoAtiva === 'hoje' ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
                 </button>
                 <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Snowflake className="w-4 h-4" /> Geladeira ({meusLeadsGeladeira.length})
+                    <Snowflake className="w-4 h-4" />{' '}{tx("Geladeira (")}{meusLeadsGeladeira.length})
                 </button>
                 <button onClick={() => setVisaoAtiva('migracao')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'migracao' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Repeat className="w-4 h-4" /> Migração
+                    <Repeat className="w-4 h-4" />{' '}{tx("Migração")}
                 </button>
                 <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'naocontatar' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Ban className="w-4 h-4" /> Não contatar
+                    <Ban className="w-4 h-4" />{' '}{tx("Não contatar")}
                 </button>
                 <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <PieChart className="w-4 h-4" /> Métricas
+                    <PieChart className="w-4 h-4" />{' '}{tx("Métricas")}
                 </button>
                 {/* ✅ ABA RELATÓRIO INSERIDA NA BARRA DE NAVEGAÇÃO */}
                 <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'relatorio' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Table className="w-4 h-4" /> Relatório
+                    <Table className="w-4 h-4" />{' '}{tx("Relatório")}
                 </button>
             </div>
 
@@ -965,14 +966,14 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                             <Snowflake className="w-7 h-7" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Geladeira de Contatos (30 Dias)</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Contatos que deram "Perdido". Aguarde o tempo de maturação para tentar resgatá-los para o Kanban.</p>
+                            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{tx("Geladeira de Contatos (30 Dias)")}</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{tx("Contatos que deram \"Perdido\". Aguarde o tempo de maturação para tentar resgatá-los para o Kanban.")}</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {meusLeadsGeladeira.length === 0 ? (
-                            <p className="text-slate-400 font-bold col-span-3 text-center py-10 uppercase tracking-widest text-xs">Sua geladeira está vazia.</p>
+                            <p className="text-slate-400 font-bold col-span-3 text-center py-10 uppercase tracking-widest text-xs">{tx("Sua geladeira está vazia.")}</p>
                         ) : (
                             meusLeadsGeladeira.map(v => {
                                 const diasNaGeladeira = Math.floor((new Date() - new Date(v.perdido_em)) / (1000 * 60 * 60 * 24));
@@ -984,7 +985,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-4">{v.telefone}</p>
                                         {v.motivo_perda && (
                                             <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-lg px-2.5 py-1.5 mb-4 w-fit max-w-full truncate" title={v.motivo_perda}>
-                                                Motivo: {v.motivo_perda}
+                                                {tx("Motivo:")}{' '}{tx(v.motivo_perda)}
                                             </p>
                                         )}
 
@@ -997,9 +998,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                                 onClick={() => alterarStatus(v.id, 'Novo')}
                                                 disabled={!liberado}
                                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${liberado ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}`}
-                                                title={liberado ? "Resgatar para o Kanban" : "Ainda em maturação"}
+                                                title={liberado ? tx("Resgatar para o Kanban") : tx("Ainda em maturação")}
                                             >
-                                                <RotateCcw className="w-3.5 h-3.5" /> Resgatar
+                                                <RotateCcw className="w-3.5 h-3.5" />{' '}{tx("Resgatar")}
                                             </button>
                                         </div>
                                     </div>
@@ -1019,89 +1020,89 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                             <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-500/20">
                                 <Users className="w-8 h-8" />
                             </div>
-                            <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Fila de Trabalho Automática</h3>
+                            <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">{tx("Fila de Trabalho Automática")}</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">
-                                <strong className="text-blue-600 dark:text-blue-400">{leadsNaBase.length} leads</strong> aguardando na Piscina. Puxe um lote para começar a vender.
+                                <strong className="text-blue-600 dark:text-blue-400">{leadsNaBase.length}{' '}{tx("leads")}</strong>{' '}{tx("aguardando na Piscina. Puxe um lote para começar a vender.")}
                             </p>
 
                             <div className="flex items-center gap-3 w-full bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
                                 <select id="qtdPuxar" className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3.5 text-xs font-black text-slate-700 dark:text-slate-200 outline-none uppercase tracking-widest cursor-pointer shadow-sm">
-                                    <option value="10">Puxar 10 contatos</option>
-                                    <option value="20">Puxar 20 contatos</option>
-                                    <option value="50">Puxar 50 contatos</option>
-                                    <option value="100">Puxar 100 contatos</option>
+                                    <option value="10">{tx("Puxar 10 contatos")}</option>
+                                    <option value="20">{tx("Puxar 20 contatos")}</option>
+                                    <option value="50">{tx("Puxar 50 contatos")}</option>
+                                    <option value="100">{tx("Puxar 100 contatos")}</option>
                                 </select>
                                 <button onClick={() => puxarLote(Number(document.getElementById('qtdPuxar').value))} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest">
-                                    <ArrowRightCircle className="w-5 h-5" /> Iniciar
+                                    <ArrowRightCircle className="w-5 h-5" />{' '}{tx("Iniciar")}
                                 </button>
                             </div>
                         </div>
 
                         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8">
-                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><UserPlus className="w-4 h-4" /> Inserção Manual (1 Lead)</h3>
+                            <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2"><UserPlus className="w-4 h-4" />{' '}{tx("Inserção Manual (1 Lead)")}</h3>
                             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                                 <div className="flex gap-4">
                                     <select name="tipo_lead" value={formData.tipo_lead} onChange={handleChange} required className="w-1/3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-black text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm">
-                                        <option value="" disabled hidden>Tipo...</option>
-                                        <option value="VISITANTE">VISITANTE</option>
-                                        <option value="CANCELADO">CANCELADO</option>
-                                        <option value="INATIVO">INATIVO</option>
+                                        <option value="" disabled hidden>{tx("Tipo...")}</option>
+                                        <option value="VISITANTE">{tx("VISITANTE")}</option>
+                                        <option value="CANCELADO">{tx("CANCELADO")}</option>
+                                        <option value="INATIVO">{tx("INATIVO")}</option>
                                     </select>
-                                    <input type="text" name="nome" value={formData.nome} onChange={handleChange} required placeholder="Nome do Lead" className="w-2/3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm" />
+                                    <input type="text" name="nome" value={formData.nome} onChange={handleChange} required placeholder={tx("Nome do Lead")} className="w-2/3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm" />
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="w-1/2 flex flex-col">
                                         <input type="text" name="cpf" value={formData.cpf} onChange={handleChange} placeholder="CPF" maxLength={14} className={`bg-slate-50 dark:bg-slate-800/60 border ${leadDuplicadoManual ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 dark:border-slate-800'} rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm transition-colors`} />
                                         {leadDuplicadoManual && (
                                             <span className="text-[10px] text-rose-500 font-black uppercase mt-1.5 flex items-center gap-1 animate-[fadeIn_0.2s_ease-out]">
-                                                <AlertTriangle className="w-3 h-3"/> Já Existe: {leadDuplicadoManual.nome} ({leadDuplicadoManual.status})
+                                                <AlertTriangle className="w-3 h-3"/>{' '}{tx("Já Existe:")}{' '}{leadDuplicadoManual.nome} ({tx(leadDuplicadoManual.status)})
                                             </span>
                                         )}
                                     </div>
                                     <div className="w-1/2 flex flex-col">
-                                        <input type="text" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder="Telefone/Zap" className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm" />
+                                        <input type="text" name="telefone" value={formData.telefone} onChange={handleChange} required placeholder={tx("Telefone/Zap")} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm" />
                                     </div>
                                 </div>
                                 <div className="flex gap-4">
                                     <select name="vendedor" value={formData.vendedor} onChange={handleChange} required className="w-1/2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm">
-                                        <option value="">Consultor...</option>
+                                        <option value="">{tx("Consultor...")}</option>
                                         {opcoesVendedor.map(c => <option key={c.id} value={c.nome}>{c.nome.split(' ')[0]}</option>)}
                                     </select>
-                                    <input type="text" name="observacao" value={formData.observacao} onChange={handleChange} placeholder="Observação..." className="w-1/2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm" />
+                                    <input type="text" name="observacao" value={formData.observacao} onChange={handleChange} placeholder={tx("Observação...")} className="w-1/2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm" />
                                 </div>
                                 <button type="submit" disabled={isSubmitting || !!leadDuplicadoManual} className="w-full mt-2 bg-slate-800 hover:bg-black disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3.5 rounded-xl shadow-md transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 dark:disabled:text-slate-400">
-                                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : sucesso ? <><CheckCircle2 className="w-4 h-4" /> Salvo na Base</> : 'Salvar na Base'}
+                                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : sucesso ? <><CheckCircle2 className="w-4 h-4" />{' '}{tx("Salvo na Base")}</> : tx("Salvar na Base")}
                                 </button>
                             </form>
                         </div>
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-[24px] border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 overflow-hidden animate-[slideUp_0.4s_ease-out] p-6 lg:p-8 flex flex-col h-full relative">
-                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-2xl shadow-sm">Mais Rápido ⚡</div>
+                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-2xl shadow-sm">{tx("Mais Rápido ⚡")}</div>
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
                                 <ClipboardPaste className="w-6 h-6" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">Smart Paste</h3>
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Injeção em Lote</p>
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">{tx("Smart Paste")}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Injeção em Lote")}</p>
                             </div>
                         </div>
 
                         <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 p-4 rounded-2xl mb-4 text-xs font-medium text-emerald-800 dark:text-emerald-300 flex items-start gap-3">
                             <Info className="w-4 h-4 shrink-0 mt-0.5 text-emerald-500" />
-                            <p>Copie as linhas na Pacto, dê <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 shadow-sm font-mono text-[10px]">Ctrl+C</kbd> e cole abaixo com <kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 shadow-sm font-mono text-[10px]">Ctrl+V</kbd>.</p>
+                            <p>{tx("Copie as linhas na Pacto, dê")}{' '}<kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 shadow-sm font-mono text-[10px]">{tx("Ctrl+C")}</kbd>{' '}{tx("e cole abaixo com")}{' '}<kbd className="bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded border border-emerald-200 dark:border-emerald-500/30 shadow-sm font-mono text-[10px]">{tx("Ctrl+V")}</kbd>.</p>
                         </div>
 
                         <select value={tipoLeadSmartPaste} onChange={(e) => { setTipoLeadSmartPaste(e.target.value); processarColagem(textoSmartPaste, e.target.value); }} className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-black text-slate-700 dark:text-slate-200 outline-none uppercase shadow-sm mb-4 cursor-pointer">
-                            <option value="AUTO">Automático: pelo Status do TECACE</option>
-                            <option value="VISITANTE">Classificar lote como: VISITANTE</option>
-                            <option value="CANCELADO">Classificar lote como: CANCELADO</option>
-                            <option value="INATIVO">Classificar lote como: INATIVO</option>
+                            <option value="AUTO">{tx("Automático: pelo Status do TECACE")}</option>
+                            <option value="VISITANTE">{tx("Classificar lote como: VISITANTE")}</option>
+                            <option value="CANCELADO">{tx("Classificar lote como: CANCELADO")}</option>
+                            <option value="INATIVO">{tx("Classificar lote como: INATIVO")}</option>
                         </select>
 
                         <textarea 
-                            value={textoSmartPaste} onChange={(e) => processarColagem(e.target.value)} placeholder="Cole aqui..."
+                            value={textoSmartPaste} onChange={(e) => processarColagem(e.target.value)} placeholder={tx("Cole aqui...")}
                             className="w-full flex-1 min-h-[180px] bg-slate-50 dark:bg-slate-800/60 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 text-sm font-mono text-slate-600 dark:text-slate-300 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all resize-none custom-scrollbar whitespace-pre dark:focus:bg-slate-900"
                         />
 
@@ -1110,19 +1111,19 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                 {pasteSemTipo && (
                                     <div className="mb-3 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-xl px-4 py-3 flex items-start gap-2">
                                         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-                                        <span>Esta lista não é do TECACE (não tem a coluna Status), então o modo "Automático" não sabe o tipo. Escolha acima se o lote é <strong>VISITANTE</strong>, <strong>CANCELADO</strong> ou <strong>INATIVO</strong>.</span>
+                                        <span>{tx("Esta lista não é do TECACE (não tem a coluna Status), então o modo \"Automático\" não sabe o tipo. Escolha acima se o lote é")}{' '}<strong>{tx("VISITANTE")}</strong>, <strong>{tx("CANCELADO")}</strong>{' '}{tx("ou")}{' '}<strong>{tx("INATIVO")}</strong>.</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between items-center mb-3">
                                     <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-2 py-1 rounded-md">{estatisticasPaste.novos} Novos</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 px-2 py-1 rounded-md">{estatisticasPaste.novos}{' '}{tx("Novos")}</span>
                                         {estatisticasPaste.duplicados > 0 && (
                                             <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 px-2 py-1 rounded-md flex items-center gap-1">
-                                                <AlertTriangle className="w-3 h-3"/> {estatisticasPaste.duplicados} Ignorados
+                                                <AlertTriangle className="w-3 h-3"/> {estatisticasPaste.duplicados}{' '}{tx("Ignorados")}
                                             </span>
                                         )}
                                     </div>
-                                    <button onClick={() => {setTextoSmartPaste(''); setPreviewLeads([]); setEstatisticasPaste({novos:0, duplicados:0});}} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 transition-colors"><Trash2 className="w-3 h-3"/> Limpar</button>
+                                    <button onClick={() => {setTextoSmartPaste(''); setPreviewLeads([]); setEstatisticasPaste({novos:0, duplicados:0});}} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 transition-colors"><Trash2 className="w-3 h-3"/>{' '}{tx("Limpar")}</button>
                                 </div>
                                 
                                 <div className="max-h-[140px] overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl mb-4">
@@ -1135,18 +1136,18 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                                         <span className="truncate">{l.nome}</span>
                                                     </td>
                                                     <td className="px-3 py-2">{l.telefone || 'S/N'}</td>
-                                                    <td className="px-3 py-2 text-right">{l.tipo && <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black tracking-widest ${classeTipoLead(l.tipo)}`}>{l.tipo}</span>}</td>
+                                                    <td className="px-3 py-2 text-right">{l.tipo && <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black tracking-widest ${classeTipoLead(l.tipo)}`}>{tx(l.tipo)}</span>}</td>
                                                 </tr>
                                             ))}
                                             {previewLeads.length > 50 && (
-                                                <tr><td colSpan="3" className="px-3 py-2 text-center text-[10px] font-bold text-slate-400">...e mais {previewLeads.length - 50} linhas</td></tr>
+                                                <tr><td colSpan="3" className="px-3 py-2 text-center text-[10px] font-bold text-slate-400">{tx("...e mais")}{' '}{previewLeads.length - 50}{' '}{tx("linhas")}</td></tr>
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
                                 
                                 <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0 || pasteSemTipo} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 dark:disabled:text-slate-400">
-                                    {processandoPaste ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> Salvar {estatisticasPaste.novos} Novos no Banco</>}
+                                    {processandoPaste ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" />{' '}{tx("Salvar")}{' '}{estatisticasPaste.novos}{' '}{tx("Novos no Banco")}</>}
                                 </button>
                             </div>
                         )}
@@ -1156,8 +1157,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                         <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
                             <div>
                                 <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 tracking-tight">
-                                    <Database className="w-5 h-5 text-blue-500"/> Banco Bruto 
-                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{buscaBase.trim() ? `${leadsNaBaseFiltrados.length} de ${leadsNaBase.length}` : leadsNaBase.length} Registros</span>
+                                    <Database className="w-5 h-5 text-blue-500"/>{' '}{tx("Banco Bruto")} 
+                                    <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{buscaBase.trim() ? tx("{length} de {length2}", { length: leadsNaBaseFiltrados.length, length2: leadsNaBase.length }) : leadsNaBase.length}{' '}{tx("Registros")}</span>
                                 </h3>
                                 <div className="relative mt-3">
                                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1165,11 +1166,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                         type="text"
                                         value={buscaBase}
                                         onChange={(e) => mudarBuscaBase(e.target.value)}
-                                        placeholder="Buscar por nome, CPF ou telefone"
+                                        placeholder={tx("Buscar por nome, CPF ou telefone")}
                                         className="w-72 max-w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
                                     />
                                     {buscaBase && (
-                                        <button type="button" onClick={() => mudarBuscaBase('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title="Limpar busca">
+                                        <button type="button" onClick={() => mudarBuscaBase('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
                                             <X className="w-3.5 h-3.5" />
                                         </button>
                                     )}
@@ -1180,11 +1181,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                 <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
                                     {podeApagar && (
                                         <button onClick={excluirSelecionadosBase} className="bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-200 dark:hover:bg-rose-500/25 text-rose-600 dark:text-rose-400 font-black px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
-                                            <Trash2 className="w-4 h-4" /> Apagar do Banco ({selecionadosBase.length})
+                                            <Trash2 className="w-4 h-4" />{' '}{tx("Apagar do Banco (")}{selecionadosBase.length})
                                         </button>
                                     )}
                                     <button onClick={puxarSelecionados} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-xl shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
-                                        <CheckSquare className="w-4 h-4" /> Puxar para Fila
+                                        <CheckSquare className="w-4 h-4" />{' '}{tx("Puxar para Fila")}
                                     </button>
                                 </div>
                             )}
@@ -1200,13 +1201,13 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                                 className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400 focus:ring-blue-500 cursor-pointer"
                                                 checked={paginaBaseToda}
                                                 onChange={(e) => marcarPaginaBase(e.target.checked)}
-                                                title="Selecionar os contatos desta página"
+                                                title={tx("Selecionar os contatos desta página")}
                                             />
                                         </th>
-                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">Aluno / Lead</th>
-                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">Contato (WhatsApp)</th>
-                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">Tipo</th>
-                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">Data Base</th>
+                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{tx("Aluno / Lead")}</th>
+                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{tx("Contato (WhatsApp)")}</th>
+                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{tx("Tipo")}</th>
+                                        <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{tx("Data Base")}</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
@@ -1226,24 +1227,24 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
                                                 <p className="text-xs font-black text-slate-800 dark:text-white uppercase">{v.nome}</p>
-                                                {v.cpf && <p className="text-[10px] font-bold text-slate-400 mt-0.5 tracking-wider">CPF: {v.cpf}</p>}
+                                                {v.cpf && <p className="text-[10px] font-bold text-slate-400 mt-0.5 tracking-wider">{tx("CPF:")}{' '}{v.cpf}</p>}
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
                                                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
                                                 <span className={`px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(v.tipo_lead)}`}>
-                                                    {v.tipo_lead || 'N/A'}
+                                                    {tx(v.tipo_lead || 'N/A')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
-                                                {dataDoLead(v) ? new Date(dataDoLead(v)).toLocaleDateString('pt-BR') : '—'}
+                                                {dataDoLead(v) ? new Date(dataDoLead(v)).toLocaleDateString(localeAtual()) : '—'}
                                             </td>
                                         </tr>
                                     )) : (
                                         <tr>
                                             <td colSpan="5" className="text-center py-10 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
-                                                {leadsNaBase.length > 0 ? 'Nenhum contato encontrado nesta busca.' : 'A piscina de leads está vazia. Cole dados no Smart Paste para começar.'}
+                                                {leadsNaBase.length > 0 ? tx("Nenhum contato encontrado nesta busca.") : tx("A piscina de leads está vazia. Cole dados no Smart Paste para começar.")}
                                             </td>
                                         </tr>
                                     )}
@@ -1255,26 +1256,26 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                         {leadsNaBaseFiltrados.length > 0 && (
                             <div className="flex flex-wrap items-center justify-between gap-3 mt-4">
                                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-3">
-                                    <span>{leadsNaBaseFiltrados.length} contatos{selecionadosBase.length > 0 ? ` · ${selecionadosBase.length} selecionados` : ''}</span>
+                                    <span>{leadsNaBaseFiltrados.length}{' '}{tx("contatos")}{selecionadosBase.length > 0 ? " " + tx("· {length} selecionados", { length: selecionadosBase.length }) + "" : ''}</span>
                                     {paginaBaseToda && !todosFiltradosSelecionados && (
                                         <button type="button" onClick={() => setSelecionadosBase(leadsNaBaseFiltrados.map(l => l.id))} className="text-blue-600 dark:text-blue-400 hover:underline underline-offset-2">
-                                            Selecionar todos os {leadsNaBaseFiltrados.length} encontrados
+                                            {tx("Selecionar todos os")}{' '}{leadsNaBaseFiltrados.length}{' '}{tx("encontrados")}
                                         </button>
                                     )}
                                     {selecionadosBase.length > 0 && (
                                         <button type="button" onClick={() => setSelecionadosBase([])} className="text-slate-400 hover:text-slate-700 dark:hover:text-white hover:underline underline-offset-2">
-                                            Limpar seleção
+                                            {tx("Limpar seleção")}
                                         </button>
                                     )}
                                 </div>
                                 {totalPaginasBase > 1 && (
                                     <div className="flex items-center gap-2">
                                         <button type="button" onClick={() => setPaginaBase(Math.max(1, paginaBaseAtual - 1))} disabled={paginaBaseAtual <= 1} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
-                                            <ChevronLeft className="w-3.5 h-3.5" /> Anterior
+                                            <ChevronLeft className="w-3.5 h-3.5" />{' '}{tx("Anterior")}
                                         </button>
-                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Página {paginaBaseAtual} de {totalPaginasBase}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Página")}{' '}{paginaBaseAtual}{' '}{tx("de")}{' '}{totalPaginasBase}</span>
                                         <button type="button" onClick={() => setPaginaBase(Math.min(totalPaginasBase, paginaBaseAtual + 1))} disabled={paginaBaseAtual >= totalPaginasBase} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
-                                            Próxima <ChevronRight className="w-3.5 h-3.5" />
+                                            {tx("Próxima")}{' '}<ChevronRight className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
                                 )}

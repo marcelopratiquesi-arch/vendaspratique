@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FormVenda from './FormVenda.jsx';
 import FormVisitante from './FormVisitante.jsx';
 import { ShoppingCart, UserPlus } from 'lucide-react';
+import { tx } from '../../i18n/traduzir.js';
 
 const LancamentoVendas = ({ 
     usuarioLogado, 
@@ -43,7 +44,7 @@ const LancamentoVendas = ({
                     }`}
                 >
                     <ShoppingCart className="w-4 h-4" />
-                    Lançar Venda
+                    {tx("Lançar Venda")}
                 </button>
                 
                 <button
@@ -55,7 +56,7 @@ const LancamentoVendas = ({
                     }`}
                 >
                     <UserPlus className="w-4 h-4" />
-                    Cadastrar Visitante
+                    {tx("Cadastrar Visitante")}
                 </button>
             </div>
 

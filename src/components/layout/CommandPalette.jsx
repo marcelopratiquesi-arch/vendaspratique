@@ -5,6 +5,7 @@ import { buscarAlunosNaRede } from '../../pages/Alunos/utils.js';
 import { getRecentes, addRecente, removerRecente, limparRecentes } from './recentesAlunos.js';
 import { getCachedSearch, setCachedSearch, highlightText, mascararCpfExibicao } from './commandUtils.js';
 import EtiquetasUnidade from '../EtiquetasUnidade.jsx';
+import { tx } from '../../i18n/traduzir.js';
 
 const HighlightedText = ({ text, query }) => {
     const parts = highlightText(text, query);
@@ -128,7 +129,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
         let list = [];
         if (!termo.trim()) {
             if (recentes.length > 0) {
-                list.push({ type: 'header', label: 'Alunos recentes' });
+                list.push({ type: 'header', label: tx("Alunos recentes") });
                 list.push(...recentes.map(r => ({ type: 'recente', data: r })));
             }
             return list;
@@ -232,7 +233,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                         <div className="px-4 py-12 text-center flex flex-col items-center gap-3">
                             <Search className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                             <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
-                                Nenhum aluno encontrado para "{termo}"
+                                {tx("Nenhum aluno encontrado para \"")}{termo}"
                             </p>
                         </div>
                     )}
@@ -242,7 +243,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                             return (
                                 <div key={`header-${mapIdx}`} className="flex items-center justify-between px-3 py-2 mt-1 first:mt-0">
                                     <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                                        {item.label}
+                                        {tx(item.label)}
                                     </span>
                                 </div>
                             );
@@ -280,7 +281,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                                     
                                     <div className={`flex items-center gap-2 text-[12px] font-medium text-slate-500 dark:text-slate-400 mt-0.5 ${isRecente ? 'truncate' : 'flex-wrap'}`}>
                                         {isRecente ? (
-                                            <span>{aluno.acao_label || 'Visitado recentemente'}</span>
+                                            <span>{aluno.acao_label || tx("Visitado recentemente")}</span>
                                         ) : (
                                             <>
                                                 {aluno.matricula && <span className="text-blue-600 dark:text-blue-400">#<HighlightedText text={aluno.matricula} query={termoReal} /></span>}
@@ -292,7 +293,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                                 </div>
                                 
                                 {isRecente && (
-                                    <button onClick={(e) => handleRemoverRecente(e, aluno.id)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all dark:hover:bg-rose-500/10" title="Remover histórico"><X className="w-4 h-4" /></button>
+                                    <button onClick={(e) => handleRemoverRecente(e, aluno.id)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all dark:hover:bg-rose-500/10" title={tx("Remover histórico")}><X className="w-4 h-4" /></button>
                                 )}
                             </div>
                         );

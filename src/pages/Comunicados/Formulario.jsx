@@ -7,6 +7,7 @@ import {
     FileText, Video, Link as LinkIcon, X 
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 export default function FormularioComunicado({ usuarioLogado, unidades = [], onVoltar, onSalvo }) {
     const { t } = useI18n();
@@ -58,7 +59,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             setNomePdf(file.name);
         } else if (tipoMedia === 'video') {
             if (file.size > 25 * 1024 * 1024) { // Limite de 25MB
-                avisar('O vídeo deve ter no máximo 25MB. Para vídeos maiores, use um link do YouTube.');
+                avisar(tx("O vídeo deve ter no máximo 25MB. Para vídeos maiores, use um link do YouTube."));
                 return;
             }
             setArquivoVideo(file);
@@ -68,7 +69,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
 
     // === HANDLERS DO QUESTIONÁRIO MÚLTIPLO ===
     const adicionarPergunta = () => {
-        if (perguntas.length >= 10) return avisar('Máximo de 10 perguntas atingido.');
+        if (perguntas.length >= 10) return avisar(tx("Máximo de 10 perguntas atingido."));
         setPerguntas([...perguntas, { id: Date.now().toString(), texto: '', alternativas: ['', ''], correta: '' }]);
     };
 
@@ -119,16 +120,16 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
     // === PUBLICAÇÃO CENTRAL ===
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!titulo.trim() || !conteudo.trim()) return avisar('Preencha o título e o conteúdo principal.');
+        if (!titulo.trim() || !conteudo.trim()) return avisar(tx("Preencha o título e o conteúdo principal."));
 
         // Validação estrita do Questionário
         if (tipo === 'QUESTIONARIO') {
             for (let i = 0; i < perguntas.length; i++) {
                 const p = perguntas[i];
-                if (!p.texto.trim()) return avisar(`A Pergunta ${i + 1} está vazia.`);
+                if (!p.texto.trim()) return avisar(tx("A Pergunta {v1} está vazia.", { v1: i + 1 }));
                 const altPreenchidas = p.alternativas.filter(a => a.trim() !== '');
-                if (altPreenchidas.length < 2) return avisar(`A Pergunta ${i + 1} precisa de pelo menos 2 alternativas preenchidas.`);
-                if (!p.correta.trim()) return avisar(`Selecione a resposta correta para a Pergunta ${i + 1}.`);
+                if (altPreenchidas.length < 2) return avisar(tx("A Pergunta {v1} precisa de pelo menos 2 alternativas preenchidas.", { v1: i + 1 }));
+                if (!p.correta.trim()) return avisar(tx("Selecione a resposta correta para a Pergunta {v1}.", { v1: i + 1 }));
             }
         }
 
@@ -219,7 +220,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             onSalvo();
         } catch (err) {
             console.error(err);
-            avisar('Erro ao publicar: ' + (err.message || err));
+            avisar(tx("Erro ao publicar: {v2}", { v2: err.message || err }));
         } finally {
             setLoading(false);
         }
@@ -236,7 +237,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                     <ArrowLeft className="w-3.5 h-3.5" /> {t('communications.back', {defaultValue: 'Voltar'})}
                 </button>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mt-2">{t('communications.new', {defaultValue: 'Novo Comunicado Operacional'})}</h2>
-                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Todo comunicado publicado interromperá a navegação do destinatário e exigirá confirmação para liberar o sistema.</p>
+                <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">{tx("Todo comunicado publicado interromperá a navegação do destinatário e exigirá confirmação para liberar o sistema.")}</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-8">
@@ -250,12 +251,12 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                     
                     <div className="space-y-5">
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Título Principal (Obrigatório)</label>
-                            <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder="Ex: Treinamento de Vendas Q3" className={inputClasses} />
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">{tx("Título Principal (Obrigatório)")}</label>
+                            <input type="text" value={titulo} onChange={(e) => setTitulo(e.target.value)} required placeholder={tx("Ex: Treinamento de Vendas Q3")} className={inputClasses} />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Conteúdo Detalhado (Obrigatório)</label>
-                            <textarea rows="4" value={conteudo} onChange={(e) => setConteudo(e.target.value)} required placeholder="Descreva as instruções..." className={`${inputClasses} resize-none`}></textarea>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">{tx("Conteúdo Detalhado (Obrigatório)")}</label>
+                            <textarea rows="4" value={conteudo} onChange={(e) => setConteudo(e.target.value)} required placeholder={tx("Descreva as instruções...")} className={`${inputClasses} resize-none`}></textarea>
                         </div>
                         
                         {/* ANEXOS RICOS */}
@@ -263,24 +264,24 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             
                             <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${previewBanner ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-300 dark:border-white/10 hover:border-blue-300 bg-slate-50/50 dark:bg-white/5 dark:hover:border-blue-500/30'}`}>
                                 <ImageIcon className={`w-6 h-6 mb-2 ${previewBanner ? 'text-blue-500' : 'text-slate-400'}`} />
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{previewBanner ? 'Imagem Anexada' : 'Adicionar Banner/Imagem'}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{previewBanner ? tx("Imagem Anexada") : tx("Adicionar Banner/Imagem")}</span>
                                 <input type="file" accept="image/png, image/jpeg, image/webp" onChange={(e) => handleFileChange(e, 'banner')} className="hidden" />
                             </label>
 
                             <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${nomePdf ? 'border-rose-400 bg-rose-50/50 dark:bg-rose-500/10' : 'border-slate-300 dark:border-white/10 hover:border-rose-300 bg-slate-50/50 dark:bg-white/5 dark:hover:border-rose-500/30'}`}>
                                 <FileText className={`w-6 h-6 mb-2 ${nomePdf ? 'text-rose-500' : 'text-slate-400'}`} />
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate px-2 w-full">{nomePdf || 'Anexar Documento (PDF)'}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate px-2 w-full">{nomePdf || tx("Anexar Documento (PDF)")}</span>
                                 <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, 'pdf')} className="hidden" />
                             </label>
 
                             <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${nomeVideo ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-300 dark:border-white/10 hover:border-blue-300 bg-slate-50/50 dark:bg-white/5 dark:hover:border-blue-500/30'}`}>
                                 <Video className={`w-6 h-6 mb-2 ${nomeVideo ? 'text-blue-500' : 'text-slate-400'}`} />
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate px-2 w-full">{nomeVideo || 'Vídeo Curto (Até 25MB)'}</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate px-2 w-full">{nomeVideo || tx("Vídeo Curto (Até 25MB)")}</span>
                                 <input type="file" accept="video/mp4, video/webm" onChange={(e) => handleFileChange(e, 'video')} className="hidden" />
                             </label>
 
                             <div className="flex flex-col justify-center gap-2 border-2 border-dashed border-slate-300 dark:border-white/10 p-4 rounded-2xl bg-slate-50/50 dark:bg-white/5">
-                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5"><LinkIcon className="w-4 h-4 text-slate-400" /> Link do YouTube</span>
+                                <span className="text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5"><LinkIcon className="w-4 h-4 text-slate-400" />{' '}{tx("Link do YouTube")}</span>
                                 <input type="url" placeholder="https://youtu.be/..." value={videoExterno} onChange={(e) => setVideoExterno(e.target.value)} className="w-full bg-white dark:bg-black/20 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-xs outline-none focus:border-blue-500 font-medium" />
                             </div>
 
@@ -292,7 +293,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                 <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-6 md:p-8">
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 border-b border-slate-200/50 dark:border-white/5 pb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center text-xs">2</span>
-                        Requisito de Desbloqueio
+                        {tx("Requisito de Desbloqueio")}
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
@@ -300,16 +301,16 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             <div className={`p-2 w-fit rounded-xl ${tipo === 'INFORMATIVO' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 dark:bg-white/10 text-slate-400'}`}>
                                 <CheckCircle className="w-5 h-5" />
                             </div>
-                            <span className="text-sm font-black uppercase tracking-tight">Aviso de Leitura</span>
-                            <span className="text-[11px] font-semibold leading-tight opacity-80">Usuário destrava clicando em "Li e estou ciente".</span>
+                            <span className="text-sm font-black uppercase tracking-tight">{tx("Aviso de Leitura")}</span>
+                            <span className="text-[11px] font-semibold leading-tight opacity-80">{tx("Usuário destrava clicando em \"Li e estou ciente\".")}</span>
                         </button>
 
                         <button type="button" onClick={() => setTipo('QUESTIONARIO')} className={`p-5 rounded-2xl border text-left flex flex-col gap-2.5 transition-all ${tipo === 'QUESTIONARIO' ? 'bg-purple-50 dark:bg-purple-600/10 border-purple-400 shadow-md shadow-purple-500/10 text-slate-900 dark:text-white' : 'bg-white/80 dark:bg-white/5 border-slate-200/70 dark:border-white/10 text-slate-500 hover:border-purple-300 dark:hover:border-white/30 shadow-sm dark:text-slate-400'}`}>
                             <div className={`p-2 w-fit rounded-xl ${tipo === 'QUESTIONARIO' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-slate-100 dark:bg-white/10 text-slate-400'}`}>
                                 <HelpCircle className="w-5 h-5" />
                             </div>
-                            <span className="text-sm font-black uppercase tracking-tight">Avaliação / Prova</span>
-                            <span className="text-[11px] font-semibold leading-tight opacity-80">Usuário destrava ao acertar todas as perguntas.</span>
+                            <span className="text-sm font-black uppercase tracking-tight">{tx("Avaliação / Prova")}</span>
+                            <span className="text-[11px] font-semibold leading-tight opacity-80">{tx("Usuário destrava ao acertar todas as perguntas.")}</span>
                         </button>
                     </div>
 
@@ -320,11 +321,11 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             {perguntas.map((p, pIdx) => (
                                 <div key={p.id} className="p-5 bg-slate-50/80 dark:bg-black/20 border border-slate-200/70 dark:border-white/10 rounded-2xl relative group">
                                     {perguntas.length > 1 && (
-                                        <button type="button" onClick={() => removerPergunta(p.id)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-500 transition-colors" title="Remover Pergunta"><Trash2 className="w-4 h-4" /></button>
+                                        <button type="button" onClick={() => removerPergunta(p.id)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-500 transition-colors" title={tx("Remover Pergunta")}><Trash2 className="w-4 h-4" /></button>
                                     )}
                                     
-                                    <label className="block text-[11px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3">Pergunta {pIdx + 1}</label>
-                                    <input type="text" value={p.texto} onChange={(e) => atualizarPergunta(p.id, 'texto', e.target.value)} placeholder="Ex: Qual é o desconto máximo permitido?" className={`${inputClasses} mb-4`} />
+                                    <label className="block text-[11px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3">{tx("Pergunta")}{' '}{pIdx + 1}</label>
+                                    <input type="text" value={p.texto} onChange={(e) => atualizarPergunta(p.id, 'texto', e.target.value)} placeholder={tx("Ex: Qual é o desconto máximo permitido?")} className={`${inputClasses} mb-4`} />
                                     
                                     <div className="space-y-3 pl-2 border-l-2 border-purple-200 dark:border-purple-500/30">
                                         {p.alternativas.map((alt, aIdx) => (
@@ -332,11 +333,11 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                                                 <div 
                                                     onClick={() => atualizarPergunta(p.id, 'correta', alt)}
                                                     className={`w-5 h-5 flex-shrink-0 rounded-full border-2 cursor-pointer transition-all flex items-center justify-center ${p.correta === alt && alt.trim() !== '' ? 'border-purple-600 bg-purple-600 dark:border-purple-500 dark:bg-purple-500' : 'border-slate-300 dark:border-white/20 hover:border-purple-400'}`}
-                                                    title="Marcar como Resposta Certa"
+                                                    title={tx("Marcar como Resposta Certa")}
                                                 >
                                                     {p.correta === alt && alt.trim() !== '' && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                                 </div>
-                                                <input type="text" value={alt} onChange={(e) => atualizarAlternativa(p.id, aIdx, e.target.value)} placeholder={`Alternativa ${aIdx + 1}`} className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500" />
+                                                <input type="text" value={alt} onChange={(e) => atualizarAlternativa(p.id, aIdx, e.target.value)} placeholder={tx("Alternativa {v1}", { v1: aIdx + 1 })} className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500" />
                                                 {p.alternativas.length > 2 && (
                                                     <button type="button" onClick={() => removerAlternativa(p.id, aIdx)} className="text-slate-400 hover:text-rose-400 p-1"><X className="w-4 h-4" /></button>
                                                 )}
@@ -344,7 +345,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                                         ))}
                                         {p.alternativas.length < 6 && (
                                             <button type="button" onClick={() => adicionarAlternativa(p.id)} className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-purple-600 dark:hover:text-purple-400 transition-colors mt-2 ml-1">
-                                                <Plus className="w-3 h-3" /> Adicionar Opção
+                                                <Plus className="w-3 h-3" />{' '}{tx("Adicionar Opção")}
                                             </button>
                                         )}
                                     </div>
@@ -353,7 +354,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
 
                             {perguntas.length < 10 && (
                                 <button type="button" onClick={adicionarPergunta} className="w-full py-4 border-2 border-dashed border-purple-300 dark:border-purple-500/30 rounded-2xl text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-colors">
-                                    <Plus className="w-4 h-4" /> Nova Pergunta
+                                    <Plus className="w-4 h-4" />{' '}{tx("Nova Pergunta")}
                                 </button>
                             )}
                         </div>
@@ -373,31 +374,31 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             <select value={tipoAlvo} onChange={(e) => setTipoAlvo(e.target.value)} className={`${inputClasses} cursor-pointer`}>
                                 {ehMentor ? (
                                     <>
-                                        <option value="MINHAS">Todas as minhas unidades</option>
-                                        <option value="UNIDADE">Por Academia / Unidade</option>
+                                        <option value="MINHAS">{tx("Todas as minhas unidades")}</option>
+                                        <option value="UNIDADE">{tx("Por Academia / Unidade")}</option>
                                     </>
                                 ) : (
                                     <>
-                                        <option value="GLOBAL">Todos os Usuários da Empresa</option>
-                                        <option value="ROLE">Por Cargo / Permissão</option>
-                                        <option value="UNIDADE">Por Academia / Unidade</option>
+                                        <option value="GLOBAL">{tx("Todos os Usuários da Empresa")}</option>
+                                        <option value="ROLE">{tx("Por Cargo / Permissão")}</option>
+                                        <option value="UNIDADE">{tx("Por Academia / Unidade")}</option>
                                     </>
                                 )}
                             </select>
                         </div>
                         {tipoAlvo === 'ROLE' && (
                             <div className="animate-[fadeIn_0.2s_ease-out]">
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Selecione o Cargo:</label>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">{tx("Selecione o Cargo:")}</label>
                                 <select value={valorAlvo} onChange={(e) => setValorAlvo(e.target.value)} className={`${inputClasses} cursor-pointer`}>
-                                    <option value="RECEPCAO">Recepção / Operacional</option>
-                                    <option value="LIDER">Líderes de Unidade</option>
-                                    <option value="MENTOR">Supervisores / Mentores</option>
+                                    <option value="RECEPCAO">{tx("Recepção / Operacional")}</option>
+                                    <option value="LIDER">{tx("Líderes de Unidade")}</option>
+                                    <option value="MENTOR">{tx("Supervisores / Mentores")}</option>
                                 </select>
                             </div>
                         )}
                         {tipoAlvo === 'UNIDADE' && (
                             <div className="animate-[fadeIn_0.2s_ease-out]">
-                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">Selecione a Unidade:</label>
+                                <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">{tx("Selecione a Unidade:")}</label>
                                 <select value={valorAlvo} onChange={(e) => setValorAlvo(e.target.value)} className={`${inputClasses} cursor-pointer uppercase`}>
                                     {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
                                 </select>
@@ -407,15 +408,15 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-6 border-t border-slate-200/50 dark:border-white/5">
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" /> Início do Bloqueio</label>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1 flex items-center gap-1.5"><Calendar className="w-3.5 h-3.5" />{' '}{tx("Início do Bloqueio")}</label>
                             <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} required className={inputClasses} />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" /> Hora de Disparo</label>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1 flex items-center gap-1.5"><Clock className="w-3.5 h-3.5" />{' '}{tx("Hora de Disparo")}</label>
                             <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} required className={inputClasses} />
                         </div>
                         <div>
-                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1 flex items-center gap-1.5 opacity-70"><Calendar className="w-3.5 h-3.5" /> Fim (Opcional)</label>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1 flex items-center gap-1.5 opacity-70"><Calendar className="w-3.5 h-3.5" />{' '}{tx("Fim (Opcional)")}</label>
                             <input type="date" value={dataExpira} onChange={(e) => setDataExpira(e.target.value)} className={inputClasses} />
                         </div>
                     </div>
@@ -425,7 +426,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                     type="submit" disabled={loading}
                     className="w-full bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white font-black uppercase tracking-widest py-5 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-sm disabled:opacity-50"
                 >
-                    {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Publicando Interrupção...</> : <><Send className="w-5 h-5" /> Publicar e Bloquear Destinatários</>}
+                    {loading ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Publicando Interrupção...")}</> : <><Send className="w-5 h-5" />{' '}{tx("Publicar e Bloquear Destinatários")}</>}
                 </button>
             </form>
         </div>

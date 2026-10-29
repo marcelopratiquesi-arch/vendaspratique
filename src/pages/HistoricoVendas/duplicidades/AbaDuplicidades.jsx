@@ -3,6 +3,7 @@ import { AlertTriangle, Check, Copy, Clock, User, Loader2, X, Edit3, Trash2, Shi
 import { supabase } from '../../../supabaseClient.js';
 import { formatMoney, formatarCPF, formatDataBR, extrairHoraCriacao, toTitleCase, normalizeString } from '../utils.js';
 import { comissaoDaVenda } from './motorDuplicidades.js';
+import { tx, localeAtual } from '../../../i18n/traduzir.js';
 
 // ==========================================
 // ABA "DUPLICIDADES" DO HISTÓRICO (arquivo próprio, para evoluir a auditoria separada da tabela)
@@ -21,7 +22,7 @@ const dataHoraBR = (iso) => {
     if (!iso) return '';
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '';
-    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString(localeAtual(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
 const inputEdicao = "w-full bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-200 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm";
@@ -63,24 +64,24 @@ const CampoAlunoPorCpf = ({ dadosEdicao, onAplicarAluno }) => {
     };
 
     const avisos = {
-        buscando: { cor: 'text-slate-500 dark:text-slate-400', texto: 'Buscando aluno...' },
-        encontrado: { cor: 'text-emerald-600 dark:text-emerald-300', texto: 'Aluno encontrado' },
-        nao_encontrado: { cor: 'text-rose-600 dark:text-rose-300', texto: 'CPF não cadastrado' },
-        duplicado: { cor: 'text-rose-600 dark:text-rose-300', texto: 'Mais de um aluno com este CPF' },
-        incompleto: { cor: 'text-amber-600 dark:text-amber-300', texto: 'Digite o CPF completo' },
-        erro: { cor: 'text-rose-600 dark:text-rose-300', texto: 'Erro ao buscar. Tente de novo' }
+        buscando: { cor: 'text-slate-500 dark:text-slate-400', texto: tx("Buscando aluno...") },
+        encontrado: { cor: 'text-emerald-600 dark:text-emerald-300', texto: tx("Aluno encontrado") },
+        nao_encontrado: { cor: 'text-rose-600 dark:text-rose-300', texto: tx("CPF não cadastrado") },
+        duplicado: { cor: 'text-rose-600 dark:text-rose-300', texto: tx("Mais de um aluno com este CPF") },
+        incompleto: { cor: 'text-amber-600 dark:text-amber-300', texto: tx("Digite o CPF completo") },
+        erro: { cor: 'text-rose-600 dark:text-rose-300', texto: tx("Erro ao buscar. Tente de novo") }
     };
     const aviso = avisos[status];
 
     return (
         <div className="flex flex-col gap-1">
             <div className="relative">
-                <input type="text" inputMode="numeric" placeholder="CPF do aluno" value={mascaraCpf(dadosEdicao.cpf)} onChange={e => aoDigitar(e.target.value)} maxLength="14" className={`${inputEdicao} pr-7`} />
+                <input type="text" inputMode="numeric" placeholder={tx("CPF do aluno")} value={mascaraCpf(dadosEdicao.cpf)} onChange={e => aoDigitar(e.target.value)} maxLength="14" className={`${inputEdicao} pr-7`} />
                 {status === 'buscando'
                     ? <Loader2 className="w-3 h-3 text-blue-500 animate-spin absolute right-2 top-1/2 -translate-y-1/2" />
                     : <Search className="w-3 h-3 text-blue-400 absolute right-2 top-1/2 -translate-y-1/2" />}
             </div>
-            {aviso && <span className={`text-[10px] font-black uppercase tracking-widest ${aviso.cor}`}>{aviso.texto}</span>}
+            {aviso && <span className={`text-[10px] font-black uppercase tracking-widest ${aviso.cor}`}>{tx(aviso.texto)}</span>}
         </div>
     );
 };
@@ -121,15 +122,15 @@ const CartaoGrupo = ({
                             {grupo.regraAntiga ? (
                                 <>
                                     <span className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest font-mono">
-                                        MAT: {amostra.matricula || 'N/A'}
+                                        {tx("MAT:")}{' '}{amostra.matricula || 'N/A'}
                                     </span>
-                                    <span className="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" title="Venda antiga sem CPF: agrupada pela matrícula (ou pelo nome, se não tiver matrícula)">
-                                        Regra antiga (sem CPF)
+                                    <span className="bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest" title={tx("Venda antiga sem CPF: agrupada pela matrícula (ou pelo nome, se não tiver matrícula)")}>
+                                        {tx("Regra antiga (sem CPF)")}
                                     </span>
                                 </>
                             ) : (
                                 <span className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest font-mono">
-                                    CPF: {formatarCPF(amostra.cpf || amostra.cpf_aluno)}
+                                    {tx("CPF:")}{' '}{formatarCPF(amostra.cpf || amostra.cpf_aluno)}
                                 </span>
                             )}
                             <span className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-widest truncate max-w-[180px]" title={amostra.produto}>
@@ -147,18 +148,18 @@ const CartaoGrupo = ({
                     </div>
                 </div>
                 <div className={`${cores.tag} text-white px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-widest whitespace-nowrap shadow-sm`}>
-                    {grupo.linhas.length} lançamentos
+                    {grupo.linhas.length}{' '}{tx("lançamentos")}
                 </div>
             </div>
 
             {legitimo && (
                 <div className="px-5 py-2.5 bg-emerald-50/60 dark:bg-emerald-500/10 border-b border-emerald-100 dark:border-emerald-500/20 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
-                        Não é duplicidade · marcado por {grupo.marcacao.decidido_por || '—'} em {dataHoraBR(grupo.marcacao.decidido_em)}
+                        {tx("Não é duplicidade · marcado por")}{' '}{grupo.marcacao.decidido_por || '—'}{' '}{tx("em")}{' '}{dataHoraBR(grupo.marcacao.decidido_em)}
                     </span>
                     {podeEditar && (
                         <button disabled={isSubmitting} onClick={() => onDesfazerLegitima(grupo.marcacao)} className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
-                            <Undo2 className="w-3 h-3" /> Desfazer
+                            <Undo2 className="w-3 h-3" />{' '}{tx("Desfazer")}
                         </button>
                     )}
                 </div>
@@ -194,43 +195,43 @@ const CartaoGrupo = ({
                                 <div className="flex-1 min-w-0 flex flex-col gap-1.5">
                                     {isEditing ? (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-                                            <input type="date" required value={dadosEdicao.data || ''} onChange={e => onAlterarCampo('data', e.target.value)} className={inputEdicao} title="Data da venda" />
+                                            <input type="date" required value={dadosEdicao.data || ''} onChange={e => onAlterarCampo('data', e.target.value)} className={inputEdicao} title={tx("Data da venda")} />
                                             <CampoAlunoPorCpf dadosEdicao={dadosEdicao} onAplicarAluno={onAplicarAluno} />
-                                            <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => onAlterarCampo('nome_aluno', e.target.value)} className={`${inputEdicao} uppercase sm:col-span-2`} />
+                                            <input type="text" placeholder={tx("Nome do Aluno")} value={dadosEdicao.nome_aluno} onChange={e => onAlterarCampo('nome_aluno', e.target.value)} className={`${inputEdicao} uppercase sm:col-span-2`} />
                                             <select value={dadosEdicao.produto} onChange={e => onAlterarCampo('produto', e.target.value)} className={`${inputEdicao} uppercase cursor-pointer`}>
-                                                <option value="" disabled>Selecione...</option>
+                                                <option value="" disabled>{tx("Selecione...")}</option>
                                                 {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                             </select>
                                             <select value={(dadosEdicao.vendedor || '').toUpperCase()} onChange={e => onAlterarCampo('vendedor', e.target.value)} className={`${inputEdicao} uppercase cursor-pointer`}>
-                                                <option value="" disabled>Selecione o Vendedor...</option>
+                                                <option value="" disabled>{tx("Selecione o Vendedor...")}</option>
                                                 {vendedoresDaUnidade.sort().map(v => <option key={v} value={v}>{toTitleCase(v)}</option>)}
                                             </select>
-                                            <input type="number" min="1" placeholder="Qtd" value={dadosEdicao.quantidade} onChange={e => onAlterarCampo('quantidade', e.target.value)} className={inputEdicao} />
-                                            <div className="flex items-center px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-black text-emerald-600 dark:text-emerald-300" title="A comissão vem do catálogo (valor do item × quantidade)">
-                                                Comissão: {formatMoney(dadosEdicao.valorCalculado)}
+                                            <input type="number" min="1" placeholder={tx("Qtd")} value={dadosEdicao.quantidade} onChange={e => onAlterarCampo('quantidade', e.target.value)} className={inputEdicao} />
+                                            <div className="flex items-center px-2.5 py-1.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[11px] font-black text-emerald-600 dark:text-emerald-300" title={tx("A comissão vem do catálogo (valor do item × quantidade)")}>
+                                                {tx("Comissão:")}{' '}{formatMoney(dadosEdicao.valorCalculado)}
                                             </div>
                                         </div>
                                     ) : (
                                         <>
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <span className="text-[11px] font-black text-slate-800 dark:text-slate-100">Qtd: {row.quantidade || '1'}</span>
+                                                <span className="text-[11px] font-black text-slate-800 dark:text-slate-100">{tx("Qtd:")}{' '}{row.quantidade || '1'}</span>
                                                 <span className="text-[10px] text-slate-300">•</span>
-                                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Valor {formatMoney(row.valor)}</span>
-                                                <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">Comissão {formatMoney(comissaoDaVenda(row))}</span>
+                                                <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tx("Valor")}{' '}{formatMoney(row.valor)}</span>
+                                                <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-500/10 px-1.5 py-0.5 rounded">{tx("Comissão")}{' '}{formatMoney(comissaoDaVenda(row))}</span>
                                                 {row.conferiu && (
-                                                    <span className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 px-1.5 py-0.5 rounded uppercase tracking-widest" title={row.conferido_por ? `Conferida por ${row.conferido_por}` : 'Conferida no Fechamento'}>
-                                                        <BadgeCheck className="w-3 h-3" /> Conferida
+                                                    <span className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 px-1.5 py-0.5 rounded uppercase tracking-widest" title={row.conferido_por ? tx("Conferida por {conferido_por}", { conferido_por: row.conferido_por }) : tx("Conferida no Fechamento")}>
+                                                        <BadgeCheck className="w-3 h-3" />{' '}{tx("Conferida")}
                                                     </span>
                                                 )}
                                                 {original && (
-                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest" title="O lançamento mais antigo do grupo é considerado o original">Original</span>
+                                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest" title={tx("O lançamento mais antigo do grupo é considerado o original")}>{tx("Original")}</span>
                                                 )}
                                             </div>
                                             <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">
-                                                <User className="w-3 h-3 text-slate-400" /> Consultor: <span className="text-slate-700 dark:text-slate-200">{toTitleCase(row.vendedor)}</span>
+                                                <User className="w-3 h-3 text-slate-400" />{' '}{tx("Consultor:")}{' '}<span className="text-slate-700 dark:text-slate-200">{toTitleCase(row.vendedor)}</span>
                                             </div>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                                                Lançado por: {toTitleCase(row.criado_por ? row.criado_por.split(' ')[0] : 'Sistema')}
+                                                {tx("Lançado por:")}{' '}{toTitleCase(row.criado_por ? row.criado_por.split(' ')[0] : 'Sistema')}
                                             </p>
                                             {row.observacao && String(row.observacao).trim() && (
                                                 <p className="flex items-start gap-1.5 text-[10px] font-medium text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/30 rounded-md px-2 py-1 mt-0.5">
@@ -247,19 +248,19 @@ const CartaoGrupo = ({
                                     {isEditing ? (
                                         <>
                                             <button disabled={isSubmitting} onClick={() => onSalvar(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />} Salvar
+                                                {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}{' '}{tx("Salvar")}
                                             </button>
                                             <button disabled={isSubmitting} onClick={onCancelar} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                <X className="w-3 h-3" /> Cancelar
+                                                <X className="w-3 h-3" />{' '}{tx("Cancelar")}
                                             </button>
                                         </>
                                     ) : (
                                         <>
                                             <button disabled={isSubmitting} onClick={() => onEditar(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-300 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
-                                                <Edit3 className="w-3 h-3" /> Editar
+                                                <Edit3 className="w-3 h-3" />{' '}{tx("Editar")}
                                             </button>
                                             <button disabled={isSubmitting} onClick={() => onExcluir(row.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                                                <Trash2 className="w-3 h-3" /> Excluir
+                                                <Trash2 className="w-3 h-3" />{' '}{tx("Excluir")}
                                             </button>
                                         </>
                                     )}
@@ -273,10 +274,10 @@ const CartaoGrupo = ({
             {podeEditar && !legitimo && (
                 <div className="px-5 pb-5 -mt-1 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Sob suspeita: <span className="text-rose-600 dark:text-rose-300">{formatMoney(grupo.comissaoSuspeita)}</span>
+                        {tx("Sob suspeita:")}{' '}<span className="text-rose-600 dark:text-rose-300">{formatMoney(grupo.comissaoSuspeita)}</span>
                     </span>
                     <button disabled={isSubmitting || marcandoChave === grupo.chaveBase} onClick={() => onMarcarLegitima(grupo)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
-                        {marcandoChave === grupo.chaveBase ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />} Não é duplicidade
+                        {marcandoChave === grupo.chaveBase ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}{' '}{tx("Não é duplicidade")}
                     </button>
                 </div>
             )}
@@ -306,13 +307,13 @@ const AbaDuplicidades = ({
                 <div>
                     <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                         <AlertTriangle className="w-6 h-6 text-amber-500" />
-                        Auditoria de possíveis duplicidades
+                        {tx("Auditoria de possíveis duplicidades")}
                     </h3>
                     <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed">
-                        Mesma <strong>unidade</strong>, mesmo <strong>dia</strong>, mesmo <strong>CPF</strong> e mesmo <strong>produto</strong>. Avalie cada caso: relançamento por engano ou venda legítima.
+                        {tx("Mesma")}{' '}<strong>{tx("unidade")}</strong>{tx(", mesmo")}{' '}<strong>{tx("dia")}</strong>{tx(", mesmo")}{' '}<strong>CPF</strong>{' '}{tx("e mesmo")}{' '}<strong>{tx("produto")}</strong>{tx(". Avalie cada caso: relançamento por engano ou venda legítima.")}
                     </p>
                     <p className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-2">
-                        <Info className="w-3 h-3" /> Analisando os últimos 90 dias · vendas antigas sem CPF seguem a regra antiga (matrícula ou nome)
+                        <Info className="w-3 h-3" />{' '}{tx("Analisando os últimos 90 dias · vendas antigas sem CPF seguem a regra antiga (matrícula ou nome)")}
                     </p>
                 </div>
 
@@ -320,11 +321,11 @@ const AbaDuplicidades = ({
                     {!verLegitimos && grupos.length > 0 && (
                         <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl px-4 py-2 text-right">
                             <p className="text-lg font-black text-rose-600 dark:text-rose-300 leading-none">{formatMoney(comissaoSuspeita)}</p>
-                            <p className="text-[10px] font-black text-rose-500 dark:text-rose-300/80 uppercase tracking-widest mt-1">em comissão sob suspeita · {excedentes} {excedentes === 1 ? 'lançamento excedente' : 'lançamentos excedentes'}</p>
+                            <p className="text-[10px] font-black text-rose-500 dark:text-rose-300/80 uppercase tracking-widest mt-1">{tx("em comissão sob suspeita ·")}{' '}{excedentes} {excedentes === 1 ? tx("lançamento excedente") : tx("lançamentos excedentes")}</p>
                         </div>
                     )}
                     <button onClick={() => setVerLegitimos(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 hover:border-blue-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
-                        {verLegitimos ? <><AlertTriangle className="w-3 h-3" /> Voltar às possíveis duplicidades</> : <><ShieldCheck className="w-3 h-3" /> Ver grupos marcados como legítimos ({gruposLegitimos.length})</>}
+                        {verLegitimos ? <><AlertTriangle className="w-3 h-3" />{' '}{tx("Voltar às possíveis duplicidades")}</> : <><ShieldCheck className="w-3 h-3" />{' '}{tx("Ver grupos marcados como legítimos (")}{gruposLegitimos.length})</>}
                     </button>
                 </div>
             </div>
@@ -332,9 +333,9 @@ const AbaDuplicidades = ({
             {lista.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center opacity-80">
                     <Check className="w-16 h-16 text-emerald-400 mb-4 bg-emerald-50 dark:bg-emerald-500/10 rounded-full p-3 shadow-inner" />
-                    <h4 className="text-lg font-black text-slate-700 dark:text-slate-200">{verLegitimos ? 'Nenhum grupo marcado' : 'Tudo limpo por aqui!'}</h4>
+                    <h4 className="text-lg font-black text-slate-700 dark:text-slate-200">{verLegitimos ? tx("Nenhum grupo marcado") : tx("Tudo limpo por aqui!")}</h4>
                     <p className="text-sm font-bold text-slate-400 mt-2">
-                        {verLegitimos ? 'Nenhum grupo marcado como "Não é duplicidade" nos filtros selecionados.' : 'Nenhuma duplicidade encontrada para os filtros selecionados.'}
+                        {verLegitimos ? tx("Nenhum grupo marcado como \"Não é duplicidade\" nos filtros selecionados.") : tx("Nenhuma duplicidade encontrada para os filtros selecionados.")}
                     </p>
                 </div>
             ) : (

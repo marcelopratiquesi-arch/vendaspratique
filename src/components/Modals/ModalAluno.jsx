@@ -5,6 +5,7 @@ import { normalizarNome, normalizarNumeros, formatarTelefone, validarEmail, vali
 import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade } from '../../pages/Alunos/utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { avisar } from '../avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogado, unidadeDestino }) => {
     const { t } = useI18n(); 
@@ -188,8 +189,8 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             if (error) throw error;
 
             if (data && data.length > 0) {
-                const nomeDono = data[0].alunos?.nome || 'Outro Aluno';
-                setErroMatricula(`JÁ EM USO POR: ${nomeDono.toUpperCase()} (NESTA UNIDADE)`);
+                const nomeDono = data[0].alunos?.nome || tx('Outro Aluno');
+                setErroMatricula(tx('JÁ EM USO POR: {nome} (NESTA UNIDADE)', { nome: nomeDono.toUpperCase() }));
             } else setErroMatricula('');
         } catch (error) {
             console.error("Erro matricula:", error);
@@ -220,7 +221,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             const { data, error } = await query;
             if (error) throw error;
 
-            if (data && data.length > 0) setErroTelefone(`JÁ EM USO POR: ${data[0].nome.toUpperCase()}`);
+            if (data && data.length > 0) setErroTelefone(tx('JÁ EM USO POR: {nome}', { nome: data[0].nome.toUpperCase() }));
             else setErroTelefone('');
         } catch (error) {
             console.error("Erro telefone:", error);
@@ -246,7 +247,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             const { data, error } = await query;
             if (error) throw error;
 
-            if (data && data.length > 0) setErroEmail(`JÁ EM USO POR: ${data[0].nome.toUpperCase()}`);
+            if (data && data.length > 0) setErroEmail(tx('JÁ EM USO POR: {nome}', { nome: data[0].nome.toUpperCase() }));
             else setErroEmail('');
         } catch (error) {
             console.error("Erro email:", error);
@@ -262,16 +263,16 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         e.preventDefault();
         
         if (erroMatricula || erroTelefone || erroEmail) {
-            return avisar("Corrija os erros apontados em vermelho antes de salvar.");
+            return avisar(tx("Corrija os erros apontados em vermelho antes de salvar."));
         }
         if (situacao === 'CARREGANDO') {
-            return avisar("Aguarde um instante: conferindo a unidade do aluno.");
+            return avisar(tx("Aguarde um instante: conferindo a unidade do aluno."));
         }
         
         // 🔥 BARREIRA CONTRA ALUNO "FANTASMA" SEM UNIDADE
         // (completar só os dados pessoais de um aluno de outra unidade não precisa de unidade escolhida)
         if (!unidadeAtiva && !somenteDadosPessoais) {
-            return avisar("🚨 ERRO CRÍTICO: Selecione uma unidade específica no topo da tela antes de cadastrar. Não é possível salvar um aluno na visão 'TODAS'.");
+            return avisar(tx("🚨 ERRO CRÍTICO: Selecione uma unidade específica no topo da tela antes de cadastrar. Não é possível salvar um aluno na visão 'TODAS'."));
         }
         
         const rawEmail = formData.email || '';
@@ -279,23 +280,23 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         const rawPhone = formData.telefone || '';
 
         if (/\s/.test(rawEmail)) return avisar(t('validation.emailWhitespace', {defaultValue: "🚨 BLOQUEADO: Remova os espaços em branco do E-MAIL."}));
-        if (!somenteDadosPessoais && /\s/.test(rawMatricula)) return avisar("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA.");
+        if (!somenteDadosPessoais && /\s/.test(rawMatricula)) return avisar(tx("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA."));
         
         const phoneError = validatePhoneStrict(rawPhone);
-        if (phoneError) return avisar(`🚨 BLOQUEADO: ${phoneError}`);
+        if (phoneError) return avisar(tx("🚨 BLOQUEADO: {phoneError}", { phoneError: phoneError }));
 
         const nomeLimpo = normalizarNome(formData.nome);
         const cpfLimpo = normalizarNumeros(formData.cpf);
         const telefoneLimpo = rawPhone.replace(/\D/g, ''); 
         const dataNasc = formData.data_nascimento;
 
-        if (!cpfLimpo) return avisar("O CPF é obrigatório para o cadastro.");
-        if (cpfLimpo.length !== 11) return avisar("O CPF informado está incompleto.");
-        if (!nomeLimpo) return avisar("O nome completo é obrigatório.");
-        if (!dataNasc) return avisar("A data de nascimento é obrigatória.");
-        if (!telefoneLimpo) return avisar("O telefone de contato é obrigatório.");
-        if (!somenteDadosPessoais && !rawMatricula) return avisar(modoTransferir ? `Informe a matrícula do aluno em ${unidadeAtiva} para transferir.` : "A matrícula é obrigatória. (Se for um visitante, digite 'VISITANTE').");
-        if (!rawEmail) return avisar("O e-mail é obrigatório.");
+        if (!cpfLimpo) return avisar(tx("O CPF é obrigatório para o cadastro."));
+        if (cpfLimpo.length !== 11) return avisar(tx("O CPF informado está incompleto."));
+        if (!nomeLimpo) return avisar(tx("O nome completo é obrigatório."));
+        if (!dataNasc) return avisar(tx("A data de nascimento é obrigatória."));
+        if (!telefoneLimpo) return avisar(tx("O telefone de contato é obrigatório."));
+        if (!somenteDadosPessoais && !rawMatricula) return avisar(modoTransferir ? tx("Informe a matrícula do aluno em {unidadeAtiva} para transferir.", { unidadeAtiva: unidadeAtiva }) : tx("A matrícula é obrigatória. (Se for um visitante, digite 'VISITANTE')."));
+        if (!rawEmail) return avisar(tx("O e-mail é obrigatório."));
         if (!validarEmail(rawEmail)) return avisar(t('validation.emailInvalid', {defaultValue: "O formato do e-mail é inválido."}));
 
         setIsSubmitting(true);
@@ -307,7 +308,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 if (errCpf) throw errCpf;
                 if (dupCpf && dupCpf.length > 0) {
                     setIsSubmitting(false);
-                    return avisar(`🚨 BLOQUEADO: O CPF ${formData.cpf} já está cadastrado para ${String(dupCpf[0].nome || '').toUpperCase()}. Busque o aluno pelo CPF em vez de cadastrar de novo.`);
+                    return avisar(tx("🚨 BLOQUEADO: O CPF {cpf} já está cadastrado para {v2}. Busque o aluno pelo CPF em vez de cadastrar de novo.", { cpf: formData.cpf, v2: String(dupCpf[0].nome || '').toUpperCase() }));
                 }
             }
 
@@ -325,8 +326,8 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                     const conflitoTelefone = conflitosGlobais.find(a => [telefoneLimpo, telSemNove, telComNove].includes(a.telefone));
                     const conflitoEmail = conflitosGlobais.find(a => (a.email || '').toLowerCase() === rawEmail.toLowerCase());
                     
-                    if (conflitoTelefone) { setIsSubmitting(false); return avisar(`🚨 BLOQUEADO: O telefone ${formData.telefone} já existe no banco de dados!`); }
-                    if (conflitoEmail) { setIsSubmitting(false); return avisar(`🚨 BLOQUEADO: O e-mail ${rawEmail} já existe no banco de dados!`); }
+                    if (conflitoTelefone) { setIsSubmitting(false); return avisar(tx("🚨 BLOQUEADO: O telefone {telefone} já existe no banco de dados!", { telefone: formData.telefone })); }
+                    if (conflitoEmail) { setIsSubmitting(false); return avisar(tx("🚨 BLOQUEADO: O e-mail {rawEmail} já existe no banco de dados!", { rawEmail: rawEmail })); }
                 }
             }
 
@@ -346,7 +347,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 if (dupLocal && dupLocal.length > 0) {
                     const conflitoMatricula = dupLocal.filter(link => link.aluno_id !== formData.id);
                     if (conflitoMatricula.length > 0) {
-                        setIsSubmitting(false); return avisar(`🚨 BLOQUEADO: A matrícula ${rawMatricula} já está em uso nesta unidade!`);
+                        setIsSubmitting(false); return avisar(tx("🚨 BLOQUEADO: A matrícula {rawMatricula} já está em uso nesta unidade!", { rawMatricula: rawMatricula }));
                     }
                 }
             }
@@ -393,7 +394,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 // Move o vínculo para esta unidade (apaga os das outras unidades) com a matrícula nova
                 const resultado = await moverVinculoAlunos(unidadeAtiva, [alunoIdDestino], [rawMatricula]);
                 if (!resultado.ok) {
-                    avisar(`Os dados pessoais foram salvos, mas a transferência para ${unidadeAtiva} NÃO foi feita.\n\nMotivo: ${resultado.erro}`);
+                    avisar(tx("Os dados pessoais foram salvos, mas a transferência para {unidadeAtiva} NÃO foi feita.\n\nMotivo: {erro}", { unidadeAtiva: unidadeAtiva, erro: resultado.erro }));
                 }
             } else {
                 // Aluno novo, sem vínculo, ou já desta unidade: grava/atualiza o vínculo DESTA unidade
@@ -415,7 +416,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             onClose();
         } catch (error) {
             console.error(error);
-            avisar('Erro interno ao salvar os dados do aluno. Verifique sua conexão.');
+            avisar(tx("Erro interno ao salvar os dados do aluno. Verifique sua conexão."));
         } finally {
             setIsSubmitting(false);
         }
@@ -436,11 +437,11 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                             {formData.id ? <UserRoundPen className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{formData.id ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}</h3>
+                            <h3 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{formData.id ? tx("Editar Dados do Cliente") : tx("Cadastrar Novo Cliente")}</h3>
                             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                Vínculo: <span className="text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px]">
+                                {tx("Vínculo:")}{' '}<span className="text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px]">
                                     {situacao === 'CARREGANDO' ? '...'
-                                        : (situacao === 'NOVO' || situacao === 'SEM_VINCULO' || modoTransferir) ? (unidadeAtiva || 'NENHUMA')
+                                        : (situacao === 'NOVO' || situacao === 'SEM_VINCULO' || modoTransferir) ? (unidadeAtiva || tx("NENHUMA"))
                                         : vinculosAluno.join(' + ')}
                                 </span>
                             </p>
@@ -456,27 +457,27 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         <div className="flex-1">
                             {modoTransferir ? (
                                 <>
-                                    <p className="text-sm font-bold text-blue-800 dark:text-blue-300 tracking-tight">TRANSFERIR PARA {unidadeAtiva}</p>
+                                    <p className="text-sm font-bold text-blue-800 dark:text-blue-300 tracking-tight">{tx("TRANSFERIR PARA")}{' '}{unidadeAtiva}</p>
                                     <p className="text-xs font-medium text-blue-700 dark:text-blue-300 leading-snug mt-1">
-                                        Ao salvar, o vínculo sai de <strong>{unidadesDeFora.join(' + ')}</strong> e passa a ser só de <strong>{unidadeAtiva}</strong>. Informe a matrícula do aluno nesta unidade.
+                                        {tx("Ao salvar, o vínculo sai de")}{' '}<strong>{unidadesDeFora.join(' + ')}</strong>{' '}{tx("e passa a ser só de")}{' '}<strong>{unidadeAtiva}</strong>{tx(". Informe a matrícula do aluno nesta unidade.")}
                                     </p>
                                     <button type="button" onClick={cancelarTransferencia} className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
-                                        Cancelar transferência
+                                        {tx("Cancelar transferência")}
                                     </button>
                                 </>
                             ) : (
                                 <>
                                     <p className="text-sm font-bold text-amber-800 dark:text-amber-300 tracking-tight">
-                                        {vinculoMultiplo ? 'LIGADO A MAIS DE UMA UNIDADE, CONFERIR' : `ALUNO DE OUTRA UNIDADE · ${vinculosAluno[0]}`}
+                                        {vinculoMultiplo ? tx("LIGADO A MAIS DE UMA UNIDADE, CONFERIR") : tx("ALUNO DE OUTRA UNIDADE · {v1}", { v1: vinculosAluno[0] })}
                                     </p>
                                     <p className="text-xs font-medium text-amber-700 dark:text-amber-300 leading-snug mt-1">
                                         {situacao === 'OUTRA'
-                                            ? `Este aluno é de ${vinculosAluno.join(' + ')}. Salvar aqui só atualiza os dados pessoais e não muda a unidade dele.`
-                                            : `Este aluno também está ligado a ${unidadesDeFora.join(' + ')}. Cada aluno deve ter um vínculo só.`}
+                                            ? tx("Este aluno é de {v1}. Salvar aqui só atualiza os dados pessoais e não muda a unidade dele.", { v1: vinculosAluno.join(' + ') })
+                                            : tx("Este aluno também está ligado a {v1}. Cada aluno deve ter um vínculo só.", { v1: unidadesDeFora.join(' + ') })}
                                     </p>
                                     {podeTransferir && (
                                         <button type="button" onClick={iniciarTransferencia} className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2">
-                                            <ArrowRightLeft className="w-4 h-4" /> {situacao === 'OUTRA' ? 'Transferir para minha unidade' : `Deixar só em ${unidadeAtiva}`}
+                                            <ArrowRightLeft className="w-4 h-4" /> {situacao === 'OUTRA' ? tx("Transferir para minha unidade") : tx("Deixar só em {unidadeAtiva}", { unidadeAtiva: unidadeAtiva })}
                                         </button>
                                     )}
                                 </>
@@ -489,7 +490,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                     <div className="bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/30 p-4 flex items-start gap-3">
                         <Link className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                         <p className="text-xs font-medium text-amber-700 dark:text-amber-300 leading-snug">
-                            Este aluno não está ligado a nenhuma unidade. Ao salvar, ele fica ligado a <strong>{unidadeAtiva || 'NENHUMA'}</strong>.
+                            {tx("Este aluno não está ligado a nenhuma unidade. Ao salvar, ele fica ligado a")}{' '}<strong>{unidadeAtiva || tx("NENHUMA")}</strong>.
                         </p>
                     </div>
                 )}
@@ -497,29 +498,29 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 <form onSubmit={handleSave} className="p-6 space-y-5" noValidate>
                     <div className="grid grid-cols-2 gap-5">
                         <div className="col-span-2">
-                            <label className={labelClass}>CPF *</label>
+                            <label className={labelClass}>{tx("CPF *")}</label>
                             <input type="text" name="cpf" value={formData.cpf} onChange={handleChange} disabled={!!formData.id} className={`${inputClassBase} uppercase`} placeholder="000.000.000-00" />
                         </div>
                         
                         <div className="col-span-2">
-                            <label className={labelClass}>Nome Completo *</label>
-                            <input type="text" name="nome" value={formData.nome} onChange={handleChange} className={`${inputClassBase} uppercase`} placeholder="Ex: João da Silva" />
+                            <label className={labelClass}>{tx("Nome Completo *")}</label>
+                            <input type="text" name="nome" value={formData.nome} onChange={handleChange} className={`${inputClassBase} uppercase`} placeholder={tx("Ex: João da Silva")} />
                         </div>
                         
                         <div className="col-span-1">
-                            <label className={labelClass}>Data de Nascimento *</label>
+                            <label className={labelClass}>{tx("Data de Nascimento *")}</label>
                             <input type="date" name="data_nascimento" value={formData.data_nascimento} onChange={handleChange} className={inputClassBase} />
                         </div>
                         
                         <div className="col-span-1">
-                            <label className={labelClass}>Idade</label>
+                            <label className={labelClass}>{tx("Idade")}</label>
                             <div className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center shadow-sm">
-                                {idade !== null ? `${idade} anos` : '—'}
+                                {idade !== null ? tx("{idade} anos", { idade: idade }) : '—'}
                             </div>
                         </div>
 
                         <div className="col-span-1 relative">
-                            <label className={labelClass}>Telefone / WhatsApp *</label>
+                            <label className={labelClass}>{tx("Telefone / WhatsApp *")}</label>
                             <div className="relative">
                                 <input 
                                     type="text" 
@@ -538,7 +539,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
 
                         <div className="col-span-1 relative">
                             <label className={labelClass}>
-                                {somenteDadosPessoais ? `Matrícula (de ${vinculosAluno[0] || 'outra unidade'})` : modoTransferir ? `Matrícula em ${unidadeAtiva} *` : 'Matrícula (Nesta Unidade) *'}
+                                {somenteDadosPessoais ? tx("Matrícula (de {v1})", { v1: vinculosAluno[0] || 'outra unidade' }) : modoTransferir ? tx("Matrícula em {unidadeAtiva} *", { unidadeAtiva: unidadeAtiva }) : tx("Matrícula (Nesta Unidade) *")}
                             </label>
                             <div className="relative">
                                 <input
@@ -548,9 +549,9 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                     onChange={handleChange}
                                     onBlur={handleBlurMatricula}
                                     disabled={somenteDadosPessoais || situacao === 'CARREGANDO'}
-                                    title={somenteDadosPessoais ? 'A matrícula é da unidade do aluno. Para mudar, use "Transferir para minha unidade".' : undefined}
+                                    title={somenteDadosPessoais ? tx("A matrícula é da unidade do aluno. Para mudar, use \"Transferir para minha unidade\".") : undefined}
                                     className={`${inputClassBase} uppercase ${erroMatricula ? 'border-rose-500 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
-                                    placeholder="Ex: 012345" 
+                                    placeholder={tx("Ex: 012345")} 
                                 />
                                 {verificandoMatricula && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
                                 {erroMatricula && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
@@ -559,7 +560,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         </div>
 
                         <div className="col-span-2 relative">
-                            <label className={labelClass}>E-mail corporativo ou pessoal *</label>
+                            <label className={labelClass}>{tx("E-mail corporativo ou pessoal *")}</label>
                             <div className="relative">
                                 <input 
                                     type="email" 
@@ -568,7 +569,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                     onChange={handleChange} 
                                     onBlur={handleBlurEmail}
                                     className={`${inputClassBase} lowercase ${erroEmail ? 'border-rose-500 text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-500/10 focus:ring-rose-500/20 focus:border-rose-500' : ''}`} 
-                                    placeholder="aluno@email.com" 
+                                    placeholder={tx("aluno@email.com")} 
                                 />
                                 {verificandoEmail && <Loader2 className="w-4 h-4 text-blue-500 animate-spin absolute right-3 top-1/2 -translate-y-1/2" />}
                                 {erroEmail && <AlertTriangle className="w-4 h-4 text-rose-500 absolute right-3 top-1/2 -translate-y-1/2" />}
@@ -578,11 +579,11 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                     </div>
 
                     <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 mt-4">
-                        <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-white rounded-lg text-sm font-semibold transition-colors">Cancelar</button>
+                        <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-white rounded-lg text-sm font-semibold transition-colors">{tx("Cancelar")}</button>
                         
                         <button type="submit" disabled={isSubmitting || situacao === 'CARREGANDO' || !!erroMatricula || !!erroTelefone || !!erroEmail} className={`px-6 py-2.5 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${formData.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                             {isSubmitting || situacao === 'CARREGANDO' ? <Loader2 className="w-4 h-4 animate-spin" /> : modoTransferir ? <ArrowRightLeft className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                            {isSubmitting ? 'Processando...' : modoTransferir ? 'Salvar e Transferir' : somenteDadosPessoais ? 'Salvar Dados Pessoais' : 'Salvar Cliente'}
+                            {isSubmitting ? tx("Processando...") : modoTransferir ? tx("Salvar e Transferir") : somenteDadosPessoais ? tx("Salvar Dados Pessoais") : tx("Salvar Cliente")}
                         </button>
                     </div>
                 </form>

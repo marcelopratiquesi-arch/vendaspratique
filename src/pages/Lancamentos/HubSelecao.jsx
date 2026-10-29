@@ -1,6 +1,7 @@
 import React from 'react';
 import { ShoppingCart, UserPlus, ClipboardSignature } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 const HubSelecao = ({ setModalidade }) => {
     
@@ -26,7 +27,7 @@ const HubSelecao = ({ setModalidade }) => {
         }
 
         if (!conseguiuClicar) {
-            avisar('Não foi possível encontrar o botão no menu lateral. Vamos precisar do arquivo principal (App.jsx ou Dashboard.jsx).');
+            avisar(tx("Não foi possível encontrar o botão no menu lateral. Vamos precisar do arquivo principal (App.jsx ou Dashboard.jsx)."));
         }
     };
 
@@ -38,8 +39,8 @@ const HubSelecao = ({ setModalidade }) => {
                     <ShoppingCart className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">Venda Financeira</h2>
-                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">Registrar venda de planos, produtos físicos, diárias ou taxas.</p>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">{tx("Venda Financeira")}</h2>
+                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">{tx("Registrar venda de planos, produtos físicos, diárias ou taxas.")}</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>
@@ -49,8 +50,8 @@ const HubSelecao = ({ setModalidade }) => {
                     <UserPlus className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">Novo Visitante</h2>
-                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">Cadastrar uma pessoa que veio conhecer a academia. Vai pro CRM.</p>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">{tx("Novo Visitante")}</h2>
+                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">{tx("Cadastrar uma pessoa que veio conhecer a academia. Vai pro CRM.")}</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>
@@ -61,9 +62,9 @@ const HubSelecao = ({ setModalidade }) => {
                     <ClipboardSignature className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">Avaliação Física</h2>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">{tx("Avaliação Física")}</h2>
                     {/* A frase "Módulo completo" abaixo é usada como trava de segurança no código, não mude ela! */}
-                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">Módulo completo para gerenciar avaliações e importar exames.</p>
+                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">{tx("Módulo completo para gerenciar avaliações e importar exames.")}</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-orange-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>

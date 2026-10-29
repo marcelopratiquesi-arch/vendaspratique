@@ -1,19 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { mesesLista, formatMoney, getUltimos6Meses } from './utils.js';
+import { formatMoney } from './utils.js';
+import { SeletorPeriodo, calcularPreset, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
+import { usePeriodoPadrao } from '../../components/periodoPadrao.js';
 import { pedirMotivoExclusao, excluirVendaComMotivo } from '../HistoricoVendas/utils.js';
 import ConferenciaTab from './ConferenciaTab.jsx';
 import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
-import { CalendarDays, CalendarRange, Sun, RefreshCw, Building2, UserCheck, AlertCircle, PieChart, ShieldAlert, Wallet, ClipboardCheck, Users, BarChart2 } from 'lucide-react';
+import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, ChevronDown } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
-
-// Data de hoje no horário do computador (Brasília): o dia vai até 23h59, e não vira às 21h como no horário UTC
-const hojeLocalISO = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
+import { tx } from '../../i18n/traduzir.js';
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
     const [subAba, setSubAba] = useState('conferencia');
@@ -28,38 +25,28 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         fetchCatalogo();
     }, []);
 
-    const [tipoFiltroAvancado, setTipoFiltroAvancado] = useState('mes');
-    const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
-    const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
-    const [dataInicialInput, setDataInicialInput] = useState('');
-    const [dataFinalInput, setDataFinalInput] = useState('');
-    const [filtroDia, setFiltroDia] = useState(hojeLocalISO());
+    // Filtro de período padrão do sistema (começa em "Este mês"). Faixa: início entra, fim não entra.
+    const periodo = usePeriodoPadrao('este_mes');
+    const inicioIso = periodo.faixa.inicio ? isoLocal(periodo.faixa.inicio) : '';
+    const fimIso = periodo.faixa.fim ? isoLocal(periodo.faixa.fim) : '';
     const [filtroUnidadeIsolada, setFiltroUnidadeIsolada] = useState('TODOS'); 
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     let colunasVisiveis = 10;
     if (temVisaoGlobal) colunasVisiveis++;
 
+    // Limpar volta ao jeito que a tela abre: "Este mês" e todas as unidades
     const limparFiltros = () => {
-        setTipoFiltroAvancado('dia');
-        setFiltroMes(String(new Date().getMonth() + 1).padStart(2, '0'));
-        setFiltroAno(new Date().getFullYear().toString());
-        setDataInicialInput('');
-        setDataFinalInput('');
-        setFiltroDia(hojeLocalISO());
+        periodo.propsSeletor.onAplicar(calcularPreset('este_mes'));
         if (temVisaoGlobal) setFiltroUnidadeIsolada('TODOS');
     };
+    const temFiltroAtivo = periodo.filtro.preset !== 'este_mes' || filtroUnidadeIsolada !== 'TODOS';
 
     const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean); 
-    const anosUnicos = [...new Set(vendas.map(v => v.data?.split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
-    if(anosUnicos.length === 0) anosUnicos.push(new Date().getFullYear().toString());
-
     const vendasDataAvancada = vendas.filter(v => {
         if (!v.data) return false;
-        if (tipoFiltroAvancado === 'dia') return v.data === filtroDia;
-        if (tipoFiltroAvancado === 'mes') return v.data.startsWith(`${filtroAno}-${filtroMes}`);
-        if (dataInicialInput && v.data < dataInicialInput) return false;
-        if (dataFinalInput && v.data > dataFinalInput) return false;
+        if (inicioIso && v.data < inicioIso) return false;
+        if (fimIso && v.data >= fimIso) return false;
         return true;
     });
 
@@ -80,7 +67,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         if (error) {
             console.error("Erro ao atualizar:", error);
-            avisar("Erro de conexão. Revertendo alteração.");
+            avisar(tx("Erro de conexão. Revertendo alteração."));
             setVendas(vendas.map(v => v.id === id ? { ...v, conferiu: statusAtual } : v));
         }
     };
@@ -105,7 +92,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         if (error) {
             console.error("Erro ao editar venda:", error);
-            avisar("Erro ao salvar a edição. Tente novamente.");
+            avisar(tx("Erro ao salvar a edição. Tente novamente."));
             throw error; 
         } else {
             setVendas(vendas.map(v => v.id === vendaEditada.id ? { ...v, ...vendaEditada, comissao: vendaEditada.valor } : v));
@@ -119,7 +106,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         const error = await excluirVendaComMotivo(supabase, id, motivo);
         if (error) {
             console.error("Erro ao excluir venda:", error);
-            avisar(`Não foi possível excluir a venda.\n\n${error.message || ''}`);
+            avisar(tx("Não foi possível excluir a venda.\n\n{v1}", { v1: error.message || '' }));
             return false;
         }
         setVendas(vendas.filter(v => v.id !== id));
@@ -129,7 +116,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     const marcarTodosConferidos = async (idsParaMarcar = []) => {
         const idsAlvo = Array.isArray(idsParaMarcar) && idsParaMarcar.length > 0 ? idsParaMarcar : vendasParaConferencia.map(v => v.id);
         if (idsAlvo.length === 0) return;
-        if (!window.confirm(`Marcar os ${idsAlvo.length} itens da lista atual como CONFERIDOS?`)) return;
+        if (!window.confirm(tx("Marcar os {length} itens da lista atual como CONFERIDOS?", { length: idsAlvo.length }))) return;
         
         const validadorNome = usuarioLogado.nome;
         const validadorData = new Date().toISOString();
@@ -194,12 +181,14 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     let totalAuditoriaRegistrados = 0;
     let totalAuditoriaConferidos = 0;
     let totalAuditoriaPendentes = 0;
+    let totalAuditoriaValorPendente = 0;
 
     vendasDataAvancada.forEach(v => {
         const unid = v.unidade || 'MATRIZ';
         if (filtroUnidadeIsolada !== 'TODOS' && unid !== filtroUnidadeIsolada) return;
 
-        if (!relatorioAuditoria[unid]) relatorioAuditoria[unid] = { unidade: unid, registrados: 0, conferidos: 0, pendentes: 0 };
+        if (!temVisaoGlobal && unid !== usuarioLogado?.unidade) return;
+        if (!relatorioAuditoria[unid]) relatorioAuditoria[unid] = { unidade: unid, registrados: 0, conferidos: 0, pendentes: 0, valorPendente: 0, ultimaEm: null, ultimaPor: null };
         
         relatorioAuditoria[unid].registrados++;
         totalAuditoriaRegistrados++;
@@ -209,166 +198,96 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
             totalAuditoriaConferidos++;
         } else {
             relatorioAuditoria[unid].pendentes++;
+            relatorioAuditoria[unid].valorPendente += Number(v.valor) || 0;
             totalAuditoriaPendentes++;
+            totalAuditoriaValorPendente += Number(v.valor) || 0;
         }
     });
 
-    const dadosTabelaAuditoria = Object.values(relatorioAuditoria).sort((a, b) => b.pendentes - a.pendentes);
-    const ultimos6Meses = getUltimos6Meses();
-    const mesAtualLabel = ultimos6Meses[0].label; 
+    // Última conferência de cada unidade (qualquer data carregada), para ver se alguém está deixando acumular
+    vendas.forEach(v => {
+        const linha = relatorioAuditoria[v.unidade || 'MATRIZ'];
+        if (!linha || !v.conferiu || !v.conferido_em) return;
+        if (!linha.ultimaEm || v.conferido_em > linha.ultimaEm) { linha.ultimaEm = v.conferido_em; linha.ultimaPor = v.conferido_por; }
+    });
+    const dadosTabelaAuditoria = Object.values(relatorioAuditoria).sort((a, b) => b.pendentes - a.pendentes || b.valorPendente - a.valorPendente);
+    const totaisAuditoria = { registrados: totalAuditoriaRegistrados, conferidos: totalAuditoriaConferidos, pendentes: totalAuditoriaPendentes, valorPendente: totalAuditoriaValorPendente };
 
-    const unidadesParaAnalisar = temVisaoGlobal 
-        ? unidadesUnicas.filter(u => u !== 'TODOS') 
-        : [usuarioLogado?.unidade].filter(Boolean);
+    const abrirConferenciaDaUnidade = (unidade) => {
+        if (temVisaoGlobal) setFiltroUnidadeIsolada(unidade);
+        setSubAba('conferencia');
+    };
 
-    const visaoGeralUnidades = unidadesParaAnalisar.map(unidade => {
-        const vendasDaUnidade = vendas.filter(v => v.unidade === unidade && v.conferiu);
-        const historico = ultimos6Meses.map(m => {
-            const totalDoMes = vendasDaUnidade
-                .filter(v => v.data?.startsWith(`${m.ano}-${m.mes}`))
-                .reduce((acc, v) => acc + (Number(v.valor) || 0), 0);
-            return { label: m.label, total: totalDoMes };
-        }).reverse(); 
-
-        const totalAtual = historico[historico.length - 1].total; 
-        return { unidade, totalAtual, historico };
-    }).sort((a, b) => b.totalAtual - a.totalAtual);
-
-    const totalGeralRedeAtual = visaoGeralUnidades.reduce((acc, u) => acc + u.totalAtual, 0);
+    // Visão Geral: mês de referência = último mês do período escolhido (sem fim, ou no futuro = mês de hoje)
+    const chaveMesReferencia = (() => {
+        const hoje = new Date();
+        const ultimoDia = periodo.faixa.fim ? new Date(periodo.faixa.fim.getFullYear(), periodo.faixa.fim.getMonth(), periodo.faixa.fim.getDate() - 1) : hoje;
+        const d = ultimoDia > hoje ? hoje : ultimoDia;
+        return `${d.getFullYear()}-${d.getMonth()}`;
+    })();
+    const mesReferencia = useMemo(() => {
+        const [a, m] = chaveMesReferencia.split('-').map(Number);
+        return new Date(a, m, 1);
+    }, [chaveMesReferencia]);
+    const unidadesPermitidas = useMemo(() => [...new Set(vendas.map(v => v.unidade || 'MATRIZ'))], [vendas]);
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto pb-10">
             
-            {/* NOVO HEADER REDESIGN PREMIUM */}
-            <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-slate-200 p-6 md:p-8 relative z-20 dark:bg-slate-900 dark:border-slate-800">
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
-                    <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-blue-600 text-white rounded-[18px] flex items-center justify-center shrink-0 shadow-md">
-                            <Wallet className="w-6 h-6" />
-                        </div>
-                        <div className="flex flex-col">
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">Fechamento & Auditoria</h2>
-                            <p className="text-[13px] font-medium text-slate-500 mt-0.5 dark:text-slate-400">Gestão Financeira • Unidade {usuarioLogado?.unidade}</p>
-                            <p className="text-[11px] font-medium text-slate-400 mt-0.5">Selecione o período desejado para conferência de caixa e comissionamento.</p>
-                        </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                        <button onClick={limparFiltros} title="Limpar Filtros" className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-500 rounded-[16px] transition-all shadow-sm shrink-0 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/60 dark:text-slate-400">
-                            <RefreshCw className="w-4 h-4 mb-0.5" />
-                            <span className="text-[10px] font-black uppercase tracking-widest leading-none text-center">Limpar<br/>Filtros</span>
-                        </button>
-                        
-                        <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-200 flex-1 md:flex-none overflow-x-auto custom-scrollbar shadow-inner dark:bg-slate-800/60 dark:border-slate-800">
-                            <button onClick={() => setTipoFiltroAvancado('mes')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'mes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                                <CalendarDays className="w-4 h-4" /> Mês
+            {/* ABAS + FILTROS (versão compacta, mesmo padrão do Dashboard e do Histórico) */}
+            <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-4 md:p-5 relative z-20 flex flex-wrap items-center justify-between gap-3 dark:bg-slate-900 dark:border-slate-800">
+                <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 max-w-full dark:bg-slate-800" role="tablist" aria-label={tx("Seções")}>
+                    {[
+                        ['conferencia', 'Conferência', ClipboardCheck],
+                        ['comissoes', 'Comissões', Users],
+                        ['geral', 'Visão Geral', PieChart],
+                        ...(temVisaoGlobal ? [['auditoria', 'Auditoria', ShieldAlert]] : []),
+                    ].map(([id, rotulo, Icone]) => {
+                        const ativa = subAba === id;
+                        return (
+                            <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => setSubAba(id)}
+                                className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
+                                <Icone className="w-4 h-4" /> {tx(rotulo)}
                             </button>
-                            <button onClick={() => setTipoFiltroAvancado('periodo')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'periodo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                                <CalendarRange className="w-4 h-4" /> Período
-                            </button>
-                            <button onClick={() => setTipoFiltroAvancado('dia')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'dia' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                                <Sun className="w-4 h-4" /> Dia
-                            </button>
-                        </div>
-                    </div>
+                        );
+                    })}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6">
-                    {tipoFiltroAvancado === 'mes' && (
-                        <>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Mês Ref.</label>
-                                <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200">
-                                    {mesesLista.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
-                                </select>
-                            </div>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Ano Ref.</label>
-                                <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200">
-                                    {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
-                                </select>
-                            </div>
-                        </>
-                    )}
-
-                    {tipoFiltroAvancado === 'periodo' && (
-                        <>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">A partir de</label>
-                                <input type="date" value={dataInicialInput} onChange={(e) => setDataInicialInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
-                            </div>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Até (Fim)</label>
-                                <input type="date" value={dataFinalInput} onChange={(e) => setDataFinalInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
-                            </div>
-                        </>
-                    )}
-
-                    {tipoFiltroAvancado === 'dia' && (
-                        <div className="xl:col-span-2 bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
-                            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Dia Específico</label>
-                            <input type="date" value={filtroDia} onChange={(e) => setFiltroDia(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
-                        </div>
-                    )}
-
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
+                        {tx(periodo.rotulo)} · {temVisaoGlobal ? (filtroUnidadeIsolada === 'TODOS' ? tx("Todas as unidades") : filtroUnidadeIsolada) : (usuarioLogado?.unidade || '')}
+                    </span>
                     {temVisaoGlobal && (
-                        <div className="bg-rose-50/30 border border-rose-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-rose-50/50 dark:bg-rose-500/10 dark:border-rose-500/30 dark:hover:bg-rose-500/10">
-                            <label className="text-[11px] font-black text-rose-700 uppercase tracking-widest flex items-center gap-2 dark:text-rose-400"><Building2 className="w-3 h-3"/> Isolar Unidade</label>
-                            <select value={filtroUnidadeIsolada} onChange={(e) => setFiltroUnidadeIsolada(e.target.value)} className="w-full bg-white border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm font-black outline-none cursor-pointer uppercase shadow-sm dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-400">
-                                {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS UNIDADES' : u}</option>)}
+                        <div className="relative">
+                            <Building2 className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroUnidadeIsolada !== 'TODOS' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
+                            <select value={filtroUnidadeIsolada} onChange={(e) => setFiltroUnidadeIsolada(e.target.value)} aria-label={tx("Isolar Unidade")}
+                                className={`h-[42px] pl-9 pr-8 rounded-xl border text-[13px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${filtroUnidadeIsolada !== 'TODOS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:text-slate-200'}`}>
+                                {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? tx("Unidade: todas") : u}</option>)}
                             </select>
+                            <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                         </div>
                     )}
-                </div>
-
-                {/* BOTÕES DE ABAS */}
-                <div className="flex bg-slate-100 p-1.5 rounded-[18px] w-full border border-slate-200 overflow-x-auto custom-scrollbar shadow-inner mt-4 dark:bg-slate-800 dark:border-slate-800">
-                    <button onClick={() => setSubAba('conferencia')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'conferencia' ? 'bg-white shadow-sm text-blue-600 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                        <ClipboardCheck className="w-4 h-4" /> Conferência
-                    </button>
-                    <button onClick={() => setSubAba('comissoes')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'comissoes' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200/50 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                        <Users className="w-4 h-4" /> Comissões
-                    </button>
-                    <button onClick={() => setSubAba('geral')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'geral' ? 'bg-white shadow-sm text-blue-600 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                        <PieChart className="w-4 h-4" /> Visão Geral
-                    </button>
-                    {temVisaoGlobal && (
-                        <button onClick={() => setSubAba('auditoria')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'auditoria' ? 'bg-white shadow-sm text-rose-600 border border-slate-200/50 dark:bg-slate-900 dark:text-rose-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
-                            <ShieldAlert className="w-4 h-4" /> Auditoria
+                    {temFiltroAtivo && (
+                        <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
+                            <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
                         </button>
                     )}
+                    <SeletorPeriodo {...periodo.propsSeletor} />
                 </div>
             </div>
 
             {subAba === 'comissoes' && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-[fadeIn_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2 dark:text-slate-400">Status do Repasse</h3>
+                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2 dark:text-slate-400">{tx("Status do Repasse")}</h3>
                         <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full dark:bg-emerald-500/10 dark:border-emerald-500/30">
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest dark:text-emerald-400">Pagamento Aprovado</span>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest dark:text-emerald-400">{tx("Pagamento Aprovado")}</span>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 dark:text-slate-400">Comissão Total Auditada</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 dark:text-slate-400">{tx("Comissão Total Auditada")}</p>
                         <p className="text-4xl font-bold text-emerald-700 tracking-tight leading-none dark:text-emerald-400">{formatMoney(comissaoTotalGeral)}</p>
-                    </div>
-                </div>
-            )}
-
-            {subAba === 'auditoria' && (
-                <div className="flex gap-4 w-full xl:w-auto flex-wrap sm:flex-nowrap animate-[fadeIn_0.3s_ease-out]">
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">Total Registrado</span>
-                        <span className="text-3xl font-black text-slate-800 tracking-tight leading-none mt-1 dark:text-white">{totalAuditoriaRegistrados}</span>
-                    </div>
-                    <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
-                        <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Conferidos</span>
-                        <span className="text-3xl font-black text-emerald-700 tracking-tight leading-none mt-1 dark:text-emerald-400">{totalAuditoriaConferidos}</span>
-                    </div>
-                    <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm dark:bg-rose-500/10 dark:border-rose-500/30">
-                        <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Pendentes</span>
-                        <span className="text-3xl font-black text-rose-700 tracking-tight leading-none mt-1 dark:text-rose-400">{totalAuditoriaPendentes}</span>
                     </div>
                 </div>
             )}
@@ -389,8 +308,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 />
             )}
             {subAba === 'comissoes' && <ComissoesTab dadosTabelaComissoes={dadosTabelaComissoes} />}
-            {subAba === 'auditoria' && temVisaoGlobal && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} />}
-            {subAba === 'geral' && <VisaoGeralTab mesAtualLabel={mesAtualLabel} totalGeralRedeAtual={totalGeralRedeAtual} visaoGeralUnidades={visaoGeralUnidades} />}
+            {subAba === 'auditoria' && temVisaoGlobal && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} onAbrirUnidade={abrirConferenciaDaUnidade} />}
+            {subAba === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} />}
         </div>
     );
 };

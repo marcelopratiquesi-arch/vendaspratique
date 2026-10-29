@@ -3,6 +3,7 @@ import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, contatoCombinaCom
 import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus, Search, X, Ban, CalendarPlus, Hourglass } from 'lucide-react';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
+import { tx } from '../../i18n/traduzir.js';
 
 const Lista = ({ 
     visitantes, 
@@ -104,24 +105,24 @@ const Lista = ({
             <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
                 <div>
                     <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
-                        <ListPlus className="w-6 h-6 text-blue-500"/> Visão de Lista
-                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 ml-2 shadow-sm">{leadsExibidos.length} Filtrados</span>
+                        <ListPlus className="w-6 h-6 text-blue-500"/>{' '}{tx("Visão de Lista")}
+                        <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 ml-2 shadow-sm">{leadsExibidos.length}{' '}{tx("Filtrados")}</span>
                     </h3>
                 </div>
 
                 <div className="flex items-center gap-3">
                     {selecionados.length > 0 && (
                         <div className="flex items-center gap-2 mr-4 animate-[fadeIn_0.2s_ease-out] bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-500/30 shadow-sm">
-                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest mr-2">{selecionados.length} Selecionados:</span>
+                            <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest mr-2">{selecionados.length}{' '}{tx("Selecionados:")}</span>
                             
                             {podeApagar && (
                                 <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
-                                    <Trash2 className="w-3.5 h-3.5" /> Excluir do Banco
+                                    <Trash2 className="w-3.5 h-3.5" />{' '}{tx("Excluir do Banco")}
                                 </button>
                             )}
 
                             <button onClick={() => limparEExecutar(alterarStatusEmLote, 'Perdido')} className="bg-cyan-500 hover:bg-cyan-600 text-white font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
-                                <Snowflake className="w-3.5 h-3.5" /> Enviar p/ Geladeira
+                                <Snowflake className="w-3.5 h-3.5" />{' '}{tx("Enviar p/ Geladeira")}
                             </button>
                         </div>
                     )}
@@ -132,11 +133,11 @@ const Lista = ({
                             type="text"
                             value={busca}
                             onChange={(e) => { setBusca(e.target.value); setSelecionados([]); }}
-                            placeholder="Buscar por nome, CPF ou telefone"
+                            placeholder={tx("Buscar por nome, CPF ou telefone")}
                             className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
                         />
                         {busca && (
-                            <button type="button" onClick={() => { setBusca(''); setSelecionados([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title="Limpar busca">
+                            <button type="button" onClick={() => { setBusca(''); setSelecionados([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -146,16 +147,16 @@ const Lista = ({
                         type="button"
                         onClick={() => { setSoParados(v => !v); setSelecionados([]); }}
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${soParados ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300 dark:hover:border-amber-500/30'}`}
-                        title={`Só os contatos há ${DIAS_PARADO_AMARELO} dias ou mais sem nenhuma ação`}
+                        title={tx("Só os contatos há {DIAS_PARADO_AMARELO} dias ou mais sem nenhuma ação", { DIAS_PARADO_AMARELO: DIAS_PARADO_AMARELO })}
                     >
-                        <Hourglass className="w-3.5 h-3.5" /> Só parados
+                        <Hourglass className="w-3.5 h-3.5" />{' '}{tx("Só parados")}
                     </button>
 
                     <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
-                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{tx("Filtrar:")}</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
-                            <option value="">TODOS OS STATUS</option>
-                            {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
+                            <option value="">{tx("TODOS OS STATUS")}</option>
+                            {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                         </select>
                     </div>
                 </div>
@@ -174,23 +175,23 @@ const Lista = ({
                                 />
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('nome')}>
-                                <div className="flex items-center gap-1">Lead <ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+                                <div className="flex items-center gap-1">{tx("Lead")}{' '}<ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('telefone')}>
-                                Contato
+                                {tx("Contato")}
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('status')}>
-                                <div className="flex items-center gap-1">Fase do Funil <ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+                                <div className="flex items-center gap-1">{tx("Fase do Funil")}{' '}<ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
                             </th>
                             <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group" onClick={() => requestSort('puxado_em')}>
-                                <div className="flex items-center gap-1">Entrada (Puxado) <ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
+                                <div className="flex items-center gap-1">{tx("Entrada (Puxado)")}{' '}<ArrowDownUp className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" /></div>
                             </th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações Individuais</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{tx("Ações Individuais")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {leadsExibidos.length === 0 ? (
-                            <tr><td colSpan="6" className="text-center py-12 text-slate-400 font-bold uppercase tracking-widest text-[10px]">Nenhum lead encontrado neste filtro.</td></tr>
+                            <tr><td colSpan="6" className="text-center py-12 text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tx("Nenhum lead encontrado neste filtro.")}</td></tr>
                         ) : (
                             leadsExibidos.map(v => {
                                 const isSelected = selecionados.includes(v.id);
@@ -211,12 +212,12 @@ const Lista = ({
                                                 type="button"
                                                 onClick={(e) => { e.stopPropagation(); setContatoFicha(v); }}
                                                 className="text-sm font-black text-slate-800 dark:text-white uppercase flex items-center gap-2 text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 transition-colors"
-                                                title="Abrir a ficha do aluno"
+                                                title={tx("Abrir a ficha do aluno")}
                                             >
                                                 {v.nome}
                                             </button>
                                             <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>
-                                                {v.tipo_lead || 'LEAD'}
+                                                {tx(v.tipo_lead || 'LEAD')}
                                             </span>
                                             <div className="flex flex-wrap gap-1.5 mt-1">
                                                 <EtiquetaProximo lead={v} />
@@ -232,7 +233,7 @@ const Lista = ({
                                                 onChange={(e) => alterarStatus(v.id, e.target.value)} 
                                                 className={`text-[10px] font-black uppercase tracking-widest border rounded-lg h-8 px-2 outline-none cursor-pointer shadow-sm transition-colors ${token.bg} ${token.text} ${token.border} focus:ring-2 focus:ring-blue-500`}
                                             >
-                                                {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
+                                                {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                                             </select>
                                         </td>
                                         <td className="px-6 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">
@@ -240,27 +241,27 @@ const Lista = ({
                                         </td>
                                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleLigarMicroSip(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title="Ligar">
+                                                <button onClick={() => handleLigarMicroSip(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title={tx("Ligar")}>
                                                     <PhoneCall className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => abrirModalWpp(v)} className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 dark:border-emerald-500/20" title="WhatsApp">
+                                                <button onClick={() => abrirModalWpp(v)} className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 dark:border-emerald-500/20" title={tx("WhatsApp")}>
                                                     <MessageCircle className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200 dark:border-slate-800" title="Ficha Completa">
+                                                <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200 dark:border-slate-800" title={tx("Ficha Completa")}>
                                                     <Info className="w-4 h-4" />
                                                 </button>
                                                 {onProximoContato && (
-                                                    <button onClick={() => onProximoContato(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title="Marcar o próximo contato">
+                                                    <button onClick={() => onProximoContato(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title={tx("Marcar o próximo contato")}>
                                                         <CalendarPlus className="w-4 h-4" />
                                                     </button>
                                                 )}
                                                 {onNaoContatar && (
-                                                    <button onClick={() => onNaoContatar(v)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title="Não contatar (a pessoa pediu para não receber contato)">
+                                                    <button onClick={() => onNaoContatar(v)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title={tx("Não contatar (a pessoa pediu para não receber contato)")}>
                                                         <Ban className="w-4 h-4" />
                                                     </button>
                                                 )}
                                                 {podeApagar && (
-                                                    <button onClick={() => deletarLead(v.id)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title="Excluir Definitivamente">
+                                                    <button onClick={() => deletarLead(v.id)} className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 text-slate-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 hover:text-rose-600 dark:hover:text-rose-400 flex items-center justify-center transition-colors border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20" title={tx("Excluir Definitivamente")}>
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 )}

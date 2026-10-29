@@ -8,6 +8,7 @@ import { carregarLegitimas, marcarComoLegitima, desfazerLegitima } from './dupli
 import AbaLixeira from './lixeira/AbaLixeira.jsx';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia
@@ -52,8 +53,8 @@ const CopyButton = ({ textToCopy, label }) => {
             onMouseDown={(e) => e.stopPropagation()} 
             onPointerDown={(e) => e.stopPropagation()} 
             className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded transition-all flex-shrink-0 dark:hover:bg-blue-500/10"
-            title={copied ? "Copiado!" : label}
-            aria-label={copied ? "Copiado" : label}
+            title={copied ? tx("Copiado!") : label}
+            aria-label={copied ? tx("Copiado") : label}
         >
             {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
         </button>
@@ -78,19 +79,19 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const abrirFichaDoAluno = async (vendaId, cpf) => {
         if (!onAbrirAluno || abrindoAlunoId) return;
         const cpfLimpo = String(cpf || '').replace(/\D/g, '');
-        if (cpfLimpo.length !== 11) return avisar('Esta venda não tem um CPF completo. Não dá para abrir a ficha do aluno.');
+        if (cpfLimpo.length !== 11) return avisar(tx("Esta venda não tem um CPF completo. Não dá para abrir a ficha do aluno."));
         setAbrindoAlunoId(vendaId);
         try {
             const { data: achados, error } = await supabase.from('alunos').select('*')
                 .or(`cpf.eq.${cpfLimpo},cpf.eq."${formatarCPF(cpfLimpo)}"`).limit(2);
             if (error) throw error;
-            if (!achados || achados.length === 0) return avisar('Aluno não encontrado no cadastro para este CPF.');
-            if (achados.length > 1) return avisar('Existe mais de um aluno com este CPF. Peça ao gestor para corrigir os cadastros.');
+            if (!achados || achados.length === 0) return avisar(tx("Aluno não encontrado no cadastro para este CPF."));
+            if (achados.length > 1) return avisar(tx("Existe mais de um aluno com este CPF. Peça ao gestor para corrigir os cadastros."));
             const [comUnidade] = await anexarUnidades(achados);
             onAbrirAluno(comUnidade || achados[0]);
         } catch (err) {
             console.error('Erro ao abrir a ficha do aluno:', err);
-            avisar('Não foi possível abrir a ficha do aluno. Tente novamente.');
+            avisar(tx("Não foi possível abrir a ficha do aluno. Tente novamente."));
         } finally {
             setAbrindoAlunoId(null);
         }
@@ -172,7 +173,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         if(!podeEditar || isSubmitting) return;
         // Venda já conferida no Fechamento: confirmação a mais antes de pedir o motivo
         const venda = data.find(v => v.id === id);
-        if (venda?.conferiu && !window.confirm(`ATENÇÃO: esta venda já foi CONFERIDA no Fechamento${venda.conferido_por ? ` por ${venda.conferido_por}` : ''}.\n\nExcluir mesmo assim? Ela sai das comissões e do Fechamento.`)) return;
+        if (venda?.conferiu && !window.confirm(tx("ATENÇÃO: esta venda já foi CONFERIDA no Fechamento{v1}.\n\nExcluir mesmo assim? Ela sai das comissões e do Fechamento.", { v1: venda.conferido_por ? ` por ${venda.conferido_por}` : '' }))) return;
         // Pede o motivo (vale como confirmação) e manda para a lixeira pela função segura do banco
         const motivo = pedirMotivoExclusao();
         if (!motivo) return;
@@ -185,7 +186,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
         if (error) {
             console.error("Erro ao excluir venda:", error);
-            avisar(`Não foi possível excluir a venda. A ação foi revertida.\n\n${error.message || ''}`);
+            avisar(tx("Não foi possível excluir a venda. A ação foi revertida.\n\n{v1}", { v1: error.message || '' }));
             setData(backupDados);
         } else {
             recarregarLixeira();
@@ -249,9 +250,9 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
     const salvarEdicao = async (vendaOriginal) => {
         if (isSubmitting) return;
-        if (!dadosEdicao.data) return avisar('Informe a data da venda.');
+        if (!dadosEdicao.data) return avisar(tx("Informe a data da venda."));
         if (['buscando', 'nao_encontrado', 'duplicado', 'incompleto', 'erro'].includes(dadosEdicao.alunoStatus || '')) {
-            return avisar('Não é possível salvar: confira o CPF do aluno. Ele precisa estar completo e cadastrado no sistema.');
+            return avisar(tx("Não é possível salvar: confira o CPF do aluno. Ele precisa estar completo e cadastrado no sistema."));
         }
         setIsSubmitting(true);
 
@@ -283,7 +284,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         
         if (error) {
             console.error("Erro ao editar venda:", error);
-            avisar("Falha de conexão com o servidor. As alterações não foram salvas.");
+            avisar(tx("Falha de conexão com o servidor. As alterações não foram salvas."));
             setData(backupDados); 
             setEditandoId(vendaOriginal.id); 
         }
@@ -292,14 +293,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
     const marcarLegitima = async (grupo) => {
         if (!podeEditar || marcandoChave) return;
-        const ok = window.confirm(`Marcar como "Não é duplicidade"?\n\nOs ${grupo.linhas.length} lançamentos deste grupo são vendas legítimas. O grupo sai da lista (volta se entrar um lançamento novo igual). Fica registrado quem decidiu e quando.`);
+        const ok = window.confirm(tx("Marcar como \"Não é duplicidade\"?\n\nOs {length} lançamentos deste grupo são vendas legítimas. O grupo sai da lista (volta se entrar um lançamento novo igual). Fica registrado quem decidiu e quando.", { length: grupo.linhas.length }));
         if (!ok) return;
         setMarcandoChave(grupo.chaveBase);
         const { marcacao, error } = await marcarComoLegitima(supabase, grupo, usuarioLogado);
         setMarcandoChave(null);
         if (error || !marcacao) {
             console.error('Erro ao marcar como legítima:', error);
-            avisar(`Não foi possível salvar a marcação.\n\n${error?.message || ''}`);
+            avisar(tx("Não foi possível salvar a marcação.\n\n{v1}", { v1: error?.message || '' }));
             return;
         }
         setLegitimas(atual => [marcacao, ...atual]);
@@ -307,10 +308,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
     const desfazerMarcacao = async (marcacao) => {
         if (!podeEditar || !marcacao) return;
-        if (!window.confirm('Desfazer a marcação "Não é duplicidade"? O grupo volta para a lista de possíveis duplicidades.')) return;
+        if (!window.confirm(tx("Desfazer a marcação \"Não é duplicidade\"? O grupo volta para a lista de possíveis duplicidades."))) return;
         const error = await desfazerLegitima(supabase, marcacao.id);
         if (error) {
-            avisar(`Não foi possível desfazer.\n\n${error.message || ''}`);
+            avisar(tx("Não foi possível desfazer.\n\n{v1}", { v1: error.message || '' }));
             return;
         }
         setLegitimas(atual => atual.filter(m => m.id !== marcacao.id));
@@ -372,16 +373,16 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         onClick={() => setVisaoAtual('registros')}
                         className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
-                        <History className="w-4 h-4" /> Registros de Vendas
+                        <History className="w-4 h-4" />{' '}{tx("Registros de Vendas")}
                     </button>
                     <button
                         onClick={() => setVisaoAtual('duplicidades')}
                         title={gruposDuplicados.length > 0
                             ? `${gruposDuplicados.length} ${gruposDuplicados.length === 1 ? 'grupo' : 'grupos'} · ${resultadoDuplicidades.excedentes} ${resultadoDuplicidades.excedentes === 1 ? 'lançamento excedente' : 'lançamentos excedentes'}`
-                            : 'Nenhuma possível duplicidade encontrada'}
+                            : tx("Nenhuma possível duplicidade encontrada")}
                         className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
-                        <Copy className="w-4 h-4" /> Duplicidades
+                        <Copy className="w-4 h-4" />{' '}{tx("Duplicidades")}
 
                         {gruposDuplicados.length > 0 && (
                             <span className="ml-1 bg-amber-500 text-white px-2 py-0.5 rounded-md text-[10px] animate-pulse shadow-sm">
@@ -392,11 +393,11 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     <button
                         onClick={() => setVisaoAtual('lixeira')}
                         title={lixeira.length > 0
-                            ? `${lixeira.length} ${lixeira.length === 1 ? 'venda excluída' : 'vendas excluídas'} no período`
-                            : 'Nenhuma venda excluída no período'}
+                            ? tx("{length} {v2} no período", { length: lixeira.length, v2: lixeira.length === 1 ? 'venda excluída' : 'vendas excluídas' })
+                            : tx("Nenhuma venda excluída no período")}
                         className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
-                        <Trash2 className="w-4 h-4" /> Lixeira
+                        <Trash2 className="w-4 h-4" />{' '}{tx("Lixeira")}
 
                         {lixeira.length > 0 && (
                             <span className="ml-1 bg-rose-600 dark:bg-rose-500 text-white px-2 py-0.5 rounded-md text-[10px] shadow-sm">
@@ -408,7 +409,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
                 {visaoAtual === 'registros' && (
                     <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner text-center sm:text-right w-full sm:w-auto dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
-                        {vendasOrdenadas.length} de {data.length} Encontrados
+                        {vendasOrdenadas.length}{' '}{tx("de")}{' '}{data.length}{' '}{tx("Encontrados")}
                     </div>
                 )}
             </div>
@@ -435,7 +436,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             </div>
                                             {temVisaoGlobal && (
                                                 <div onClick={() => handleOrdenar('unidade')} className="flex items-center gap-1 cursor-pointer hover:text-rose-500 text-[10px] w-fit transition-colors">
-                                                    UNIDADE {<RenderSortIcon coluna="unidade" />}
+                                                    {tx("UNIDADE")}{' '}{<RenderSortIcon coluna="unidade" />}
                                                 </div>
                                             )}
                                         </div>
@@ -444,7 +445,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     <th className={thClass}>
                                         <div className="flex flex-col gap-2">
                                             <div onClick={() => handleOrdenar('nome_aluno')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                                ALUNO {<RenderSortIcon coluna="nome_aluno" />}
+                                                {tx("ALUNO")}{' '}{<RenderSortIcon coluna="nome_aluno" />}
                                             </div>
                                             <div onClick={() => handleOrdenar('cpf')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[10px] w-fit transition-colors">
                                                 CPF {<RenderSortIcon coluna="cpf" />}
@@ -455,7 +456,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     <th className={thClass}>
                                         <div className="flex flex-col gap-2">
                                             <div onClick={() => handleOrdenar('produto')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                                ITEM VENDIDO (QTD) {<RenderSortIcon coluna="produto" />}
+                                                {tx("ITEM VENDIDO (QTD)")}{' '}{<RenderSortIcon coluna="produto" />}
                                             </div>
                                         </div>
                                     </th>
@@ -463,7 +464,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     <th className={thClass}>
                                         <div className="flex flex-col gap-2">
                                             <div onClick={() => handleOrdenar('vendedor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                                VENDEDOR {<RenderSortIcon coluna="vendedor" />}
+                                                {tx("VENDEDOR")}{' '}{<RenderSortIcon coluna="vendedor" />}
                                             </div>
                                         </div>
                                     </th>
@@ -471,12 +472,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     <th className={`${thClass} w-32`}>
                                         <div className="flex flex-col gap-2">
                                             <div onClick={() => handleOrdenar('valor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                                VALOR {<RenderSortIcon coluna="valor" />}
+                                                {tx("VALOR")}{' '}{<RenderSortIcon coluna="valor" />}
                                             </div>
                                         </div>
                                     </th>
                                     
-                                    {podeEditar && <th className={`${thClass} sticky right-0 z-20 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] border-l border-slate-200 text-center w-28 dark:border-slate-800`}>Gestão</th>}
+                                    {podeEditar && <th className={`${thClass} sticky right-0 z-20 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] border-l border-slate-200 text-center w-28 dark:border-slate-800`}>{tx("Gestão")}</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
@@ -522,7 +523,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                         )}
                                                         {temVisaoGlobal && (
                                                             <div className="text-[10px] font-black text-rose-500 uppercase mt-2">
-                                                                {row.unidade || 'MATRIZ'}
+                                                                {row.unidade || tx("MATRIZ")}
                                                             </div>
                                                         )}
                                                     </div>
@@ -533,8 +534,8 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             <td className="px-5 py-3 align-middle no-drag">
                                                 {isEditing ? (
                                                     <div className="flex flex-col gap-2">
-                                                        <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
-                                                        <input type="text" placeholder="CPF (Apenas números)" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
+                                                        <input type="text" placeholder={tx("Nome do Aluno")} value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
+                                                        <input type="text" placeholder={tx("CPF (Apenas números)")} value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col gap-1">
@@ -545,7 +546,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                     onClick={() => abrirFichaDoAluno(row.id, rawCpf)}
                                                                     disabled={Boolean(abrindoAlunoId)}
                                                                     className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase text-left hover:text-blue-600 hover:underline underline-offset-2 transition-colors cursor-pointer disabled:cursor-wait dark:text-white dark:hover:text-blue-400"
-                                                                    title={`Abrir a ficha de ${rawName}`}
+                                                                    title={tx("Abrir a ficha de {rawName}", { rawName: rawName })}
                                                                 >
                                                                     {nomeExibicao}
                                                                 </button>
@@ -555,7 +556,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                 </p>
                                                             )}
                                                             {abrindoAlunoId === row.id && <Loader2 className="w-3 h-3 text-blue-500 animate-spin shrink-0" />}
-                                                            {rawName && <CopyButton textToCopy={nomeExibicao} label="Copiar nome do aluno" />}
+                                                            {rawName && <CopyButton textToCopy={nomeExibicao} label={tx("Copiar nome do aluno")} />}
                                                         </div>
 
                                                         <div className="flex items-center gap-2 mt-0.5">
@@ -563,7 +564,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                 <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
                                                                     {cpfExibicao}
                                                                 </span>
-                                                                {rawCpf && <CopyButton textToCopy={cpfExibicao} label="Copiar CPF do aluno" />}
+                                                                {rawCpf && <CopyButton textToCopy={cpfExibicao} label={tx("Copiar CPF do aluno")} />}
                                                             </div>
 
                                                         </div>
@@ -578,7 +579,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                         <div className="flex gap-2">
                                                             <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
                                                             <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300">
-                                                                <option value="" disabled>Selecione...</option>
+                                                                <option value="" disabled>{tx("Selecione...")}</option>
                                                                 {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                                             </select>
                                                         </div>
@@ -599,7 +600,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                         onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
                                                         className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300"
                                                     >
-                                                        <option value="" disabled>Selecione o Vendedor...</option>
+                                                        <option value="" disabled>{tx("Selecione o Vendedor...")}</option>
                                                         {vendedoresDaUnidade.sort().map(v => (
                                                             <option key={v} value={v}>{toTitleCase(v)}</option>
                                                         ))}
@@ -615,7 +616,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             {/* COLUNA 5: VALOR */}
                                             <td className="px-5 py-3 align-middle no-drag whitespace-nowrap">
                                                 {isEditing ? (
-                                                    <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-left bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400" title="O valor calcula sozinho" />
+                                                    <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-left bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400" title={tx("O valor calcula sozinho")} />
                                                 ) : (
                                                     <div className="text-sm font-black text-slate-800 dark:text-white">
                                                         {formatMoney(row.valor)}
@@ -628,28 +629,28 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] bg-white dark:border-slate-800 dark:bg-slate-900`}>
                                                     {isEditing ? (
                                                         <div className="flex flex-col gap-2 items-center justify-center">
-                                                            <button disabled={isSubmitting} onClick={() => salvarEdicao(row)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
-                                                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
+                                                            <button disabled={isSubmitting} onClick={() => salvarEdicao(row)} title={tx("Salvar Alterações")} className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
+                                                                {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}{' '}{tx("Salvar")}
                                                             </button>
-                                                            <button disabled={isSubmitting} onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm dark:bg-slate-700 dark:text-slate-200">
-                                                                <X className="w-4 h-4" /> Cancelar
+                                                            <button disabled={isSubmitting} onClick={cancelarEdicao} title={tx("Cancelar")} className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm dark:bg-slate-700 dark:text-slate-200">
+                                                                <X className="w-4 h-4" />{' '}{tx("Cancelar")}
                                                             </button>
                                                         </div>
                                                     ) : (
                                                         <div className="flex flex-col gap-1.5">
                                                             <button 
                                                                 onClick={() => iniciarEdicao(row)} 
-                                                                title="Editar Registro"
+                                                                title={tx("Editar Registro")}
                                                                 className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-blue-50 text-blue-600 rounded transition-all border border-blue-200 hover:border-blue-400 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-slate-900 dark:hover:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"
                                                             >
-                                                                <Edit3 className="w-3 h-3" /> Editar
+                                                                <Edit3 className="w-3 h-3" />{' '}{tx("Editar")}
                                                             </button>
                                                             <button 
                                                                 onClick={() => removerLancamento(row.id)} 
-                                                                title="Excluir Registro"
+                                                                title={tx("Excluir Registro")}
                                                                 className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-rose-50 text-rose-500 rounded transition-all border border-rose-200 hover:border-rose-400 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-slate-900 dark:hover:bg-rose-500/10 dark:border-rose-500/30"
                                                             >
-                                                                <Trash2 className="w-3 h-3" /> Apagar
+                                                                <Trash2 className="w-3 h-3" />{' '}{tx("Apagar")}
                                                             </button>
                                                         </div>
                                                     )}
@@ -662,7 +663,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     <tr>
                                         <td colSpan="100%" className="px-5 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">
                                             <FilterX className="w-12 h-12 mx-auto text-slate-300 mb-4 opacity-60" />
-                                            Nenhuma venda encontrada para estes filtros.
+                                            {tx("Nenhuma venda encontrada para estes filtros.")}
                                         </td>
                                     </tr>
                                 )}
@@ -674,21 +675,21 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 dark:bg-slate-800/60 dark:border-slate-800">
                         <div className="flex items-center gap-4">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
-                                Página {paginaAtual} de {totalPaginas || 1}
+                                {tx("Página")}{' '}{paginaAtual}{' '}{tx("de")}{' '}{totalPaginas || 1}
                             </p>
                             <div className="h-4 w-px bg-slate-300 hidden sm:block"></div>
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Exibir:</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Exibir:")}</span>
                                 <select 
                                     value={itensPorPagina} 
                                     onChange={(e) => setItensPorPagina(Number(e.target.value))}
                                     className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"
                                 >
-                                    <option value={10}>10 linhas</option>
-                                    <option value={50}>50 linhas</option>
-                                    <option value={100}>100 linhas</option>
-                                    <option value={500}>500 linhas</option>
-                                    <option value={1000}>1000 linhas</option>
+                                    <option value={10}>{tx("10 linhas")}</option>
+                                    <option value={50}>{tx("50 linhas")}</option>
+                                    <option value={100}>{tx("100 linhas")}</option>
+                                    <option value={500}>{tx("500 linhas")}</option>
+                                    <option value={1000}>{tx("1000 linhas")}</option>
                                 </select>
                             </div>
                         </div>
@@ -700,14 +701,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     disabled={paginaAtual === 1}
                                     className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
-                                    Anterior
+                                    {tx("Anterior")}
                                 </button>
                                 <button 
                                     onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
                                     disabled={paginaAtual === totalPaginas}
                                     className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
-                                    Próxima
+                                    {tx("Próxima")}
                                 </button>
                             </div>
                         )}

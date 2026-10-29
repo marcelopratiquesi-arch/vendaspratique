@@ -23,6 +23,7 @@ import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
+import { tx } from './i18n/traduzir.js';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
 const ESCALA_INTERFACE = 0.9;
@@ -596,13 +597,13 @@ export default function App() {
                     {(mentorCarregando || mentorSemUnidade) ? (
                         <div className="h-full flex items-center justify-center p-4">
                             {mentorCarregando ? (
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Carregando suas unidades...</p>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{tx("Carregando suas unidades...")}</p>
                             ) : (
                                 <div className="max-w-md w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-8 text-center">
                                     <Building2 className="w-12 h-12 mx-auto text-slate-300 dark:text-slate-600 mb-4" />
-                                    <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">Sem unidades</h2>
+                                    <h2 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{tx("Sem unidades")}</h2>
                                     <p className="text-sm font-bold text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
-                                        Nenhuma unidade vinculada ao seu acesso. Fale com o administrador.
+                                        {tx("Nenhuma unidade vinculada ao seu acesso. Fale com o administrador.")}
                                     </p>
                                 </div>
                             )}

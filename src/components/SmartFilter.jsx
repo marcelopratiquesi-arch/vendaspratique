@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Search, CheckSquare, Square } from 'lucide-react';
+import { tx } from '../i18n/traduzir.js';
 
 export const SmartFilter = ({ 
     options = [], 
@@ -82,7 +83,7 @@ export const SmartFilter = ({
     return (
         <div className="relative flex flex-col gap-1.5 min-w-[200px] flex-1" ref={containerRef}>
             <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5 dark:text-slate-400">
-               {Icone && <Icone className={`w-3 h-3 ${iconColor}`} />} {label}
+               {Icone && <Icone className={`w-3 h-3 ${iconColor}`} />} {tx(label)}
             </label>
             <div 
                 onClick={() => {
@@ -104,7 +105,7 @@ export const SmartFilter = ({
                             <input 
                                 ref={searchInputRef}
                                 type="text"
-                                placeholder={`Buscar...`}
+                                placeholder={tx("Buscar...")}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
@@ -120,12 +121,12 @@ export const SmartFilter = ({
                             {isAllFilteredSelected ? (
                                 <>
                                     <Square className="w-4 h-4 text-rose-500 shrink-0" />
-                                    <span className="text-[11px] font-black text-rose-600 uppercase tracking-wider dark:text-rose-400">Desmarcar {searchTerm ? 'Buscados' : 'Todos'}</span>
+                                    <span className="text-[11px] font-black text-rose-600 uppercase tracking-wider dark:text-rose-400">{tx("Desmarcar")}{' '}{searchTerm ? tx("Buscados") : tx("Todos")}</span>
                                 </>
                             ) : (
                                 <>
                                     <CheckSquare className="w-4 h-4 text-blue-600 shrink-0 dark:text-blue-400" />
-                                    <span className="text-[11px] font-black text-blue-700 uppercase tracking-wider dark:text-blue-400">Selecionar {searchTerm ? 'Buscados' : 'Todos'}</span>
+                                    <span className="text-[11px] font-black text-blue-700 uppercase tracking-wider dark:text-blue-400">{tx("Selecionar")}{' '}{searchTerm ? tx("Buscados") : tx("Todos")}</span>
                                 </>
                             )}
                         </div>
@@ -145,7 +146,7 @@ export const SmartFilter = ({
                                 </div>
                             );
                         })}
-                        {filteredOptions.length === 0 && <p className="px-4 py-6 text-xs font-bold text-slate-400 text-center uppercase tracking-widest">Nenhum item encontrado</p>}
+                        {filteredOptions.length === 0 && <p className="px-4 py-6 text-xs font-bold text-slate-400 text-center uppercase tracking-widest">{tx("Nenhum item encontrado")}</p>}
                     </div>
                 </div>
             )}

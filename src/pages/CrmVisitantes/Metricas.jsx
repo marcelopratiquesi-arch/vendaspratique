@@ -8,6 +8,7 @@ import {
     BarChart2, PieChart as PieIcon, Activity, CalendarDays, ChevronRight 
 } from 'lucide-react';
 import { STATUS_TOKENS, COLUNAS, dataDoLead, dataLocalISO } from './utils';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
 
@@ -40,7 +41,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
         });
 
         return Object.entries(m).map(([dia, qtd]) => ({
-            label: new Date(dia + 'T12:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+            label: new Date(dia + 'T12:00').toLocaleDateString(localeAtual(), { day: '2-digit', month: '2-digit' }),
             Capturas: qtd
         }));
     }, [visitantes]);
@@ -94,7 +95,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
         if (!active || !payload?.length) return null;
         return (
             <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl px-5 py-4 text-sm z-50">
-                <p className="font-black text-slate-300 uppercase tracking-widest text-[10px] mb-2">{label}</p>
+                <p className="font-black text-slate-300 uppercase tracking-widest text-[10px] mb-2">{tx(label)}</p>
                 {payload.map((p, i) => (
                     <p key={i} style={{ color: p.color || p.payload.fill }} className="font-black text-lg">
                         {p.name}: {p.value}
@@ -113,8 +114,8 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                     <Activity className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">Performance de Captação</h2>
-                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{operador ? `Carteira de ${operador}` : 'Carteira de quem está operando'}</p>
+                    <h2 className="text-2xl font-black text-white tracking-tight">{tx("Performance de Captação")}</h2>
+                    <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{operador ? tx("Carteira de {operador}", { operador: operador }) : tx("Carteira de quem está operando")}</p>
                 </div>
             </div>
 
@@ -125,9 +126,9 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-400"><Users className="w-5 h-5" /></div>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Total no Funil</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Total no Funil")}</p>
                     <p className="text-4xl font-black text-white tracking-tight">{totalLeads}</p>
-                    <p className="text-xs text-blue-400 font-bold mt-2">Leads em trabalho</p>
+                    <p className="text-xs text-blue-400 font-bold mt-2">{tx("Leads em trabalho")}</p>
                 </div>
                 
                 {/* Card 2 */}
@@ -135,9 +136,9 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400"><CheckCircle className="w-5 h-5" /></div>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Fechados</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Fechados")}</p>
                     <p className="text-4xl font-black text-white tracking-tight">{convertidos}</p>
-                    <p className="text-xs text-emerald-400 font-bold mt-2">Matrículas Concluídas</p>
+                    <p className="text-xs text-emerald-400 font-bold mt-2">{tx("Matrículas Concluídas")}</p>
                 </div>
 
                 {/* Card 3 */}
@@ -145,9 +146,9 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400"><XCircle className="w-5 h-5" /></div>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Perdidos</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Perdidos")}</p>
                     <p className="text-4xl font-black text-white tracking-tight">{perdidos}</p>
-                    <p className="text-xs text-rose-400 font-bold mt-2">Contatos Sem Sucesso</p>
+                    <p className="text-xs text-rose-400 font-bold mt-2">{tx("Contatos Sem Sucesso")}</p>
                 </div>
 
                 {/* Card 4 */}
@@ -155,9 +156,9 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400"><Target className="w-5 h-5" /></div>
                     </div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Taxa de Fechamento</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Taxa de Fechamento")}</p>
                     <p className="text-4xl font-black text-white tracking-tight">{taxaConversao}%</p>
-                    <p className="text-xs text-purple-400 font-bold mt-2">Eficiência da Equipe</p>
+                    <p className="text-xs text-purple-400 font-bold mt-2">{tx("Eficiência da Equipe")}</p>
                 </div>
             </div>
 
@@ -170,13 +171,13 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                         <div>
                             <h2 className="text-base font-black text-white flex items-center gap-2">
                                 <TrendingUp className="w-4 h-4 text-orange-400" />
-                                Evolução de Captação
+                                {tx("Evolução de Captação")}
                             </h2>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Novos leads nos últimos 14 dias</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{tx("Novos leads nos últimos 14 dias")}</p>
                         </div>
                     </div>
                     {dadosEvolucao.every(d => d.Capturas === 0) ? (
-                        <div className="h-[220px] flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">Sem dados recentes</div>
+                        <div className="h-[220px] flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">{tx("Sem dados recentes")}</div>
                     ) : (
                         <ResponsiveContainer width="100%" height={220}>
                             <AreaChart data={dadosEvolucao}>
@@ -199,14 +200,14 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                 {/* Feed de Últimos Leads */}
                 <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col">
                     <h2 className="text-base font-black text-white flex items-center gap-2 mb-5">
-                        <CalendarDays className="w-4 h-4 text-emerald-400" /> Últimas Entradas
+                        <CalendarDays className="w-4 h-4 text-emerald-400" />{' '}{tx("Últimas Entradas")}
                         <span className="ml-auto flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
-                            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" /> AO VIVO
+                            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />{' '}{tx("AO VIVO")}
                         </span>
                     </h2>
                     
                     {ultimosLeads.length === 0 ? (
-                        <div className="flex-1 flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">Nenhum lead capturado</div>
+                        <div className="flex-1 flex items-center justify-center text-slate-600 dark:text-slate-300 text-sm font-bold">{tx("Nenhum lead capturado")}</div>
                     ) : (
                         <div className="space-y-3 flex-1 overflow-y-auto custom-scrollbar pr-2">
                             {ultimosLeads.map(v => {
@@ -219,7 +220,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-white truncate">{v.nome}</p>
                                             <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
-                                                {v.vendedor} · {dataDoLead(v) ? new Date(dataDoLead(v)).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
+                                                {v.vendedor} · {dataDoLead(v) ? new Date(dataDoLead(v)).toLocaleString(localeAtual(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}
                                             </p>
                                         </div>
                                         <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300 group-hover:text-emerald-400 transition-colors shrink-0" />
@@ -236,10 +237,10 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <BarChart2 className="w-4 h-4 text-emerald-500" /> Performance por Consultor
+                        <BarChart2 className="w-4 h-4 text-emerald-500" />{' '}{tx("Performance por Consultor")}
                     </h3>
                     {dadosGraficoConsultores.length === 0 ? (
-                        <p className="text-slate-600 dark:text-slate-300 font-bold text-center py-10">Gráfico aguardando volume de dados.</p>
+                        <p className="text-slate-600 dark:text-slate-300 font-bold text-center py-10">{tx("Gráfico aguardando volume de dados.")}</p>
                     ) : (
                         <ResponsiveContainer width="100%" height={260}>
                             <BarChart data={dadosGraficoConsultores} barSize={24}>
@@ -256,10 +257,10 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
 
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                        <PieIcon className="w-4 h-4 text-orange-500" /> Distribuição Atual no Funil
+                        <PieIcon className="w-4 h-4 text-orange-500" />{' '}{tx("Distribuição Atual no Funil")}
                     </h3>
                     {dadosGraficoFunil.length === 0 ? (
-                        <p className="text-slate-600 dark:text-slate-300 font-bold text-center py-10">Gráfico aguardando volume de dados.</p>
+                        <p className="text-slate-600 dark:text-slate-300 font-bold text-center py-10">{tx("Gráfico aguardando volume de dados.")}</p>
                     ) : (
                         <ResponsiveContainer width="100%" height={260}>
                             <PieChart>

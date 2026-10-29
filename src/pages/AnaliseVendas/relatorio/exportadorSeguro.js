@@ -2,6 +2,7 @@
 import { safeIsoDate, formatDataBR } from '../utils.js';
 import { ORDEM_CLASSICA } from './motorConsolidacao.js';
 import { avisar } from '../../../components/avisar.js';
+import { tx } from '../../../i18n/traduzir.js';
 
 // 🛡️ Blindagem contra CSV Injection (impede que sinais =, +, -, @ executem fórmulas no Excel)
 export const sanitizarCelulaCSV = (valor) => {
@@ -50,7 +51,7 @@ export const exportarRelatorioGeralCSV = ({
 }) => {
     try {
         if (vendasFiltradas.length === 0) {
-            avisar(t ? t('analytics.report.noDataExport', { defaultValue: "Não há dados para exportar com os filtros atuais." }) : "Não há dados para exportar com os filtros atuais.");
+            avisar(t ? t('analytics.report.noDataExport', { defaultValue: "Não há dados para exportar com os filtros atuais." }) : tx("Não há dados para exportar com os filtros atuais."));
             return;
         }
 
@@ -98,7 +99,7 @@ export const exportarRelatorioGeralCSV = ({
         dispararDownloadCSV(csvContent, `Exportacao_Vendas_${visaoDetalhada ? 'Detalhada' : 'Resumo'}_${dataStr}.csv`);
     } catch (error) {
         console.error("Erro ao exportar CSV:", error);
-        avisar(t ? t('analytics.report.exportError', { defaultValue: "Ocorreu um erro ao gerar a planilha." }) : "Ocorreu um erro ao gerar a planilha.");
+        avisar(t ? t('analytics.report.exportError', { defaultValue: "Ocorreu um erro ao gerar a planilha." }) : tx("Ocorreu um erro ao gerar a planilha."));
     }
 };
 

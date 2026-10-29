@@ -1,3 +1,4 @@
+import { localeAtual } from '../../i18n/traduzir.js';
 export const maskCpf = (v) => {
     let text = v.replace(/\D/g, '');
     if (text.length > 11) text = text.substring(0, 11);
@@ -24,5 +25,5 @@ export const maskContaInter = (v) => {
 };
 
 export const formatMoney = (val) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    return new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(val);
 };

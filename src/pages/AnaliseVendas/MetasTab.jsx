@@ -4,6 +4,7 @@ import { getCategoriaItem } from './utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, Info } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Input com Auto-Save (CORRIGIDO)
@@ -25,7 +26,7 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
             setTimeout(() => setShowSuccess(false), 2000);
         } catch (err) {
             console.error("Erro ao salvar campo:", err);
-            avisar("Erro ao gravar. Verifique sua conexão.");
+            avisar(tx("Erro ao gravar. Verifique sua conexão."));
         } finally {
             setIsSaving(false);
         }
@@ -54,7 +55,7 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
                 <button
                     onClick={handleSave}
                     disabled={!hasChanged || isSaving}
-                    title={!hasChanged ? "Sem alterações pendentes" : "Salvar esta meta"}
+                    title={!hasChanged ? tx("Sem alterações pendentes") : tx("Salvar esta meta")}
                     className={`w-16 h-[72px] rounded-xl transition-all flex items-center justify-center shrink-0 shadow-sm border border-transparent
                         ${!hasChanged ? 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30'}
                         ${isSaving ? 'opacity-70 cursor-wait' : ''}
@@ -79,7 +80,7 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
                 )}
                 <div className="flex flex-col min-w-0">
                     <div className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate dark:text-white">
-                        {label}
+                        {tx(label)}
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
                         {subtitle && <span className="text-rose-500 text-[10px] font-bold shrink-0">{subtitle}</span>}
@@ -98,7 +99,7 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
                 <button
                     onClick={handleSave}
                     disabled={!hasChanged || isSaving}
-                    title={!hasChanged ? "Sem alterações pendentes" : "Salvar esta meta"}
+                    title={!hasChanged ? tx("Sem alterações pendentes") : tx("Salvar esta meta")}
                     className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center shrink-0 border border-transparent
                         ${!hasChanged ? 'bg-slate-50 text-slate-300 cursor-not-allowed dark:bg-slate-800/60' : `${styles.btn} border-current border-opacity-20`}
                         ${isSaving ? 'opacity-70 cursor-wait' : ''}
@@ -158,7 +159,7 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
             {/* NÍVEL 1 & 2: HIERARQUIA VISUAL DOS NÚMEROS */}
             <div className="flex justify-between items-start mb-3">
                 <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide dark:text-white">{label}</span>
+                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide dark:text-white">{tx(label)}</span>
                     <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="text-xl font-black text-slate-800 leading-none dark:text-white">{realizadoVal}</span>
                         <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest dark:text-slate-400"> / {metaVal}</span>
@@ -184,11 +185,11 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isBatida ? (
                         <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-100/60 px-2.5 py-1 rounded-md border border-emerald-200/50 uppercase font-black tracking-widest text-[10px] dark:text-emerald-400 dark:bg-emerald-500/20 dark:border-emerald-500/30">
-                            <StatusIcon className="w-3.5 h-3.5" /> {statusText}
+                            <StatusIcon className="w-3.5 h-3.5" /> {tx(statusText)}
                         </span>
                     ) : (
                         <>
-                            <span className="text-slate-500 uppercase tracking-widest text-[10px] font-black dark:text-slate-400">Faltam</span>
+                            <span className="text-slate-500 uppercase tracking-widest text-[10px] font-black dark:text-slate-400">{tx("Faltam")}</span>
                             <strong className="text-slate-800 font-black text-sm dark:text-white">{faltaVal}</strong>
                         </>
                     )}
@@ -197,7 +198,7 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
                 <div className="flex items-center gap-2">
                     {!isBatida && (
                         <span className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${statusColor}`}>
-                            <StatusIcon className="w-3.5 h-3.5" /> {statusText}
+                            <StatusIcon className="w-3.5 h-3.5" /> {tx(statusText)}
                         </span>
                     )}
                     {recompensa && !isBatida && (
@@ -414,9 +415,9 @@ const MetasTab = ({
                                 <Target className="w-6 h-6" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase dark:text-white">Configuração das Metas</h2>
+                                <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase dark:text-white">{tx("Configuração das Metas")}</h2>
                                 <p className="text-xs font-medium text-slate-500 mt-0.5 dark:text-slate-400">
-                                    <strong className="text-slate-800 uppercase dark:text-white">{unidadeAtivaEdicao}</strong> • Defina os objetivos da sua unidade
+                                    <strong className="text-slate-800 uppercase dark:text-white">{unidadeAtivaEdicao}</strong>{' '}{tx("• Defina os objetivos da sua unidade")}
                                 </p>
                             </div>
                         </div>
@@ -424,8 +425,8 @@ const MetasTab = ({
                         <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl w-full lg:w-auto dark:bg-slate-800/60 dark:border-slate-800">
                             <div className="text-blue-600 shrink-0 dark:text-blue-400"><Zap className="w-5 h-5" /></div>
                             <div className="flex flex-col">
-                                <span className="text-[11px] font-black text-blue-700 uppercase tracking-widest dark:text-blue-400">Modo de Edição Rápida Ativo</span>
-                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Faça alterações e salve individualmente</span>
+                                <span className="text-[11px] font-black text-blue-700 uppercase tracking-widest dark:text-blue-400">{tx("Modo de Edição Rápida Ativo")}</span>
+                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{tx("Faça alterações e salve individualmente")}</span>
                             </div>
                             <div className="ml-auto lg:ml-2 w-10 h-6 bg-emerald-400 rounded-full flex items-center justify-end px-1 shadow-inner shrink-0">
                                 <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
@@ -438,18 +439,18 @@ const MetasTab = ({
                         <div className="flex flex-col bg-gradient-to-b from-blue-50/50 to-white border border-blue-100 rounded-[24px] p-6 shadow-sm h-full dark:border-blue-500/30">
                             <div className="flex items-center gap-3 mb-2">
                                 <Zap className="w-6 h-6 text-blue-600 shrink-0 dark:text-blue-400" />
-                                <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight dark:text-blue-300">META START</h3>
-                                <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">Primordial</span>
+                                <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight dark:text-blue-300">{tx("META START")}</h3>
+                                <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">{tx("Primordial")}</span>
                             </div>
                             <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
-                                Defina as metas iniciais da sua unidade.<br/>
-                                <strong className="text-blue-700 dark:text-blue-400">Conclua todos os indicadores</strong> para liberar a gratificação.
+                                {tx("Defina as metas iniciais da sua unidade.")}<br/>
+                                <strong className="text-blue-700 dark:text-blue-400">{tx("Conclua todos os indicadores")}</strong>{' '}{tx("para liberar a gratificação.")}
                             </p>
                             
                             <div className="space-y-3 flex-1">
-                                <InputFieldWithSave label="Nutri" description="Meta de planos Nutri" icon={Leaf} value={metaNutri} dbValue={metaCache?.meta_nutri} onChange={setMetaNutri} onSave={(val) => salvarCampo('meta_nutri', val)} theme="blue" />
-                                <InputFieldWithSave label="Produto" description="Meta de produtos físicos" icon={Package} value={metaProdutos} dbValue={metaCache?.meta_produtos} onChange={setMetaProdutos} onSave={(val) => salvarCampo('meta_produtos', val)} theme="blue" />
-                                <InputFieldWithSave label="Personal Class" subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" />
+                                <InputFieldWithSave label={tx("Nutri")} description="Meta de planos Nutri" icon={Leaf} value={metaNutri} dbValue={metaCache?.meta_nutri} onChange={setMetaNutri} onSave={(val) => salvarCampo('meta_nutri', val)} theme="blue" />
+                                <InputFieldWithSave label={tx("Produto")} description="Meta de produtos físicos" icon={Package} value={metaProdutos} dbValue={metaCache?.meta_produtos} onChange={setMetaProdutos} onSave={(val) => salvarCampo('meta_produtos', val)} theme="blue" />
+                                <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" />
                             </div>
 
                             <div className="mt-5 bg-blue-50/80 border border-blue-100 rounded-xl p-4 flex items-center gap-3 shadow-sm dark:bg-blue-500/10 dark:border-blue-500/30">
@@ -457,8 +458,8 @@ const MetasTab = ({
                                     <Trophy className="w-4 h-4" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest dark:text-blue-300">Gratificação Start</p>
-                                    <p className="text-[10px] font-medium text-blue-600 mt-0.5 leading-snug dark:text-blue-400">Conclua todas as metas para liberar a gratificação.</p>
+                                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest dark:text-blue-300">{tx("Gratificação Start")}</p>
+                                    <p className="text-[10px] font-medium text-blue-600 mt-0.5 leading-snug dark:text-blue-400">{tx("Conclua todas as metas para liberar a gratificação.")}</p>
                                 </div>
                             </div>
                         </div>
@@ -466,34 +467,34 @@ const MetasTab = ({
                         <div className="flex flex-col bg-gradient-to-b from-amber-50/50 to-white border border-amber-100 rounded-[24px] p-6 shadow-sm h-full dark:border-amber-500/30">
                             <div className="flex items-center gap-3 mb-2">
                                 <Award className="w-6 h-6 text-amber-500 shrink-0" />
-                                <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight dark:text-amber-300">META MENSAL</h3>
+                                <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight dark:text-amber-300">{tx("META MENSAL")}</h3>
                                 <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ 200</span>
                             </div>
                             <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
-                                Defina as metas mensais da sua unidade.<br/>
-                                Cada indicador concluído representa <strong className="text-amber-600 dark:text-amber-400">R$ 50 de gratificação</strong>.
+                                {tx("Defina as metas mensais da sua unidade.")}<br/>
+                                {tx("Cada indicador concluído representa")}{' '}<strong className="text-amber-600 dark:text-amber-400">{tx("R$ 50 de gratificação")}</strong>.
                             </p>
                             
                             <div className="space-y-3 flex-1">
-                                <InputFieldWithSave label="Ativos Alvo" description="Objetivo de alunos ativos" icon={Users} value={metaAtivosMensal} dbValue={metaCache?.meta_ativos_mensal} onChange={setMetaAtivosMensal} onSave={(val) => salvarCampo('meta_ativos_mensal', val)} theme="amber" />
-                                <InputFieldWithSave label="Nutri" description="Meta mensal Nutri" icon={Leaf} value={metaNutriMensal} dbValue={metaCache?.meta_nutri_mensal} onChange={setMetaNutriMensal} onSave={(val) => salvarCampo('meta_nutri_mensal', val)} theme="amber" />
-                                <InputFieldWithSave label="Plus" description="Meta mensal Plus" icon={Star} value={metaPlusMensal} dbValue={metaCache?.meta_plus_mensal} onChange={setMetaPlusMensal} onSave={(val) => salvarCampo('meta_plus_mensal', val)} theme="amber" />
-                                <InputFieldWithSave label="Personal Class" subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" />
+                                <InputFieldWithSave label={tx("Ativos Alvo")} description="Objetivo de alunos ativos" icon={Users} value={metaAtivosMensal} dbValue={metaCache?.meta_ativos_mensal} onChange={setMetaAtivosMensal} onSave={(val) => salvarCampo('meta_ativos_mensal', val)} theme="amber" />
+                                <InputFieldWithSave label={tx("Nutri")} description="Meta mensal Nutri" icon={Leaf} value={metaNutriMensal} dbValue={metaCache?.meta_nutri_mensal} onChange={setMetaNutriMensal} onSave={(val) => salvarCampo('meta_nutri_mensal', val)} theme="amber" />
+                                <InputFieldWithSave label={tx("Plus")} description="Meta mensal Plus" icon={Star} value={metaPlusMensal} dbValue={metaCache?.meta_plus_mensal} onChange={setMetaPlusMensal} onSave={(val) => salvarCampo('meta_plus_mensal', val)} theme="amber" />
+                                <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" />
                             </div>
 
                             <div className="mt-5 pt-5 border-t border-slate-200/80 flex flex-col items-center justify-center text-center dark:border-slate-800">
-                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest dark:text-amber-400">R$ 200 de Gratificação</p>
-                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">4 indicadores • R$ 50 cada meta concluída</p>
+                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest dark:text-amber-400">{tx("R$ 200 de Gratificação")}</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{tx("4 indicadores • R$ 50 cada meta concluída")}</p>
                             </div>
                         </div>
 
                         <div className="flex flex-col bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-100 rounded-[24px] p-6 shadow-sm h-full dark:border-emerald-500/30">
                             <div className="flex items-center gap-3 mb-2">
                                 <Activity className="w-6 h-6 text-emerald-600 shrink-0 dark:text-emerald-400" />
-                                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight dark:text-emerald-300">Qtd. Ativos Atual</h3>
+                                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight dark:text-emerald-300">{tx("Qtd. Ativos Atual")}</h3>
                             </div>
                             <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
-                                Atualize diariamente a quantidade de alunos ativos da unidade.
+                                {tx("Atualize diariamente a quantidade de alunos ativos da unidade.")}
                             </p>
                             
                             <div className="flex-1 flex flex-col items-center justify-center">
@@ -503,16 +504,16 @@ const MetasTab = ({
                                     <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 flex gap-3 shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
                                         <Activity className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 dark:text-emerald-400" />
                                         <div className="flex flex-col">
-                                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest dark:text-emerald-300">Controle Diário</p>
-                                            <p className="text-[10px] font-medium text-emerald-700 mt-1 leading-snug dark:text-emerald-400">Mantenha este valor atualizado para um acompanhamento preciso.</p>
+                                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest dark:text-emerald-300">{tx("Controle Diário")}</p>
+                                            <p className="text-[10px] font-medium text-emerald-700 mt-1 leading-snug dark:text-emerald-400">{tx("Mantenha este valor atualizado para um acompanhamento preciso.")}</p>
                                         </div>
                                     </div>
                                     
                                     <div className="flex items-start gap-2.5 px-2">
                                         <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                                         <div className="flex flex-col">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">Dica</p>
-                                            <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-snug">Atualize sempre que houver mudanças significativas na base.</p>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Dica")}</p>
+                                            <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-snug">{tx("Atualize sempre que houver mudanças significativas na base.")}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -526,8 +527,8 @@ const MetasTab = ({
                     <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[20px] flex items-center justify-center mb-6 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">
                         <Target className="w-10 h-10 text-slate-300" />
                     </div>
-                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight dark:text-white">Painel de Configuração Oculto</h3>
-                    <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto dark:text-slate-400">Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.</p>
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight dark:text-white">{tx("Painel de Configuração Oculto")}</h3>
+                    <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto dark:text-slate-400">{tx("Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.")}</p>
                 </div>
             )}
 
@@ -542,7 +543,7 @@ const MetasTab = ({
                             <div className="flex flex-col">
                                 <h4 className="text-xl font-black text-white tracking-tight uppercase">{item.unidade}</h4>
                                 <div className="flex items-center gap-2 mt-0.5">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Performance de Metas</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Performance de Metas")}</span>
                                     <span className="text-slate-600 dark:text-slate-300">•</span>
                                     <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{String(filtroMes).padStart(2, '0')}/{filtroAno}</span>
                                 </div>
@@ -554,13 +555,13 @@ const MetasTab = ({
                                 onClick={() => gerarMensagemMetaStart(item)} 
                                 className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:ring-2 focus:ring-blue-500/50 shadow-sm"
                             >
-                                <Share2 className="w-4 h-4" /> Compartilhar Start
+                                <Share2 className="w-4 h-4" />{' '}{tx("Compartilhar Start")}
                             </button>
                             <button 
                                 onClick={() => gerarMensagemMetaMensal(item)} 
                                 className="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:ring-2 focus:ring-amber-500/50 shadow-sm"
                             >
-                                <Share2 className="w-4 h-4" /> Compartilhar Mensal
+                                <Share2 className="w-4 h-4" />{' '}{tx("Compartilhar Mensal")}
                             </button>
                         </div>
                     </div>
@@ -570,16 +571,16 @@ const MetasTab = ({
                         <div className="p-6 md:p-8 bg-slate-50/40 dark:bg-slate-800/40">
                             <div className="mb-6 flex flex-col">
                                 <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 dark:text-white">
-                                    <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400"/> META START
+                                    <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400"/>{' '}{tx("META START")}
                                 </h5>
-                                <p className="text-xs font-medium text-slate-500 mt-1 dark:text-slate-400">Conclua todos os indicadores para liberar a gratificação.</p>
+                                <p className="text-xs font-medium text-slate-500 mt-1 dark:text-slate-400">{tx("Conclua todos os indicadores para liberar a gratificação.")}</p>
                             </div>
                             
                             <div className="flex flex-col gap-4">
-                                <MetaItemCard label="NUTRI" dados={item.start.nutri} corTema="bg-blue-500" />
-                                <MetaItemCard label="PRODUTO" dados={item.start.produto} corTema="bg-blue-500" />
+                                <MetaItemCard label={tx("NUTRI")} dados={item.start.nutri} corTema="bg-blue-500" />
+                                <MetaItemCard label={tx("PRODUTO")} dados={item.start.produto} corTema="bg-blue-500" />
                                 {item.start.personal.meta > 0 && (
-                                    <MetaItemCard label="PERSONAL CLASS" dados={item.start.personal} corTema="bg-blue-500" />
+                                    <MetaItemCard label={tx("PERSONAL CLASS")} dados={item.start.personal} corTema="bg-blue-500" />
                                 )}
                             </div>
                         </div>
@@ -587,21 +588,21 @@ const MetasTab = ({
                         <div className="p-6 md:p-8 bg-amber-50/10 dark:bg-amber-500/10">
                             <div className="mb-6 flex flex-col">
                                 <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 dark:text-white">
-                                    <Award className="w-5 h-5 text-amber-500"/> META MENSAL
+                                    <Award className="w-5 h-5 text-amber-500"/>{' '}{tx("META MENSAL")}
                                 </h5>
                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest dark:bg-amber-500/20 dark:text-amber-400">R$ 200 de gratificação</span>
+                                    <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest dark:bg-amber-500/20 dark:text-amber-400">{tx("R$ 200 de gratificação")}</span>
                                     <span className="text-slate-300">•</span>
-                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">R$ 50 por indicador concluído.</span>
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tx("R$ 50 por indicador concluído.")}</span>
                                 </div>
                             </div>
                             
                             <div className="flex flex-col gap-4">
-                                <MetaItemCard label="ATIVOS" dados={item.mensal.ativos} corTema="bg-amber-400" recompensa="R$ 50" />
-                                <MetaItemCard label="NUTRI" dados={item.mensal.nutri} corTema="bg-amber-400" recompensa="R$ 50" />
+                                <MetaItemCard label={tx("ATIVOS")} dados={item.mensal.ativos} corTema="bg-amber-400" recompensa="R$ 50" />
+                                <MetaItemCard label={tx("NUTRI")} dados={item.mensal.nutri} corTema="bg-amber-400" recompensa="R$ 50" />
                                 <MetaItemCard label="PLUS" dados={item.mensal.plus} corTema="bg-amber-400" recompensa="R$ 50" />
                                 {item.mensal.personal.meta > 0 && (
-                                    <MetaItemCard label="PERSONAL CLASS" dados={item.mensal.personal} corTema="bg-amber-400" recompensa="R$ 50" />
+                                    <MetaItemCard label={tx("PERSONAL CLASS")} dados={item.mensal.personal} corTema="bg-amber-400" recompensa="R$ 50" />
                                 )}
                             </div>
                         </div>

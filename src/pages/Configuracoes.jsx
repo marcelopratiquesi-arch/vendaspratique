@@ -3,6 +3,7 @@ import { supabase, conexaoParaCriarLogin } from '../supabaseClient.js';
 import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2, Building2, AlertTriangle } from 'lucide-react';
 import ModalUnidadesMentor from '../components/Modals/ModalUnidadesMentor.jsx';
 import { avisar } from '../components/avisar.js';
+import { tx } from '../i18n/traduzir.js';
 
 // Mentor: quantas etiquetas de unidade aparecem no cartão antes do "+N"
 const MAX_ETIQUETAS_MENTOR = 4;
@@ -69,12 +70,12 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             setNomeUnidade('');
             mostrarSucesso();
         } else {
-            avisar('Erro ao salvar unidade: ' + error?.message);
+            avisar(tx("Erro ao salvar unidade: {v2}", { v2: error?.message }));
         }
     };
 
     const handleDeleteUnidade = async (id) => {
-        if(window.confirm('Atenção! Tem certeza que deseja excluir esta unidade permanentemente?')) {
+        if(window.confirm(tx("Atenção! Tem certeza que deseja excluir esta unidade permanentemente?"))) {
             await supabase.from('unidades').delete().eq('id', id);
             setUnidades(unidades.filter(u => u.id !== id));
         }
@@ -88,7 +89,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         const existente = usuariosAcesso.find(u => u.email === acessoEmail.toLowerCase().trim());
         const qtdVinculos = unidadesDoMentor(acessoEmail).length;
         if (existente?.role === 'MENTOR' && acessoRole.toUpperCase() !== 'MENTOR' && qtdVinculos > 0
-            && !window.confirm(`Este login tem ${qtdVinculos} ${qtdVinculos === 1 ? 'unidade vinculada' : 'unidades vinculadas'} como Mentor. Elas serão removidas.\n\nContinuar?`)) return;
+            && !window.confirm(tx("Este login tem {qtdVinculos} {v2} como Mentor. Elas serão removidas.\n\nContinuar?", { qtdVinculos: qtdVinculos, v2: qtdVinculos === 1 ? 'unidade vinculada' : 'unidades vinculadas' }))) return;
 
         // Conexão separada: o Admin continua conectado como ele mesmo (quem grava a permissão abaixo é o Admin)
         const { error: authError } = await conexaoParaCriarLogin().auth.signUp({
@@ -97,7 +98,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         });
 
         if (authError && !authError.message.includes('already registered')) {
-            avisar('Erro na autenticação do Supabase: ' + authError.message);
+            avisar(tx("Erro na autenticação do Supabase: {message}", { message: authError.message }));
             return;
         }
 
@@ -118,12 +119,12 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             carregarVinculosMentor();
             mostrarSucesso();
         } else {
-            avisar('Erro ao salvar permissões: ' + error?.message);
+            avisar(tx("Erro ao salvar permissões: {v2}", { v2: error?.message }));
         }
     };
 
     const handleDeleteAcesso = async (email) => {
-        if(window.confirm(`Atenção! Deseja realmente revogar o acesso de ${email}? Ele não poderá mais fazer login no sistema.`)) {
+        if(window.confirm(tx("Atenção! Deseja realmente revogar o acesso de {email}? Ele não poderá mais fazer login no sistema.", { email: email }))) {
             await supabase.from('usuarios_sistema').delete().eq('email', email);
             setUsuariosAcesso(usuariosAcesso.filter(u => u.email !== email));
             carregarVinculosMentor();
@@ -140,7 +141,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         const incluir = nomesMarcados.filter(n => !atuaisNorm.has(normalizarUnidade(n)));
 
         const falhou = async (error) => {
-            avisar('Não foi possível salvar as unidades do mentor.\n\n' + (error?.message || ''));
+            avisar(tx("Não foi possível salvar as unidades do mentor.\n\n{v2}", { v2: error?.message || '' }));
             await carregarVinculosMentor();
             return false;
         };
@@ -168,7 +169,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             
             {sucesso && (
                 <div className="absolute top-0 right-0 bg-emerald-50 border border-emerald-200 text-emerald-600 px-6 py-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(16,185,129,0.2)] flex items-center gap-3 font-black uppercase tracking-wider text-[10px] z-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400">
-                    <ShieldCheck className="w-4 h-4" /> Alterações salvas com sucesso!
+                    <ShieldCheck className="w-4 h-4" />{' '}{tx("Alterações salvas com sucesso!")}
                 </div>
             )}
 
@@ -179,19 +180,19 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                         <Settings className="w-8 h-8" strokeWidth={2} />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">Painel de Administração</h2>
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Painel de Administração")}</h2>
                         <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
-                            <Lock className="w-3 h-3" /> Acesso Restrito do Sistema
+                            <Lock className="w-3 h-3" />{' '}{tx("Acesso Restrito do Sistema")}
                         </p>
                     </div>
                 </div>
 
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto relative z-10 shadow-inner dark:bg-slate-800 dark:border-slate-800">
                     <button onClick={() => setAbaAtiva('acessos')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'acessos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
-                        <Shield className="w-4 h-4" strokeWidth={2.5} /> Logins e Permissões
+                        <Shield className="w-4 h-4" strokeWidth={2.5} />{' '}{tx("Logins e Permissões")}
                     </button>
                     <button onClick={() => setAbaAtiva('unidades')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'unidades' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
-                        <MapPin className="w-4 h-4" strokeWidth={2.5} /> Gestão de Unidades
+                        <MapPin className="w-4 h-4" strokeWidth={2.5} />{' '}{tx("Gestão de Unidades")}
                     </button>
                 </div>
             </div>
@@ -205,57 +206,57 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                         <form onSubmit={handleSalvarAcesso} className="space-y-5 animate-[fadeIn_0.3s_ease-out] relative z-10">
                             <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4 dark:text-white dark:border-slate-800">
                                 <div className="p-2 bg-blue-50 rounded-lg border border-blue-100 text-blue-600 shadow-inner dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400"><Key className="w-4 h-4" /></div>
-                                Conceder Novo Acesso
+                                {tx("Conceder Novo Acesso")}
                             </h3>
                             
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">E-mail do Usuário</label>
-                                <input type="email" value={acessoEmail} onChange={(e) => setAcessoEmail(e.target.value)} required placeholder="email@pratique.com" className={`${inputCSS} lowercase`} />
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("E-mail do Usuário")}</label>
+                                <input type="email" value={acessoEmail} onChange={(e) => setAcessoEmail(e.target.value)} required placeholder={tx("email@pratique.com")} className={`${inputCSS} lowercase`} />
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Nível de Permissão</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Nível de Permissão")}</label>
                                 <select value={acessoRole} onChange={(e) => setAcessoRole(e.target.value)} required className={`${inputCSS} cursor-pointer appearance-none`}>
-                                    <option value="" disabled>Selecione o Nível...</option>
-                                    <option value="ADMIN">Administrador Global (Admin)</option>
-                                    <option value="MENTOR">Mentor (unidades vinculadas)</option>
-                                    <option value="LIDER">Líder de Unidade</option>
-                                    <option value="RECEPCAO">Recepção / Consultor</option>
+                                    <option value="" disabled>{tx("Selecione o Nível...")}</option>
+                                    <option value="ADMIN">{tx("Administrador Global (Admin)")}</option>
+                                    <option value="MENTOR">{tx("Mentor (unidades vinculadas)")}</option>
+                                    <option value="LIDER">{tx("Líder de Unidade")}</option>
+                                    <option value="RECEPCAO">{tx("Recepção / Consultor")}</option>
                                 </select>
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Senha Inicial</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Senha Inicial")}</label>
                                 <input 
                                     type="text" 
                                     value={acessoSenha} 
                                     onChange={(e) => setAcessoSenha(e.target.value)} 
                                     required 
-                                    placeholder="Defina uma senha segura" 
+                                    placeholder={tx("Defina uma senha segura")} 
                                     disabled={acessoRole === 'LIDER' || acessoRole === 'RECEPCAO'}
                                     className={`${inputCSS} disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-slate-800`} 
                                 />
                                 {(acessoRole === 'LIDER' || acessoRole === 'RECEPCAO') && (
-                                    <p className="text-[10px] font-bold text-slate-400 mt-1 ml-1 uppercase tracking-widest">Senha padrão "123456" aplicada automaticamente.</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-1 ml-1 uppercase tracking-widest">{tx("Senha padrão \"123456\" aplicada automaticamente.")}</p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Nome de Exibição</label>
-                                <input type="text" value={acessoNome} onChange={(e) => setAcessoNome(e.target.value)} required placeholder="Ex: Marcelo de Paula" className={`${inputCSS} uppercase`} />
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Nome de Exibição")}</label>
+                                <input type="text" value={acessoNome} onChange={(e) => setAcessoNome(e.target.value)} required placeholder={tx("Ex: Marcelo de Paula")} className={`${inputCSS} uppercase`} />
                             </div>
                             
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Vincular à Unidade</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Vincular à Unidade")}</label>
                                 <select value={acessoUnidade} onChange={(e) => setAcessoUnidade(e.target.value)} required className={`${inputCSS} cursor-pointer uppercase appearance-none`}>
-                                    <option value="" disabled>Selecione a Unidade...</option>
-                                    <option value="TODAS">Todas as Unidades (Global)</option>
+                                    <option value="" disabled>{tx("Selecione a Unidade...")}</option>
+                                    <option value="TODAS">{tx("Todas as Unidades (Global)")}</option>
                                     {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
                                 </select>
                             </div>
 
                             <button type="submit" className="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-[10px]">
-                                <UserCheck className="w-4 h-4" /> Criar Acesso Seguro
+                                <UserCheck className="w-4 h-4" />{' '}{tx("Criar Acesso Seguro")}
                             </button>
                         </form>
                     )}
@@ -264,14 +265,14 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                         <form onSubmit={handleSalvarUnidade} className="space-y-5 animate-[fadeIn_0.3s_ease-out] relative z-10">
                             <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4 dark:text-white dark:border-slate-800">
                                 <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-600 shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><MapPin className="w-4 h-4" /></div>
-                                Cadastrar Nova Unidade
+                                {tx("Cadastrar Nova Unidade")}
                             </h3>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Nome Oficial da Unidade</label>
-                                <input type="text" value={nomeUnidade} onChange={(e) => setNomeUnidade(e.target.value)} required placeholder="Ex: SANTA INÊS 2" className={`${inputCSS} uppercase`} />
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Nome Oficial da Unidade")}</label>
+                                <input type="text" value={nomeUnidade} onChange={(e) => setNomeUnidade(e.target.value)} required placeholder={tx("Ex: SANTA INÊS 2")} className={`${inputCSS} uppercase`} />
                             </div>
                             <button type="submit" className="w-full mt-6 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-[10px]">
-                                <Save className="w-4 h-4" /> Salvar Nova Unidade
+                                <Save className="w-4 h-4" />{' '}{tx("Salvar Nova Unidade")}
                             </button>
                         </form>
                     )}
@@ -282,10 +283,10 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                     
                     <div className="p-6 md:p-8 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 dark:border-slate-800 dark:bg-slate-900">
                         <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest flex items-center gap-2 dark:text-slate-300">
-                            <Shield className="w-4 h-4 text-slate-400" /> Diretório do Sistema
+                            <Shield className="w-4 h-4 text-slate-400" />{' '}{tx("Diretório do Sistema")}
                         </h3>
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                            {abaAtiva === 'acessos' ? `${usuariosAcesso.length} Usuários Cadastrados` : `${unidades.length} Unidades Cadastradas`}
+                            {abaAtiva === 'acessos' ? tx("{length} Usuários Cadastrados", { length: usuariosAcesso.length }) : tx("{length} Unidades Cadastradas", { length: unidades.length })}
                         </div>
                     </div>
 
@@ -314,18 +315,18 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                                 u.role === 'LIDER' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30' :
                                                 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30'
                                             }`}>
-                                                {u.role === 'RECEPCAO' ? 'RECEPÇÃO / CONSULTOR' : u.role}
+                                                {u.role === 'RECEPCAO' ? tx("RECEPÇÃO / CONSULTOR") : u.role}
                                             </span>
                                             <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1 dark:text-slate-400">
                                                 <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3 text-slate-400" /> {u.unidade}</span>
                                                 
                                                 {u.role === 'MENTOR' && (
-                                                    <button onClick={() => setMentorEditando(u)} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 hover:text-blue-700 transition-colors px-2.5 py-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-md shadow-sm text-[10px] font-black uppercase tracking-widest dark:hover:text-blue-400" title="Escolher as unidades deste mentor">
-                                                        <Building2 className="w-3.5 h-3.5" /> Unidades
+                                                    <button onClick={() => setMentorEditando(u)} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 hover:text-blue-700 transition-colors px-2.5 py-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-md shadow-sm text-[10px] font-black uppercase tracking-widest dark:hover:text-blue-400" title={tx("Escolher as unidades deste mentor")}>
+                                                        <Building2 className="w-3.5 h-3.5" />{' '}{tx("Unidades")}
                                                     </button>
                                                 )}
                                                 {u.role !== 'ADMIN' && (
-                                                    <button onClick={() => handleDeleteAcesso(u.email)} className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-md shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title="Revogar Acesso">
+                                                    <button onClick={() => handleDeleteAcesso(u.email)} className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-md shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title={tx("Revogar Acesso")}>
                                                         <UserMinus className="w-3.5 h-3.5" />
                                                     </button>
                                                 )}
@@ -336,7 +337,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                         const lista = unidadesDoMentor(u.email);
                                         if (lista.length === 0) return (
                                             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-[10px] font-black uppercase tracking-widest">
-                                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> Sem unidades: este mentor não vê nada no sistema
+                                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />{' '}{tx("Sem unidades: este mentor não vê nada no sistema")}
                                             </div>
                                         );
                                         const ordenada = [...lista].sort((a, b) => String(a).localeCompare(String(b), 'pt-BR', { numeric: true }));
@@ -363,7 +364,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                             {/* 🔥 O PROBLEMA ESTAVA AQUI: text-white removido. Adicionado text-slate-800 forte */}
                                             <span className="text-sm font-black text-slate-800 uppercase tracking-wider dark:text-white">{u.nome}</span>
                                         </div>
-                                        <button onClick={() => handleDeleteUnidade(u.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title="Excluir Unidade">
+                                        <button onClick={() => handleDeleteUnidade(u.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title={tx("Excluir Unidade")}>
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -374,7 +375,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                             {((abaAtiva === 'acessos' && usuariosAcesso.length === 0) || (abaAtiva === 'unidades' && unidades.length === 0)) && (
                                 <div className="flex flex-col items-center justify-center py-20 opacity-60">
                                     <Shield className="w-16 h-16 text-slate-300 mb-4" strokeWidth={1} />
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nenhum registro encontrado no diretório.</p>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{tx("Nenhum registro encontrado no diretório.")}</p>
                                 </div>
                             )}
 

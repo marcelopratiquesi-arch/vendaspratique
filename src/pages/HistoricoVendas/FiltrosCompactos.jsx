@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CalendarDays, ChevronDown, ChevronRight, Check, Search } from 'lucide-react';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // Datas locais (sem bug de fuso)
@@ -104,7 +105,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
             >
                 <span className="flex items-center gap-2 min-w-0">
                     <CalendarDays className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{rotulo}</span>
+                    <span className="truncate">{tx(rotulo)}</span>
                 </span>
                 <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${aberto ? 'rotate-180' : ''}`} />
             </button>
@@ -114,7 +115,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                     <div className="p-1.5">
                         {ATALHOS.map(([id, texto]) => (
                             <button key={id} type="button" role="menuitem" onClick={() => escolherAtalho(id)} className={classeItem(preset === id)}>
-                                {texto}
+                                {tx(texto)}
                                 {preset === id && <Check className="w-4 h-4" strokeWidth={2.5} />}
                             </button>
                         ))}
@@ -125,7 +126,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                             const ativo = painel === id || (!painel && preset === id);
                             return (
                                 <button key={id} type="button" role="menuitem" aria-expanded={painel === id} onClick={() => setPainel(painel === id ? null : id)} className={classeItem(ativo)}>
-                                    {texto}
+                                    {tx(texto)}
                                     {preset === id ? <Check className="w-4 h-4" strokeWidth={2.5} /> : <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${painel === id ? 'rotate-90' : ''}`} />}
                                 </button>
                             );
@@ -136,30 +137,30 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                         <div className="p-3 bg-slate-50 border-t border-slate-200 flex flex-col gap-2.5 dark:bg-slate-800/60 dark:border-slate-800">
                             {painel === 'mes' && (
                                 <div className="grid grid-cols-2 gap-2">
-                                    <label className={rotuloCampo}>Mês
+                                    <label className={rotuloCampo}>{tx("Mês")}
                                         <select value={rascunho.mes} onChange={(e) => setRascunho((r) => ({ ...r, mes: e.target.value }))} className={campo}>
-                                            {meses.map((m) => <option key={m.val} value={m.val}>{m.label}</option>)}
+                                            {meses.map((m) => <option key={m.val} value={m.val}>{tx(m.label)}</option>)}
                                         </select>
                                     </label>
-                                    <label className={rotuloCampo}>Ano
+                                    <label className={rotuloCampo}>{tx("Ano")}
                                         <select value={rascunho.ano} onChange={(e) => setRascunho((r) => ({ ...r, ano: e.target.value }))} className={campo}>
-                                            <option value="TODOS">Todos os anos</option>
+                                            <option value="TODOS">{tx("Todos os anos")}</option>
                                             {anos.map((a) => <option key={a} value={a}>{a}</option>)}
                                         </select>
                                     </label>
                                 </div>
                             )}
                             {painel === 'dia' && (
-                                <label className={rotuloCampo}>Dia
+                                <label className={rotuloCampo}>{tx("Dia")}
                                     <input type="date" value={rascunho.dia || ''} onChange={(e) => setRascunho((r) => ({ ...r, dia: e.target.value }))} className={campo} />
                                 </label>
                             )}
                             {painel === 'personalizado' && (
                                 <div className="grid grid-cols-2 gap-2">
-                                    <label className={rotuloCampo}>De
+                                    <label className={rotuloCampo}>{tx("De")}
                                         <input type="date" value={rascunho.inicio || ''} onChange={(e) => setRascunho((r) => ({ ...r, inicio: e.target.value }))} className={campo} />
                                     </label>
-                                    <label className={rotuloCampo}>Até
+                                    <label className={rotuloCampo}>{tx("Até")}
                                         <input type="date" value={rascunho.fim || ''} onChange={(e) => setRascunho((r) => ({ ...r, fim: e.target.value }))} className={campo} />
                                     </label>
                                 </div>
@@ -170,7 +171,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                                 disabled={(painel === 'dia' && !rascunho.dia) || (painel === 'personalizado' && (!rascunho.inicio || !rascunho.fim))}
                                 className={botaoAplicar}
                             >
-                                Aplicar
+                                {tx("Aplicar")}
                             </button>
                         </div>
                     )}
@@ -213,7 +214,7 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
                 aria-haspopup="listbox"
                 aria-expanded={aberto}
                 disabled={vazio}
-                title={vazio ? `Nenhum item de ${rotulo.toLowerCase()} no período` : rotulo}
+                title={vazio ? tx("Nenhum item de {v1} no período", { v1: rotulo.toLowerCase() }) : rotulo}
                 className={`w-full h-[42px] px-3 rounded-xl border text-[13px] flex items-center justify-between gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
                     filtrando
                         ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400'
@@ -224,7 +225,7 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
             >
                 <span className="flex items-center gap-2 min-w-0">
                     {Icone && <Icone className={`w-4 h-4 shrink-0 ${filtrando ? '' : 'text-slate-400'}`} />}
-                    <span className="truncate">{rotulo}</span>
+                    <span className="truncate">{tx(rotulo)}</span>
                 </span>
                 {filtrando ? (
                     <span className="shrink-0 h-5 px-1.5 rounded-full bg-blue-600 text-white text-[10px] font-black flex items-center">{visiveis}/{options.length}</span>
@@ -239,13 +240,13 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
                         <div className="p-2 border-b border-slate-100 dark:border-slate-800">
                             <div className="relative">
                                 <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                                <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={`Buscar em ${rotulo.toLowerCase()}...`} className="w-full h-9 pl-8 pr-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[13px] text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-800 dark:text-white" />
+                                <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar em {v1}...", { v1: rotulo.toLowerCase() })} className="w-full h-9 pl-8 pr-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[13px] text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-800 dark:text-white" />
                             </div>
                         </div>
                     )}
                     <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                        <button type="button" onClick={() => setOcultos([])} className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-400">Marcar todos</button>
-                        <button type="button" onClick={() => setOcultos([...options])} className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">Desmarcar todos</button>
+                        <button type="button" onClick={() => setOcultos([])} className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-400">{tx("Marcar todos")}</button>
+                        <button type="button" onClick={() => setOcultos([...options])} className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">{tx("Desmarcar todos")}</button>
                     </div>
                     <div className="max-h-64 overflow-y-auto custom-scrollbar p-1.5">
                         {lista.map((item) => {
@@ -259,7 +260,7 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
                                 </button>
                             );
                         })}
-                        {lista.length === 0 && <p className="px-3 py-4 text-center text-[12px] font-medium text-slate-400">Nada encontrado</p>}
+                        {lista.length === 0 && <p className="px-3 py-4 text-center text-[12px] font-medium text-slate-400">{tx("Nada encontrado")}</p>}
                     </div>
                 </div>
             )}

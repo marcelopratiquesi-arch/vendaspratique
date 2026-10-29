@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useI18n } from '../i18n/I18nContext.jsx';
 import { ChevronDown, Check } from 'lucide-react';
+import { tx } from '../i18n/traduzir.js';
 
 // ==========================================
 // BANDEIRAS EMBUTIDAS
@@ -68,7 +69,7 @@ export default function LanguageSwitcher({ compact = false, variant = 'dropdown'
 
     if (variant === 'lista') {
         return (
-            <div role="radiogroup" aria-label="Idioma / Language" className="flex flex-col gap-0.5">
+            <div role="radiogroup" aria-label={tx("Idioma / Language")} className="flex flex-col gap-0.5">
                 {languages.map((lang) => {
                     const isSelected = locale === lang.code;
                     const Bandeira = lang.Bandeira;
@@ -116,8 +117,8 @@ export default function LanguageSwitcher({ compact = false, variant = 'dropdown'
                 onClick={() => setIsOpen(!isOpen)}
                 aria-haspopup="listbox"
                 aria-expanded={isOpen}
-                aria-label={`Idioma: ${activeLanguage.label}`}
-                title={compact ? `Idioma: ${activeLanguage.label}` : ''}
+                aria-label={tx("Idioma: {label}", { label: activeLanguage.label })}
+                title={compact ? tx("Idioma: {label}", { label: activeLanguage.label }) : ''}
                 className={`flex items-center transition-colors outline-none group ${
                     compact
                         ? 'w-9 h-9 justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-blue-500'
@@ -142,7 +143,7 @@ export default function LanguageSwitcher({ compact = false, variant = 'dropdown'
                 >
                     <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
                         <p className="text-[10px] font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
-                            Idioma / Language
+                            {tx("Idioma / Language")}
                         </p>
                     </div>
 

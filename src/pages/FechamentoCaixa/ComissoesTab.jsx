@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { formatMoney } from './utils.js'; 
 import { Check, Copy, Users, CheckCheck, Loader2, FileSpreadsheet, ChevronDown, ChevronRight, ChevronsUpDown, ChevronUp, Zap, Building, Inbox, CheckCircle2 } from 'lucide-react'; 
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia Individual
@@ -46,7 +47,7 @@ const CopyButton = ({ textToCopy, label }) => {
             onMouseDown={(e) => e.stopPropagation()} 
             onPointerDown={(e) => e.stopPropagation()} 
             className="p-1.5 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 focus:outline-none rounded-md transition-all flex-shrink-0 dark:hover:text-emerald-400 dark:hover:bg-emerald-500/10"
-            title={copied ? "Copiado!" : label}
+            title={copied ? tx("Copiado!") : label}
             aria-label={label}
         >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -127,7 +128,7 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
             document.body.removeChild(link);
         } catch (error) {
             console.error("Erro ao exportar:", error);
-            avisar("Erro ao gerar arquivo.");
+            avisar(tx("Erro ao gerar arquivo."));
         } finally {
             setTimeout(() => setIsExporting(false), 1000);
         }
@@ -174,10 +175,10 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                     </div>
                     <div>
                         <h3 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">
-                            Relatório de Comissionamento
+                            {tx("Relatório de Comissionamento")}
                         </h3>
                         <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 dark:text-slate-400">
-                            Gestão de pagamentos aos consultores
+                            {tx("Gestão de pagamentos aos consultores")}
                         </p>
                     </div>
                 </div>
@@ -185,14 +186,14 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                 <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto relative z-10">
                     <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-emerald-200/50 px-4 py-2.5 rounded-xl shadow-inner dark:bg-slate-900/60 dark:border-emerald-500/30">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest dark:text-emerald-400">Contas Aprovadas</span>
+                        <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest dark:text-emerald-400">{tx("Contas Aprovadas")}</span>
                     </div>
 
                     <button 
                         onClick={handleCopiarTudoExcel}
                         className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm ${copiadoTudo ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60 dark:border-slate-800'}`}
                     >
-                        {copiadoTudo ? <><CheckCheck className="w-3.5 h-3.5" /> Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar Valores</>}
+                        {copiadoTudo ? <><CheckCheck className="w-3.5 h-3.5" />{' '}{tx("Copiado!")}</> : <><Copy className="w-3.5 h-3.5" />{' '}{tx("Copiar Valores")}</>}
                     </button>
 
                     <button 
@@ -201,9 +202,9 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                         className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-sm bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-700 disabled:opacity-70"
                     >
                         {isExporting ? (
-                            <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Gerando Planilha...</>
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin" />{' '}{tx("Gerando Planilha...")}</>
                         ) : (
-                            <><FileSpreadsheet className="w-3.5 h-3.5" /> Baixar Planilha</>
+                            <><FileSpreadsheet className="w-3.5 h-3.5" />{' '}{tx("Baixar Planilha")}</>
                         )}
                     </button>
                 </div>
@@ -216,22 +217,22 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                             <th className="px-6 py-5 text-xs font-semibold text-slate-500 uppercase tracking-widest border-b border-slate-100 bg-slate-50/50 w-12 shadow-[0_4px_10px_rgba(0,0,0,0.01)] dark:text-slate-400 dark:border-slate-800 dark:bg-slate-800/40"></th>
                             
                             <th onClick={() => requestSort('vendedor')} className={`${thClass} w-64`}>
-                                <div className="flex items-center gap-2">Consultor Responsável {getSortIcon('vendedor')}</div>
+                                <div className="flex items-center gap-2">{tx("Consultor Responsável")}{' '}{getSortIcon('vendedor')}</div>
                             </th>
                             
                             <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50/50 shadow-[0_4px_10px_rgba(0,0,0,0.01)] dark:border-slate-800 dark:bg-slate-800/40">
-                                Documento / CPF
+                                {tx("Documento / CPF")}
                             </th>
 
                             <th className="px-4 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50/50 shadow-[0_4px_10px_rgba(0,0,0,0.01)] dark:border-slate-800 dark:bg-slate-800/40">
-                                Dados Bancários
+                                {tx("Dados Bancários")}
                             </th>
 
                             <th onClick={() => requestSort('totalComissao')} className={`${thClass} w-48`}>
-                                <div className="flex items-center gap-2">Total a Pagar {getSortIcon('totalComissao')}</div>
+                                <div className="flex items-center gap-2">{tx("Total a Pagar")}{' '}{getSortIcon('totalComissao')}</div>
                             </th>
                             
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50/50 shadow-[0_4px_10px_rgba(0,0,0,0.01)] dark:border-slate-800 dark:bg-slate-800/40">Resumo de Vendas</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 bg-slate-50/50 shadow-[0_4px_10px_rgba(0,0,0,0.01)] dark:border-slate-800 dark:bg-slate-800/40">{tx("Resumo de Vendas")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
@@ -264,9 +265,9 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                                 </div>
                                                 <div className="flex flex-col">
                                                     <span className="text-sm font-black text-slate-800 uppercase tracking-tight dark:text-white">{row.vendedor}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Time de Vendas</span>
+                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Time de Vendas")}</span>
                                                 </div>
-                                                <CopyButton textToCopy={row.vendedor} label={`Copiar nome de ${row.vendedor}`} />
+                                                <CopyButton textToCopy={row.vendedor} label={tx("Copiar nome de {vendedor}", { vendedor: row.vendedor })} />
                                             </div>
                                         </td>
 
@@ -274,9 +275,9 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                         <td className="px-4 py-6 align-middle">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[11px] font-mono font-bold text-slate-600 tracking-wider bg-slate-100/80 px-2.5 py-1.5 rounded-md border border-slate-200 dark:text-slate-300 dark:border-slate-800">
-                                                    {cpfExibicao || 'Não Cadastrado'}
+                                                    {cpfExibicao || tx("Não Cadastrado")}
                                                 </span>
-                                                {cpfExibicao && <CopyButton textToCopy={cpfExibicao} label={`Copiar CPF de ${row.vendedor}`} />}
+                                                {cpfExibicao && <CopyButton textToCopy={cpfExibicao} label={tx("Copiar CPF de {vendedor}", { vendedor: row.vendedor })} />}
                                             </div>
                                         </td>
 
@@ -285,26 +286,26 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                             {temPixCpf ? (
                                                 <div className="flex items-center gap-2">
                                                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30">
-                                                        <Zap className="w-3.5 h-3.5" /> PIX (CPF)
+                                                        <Zap className="w-3.5 h-3.5" />{' '}{tx("PIX (CPF)")}
                                                     </span>
-                                                    {chaveContaExibicao && <CopyButton textToCopy={chaveContaExibicao} label={`Copiar chave PIX de ${row.vendedor}`} />}
+                                                    {chaveContaExibicao && <CopyButton textToCopy={chaveContaExibicao} label={tx("Copiar chave PIX de {vendedor}", { vendedor: row.vendedor })} />}
                                                 </div>
                                             ) : temInter ? (
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 w-fit rounded bg-orange-50 text-orange-700 border border-orange-200 text-[10px] font-black uppercase tracking-widest dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30">
-                                                            <Building className="w-3 h-3" /> Banco Inter
+                                                            <Building className="w-3 h-3" />{' '}{tx("Banco Inter")}
                                                         </span>
                                                     </div>
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-[11px] font-mono font-bold text-slate-700 dark:text-slate-200">
-                                                            {chaveContaExibicao || 'Sem conta'}
+                                                            {chaveContaExibicao || tx("Sem conta")}
                                                         </span>
-                                                        {chaveContaExibicao && <CopyButton textToCopy={chaveContaExibicao} label={`Copiar dados bancários de ${row.vendedor}`} />}
+                                                        {chaveContaExibicao && <CopyButton textToCopy={chaveContaExibicao} label={tx("Copiar dados bancários de {vendedor}", { vendedor: row.vendedor })} />}
                                                     </div>
                                                 </div>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded border border-slate-100 dark:bg-slate-800/60 dark:border-slate-800">Não Definido</span>
+                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-2 py-1 rounded border border-slate-100 dark:bg-slate-800/60 dark:border-slate-800">{tx("Não Definido")}</span>
                                             )}
                                         </td>
 
@@ -314,7 +315,7 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                                 <span className="text-xl font-black text-emerald-700 tracking-tight dark:text-emerald-400">
                                                     {formatMoney(row.totalComissao)}
                                                 </span>
-                                                <CopyButton textToCopy={formatMoney(row.totalComissao)} label={`Copiar comissão de ${row.vendedor}`} />
+                                                <CopyButton textToCopy={formatMoney(row.totalComissao)} label={tx("Copiar comissão de {vendedor}", { vendedor: row.vendedor })} />
                                             </div>
                                         </td>
                                         
@@ -323,23 +324,23 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                             <div className="flex items-center justify-between gap-4">
                                                 <div className="flex items-center gap-3 overflow-hidden">
                                                     <span className="bg-white text-slate-600 px-2.5 py-1 rounded-md border border-slate-200 shadow-sm font-black text-[10px] uppercase tracking-wider shrink-0 flex items-center gap-1.5 dark:bg-slate-900 dark:text-slate-300 dark:border-slate-800">
-                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {row.totalItens} unid
+                                                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> {row.totalItens}{' '}{tx("unid")}
                                                     </span>
                                                     <span className="text-xs text-slate-500 font-medium truncate max-w-[200px] xl:max-w-[300px] dark:text-slate-400" title={stringItens}>
                                                         {stringItens}
                                                     </span>
-                                                    <CopyButton textToCopy={stringItens} label={`Copiar resumo de vendas de ${row.vendedor}`} />
+                                                    <CopyButton textToCopy={stringItens} label={tx("Copiar resumo de vendas de {vendedor}", { vendedor: row.vendedor })} />
                                                 </div>
                                                 
                                                 <button 
                                                     onClick={(e) => handleCopiarLinha(row.vendedor, row.totalComissao, row.itens, e)}
-                                                    title="Copiar Relatório do Consultor para Enviar"
+                                                    title={tx("Copiar Relatório do Consultor para Enviar")}
                                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all border shrink-0 text-[10px] font-black uppercase tracking-wider ${copiadoId === row.vendedor ? 'bg-emerald-50 text-emerald-600 border-emerald-200 shadow-inner dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50 shadow-sm dark:bg-slate-900 dark:text-blue-400 dark:border-blue-500/30 dark:hover:bg-blue-500/10'}`}
                                                 >
                                                     {copiadoId === row.vendedor ? (
-                                                        <><Check className="w-3.5 h-3.5" /> Copiado</>
+                                                        <><Check className="w-3.5 h-3.5" />{' '}{tx("Copiado")}</>
                                                     ) : (
-                                                        <><Copy className="w-3.5 h-3.5" /> Copiar Tudo</>
+                                                        <><Copy className="w-3.5 h-3.5" />{' '}{tx("Copiar Tudo")}</>
                                                     )}
                                                 </button>
                                             </div>
@@ -352,7 +353,7 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                             <td colSpan="6" className="px-8 py-8">
                                                 <div className="pl-14 animate-[fadeIn_0.2s_ease-out]">
                                                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                                        <CheckCircle2 className="w-4 h-4 text-slate-300" /> Detalhamento Operacional da Venda
+                                                        <CheckCircle2 className="w-4 h-4 text-slate-300" />{' '}{tx("Detalhamento Operacional da Venda")}
                                                     </p>
                                                     <div className="flex flex-wrap gap-3">
                                                         {Object.entries(row.itens).sort((a,b) => b[1] - a[1]).map(([nome, qtd]) => (
@@ -381,7 +382,7 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                         <div className="w-16 h-16 rounded-full bg-slate-50 border border-slate-200 border-dashed flex items-center justify-center dark:bg-slate-800/60 dark:border-slate-800">
                                             <Inbox className="w-6 h-6 text-slate-400" />
                                         </div>
-                                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">Nenhuma comissão aprovada neste filtro.</span>
+                                        <span className="text-xs font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Nenhuma comissão aprovada neste filtro.")}</span>
                                     </div>
                                 </td>
                             </tr>

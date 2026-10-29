@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { formatarCPF, formatarTelefone, formatarDataBR, extrairIniciais, copiarTextoSeguro } from './utils.js';
 import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // Função para gerar uma cor de Avatar consistente para cada Aluno
 const getAvatarColor = (nome) => {
@@ -44,7 +45,7 @@ export const BotaoCopiarPadrao = ({ valor, apenasDigitos = false, label = 'Copia
             type="button"
             onClick={handleClick}
             aria-label={label}
-            title={copiado ? 'Copiado!' : label}
+            title={copiado ? tx("Copiado!") : label}
             className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all opacity-0 group-hover/cell:opacity-100 focus:opacity-100 shrink-0 ml-1 flex items-center justify-center"
         >
             {copiado ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -83,7 +84,7 @@ const CabecalhoOrdenavel = ({ coluna, label, ordemColuna, ordemDirecao, onOrdena
             className={`px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800 select-none cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 transition-colors ${className}`}
         >
             <div className="inline-flex items-center gap-1.5">
-                <span>{label}</span>
+                <span>{tx(label)}</span>
                 {ativo ? (
                     ordemDirecao === 'ASC' ? (
                         <ArrowUp className="w-3.5 h-3.5 text-blue-500" />
@@ -117,10 +118,10 @@ const ListaAlunos = ({
                 <div className="w-14 h-14 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-2xl flex items-center justify-center mx-auto mb-4">
                     <AlertCircle className="w-7 h-7" />
                 </div>
-                <h3 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">Erro ao carregar</h3>
+                <h3 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Erro ao carregar")}</h3>
                 <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">{erro}</p>
                 <button onClick={onTentarNovamente} className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black uppercase tracking-widest transition-all">
-                    <RefreshCw className="w-4 h-4" /> Tentar Novamente
+                    <RefreshCw className="w-4 h-4" />{' '}{tx("Tentar Novamente")}
                 </button>
             </div>
         );
@@ -132,16 +133,16 @@ const ListaAlunos = ({
                 <table className="w-full text-left border-collapse min-w-[1050px]">
                     <thead className="bg-slate-50 dark:bg-slate-800/90 sticky top-0 z-30 backdrop-blur">
                         <tr>
-                            <CabecalhoOrdenavel coluna="nome" label="Aluno" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} className="sticky left-0 bg-slate-50 dark:bg-slate-800/90 z-30 w-[280px]" />
+                            <CabecalhoOrdenavel coluna="nome" label={tx("Aluno")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} className="sticky left-0 bg-slate-50 dark:bg-slate-800/90 z-30 w-[280px]" />
                             <CabecalhoOrdenavel coluna="cpf" label="CPF" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="email" label="E-mail" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="telefone" label="Telefone" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="email" label={tx("E-mail")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="telefone" label={tx("Telefone")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             {/* Unidade sempre visível: a busca é na rede inteira (regra 8 do CLAUDE.md) */}
-                            <CabecalhoOrdenavel coluna="unidade" label="Unidade" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="plano" label="Plano" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="cadastro" label="Cadastro" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="unidade" label={tx("Unidade")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="plano" label={tx("Plano")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="cadastro" label={tx("Cadastro")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             {/* 🔥 COLUNA DE AÇÕES STICKY À DIREITA */}
-                            <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800 text-right sticky right-0 bg-slate-50 dark:bg-slate-800/90 z-30 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">Ações</th>
+                            <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800 text-right sticky right-0 bg-slate-50 dark:bg-slate-800/90 z-30 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">{tx("Ações")}</th>
                         </tr>
                     </thead>
 
@@ -164,8 +165,8 @@ const ListaAlunos = ({
                                 <td colSpan={8}className="py-24 text-center">
                                     <div className="flex flex-col items-center">
                                         <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-500 flex items-center justify-center mb-3 border border-slate-100 dark:border-slate-700"><Users className="w-5 h-5" /></div>
-                                        <p className="text-sm font-black text-slate-600 dark:text-slate-300 uppercase">Nenhum aluno encontrado</p>
-                                        <button onClick={onLimparFiltros} className="mt-4 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-colors">Limpar Filtros</button>
+                                        <p className="text-sm font-black text-slate-600 dark:text-slate-300 uppercase">{tx("Nenhum aluno encontrado")}</p>
+                                        <button onClick={onLimparFiltros} className="mt-4 px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest transition-colors">{tx("Limpar Filtros")}</button>
                                     </div>
                                 </td>
                             </tr>
@@ -196,11 +197,11 @@ const ListaAlunos = ({
                                                         <span className="text-sm font-black text-slate-800 dark:text-slate-100 truncate group-hover/row:text-blue-600 dark:group-hover/row:text-blue-400 transition-colors uppercase">
                                                             {aluno.nome}
                                                         </span>
-                                                        <BotaoCopiarPadrao valor={aluno.nome} apenasDigitos={false} label="Copiar nome" onCopiado={onToastCopiado} />
+                                                        <BotaoCopiarPadrao valor={aluno.nome} apenasDigitos={false} label={tx("Copiar nome")} onCopiado={onToastCopiado} />
                                                     </div>
                                                     {matriculaValida && (
                                                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-                                                            Mat. {matriculaValida}
+                                                            {tx("Mat.")}{' '}{matriculaValida}
                                                         </span>
                                                     )}
                                                 </div>
@@ -211,19 +212,19 @@ const ListaAlunos = ({
                                         <td className="px-5 py-4 whitespace-nowrap group/cell">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="font-mono text-[13px] font-semibold text-slate-600 dark:text-slate-300">{formatarCPF(aluno.cpf)}</span>
-                                                <BotaoCopiarPadrao valor={aluno.cpf} apenasDigitos={true} label="Copiar CPF" onCopiado={onToastCopiado} />
+                                                <BotaoCopiarPadrao valor={aluno.cpf} apenasDigitos={true} label={tx("Copiar CPF")} onCopiado={onToastCopiado} />
                                             </div>
                                         </td>
                                         <td className="px-5 py-4 max-w-[200px] group/cell">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[13px] font-medium text-slate-600 dark:text-slate-300 truncate lowercase" title={aluno.email || ''}>{aluno.email || '—'}</span>
-                                                <BotaoCopiarPadrao valor={aluno.email} apenasDigitos={false} label="Copiar e-mail" onCopiado={onToastCopiado} />
+                                                <BotaoCopiarPadrao valor={aluno.email} apenasDigitos={false} label={tx("Copiar e-mail")} onCopiado={onToastCopiado} />
                                             </div>
                                         </td>
                                         <td className="px-5 py-4 whitespace-nowrap group/cell">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="font-mono text-[13px] font-semibold text-slate-600 dark:text-slate-300">{formatarTelefone(aluno.telefone)}</span>
-                                                <BotaoCopiarPadrao valor={aluno.telefone} apenasDigitos={true} label="Copiar telefone" onCopiado={onToastCopiado} />
+                                                <BotaoCopiarPadrao valor={aluno.telefone} apenasDigitos={true} label={tx("Copiar telefone")} onCopiado={onToastCopiado} />
                                             </div>
                                         </td>
 
@@ -239,7 +240,7 @@ const ListaAlunos = ({
                                                         {aluno.ultimo_plano}
                                                     </span>
                                                     {aluno.ultimo_plano_data && (
-                                                        <span className="text-[10px] font-medium text-slate-400 mt-1 ml-0.5">em {formatarDataBR(aluno.ultimo_plano_data)}</span>
+                                                        <span className="text-[10px] font-medium text-slate-400 mt-1 ml-0.5">{tx("em")}{' '}{formatarDataBR(aluno.ultimo_plano_data)}</span>
                                                     )}
                                                 </div>
                                             ) : (
@@ -259,7 +260,7 @@ const ListaAlunos = ({
                                                         type="button"
                                                         onClick={(e) => { e.stopPropagation(); if(aluno.cpf) onIniciarVendaAluno(aluno); }}
                                                         disabled={!aluno.cpf}
-                                                        title={aluno.cpf ? "Vender para este aluno" : "Aluno sem CPF cadastrado"}
+                                                        title={aluno.cpf ? tx("Vender para este aluno") : tx("Aluno sem CPF cadastrado")}
                                                         className="p-2 rounded-lg bg-transparent text-slate-400 hover:bg-emerald-50 hover:text-emerald-600 dark:hover:bg-emerald-900/30 dark:hover:text-emerald-400 border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed"
                                                     >
                                                         <ShoppingCart className="w-4 h-4" />
@@ -270,7 +271,7 @@ const ListaAlunos = ({
                                                         type="button"
                                                         onClick={(e) => { e.stopPropagation(); if(aluno.cpf) onIniciarAvaliacaoAluno(aluno); }}
                                                         disabled={!aluno.cpf}
-                                                        title={aluno.cpf ? "Avaliar este aluno" : "Aluno sem CPF cadastrado"}
+                                                        title={aluno.cpf ? tx("Avaliar este aluno") : tx("Aluno sem CPF cadastrado")}
                                                         className="p-2 rounded-lg bg-transparent text-slate-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/30 dark:hover:text-amber-400 border border-transparent hover:border-amber-200 dark:hover:border-amber-800 transition-all disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:border-transparent disabled:hover:text-slate-400 disabled:cursor-not-allowed"
                                                     >
                                                         <Dumbbell className="w-4 h-4" />
@@ -279,7 +280,7 @@ const ListaAlunos = ({
                                                 <button
                                                     type="button"
                                                     onClick={(e) => { e.stopPropagation(); onEditarAluno(aluno); }}
-                                                    title="Editar dados"
+                                                    title={tx("Editar dados")}
                                                     className="p-2 rounded-lg bg-transparent text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition-all"
                                                 >
                                                     <UserRoundPen className="w-4 h-4" />
@@ -288,7 +289,7 @@ const ListaAlunos = ({
                                                     <button
                                                         type="button"
                                                         onClick={(e) => { e.stopPropagation(); onExcluirAluno(aluno); }}
-                                                        title="Excluir cadastro"
+                                                        title={tx("Excluir cadastro")}
                                                         className="p-2 rounded-lg bg-transparent text-slate-400 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400 border border-transparent hover:border-rose-200 dark:hover:border-rose-800 transition-all"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -310,10 +311,10 @@ const ListaAlunos = ({
 
             <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
-                    <span>Exibindo <strong className="text-slate-800 dark:text-white">{inicioItem}–{fimItem}</strong> de <strong className="text-blue-600 dark:text-blue-400">{totalCount.toLocaleString('pt-BR')}</strong> alunos</span>
+                    <span>{tx("Exibindo")}{' '}<strong className="text-slate-800 dark:text-white">{inicioItem}–{fimItem}</strong>{' '}{tx("de")}{' '}<strong className="text-blue-600 dark:text-blue-400">{totalCount.toLocaleString(localeAtual())}</strong>{' '}{tx("alunos")}</span>
                     <span className="text-slate-300 dark:text-slate-700">|</span>
                     <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-black uppercase tracking-widest">Por página:</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">{tx("Por página:")}</span>
                         {[25, 50, 100].map((qtd) => (
                             <button key={qtd} onClick={() => { setItensPorPagina(qtd); setPagina(1); }} className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${itensPorPagina === qtd ? 'bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
                                 {qtd}
@@ -322,9 +323,9 @@ const ListaAlunos = ({
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1 || loading} className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><ChevronLeft className="w-4 h-4" /> Anterior</button>
-                    <span className="px-3 py-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">Página {pagina} de {totalPaginas}</span>
-                    <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas || loading} className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Próxima <ChevronRight className="w-4 h-4" /></button>
+                    <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1 || loading} className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><ChevronLeft className="w-4 h-4" />{' '}{tx("Anterior")}</button>
+                    <span className="px-3 py-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">{tx("Página")}{' '}{pagina}{' '}{tx("de")}{' '}{totalPaginas}</span>
+                    <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas || loading} className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">{tx("Próxima")}{' '}<ChevronRight className="w-4 h-4" /></button>
                 </div>
             </div>
         </div>

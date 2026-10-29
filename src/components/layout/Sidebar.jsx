@@ -3,6 +3,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { 
     PanelLeftClose, PanelLeftOpen, Plus, Building2, Check, Globe, ChevronsUpDown, Search, X, Settings, LogOut, Zap
 } from 'lucide-react';
+import { tx } from '../../i18n/traduzir.js';
 
 const useFecharAoClicarFora = (ref, aberto, fechar) => {
     useEffect(() => {
@@ -82,7 +83,7 @@ const SeletorUnidade = ({ unidadeGlobal, setUnidadeGlobal, unidades, recolhido, 
                     <div className="p-2 border-b border-slate-100 dark:border-slate-700">
                         <div className="relative">
                             <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-                            <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar unidade..." className="w-full pl-8 pr-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[13px] text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500" />
+                            <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar unidade...")} className="w-full pl-8 pr-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[13px] text-slate-800 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500" />
                         </div>
                     </div>
                     <div className="max-h-72 overflow-y-auto custom-scrollbar p-1.5">
@@ -131,7 +132,7 @@ const ItemMenu = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderDica })
             <Icone className="w-[18px] h-[18px] shrink-0" strokeWidth={ativo ? 2.4 : 2} />
             {!recolhido && (
                 <>
-                    <span className="flex-1 truncate text-[13px] font-semibold">{tab.label}</span>
+                    <span className="flex-1 truncate text-[13px] font-semibold">{tx(tab.label)}</span>
                     {temBadge && <span className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center shadow-sm">{textoBadge}</span>}
                 </>
             )}
@@ -150,7 +151,7 @@ const BotaoNovaVenda = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderD
         } ${ativo ? 'ring-2 ring-blue-300 dark:ring-blue-500/50' : ''}`}
     >
         <Plus className="w-[18px] h-[18px]" strokeWidth={2.5} />
-        {!recolhido && <span>{tab.label}</span>}
+        {!recolhido && <span>{tx(tab.label)}</span>}
     </button>
 );
 
@@ -188,8 +189,8 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                     </div>
                     {!recolhido && (
                         <div className="flex flex-col min-w-0 mt-0.5">
-                            <h1 className="text-[18px] font-black text-slate-900 dark:text-white leading-none tracking-[-0.02em] uppercase">Pratique</h1>
-                            <h2 className="text-[10.5px] font-black text-blue-600 dark:text-blue-400 tracking-[0.22em] mt-1.5 leading-none">VENDAS</h2>
+                            <h1 className="text-[18px] font-black text-slate-900 dark:text-white leading-none tracking-[-0.02em] uppercase">{tx("Pratique")}</h1>
+                            <h2 className="text-[10.5px] font-black text-blue-600 dark:text-blue-400 tracking-[0.22em] mt-1.5 leading-none">{tx("VENDAS")}</h2>
                         </div>
                     )}
                 </div>
@@ -257,7 +258,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                     
                     <button 
                         onClick={handleLogout}
-                        title="Sair do sistema"
+                        title={tx("Sair do sistema")}
                         className={`text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 outline-none focus-visible:ring-2 focus-visible:ring-rose-500 shrink-0 ${recolhido ? 'mt-2' : ''}`}
                     >
                         <LogOut className="w-5 h-5" />
@@ -267,7 +268,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
 
             {dica && (
                 <div className="fixed z-[200] -translate-y-1/2 px-2.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-semibold shadow-lg pointer-events-none whitespace-nowrap" style={{ top: dica.top, left: dica.left }}>
-                    {dica.texto}
+                    {tx(dica.texto)}
                 </div>
             )}
         </div>

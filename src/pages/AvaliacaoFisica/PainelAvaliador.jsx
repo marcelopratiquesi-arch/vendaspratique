@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { 
-    ArrowLeft, Building2, BarChart3, LogOut, PlusCircle, Filter, Calendar as CalendarIcon, 
+    ArrowLeft, Building2, BarChart3, LogOut, PlusCircle, Filter, 
     RefreshCw, FileDigit, TrendingUp, ArrowUpDown, CalendarDays, Trophy, MousePointerClick, 
     ClipboardSignature, ListChecks, Activity, Search, Download, Scale, Ruler, LineChart, 
     FileText, Eye, Edit3, Trash2, Send, Check, Copy, X, UserRoundPen
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
-import { getMeses } from '../AnaliseVendas/utils.js';
 import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
 import FormAvaliacao from './FormAvaliacao';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
+import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
+import { MESES_FILTRO, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -32,13 +34,14 @@ const PainelAvaliador = ({
     handleVoltar, setAlunoEvolucaoModal, avaliacoes = [], colaboradores = [],
     alunoParaAvaliar = null, unidadeAvaliacao = ''
 }) => {
-    const { t, locale, language } = useI18n(); 
+    const { locale, language } = useI18n(); 
     const langAtual = locale || language || 'pt-BR';
-    const mesesTraduzidos = getMeses(t);
 
     const [modoExibicao, setModoExibicao] = useState('resumo');
     const [perguntasBase, setPerguntasBase] = useState([]);
 
+    // Filtro de período padrão do sistema (o mesmo do Histórico): o atalho escolhido + os campos de data de sempre
+    const [presetPeriodo, setPresetPeriodo] = useState('hoje');
     const [tipoFiltro, setTipoFiltro] = useState('dia');
     const [diaEspecifico, setDiaEspecifico] = useState(getLocalISODate());
     const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
@@ -140,19 +143,28 @@ const PainelAvaliador = ({
         fetchDados();
     }, [tipoFiltro, diaEspecifico, filtroMes, filtroAno, dataInicio, dataFim, abaAtiva, professorAtivo, usuarioLogado?.unidade]);
 
+    const aplicarPeriodo = (p) => {
+        if (!p) return;
+        setPresetPeriodo(p.preset);
+        setTipoFiltro(p.tipo);
+        if (p.tipo === 'dia') setDiaEspecifico(p.dia || '');
+        if (p.tipo === 'periodo') { setDataInicio(p.inicio || ''); setDataFim(p.fim || ''); }
+        if (p.tipo === 'mes') { setFiltroMes(p.mes || 'TODOS'); setFiltroAno(p.ano || 'TODOS'); }
+    };
+
     const limparFiltros = () => {
-        setTipoFiltro('dia'); setDiaEspecifico(getLocalISODate()); setFiltroMes(String(new Date().getMonth() + 1).padStart(2, '0')); setFiltroAno(new Date().getFullYear().toString()); setDataInicio(''); setDataFim(''); setBusca('');
+        setPresetPeriodo('hoje'); setTipoFiltro('dia'); setDiaEspecifico(getLocalISODate()); setFiltroMes(String(new Date().getMonth() + 1).padStart(2, '0')); setFiltroAno(new Date().getFullYear().toString()); setDataInicio(''); setDataFim(''); setBusca('');
         setFiltroSexo('TODOS'); setFiltroAltura({min:'', max:''}); setFiltroPeso({min:'', max:''}); setFiltroSmi({min:'', max:''}); setBuscaAnamnese(''); setFiltroProfTabela('TODOS'); setFiltroUnidadeTabela('TODOS');
     };
 
     const removerAvaliacao = async (id) => {
-        if (!podeEditar) return avisar("Você não tem permissão.");
-        if (window.confirm('🚨 ATENÇÃO: Tem certeza que deseja excluir esta avaliação?')) {
+        if (!podeEditar) return avisar(tx("Você não tem permissão."));
+        if (window.confirm(tx("🚨 ATENÇÃO: Tem certeza que deseja excluir esta avaliação?"))) {
             try {
                 const { error } = await supabase.from('avaliacoes_realizadas').delete().eq('id', id);
                 if (error) throw error;
                 setDadosFiltrados(prev => prev.filter(item => item.id !== id));
-            } catch (err) { console.error(err); avisar('Erro ao excluir avaliação.'); }
+            } catch (err) { console.error(err); avisar(tx("Erro ao excluir avaliação.")); }
         }
     };
 
@@ -179,7 +191,7 @@ const PainelAvaliador = ({
             ));
         } catch (err) {
             console.error("Erro ao alterar avaliador:", err);
-            avisar("Erro ao alterar o avaliador. Verifique a conexão.");
+            avisar(tx("Erro ao alterar o avaliador. Verifique a conexão."));
         } finally {
             setEditingAvaliadorId(null);
         }
@@ -358,7 +370,7 @@ const PainelAvaliador = ({
                                     <BarChart3 className="w-5 h-5" />
                                 </div>
                                 <h3 className="text-base font-black text-white uppercase tracking-wider">
-                                    {professorAtivo.id === 'GLOBAL' ? 'RESUMO GLOBAL' : `RESUMO - ${professorAtivo.nome.toUpperCase()}`}
+                                    {professorAtivo.id === 'GLOBAL' ? tx("RESUMO GLOBAL") : tx("RESUMO - {v1}", { v1: professorAtivo.nome.toUpperCase() })}
                                 </h3>
                             </div>
                             <button onClick={() => setModalRelatorioAberto(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
@@ -376,15 +388,15 @@ const PainelAvaliador = ({
 
                         <div className="px-6 py-4 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-3">
                             <button onClick={() => setModalRelatorioAberto(false)} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                FECHAR
+                                {tx("FECHAR")}
                             </button>
                             <button onClick={handleCopiarRelatorio} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5 active:scale-95">
                                 {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                                {copiado ? 'COPIADO!' : 'COPIAR'}
+                                {copiado ? tx("COPIADO!") : tx("COPIAR")}
                             </button>
                             <button onClick={handleEnviarWhatsApp} className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 active:scale-95">
                                 <Send className="w-3.5 h-3.5" />
-                                ENVIAR
+                                {tx("ENVIAR")}
                             </button>
                         </div>
                     </div>
@@ -395,7 +407,7 @@ const PainelAvaliador = ({
             <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
                 <div className="flex items-center w-full xl:w-auto gap-4">
                     <button onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 shadow-sm transition-all shrink-0">
-                        <ArrowLeft className="w-3.5 h-3.5"/> Voltar
+                        <ArrowLeft className="w-3.5 h-3.5"/>{' '}{tx("Voltar")}
                     </button>
                     
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-50 dark:from-blue-900/40 dark:to-blue-900/40 text-blue-600 dark:text-blue-400 rounded-[14px] flex items-center justify-center text-lg font-black shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-inner">
@@ -407,19 +419,19 @@ const PainelAvaliador = ({
                             {professorAtivo.nome}
                         </h2>
                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1 truncate">
-                            {professorAtivo.id === 'GLOBAL' ? 'Painel de Gestão da Rede' : `Painel de Avaliação Física • Unidade ${professorAtivo.unidade || usuarioLogado?.unidade}`}
+                            {professorAtivo.id === 'GLOBAL' ? tx("Painel de Gestão da Rede") : tx("Painel de Avaliação Física • Unidade {v1}", { v1: professorAtivo.unidade || usuarioLogado?.unidade })}
                         </p>
                     </div>
                 </div>
 
                 <div className="flex w-full xl:w-auto items-center gap-3 justify-end shrink-0">
                     <button onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="px-4 py-2.5 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-blue-50/80 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800 shadow-sm whitespace-nowrap">
-                        <LogOut className="w-3.5 h-3.5" /> Trocar Professor
+                        <LogOut className="w-3.5 h-3.5" />{' '}{tx("Trocar Professor")}
                     </button>
                     
                     {abaAtiva !== 'nova' && professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
                         <button onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }} className="px-6 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_4px_15px_rgba(249,115,22,0.3)] flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:shadow-[0_6px_20px_rgba(249,115,22,0.4)] hover:-translate-y-0.5 border border-orange-400 dark:border-orange-500/50 whitespace-nowrap">
-                            <PlusCircle className="w-4 h-4" /> Nova Avaliação
+                            <PlusCircle className="w-4 h-4" />{' '}{tx("Nova Avaliação")}
                         </button>
                     )}
                 </div>
@@ -438,43 +450,28 @@ const PainelAvaliador = ({
                                 <Filter className="w-4 h-4" />
                             </div>
                             <div>
-                                <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight leading-none">Filtros de Histórico</h2>
-                                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Ajuste a visualização dos dados</p>
+                                <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight leading-none">{tx("Filtros de Histórico")}</h2>
+                                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{tx("Ajuste a visualização dos dados")}</p>
                             </div>
                         </div>
 
                         <div className="flex flex-col lg:flex-row items-center gap-3 w-full xl:w-auto">
-                            <div className="flex bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl w-full md:w-auto shadow-inner border border-slate-200/50 dark:border-slate-700/50">
-                                <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Dia</button>
-                                <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Mês</button>
-                                <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Período</button>
-                            </div>
+                            <SeletorPeriodo
+                                rotulo={rotuloDoFiltro({ preset: presetPeriodo, dia: diaEspecifico, inicio: dataInicio, fim: dataFim, mes: filtroMes, ano: filtroAno })}
+                                preset={presetPeriodo}
+                                tipo={tipoFiltro}
+                                dia={diaEspecifico}
+                                inicio={dataInicio}
+                                fim={dataFim}
+                                mes={filtroMes}
+                                ano={filtroAno}
+                                meses={MESES_FILTRO}
+                                anos={anosUnicos}
+                                onAplicar={aplicarPeriodo}
+                            />
 
-                            <div className="flex items-center gap-2 w-full md:w-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50">
-                                {tipoFiltro === 'dia' && (
-                                    <div className="flex items-center">
-                                        <CalendarIcon className="w-3.5 h-3.5 text-blue-500 ml-2 mr-1" />
-                                        <input type="date" value={diaEspecifico} onChange={(e) => setDiaEspecifico(e.target.value)} className="bg-transparent border-none px-2 py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-32" />
-                                    </div>
-                                )}
-                                {tipoFiltro === 'mes' && (
-                                    <div className="flex items-center gap-1.5 px-2">
-                                        <CalendarIcon className="w-3.5 h-3.5 text-blue-500" />
-                                        <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-24">{mesesTraduzidos.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}</select>
-                                        <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-16">{anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}</select>
-                                    </div>
-                                )}
-                                {tipoFiltro === 'periodo' && (
-                                    <div className="flex items-center gap-1 px-2">
-                                        <CalendarIcon className="w-3.5 h-3.5 text-blue-500 mr-1" />
-                                        <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-28" />
-                                        <span className="text-slate-400 font-bold text-[10px] px-1 uppercase">até</span>
-                                        <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-28" />
-                                    </div>
-                                )}
-                                
-                                <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-                                <button onClick={limparFiltros} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors" title="Limpar Filtros"><RefreshCw className="w-3.5 h-3.5" /></button>
+                            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-1 py-1 shadow-sm">
+                                <button onClick={limparFiltros} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors" title={tx("Limpar Filtros")}><RefreshCw className="w-3.5 h-3.5" /></button>
                             </div>
                         </div>
                     </div>
@@ -487,7 +484,7 @@ const PainelAvaliador = ({
                                     <FileDigit className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-0.5">Total Avaliações</span>
+                                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-0.5">{tx("Total Avaliações")}</span>
                                     <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{metricasDashboard.total}</span>
                                 </div>
                             </div>
@@ -499,9 +496,9 @@ const PainelAvaliador = ({
                                     <TrendingUp className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Peso Médio</span>
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">{tx("Peso Médio")}</span>
                                     <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-baseline gap-1">
-                                        {metricasDashboard.pesoMedio} <span className="text-xs font-bold text-slate-400">kg</span>
+                                        {metricasDashboard.pesoMedio} <span className="text-xs font-bold text-slate-400">{tx("kg")}</span>
                                     </span>
                                 </div>
                             </div>
@@ -513,7 +510,7 @@ const PainelAvaliador = ({
                                     <ArrowUpDown className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Altura Média</span>
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">{tx("Altura Média")}</span>
                                     <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-baseline gap-1">
                                         {metricasDashboard.alturaMedia} <span className="text-xs font-bold text-slate-400">m</span>
                                     </span>
@@ -527,7 +524,7 @@ const PainelAvaliador = ({
                                     <CalendarDays className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Última Avaliação</span>
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">{tx("Última Avaliação")}</span>
                                     {metricasDashboard.ultimaAvaliacao ? (
                                         <>
                                             <span className="text-lg md:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
@@ -535,7 +532,7 @@ const PainelAvaliador = ({
                                             </span>
                                             {metricasDashboard.diasAtras !== null && (
                                                 <span className="text-[10px] font-bold text-slate-400 mt-1">
-                                                    {metricasDashboard.diasAtras === 0 ? 'Feita Hoje' : `${metricasDashboard.diasAtras} dias atrás`}
+                                                    {metricasDashboard.diasAtras === 0 ? tx("Feita Hoje") : tx("{diasAtras} dias atrás", { diasAtras: metricasDashboard.diasAtras })}
                                                 </span>
                                             )}
                                         </>
@@ -553,14 +550,14 @@ const PainelAvaliador = ({
                             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
                                 <div>
                                     <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
-                                        <Trophy className="w-3.5 h-3.5 text-orange-500" /> {professorAtivo.id === 'GLOBAL' ? 'Ranking de Unidades' : 'Ranking de Avaliadores'}
+                                        <Trophy className="w-3.5 h-3.5 text-orange-500" /> {professorAtivo.id === 'GLOBAL' ? tx("Ranking de Unidades") : tx("Ranking de Avaliadores")}
                                     </h3>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <button onClick={() => setModalRelatorioAberto(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
-                                        <Send className="w-3 h-3" /> Relatório WPP
+                                        <Send className="w-3 h-3" />{' '}{tx("Relatório WPP")}
                                     </button>
-                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades} Ativos</span>
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades}{' '}{tx("Ativos")}</span>
                                 </div>
                             </div>
                             <div className="p-4 flex gap-4 overflow-x-auto custom-scrollbar">
@@ -593,23 +590,23 @@ const PainelAvaliador = ({
                                         <ClipboardSignature className="w-5 h-5"/>
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">Histórico de Avaliações</h3>
-                                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Acompanhe os registros deste avaliador.</p>
+                                        <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">{tx("Histórico de Avaliações")}</h3>
+                                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{tx("Acompanhe os registros deste avaliador.")}</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" /> Resumo</button>
-                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" /> Avançado</button>
+                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" />{' '}{tx("Resumo")}</button>
+                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" />{' '}{tx("Avançado")}</button>
                                 </div>
                             </div>
                             <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
                                 <div className="relative w-full lg:flex-1">
                                     <Search className="w-4 h-4 text-blue-500 absolute left-4 top-1/2 -translate-y-1/2" />
-                                    <input type="text" value={busca} onChange={(e) => {setBusca(e.target.value); setPaginaAtual(1);}} placeholder="Buscar: Nome, CPF..." className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500" />
+                                    <input type="text" value={busca} onChange={(e) => {setBusca(e.target.value); setPaginaAtual(1);}} placeholder={tx("Buscar: Nome, CPF...")} className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                                 </div>
                                 <div className="flex gap-2 w-full lg:w-auto">
-                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><Filter className="w-3.5 h-3.5" /> Filtros</button>
-                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" /> Exportar</button>
+                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><Filter className="w-3.5 h-3.5" />{' '}{tx("Filtros")}</button>
+                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}</button>
                                 </div>
                             </div>
                         </div>
@@ -618,26 +615,26 @@ const PainelAvaliador = ({
                             {loading ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm z-10">
                                     <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-3" />
-                                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">Carregando...</p>
+                                    <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tx("Carregando...")}</p>
                                 </div>
                             ) : (
                                 <table className={`w-full text-left border-collapse ${modoExibicao === 'detalhado' ? 'min-w-[max-content]' : 'min-w-[900px]'}`}>
                                     <thead className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                                         <tr>
                                             <th onClick={() => handleSort('data')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5">Data <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'data' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                <div className="flex items-center gap-1.5">{tx("Data")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'data' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             <th onClick={() => handleSort('aluno')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5">Aluno(a) <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'aluno' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                <div className="flex items-center gap-1.5">{tx("Aluno(a)")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'aluno' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             <th onClick={() => handleSort('estrutura')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5">Física <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'estrutura' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                <div className="flex items-center gap-1.5">{tx("Física")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'estrutura' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             
                                             {modoExibicao === 'detalhado' && (
                                                 <>
-                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">Bioimpedância</th>
-                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">Gordura</th>
+                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">{tx("Bioimpedância")}</th>
+                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">{tx("Gordura")}</th>
                                                     {perguntasBase.map(p => (
                                                         <th key={p.id} className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest min-w-[150px] max-w-[250px]">{p.pergunta}</th>
                                                     ))}
@@ -645,13 +642,13 @@ const PainelAvaliador = ({
                                             )}
 
                                             <th onClick={() => handleSort('indices')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5">Índices <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'indices' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                <div className="flex items-center gap-1.5">{tx("Índices")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'indices' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             <th onClick={() => handleSort('avaliador')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5">Avaliador <ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'avaliador' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                <div className="flex items-center gap-1.5">{tx("Avaliador")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'avaliador' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
-                                            <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">Exame</th>
-                                            {podeEditar && <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">Ações</th>}
+                                            <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">{tx("Exame")}</th>
+                                            {podeEditar && <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">{tx("Ações")}</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 bg-white dark:bg-slate-900">
@@ -675,9 +672,9 @@ const PainelAvaliador = ({
                                                                     {(a.aluno || 'U').charAt(0)}
                                                                 </div>
                                                                 <div className="flex flex-col items-start gap-1">
-                                                                    <span className="text-[13px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.aluno || 'NÃO INFORMADO'}</span>
+                                                                    <span className="text-[13px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.aluno || tx("NÃO INFORMADO")}</span>
                                                                     <button onClick={() => setAlunoEvolucaoModal({ id: a.aluno_id, nome: a.aluno, cpf: a.cpf })} className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors uppercase tracking-widest">
-                                                                        <LineChart className="w-3 h-3" /> Evolução
+                                                                        <LineChart className="w-3 h-3" />{' '}{tx("Evolução")}
                                                                     </button>
                                                                 </div>
                                                             </div>
@@ -686,7 +683,7 @@ const PainelAvaliador = ({
                                                             <div className="flex flex-col gap-1.5">
                                                                 <div className="flex items-center gap-2">
                                                                     <Scale className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                                                                    <span className="text-[13px] font-black text-slate-900 dark:text-slate-100">{a.peso ? `${a.peso} kg` : '-'}</span>
+                                                                    <span className="text-[13px] font-black text-slate-900 dark:text-slate-100">{a.peso ? tx("{peso} kg", { peso: a.peso }) : '-'}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-2">
                                                                     <Ruler className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
@@ -699,14 +696,14 @@ const PainelAvaliador = ({
                                                             <>
                                                                 <td className="px-4 py-3 whitespace-nowrap align-middle bg-blue-50/10 dark:bg-blue-900/10 border-l border-r border-slate-50 dark:border-slate-800">
                                                                     <div className="flex flex-col gap-1.5">
-                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-24">MME: <strong className="text-slate-900 dark:text-slate-100 text-xs">{a.mme ? `${a.mme} kg` : '-'}</strong></span>
-                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-24">PGC: <strong className="text-slate-900 dark:text-slate-100 text-xs">{a.pgc ? `${a.pgc}%` : '-'}</strong></span>
+                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-24">{tx("MME:")}{' '}<strong className="text-slate-900 dark:text-slate-100 text-xs">{a.mme ? tx("{mme} kg", { mme: a.mme }) : '-'}</strong></span>
+                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-24">{tx("PGC:")}{' '}<strong className="text-slate-900 dark:text-slate-100 text-xs">{a.pgc ? `${a.pgc}%` : '-'}</strong></span>
                                                                     </div>
                                                                 </td>
                                                                 <td className="px-4 py-3 whitespace-nowrap align-middle bg-blue-50/10 dark:bg-blue-900/10 border-r border-slate-50 dark:border-slate-800">
                                                                      <div className="flex flex-col gap-1.5">
-                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-16">RCQ: <strong className="text-slate-900 dark:text-slate-100 text-xs">{a.rcq || '-'}</strong></span>
-                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-16">GV: <strong className="text-slate-900 dark:text-slate-100 text-xs">{a.gv || '-'}</strong></span>
+                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-16">{tx("RCQ:")}{' '}<strong className="text-slate-900 dark:text-slate-100 text-xs">{a.rcq || '-'}</strong></span>
+                                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 flex items-center justify-between w-16">{tx("GV:")}{' '}<strong className="text-slate-900 dark:text-slate-100 text-xs">{a.gv || '-'}</strong></span>
                                                                     </div>
                                                                 </td>
                                                                 {perguntasBase.map(p => {
@@ -748,7 +745,7 @@ const PainelAvaliador = ({
                                                                         defaultValue={a.professor}
                                                                         className="w-full min-w-[140px] bg-white dark:bg-slate-800 border border-blue-400 rounded-lg px-2 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/30 shadow-sm cursor-pointer"
                                                                     >
-                                                                        <option value="" disabled>Selecione...</option>
+                                                                        <option value="" disabled>{tx("Selecione...")}</option>
                                                                         {colaboradores.map(c => (
                                                                             <option key={c.id} value={c.nome}>{c.nome}</option>
                                                                         ))}
@@ -757,14 +754,14 @@ const PainelAvaliador = ({
                                                             ) : (
                                                                 <div className="flex items-center gap-2 group/edit">
                                                                     <div className="flex flex-col">
-                                                                        <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.professor || 'SISTEMA'}</span>
-                                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase">REG: {a.registrado_por_nome || 'SISTEMA'}</span>
+                                                                        <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.professor || tx("SISTEMA")}</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase">{tx("REG:")}{' '}{a.registrado_por_nome || tx("SISTEMA")}</span>
                                                                     </div>
                                                                     {podeEditar && (
                                                                         <button 
                                                                             onClick={() => setEditingAvaliadorId(a.id)}
                                                                             className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-md transition-all opacity-0 group-hover/edit:opacity-100"
-                                                                            title="Alterar Avaliador"
+                                                                            title={tx("Alterar Avaliador")}
                                                                         >
                                                                             <UserRoundPen className="w-3.5 h-3.5" />
                                                                         </button>
@@ -775,7 +772,7 @@ const PainelAvaliador = ({
                                                         
                                                         <td className="px-4 py-3 text-center whitespace-nowrap align-middle">
                                                             {a.arquivo_inbody_url ? (
-                                                                <a href={a.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-all shadow-sm border border-emerald-100 dark:border-emerald-800 hover:-translate-y-0.5" title="Visualizar Exame Original">
+                                                                <a href={a.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center p-2 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 transition-all shadow-sm border border-emerald-100 dark:border-emerald-800 hover:-translate-y-0.5" title={tx("Visualizar Exame Original")}>
                                                                     <FileText className="w-4 h-4" />
                                                                 </a>
                                                             ) : (
@@ -786,13 +783,13 @@ const PainelAvaliador = ({
                                                         {podeEditar && (
                                                             <td className="px-4 py-3 text-center whitespace-nowrap align-middle">
                                                                 <div className="flex items-center justify-center gap-1.5 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
-                                                                    <button className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title="Visualizar Detalhes">
+                                                                    <button className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Visualizar Detalhes")}>
                                                                         <Eye className="w-3.5 h-3.5" />
                                                                     </button>
-                                                                    <button onClick={() => handleEditar(a)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title="Editar Avaliação">
+                                                                    <button onClick={() => handleEditar(a)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Editar Avaliação")}>
                                                                         <Edit3 className="w-3.5 h-3.5" />
                                                                     </button>
-                                                                    <button onClick={() => removerAvaliacao(a.id)} className="p-2 text-rose-400 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-300 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-700" title="Excluir Permanentemente">
+                                                                    <button onClick={() => removerAvaliacao(a.id)} className="p-2 text-rose-400 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-300 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-700" title={tx("Excluir Permanentemente")}>
                                                                         <Trash2 className="w-3.5 h-3.5" />
                                                                     </button>
                                                                 </div>
@@ -806,7 +803,7 @@ const PainelAvaliador = ({
                                                 <td colSpan={modoExibicao === 'detalhado' ? (professorAtivo.id === 'GLOBAL' ? (10 + perguntasBase.length + (podeEditar?1:0)) : (9 + perguntasBase.length + (podeEditar?1:0))) : (professorAtivo.id === 'GLOBAL' ? (podeEditar ? "8" : "7") : (podeEditar ? "7" : "6"))} className="text-center py-16">
                                                     <div className="flex flex-col items-center">
                                                         <Search className="w-8 h-8 text-slate-200 dark:text-slate-600 mb-3" />
-                                                        <p className="text-slate-500 dark:text-slate-400 font-bold text-xs">Nenhum registro encontrado neste período.</p>
+                                                        <p className="text-slate-500 dark:text-slate-400 font-bold text-xs">{tx("Nenhum registro encontrado neste período.")}</p>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -818,7 +815,7 @@ const PainelAvaliador = ({
                         
                         {totalPaginas > 0 && (
                             <div className="px-4 py-4 border-t border-slate-100 dark:border-slate-700/50 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
-                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Mostrando {(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosOrdenados.length)} de {dadosOrdenados.length} avaliações</span>
+                                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{tx("Mostrando")}{' '}{(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, dadosOrdenados.length)}{' '}{tx("de")}{' '}{dadosOrdenados.length}{' '}{tx("avaliações")}</span>
                                 
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-1">

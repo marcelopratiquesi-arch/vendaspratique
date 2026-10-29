@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { formatMoney, formatDataBR, formatarDataHora } from './utils.js';
 import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle, User } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
 // 🧩 FORMATADOR SEGURO DE CPF E NOME
@@ -57,7 +58,7 @@ const CopiableCell = ({ text, isCpf, customClass }) => {
                 <button 
                     onClick={handleCopy} 
                     className="opacity-0 group-hover/copy:opacity-100 p-1 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded transition-all shadow-sm border border-transparent hover:border-blue-200 dark:bg-slate-800 dark:hover:bg-blue-500/20 dark:hover:text-blue-400 dark:hover:border-blue-500/30"
-                    title="Copiar dado"
+                    title={tx("Copiar dado")}
                 >
                     {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
                 </button>
@@ -270,7 +271,7 @@ const ConferenciaTab = ({
     // 5. EXPORTAÇÃO EXCEL
     const exportarParaExcel = () => {
         if (sortedVendas.length === 0) {
-            avisar("Não há dados para exportar com os filtros atuais.");
+            avisar(tx("Não há dados para exportar com os filtros atuais."));
             return;
         }
 
@@ -372,7 +373,7 @@ const ConferenciaTab = ({
     const handleSalvarEdicao = async (e) => {
         e.preventDefault();
         if (vendaEmEdicao.nome_aluno === 'CPF NÃO LOCALIZADO NA BASE') {
-            avisar('Não é possível salvar. Por favor, insira um CPF válido e cadastrado no sistema.');
+            avisar(tx("Não é possível salvar. Por favor, insira um CPF válido e cadastrado no sistema."));
             return;
         }
         setIsSaving(true);
@@ -381,14 +382,14 @@ const ConferenciaTab = ({
             setVendaEmEdicao(null);
         } catch (error) {
             console.error("Erro ao salvar:", error);
-            avisar("Ocorreu um erro ao salvar a edição.");
+            avisar(tx("Ocorreu um erro ao salvar a edição."));
         } finally {
             setIsSaving(false);
         }
     };
 
     const handleExcluirModal = async (id) => {
-        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo.')) {
+        if(window.confirm(tx("⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo."))) {
             if(onExcluirVenda) {
                 // Só fecha a janela se a venda foi mesmo excluída (a pessoa pode cancelar o motivo)
                 const excluiu = await onExcluirVenda(id);
@@ -412,8 +413,8 @@ const ConferenciaTab = ({
                                     <Edit3 className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none dark:text-white">Ajustar Lançamento</h3>
-                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Correção direta na base de dados</p>
+                                    <h3 className="text-lg font-black text-slate-800 tracking-tight leading-none dark:text-white">{tx("Ajustar Lançamento")}</h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{tx("Correção direta na base de dados")}</p>
                                 </div>
                             </div>
                             <button onClick={() => !isSaving && setVendaEmEdicao(null)} className="w-8 h-8 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:hover:bg-rose-500/20 dark:text-slate-400 dark:hover:text-rose-400">
@@ -424,11 +425,11 @@ const ConferenciaTab = ({
                         <form onSubmit={handleSalvarEdicao} className="p-6 space-y-5 bg-white dark:bg-slate-900">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Data da Venda</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Data da Venda")}</label>
                                     <input type="date" required value={vendaEmEdicao.data ? vendaEmEdicao.data.split('T')[0] : ''} onChange={(e) => handleEdicaoChange('data', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Vendedor</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Vendedor")}</label>
                                     <select required value={(vendaEmEdicao.vendedor || '').toUpperCase()} onChange={(e) => handleEdicaoChange('vendedor', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase cursor-pointer dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200">
                                         {listasUnicas.vendedores.map(v => <option key={v} value={v.toUpperCase()}>{v.toUpperCase()}</option>)}
                                     </select>
@@ -436,14 +437,14 @@ const ConferenciaTab = ({
                                 
                                 <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl border border-blue-100 bg-blue-50/30 dark:border-blue-500/30 dark:bg-blue-500/10">
                                     <div className="relative">
-                                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5 ml-1 dark:text-blue-400">CPF (Auto-Busca)</label>
+                                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5 ml-1 dark:text-blue-400">{tx("CPF (Auto-Busca)")}</label>
                                         <input type="text" value={vendaEmEdicao.cpf || ''} onChange={(e) => handleEdicaoChange('cpf', e.target.value)} maxLength="14" placeholder="000.000.000-00" className="w-full bg-white border border-blue-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm pr-8 dark:bg-slate-900 dark:border-blue-500/30 dark:text-slate-200" />
                                         {buscandoCpf ? <Loader2 className="w-3.5 h-3.5 text-blue-500 animate-spin absolute right-2.5 top-[32px]" /> : <Search className="w-3.5 h-3.5 text-slate-300 absolute right-2.5 top-[32px]" />}
                                     </div>
                                     <div className="sm:col-span-2 relative">
                                         <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-1.5 ml-1 flex items-center justify-between dark:text-blue-400">
-                                            Nome do Aluno
-                                            <span className="text-slate-400 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>Automático</span>
+                                            {tx("Nome do Aluno")}
+                                            <span className="text-slate-400 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{tx("Automático")}</span>
                                         </label>
                                         <input 
                                             type="text" required readOnly 
@@ -454,14 +455,14 @@ const ConferenciaTab = ({
                                 </div>
 
                                 <div className="sm:col-span-2">
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Item Vendido do Catálogo</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Item Vendido do Catálogo")}</label>
                                     <select 
                                         required 
                                         value={(vendaEmEdicao.produto || '').toUpperCase()} 
                                         onChange={(e) => handleEdicaoChange('produto', e.target.value)} 
                                         className="w-full bg-white border border-blue-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none uppercase cursor-pointer shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-slate-200"
                                     >
-                                        <option value="" disabled>Selecione no catálogo...</option>
+                                        <option value="" disabled>{tx("Selecione no catálogo...")}</option>
                                         {catalogoCompleto && catalogoCompleto.length > 0 ? (
                                             catalogoCompleto.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => (
                                                 <option key={c.id} value={c.nome.toUpperCase()}>
@@ -469,19 +470,19 @@ const ConferenciaTab = ({
                                                 </option>
                                             ))
                                         ) : (
-                                            <option value={(vendaEmEdicao.produto || '').toUpperCase()}>{(vendaEmEdicao.produto || '').toUpperCase()} (Carregando...)</option>
+                                            <option value={(vendaEmEdicao.produto || '').toUpperCase()}>{(vendaEmEdicao.produto || '').toUpperCase()}{' '}{tx("(Carregando...)")}</option>
                                         )}
                                     </select>
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Quantidade</label>
+                                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Quantidade")}</label>
                                     <input type="number" required min="1" value={vendaEmEdicao.quantidade || 1} onChange={(e) => handleEdicaoChange('quantidade', e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200" />
                                 </div>
                                 <div className="relative">
                                     <label className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1.5 ml-1 flex items-center justify-between dark:text-emerald-400">
-                                        Valor Final Total
-                                        <span className="text-emerald-500/70 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>Automático</span>
+                                        {tx("Valor Final Total")}
+                                        <span className="text-emerald-500/70 font-normal lowercase flex items-center gap-1"><AlertCircle className="w-3 h-3"/>{tx("Automático")}</span>
                                     </label>
                                     <input 
                                         type="text" readOnly 
@@ -493,15 +494,15 @@ const ConferenciaTab = ({
                             
                             <div className="pt-4 border-t border-slate-100 flex justify-between items-center dark:border-slate-800">
                                 <button type="button" onClick={() => handleExcluirModal(vendaEmEdicao.id)} disabled={isSaving} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors flex items-center gap-2 border border-transparent hover:border-rose-200 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:border-rose-500/30">
-                                    <Trash2 className="w-4 h-4" /> Excluir Venda
+                                    <Trash2 className="w-4 h-4" />{' '}{tx("Excluir Venda")}
                                 </button>
                                 
                                 <div className="flex gap-3">
                                     <button type="button" onClick={() => setVendaEmEdicao(null)} disabled={isSaving} className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800">
-                                        Cancelar
+                                        {tx("Cancelar")}
                                     </button>
                                     <button type="submit" disabled={isSaving} className="px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
-                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />} Salvar
+                                        {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{' '}{tx("Salvar")}
                                     </button>
                                 </div>
                             </div>
@@ -516,30 +517,30 @@ const ConferenciaTab = ({
                     
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto flex-1">
                         <div>
-                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Vendedor</label>
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Vendedor")}</label>
                             <select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200">
-                                <option value="TODOS">TODOS OS VENDEDORES</option>
+                                <option value="TODOS">{tx("TODOS OS VENDEDORES")}</option>
                                 {listasUnicas.vendedores.map(v => <option key={v} value={v}>{v}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1.5 ml-1">Planos de Assinatura</label>
+                            <label className="block text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1.5 ml-1">{tx("Planos de Assinatura")}</label>
                             <select value={filtroPlano} onChange={(e) => { setFiltroPlano(e.target.value); setFiltroProduto('TODOS'); setFiltroServico('TODOS'); }} className="w-full bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-xs font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400">
-                                <option value="TODOS">TODOS OS PLANOS</option>
+                                <option value="TODOS">{tx("TODOS OS PLANOS")}</option>
                                 {listasUnicas.planos.map(p => <option key={p} value={p}>{p}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1.5 ml-1">Produtos Físicos</label>
+                            <label className="block text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-1.5 ml-1">{tx("Produtos Físicos")}</label>
                             <select value={filtroProduto} onChange={(e) => { setFiltroProduto(e.target.value); setFiltroPlano('TODOS'); setFiltroServico('TODOS'); }} className="w-full bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-xs font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer uppercase dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400">
-                                <option value="TODOS">TODOS OS PRODUTOS</option>
+                                <option value="TODOS">{tx("TODOS OS PRODUTOS")}</option>
                                 {listasUnicas.produtos.map(p => <option key={p} value={p}>{p}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-[10px] font-black text-violet-500 uppercase tracking-widest mb-1.5 ml-1">Serviços Avulsos</label>
+                            <label className="block text-[10px] font-black text-violet-500 uppercase tracking-widest mb-1.5 ml-1">{tx("Serviços Avulsos")}</label>
                             <select value={filtroServico} onChange={(e) => { setFiltroServico(e.target.value); setFiltroPlano('TODOS'); setFiltroProduto('TODOS'); }} className="w-full bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 text-xs font-bold text-violet-700 focus:ring-2 focus:ring-violet-500 outline-none cursor-pointer uppercase dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-400">
-                                <option value="TODOS">TODOS OS SERVIÇOS</option>
+                                <option value="TODOS">{tx("TODOS OS SERVIÇOS")}</option>
                                 {listasUnicas.servicos.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
@@ -547,7 +548,7 @@ const ConferenciaTab = ({
 
                     <div className="flex flex-col sm:flex-row items-end gap-3 w-full xl:w-auto">
                         <div className="bg-blue-50 border border-blue-100 px-6 py-3.5 rounded-2xl flex flex-col items-end shadow-sm w-full sm:w-auto dark:bg-blue-500/10 dark:border-blue-500/30">
-                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">Valor Filtrado</span>
+                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{tx("Valor Filtrado")}</span>
                             <span className="text-3xl font-black text-blue-700 tracking-tight leading-none mt-1 dark:text-blue-400">{formatMoney(valorTotalFiltrado)}</span>
                         </div>
                         
@@ -561,7 +562,7 @@ const ConferenciaTab = ({
                                     disabled={vendasFiltradas.length === 0} 
                                     className="w-full bg-slate-800 hover:bg-slate-900 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest py-2 rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5"
                                 >
-                                    <CheckSquare className="w-3.5 h-3.5" /> Conferir Tela
+                                    <CheckSquare className="w-3.5 h-3.5" />{' '}{tx("Conferir Tela")}
                                 </button>
                             )}
                             <button 
@@ -569,7 +570,7 @@ const ConferenciaTab = ({
                                 disabled={sortedVendas.length === 0} 
                                 className="w-full bg-emerald-50 hover:bg-emerald-500 text-emerald-600 hover:text-white border border-emerald-200 hover:border-emerald-600 disabled:opacity-50 text-[10px] font-black uppercase tracking-widest py-2 rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30"
                             >
-                                <FileSpreadsheet className="w-3.5 h-3.5" /> Exportar
+                                <FileSpreadsheet className="w-3.5 h-3.5" />{' '}{tx("Exportar")}
                             </button>
                         </div>
                     </div>
@@ -579,7 +580,7 @@ const ConferenciaTab = ({
             {/* TABELA DE CONFERÊNCIA OTIMIZADA */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6 dark:bg-slate-900 dark:border-slate-800">
                 <div className="bg-slate-100 text-slate-600 px-4 py-2 border-b border-slate-200 shadow-inner text-right text-[10px] font-black uppercase tracking-widest dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
-                    {sortedVendas.length} de {vendasParaConferencia.length} Registros
+                    {sortedVendas.length}{' '}{tx("de")}{' '}{vendasParaConferencia.length}{' '}{tx("Registros")}
                 </div>
                 <div 
                     className="overflow-x-auto custom-scrollbar cursor-grab"
@@ -599,7 +600,7 @@ const ConferenciaTab = ({
                                         </div>
                                         {temVisaoGlobal && (
                                             <div onClick={() => requestSort('unidade')} className="flex items-center gap-1 cursor-pointer hover:text-rose-500 text-[10px] w-fit transition-colors">
-                                                UNIDADE {getSortIcon('unidade')}
+                                                {tx("UNIDADE")}{' '}{getSortIcon('unidade')}
                                             </div>
                                         )}
                                     </div>
@@ -607,7 +608,7 @@ const ConferenciaTab = ({
                                 <th className={thClass}>
                                     <div className="flex flex-col gap-2">
                                         <div onClick={() => requestSort('nome')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                            ALUNO {getSortIcon('nome')}
+                                            {tx("ALUNO")}{' '}{getSortIcon('nome')}
                                         </div>
                                         <div onClick={() => requestSort('cpf')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[10px] w-fit transition-colors">
                                             CPF {getSortIcon('cpf')}
@@ -617,20 +618,20 @@ const ConferenciaTab = ({
                                 <th className={thClass}>
                                     <div className="flex flex-col gap-2">
                                         <div onClick={() => requestSort('produto')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                            ITEM VENDIDO (QTD) {getSortIcon('produto')}
+                                            {tx("ITEM VENDIDO (QTD)")}{' '}{getSortIcon('produto')}
                                         </div>
                                         <div onClick={() => requestSort('vendedor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[10px] w-fit transition-colors">
-                                            VENDEDOR {getSortIcon('vendedor')}
+                                            {tx("VENDEDOR")}{' '}{getSortIcon('vendedor')}
                                         </div>
                                     </div>
                                 </th>
                                 <th className={thClass}>
                                     <div className="flex flex-col gap-2">
                                         <div onClick={() => requestSort('valor')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
-                                            VALOR {getSortIcon('valor')}
+                                            {tx("VALOR")}{' '}{getSortIcon('valor')}
                                         </div>
                                         <div className="flex items-center gap-1 text-[10px]">
-                                            OBSERVAÇÃO
+                                            {tx("OBSERVAÇÃO")}
                                         </div>
                                     </div>
                                 </th>
@@ -652,7 +653,7 @@ const ConferenciaTab = ({
                                         </div>
                                         {temVisaoGlobal && (
                                             <div className="text-[10px] font-black text-rose-500 uppercase mt-1">
-                                                {v.unidade || 'MATRIZ'}
+                                                {v.unidade || tx("MATRIZ")}
                                             </div>
                                         )}
                                     </td>
@@ -685,7 +686,7 @@ const ConferenciaTab = ({
                                             value={v.observacao || ''}
                                             onChange={(e) => handleObsLocalChange(v.id, e.target.value)}
                                             onBlur={(e) => handleObsSaveDb(v.id, e.target.value)}
-                                            placeholder="+ Add Obs"
+                                            placeholder={tx("+ Add Obs")}
                                             className={`w-full max-w-[200px] text-[10px] font-medium px-2.5 py-1.5 mt-1.5 rounded-md outline-none transition-all placeholder:text-slate-400 ${v.observacao ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30' : 'bg-slate-50 hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-blue-500 border border-slate-200 focus:border-blue-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:focus:bg-slate-900 dark:border-slate-800 dark:focus:border-blue-500/30'}`}
                                         />
                                     </td>
@@ -699,28 +700,28 @@ const ConferenciaTab = ({
                                                 onClick={() => toggleConferido(v.id, v.conferiu)}
                                                 className={`px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex flex-col items-center justify-center w-28 h-12 ${v.conferiu ? 'bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 hover:shadow-md' : 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200 hover:text-amber-800 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30 dark:hover:text-amber-300'}`}
                                             >
-                                                {v.conferiu ? <><Check className="w-4 h-4 mb-0.5"/> OK</> : <><Clock className="w-4 h-4 mb-0.5"/> PENDENTE</>}
+                                                {v.conferiu ? <><Check className="w-4 h-4 mb-0.5"/> OK</> : <><Clock className="w-4 h-4 mb-0.5"/>{' '}{tx("PENDENTE")}</>}
                                             </button>
 
                                             {/* BOTÕES DE EDITAR / EXCLUIR EMPILHADOS */}
                                             <div className="flex flex-col gap-1.5">
                                                 <button 
                                                     onClick={() => setVendaEmEdicao(v)} 
-                                                    title="Editar Registro"
+                                                    title={tx("Editar Registro")}
                                                     className="flex items-center justify-center gap-1 w-20 py-1 bg-blue-50 hover:bg-blue-600 text-blue-600 hover:text-white rounded transition-all border border-blue-200 hover:border-blue-600 text-[10px] font-black uppercase tracking-widest dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"
                                                 >
-                                                    Editar
+                                                    {tx("Editar")}
                                                 </button>
                                                 <button 
                                                     onClick={() => {
-                                                        if(window.confirm('⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo.')) {
+                                                        if(window.confirm(tx("⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo."))) {
                                                             if(onExcluirVenda) onExcluirVenda(v.id);
                                                         }
                                                     }} 
-                                                    title="Excluir Registro"
+                                                    title={tx("Excluir Registro")}
                                                     className="flex items-center justify-center gap-1 w-20 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded transition-all border border-rose-200 hover:border-rose-600 text-[10px] font-black uppercase tracking-widest dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30"
                                                 >
-                                                    Apagar
+                                                    {tx("Apagar")}
                                                 </button>
                                             </div>
                                             
@@ -730,7 +731,7 @@ const ConferenciaTab = ({
                             )) : (
                                 <tr>
                                     <td colSpan="100%" className="text-center py-16 text-slate-400 text-[10px] font-bold uppercase tracking-widest bg-slate-50/30 dark:bg-slate-800/40">
-                                        Nenhuma venda encontrada no filtro.
+                                        {tx("Nenhuma venda encontrada no filtro.")}
                                     </td>
                                 </tr>
                             )}

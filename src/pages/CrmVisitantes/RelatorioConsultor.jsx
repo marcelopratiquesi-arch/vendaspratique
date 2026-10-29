@@ -4,6 +4,7 @@ import { FileText, Loader2, Download, ChevronDown, AlertTriangle } from 'lucide-
 import { normalizarNome, formatarDataHora, ehCanceladoOuInativo, dataLocalISO } from './utils';
 import { carregarContatosFeitosPeriodo } from './contatosFeitos';
 import FichaAlunoPopup from './FichaAlunoPopup';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ==========================================
 // RELATÓRIO POR RECEPCIONISTA (Etapa D)
@@ -28,26 +29,6 @@ const ACOES_CONTATO_LISTA = ['WhatsApp', 'Ligação', 'Observação'];
 // Teto de registros lidos de uma vez (acima disso aparece o aviso)
 const LIMITE_REGISTROS = 10000;
 
-const PERIODOS = [
-    { val: 'hoje', label: 'Hoje' },
-    { val: '7d', label: 'Últimos 7 dias' },
-    { val: 'mes', label: 'Este mês' },
-    { val: 'mes_anterior', label: 'Mês anterior' },
-    { val: 'escolher', label: 'Escolher datas' }
-];
-
-// Início (incluído) e fim (não incluído) do período, no horário local
-const faixaDoPeriodo = (periodo, dataInicio, dataFim) => {
-    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-    const amanha = new Date(hoje); amanha.setDate(amanha.getDate() + 1);
-    if (periodo === 'hoje') return { inicio: hoje, fim: amanha };
-    if (periodo === '7d') { const i = new Date(hoje); i.setDate(i.getDate() - 6); return { inicio: i, fim: amanha }; }
-    if (periodo === 'mes') return { inicio: new Date(hoje.getFullYear(), hoje.getMonth(), 1), fim: amanha };
-    if (periodo === 'mes_anterior') return { inicio: new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1), fim: new Date(hoje.getFullYear(), hoje.getMonth(), 1) };
-    const paraData = (iso, dias = 0) => { if (!iso) return null; const [a, m, d] = iso.split('-').map(Number); return new Date(a, m - 1, d + dias); };
-    return { inicio: paraData(dataInicio), fim: paraData(dataFim, 1) };
-};
-
 const tipoDoLead = (tipoLead) => {
     const t = String(tipoLead || '').toUpperCase();
     if (t === 'CANCELADO') return 'CANCELADO';
@@ -55,10 +36,9 @@ const tipoDoLead = (tipoLead) => {
     return 'CANCELADO_INATIVO_ANTIGO';
 };
 
-const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, unidadeEscopo = '', pessoa, onPessoa, versao = 0 }) => {
-    const [periodo, setPeriodo] = useState('mes');
-    const [dataInicio, setDataInicio] = useState(dataLocalISO(new Date(new Date().getFullYear(), new Date().getMonth(), 1)));
-    const [dataFim, setDataFim] = useState(dataLocalISO(new Date()));
+// O período vem do filtro padrão do topo da tela do CRM (faixa = { inicio, fim }; fim não entra)
+const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, unidadeEscopo = '', pessoa, onPessoa, versao = 0, faixa = { inicio: null, fim: null }, rotuloPeriodo = '' }) => {
+    const chavePeriodo = `${faixa.inicio ? faixa.inicio.getTime() : ''}|${faixa.fim ? faixa.fim.getTime() : ''}`;
     const [tipoFiltro, setTipoFiltro] = useState('');
     const [feitos, setFeitos] = useState([]);
     const [historico, setHistorico] = useState([]);
@@ -76,8 +56,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
 
     // Busca no banco os contatos do período
     useEffect(() => {
-        const { inicio, fim } = faixaDoPeriodo(periodo, dataInicio, dataFim);
-        if (periodo === 'escolher' && (!inicio || !fim)) return undefined;
+        const { inicio, fim } = faixa;
         let cancelado = false;
         const buscar = async () => {
             setCarregando(true);
@@ -95,7 +74,8 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
         };
         buscar();
         return () => { cancelado = true; };
-    }, [periodo, dataInicio, dataFim, versao]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a faixa muda junto com chavePeriodo
+    }, [chavePeriodo, versao]);
 
     // Contatos do histórico que não estão na lista carregada da tela: busca nome, CPF e tipo no banco
     useEffect(() => {
@@ -113,7 +93,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
         return () => { cancelado = true; };
     }, [historico, leadPorId]);
 
-    useEffect(() => { setLimite(100); }, [periodo, dataInicio, dataFim, tipoFiltro, pessoa]);
+    useEffect(() => { setLimite(100); }, [chavePeriodo, tipoFiltro, pessoa]);
 
     const nomesEscopo = useMemo(() => new Set(recepcionistas.map(r => normalizarNome(r.nome))), [recepcionistas]);
 
@@ -175,7 +155,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
         const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.setAttribute('download', `Relatorio_Contatos_${pessoa ? pessoa.split(' ')[0] : 'todas'}_${periodo}.csv`);
+        link.setAttribute('download', `Relatorio_Contatos_${pessoa ? pessoa.split(' ')[0] : 'todas'}_${String(rotuloPeriodo || 'periodo').replace(/[^\w-]+/g, '_')}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -188,52 +168,43 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2">
-                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" /> Relatório por recepcionista
+                    <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />{' '}{tx("Relatório por recepcionista")}
                     {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                 </h4>
                 <div className="flex flex-wrap items-center gap-2">
                     <select value={pessoa} onChange={(e) => onPessoa(e.target.value)} className={seletor}>
-                        <option value="">Todas as recepcionistas</option>
+                        <option value="">{tx("Todas as recepcionistas")}</option>
                         {recepcionistas.map(r => <option key={r.id} value={normalizarNome(r.nome)}>{r.nome}</option>)}
                     </select>
-                    <select value={periodo} onChange={(e) => setPeriodo(e.target.value)} className={seletor}>
-                        {PERIODOS.map(p => <option key={p.val} value={p.val}>{p.label}</option>)}
-                    </select>
-                    {periodo === 'escolher' && (
-                        <>
-                            <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className={seletor} />
-                            <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className={seletor} />
-                        </>
-                    )}
                     <button type="button" onClick={exportarCSV} disabled={filtradas.length === 0} className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                        <Download className="w-3.5 h-3.5" /> Exportar
+                        <Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}
                     </button>
                 </div>
             </div>
 
             {erro && (
                 <div className="mx-5 mt-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> Não foi possível carregar o histórico de contatos. Cancelados e Inativos podem aparecer zerados.
+                    <AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Não foi possível carregar o histórico de contatos. Cancelados e Inativos podem aparecer zerados.")}
                 </div>
             )}
 
             {(historico.length >= LIMITE_REGISTROS || feitos.length >= LIMITE_REGISTROS) && (
                 <div className="mx-5 mt-4 bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> Muitos registros no período: o relatório leu só os {LIMITE_REGISTROS.toLocaleString('pt-BR')} mais recentes, então os números podem estar abaixo da realidade. Escolha um período menor.
+                    <AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Muitos registros no período: o relatório leu só os")}{' '}{LIMITE_REGISTROS.toLocaleString(localeAtual())}{' '}{tx("mais recentes, então os números podem estar abaixo da realidade. Escolha um período menor.")}
                 </div>
             )}
 
             {/* TOTAIS POR TIPO (clicar filtra a lista) */}
             <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
                 <button type="button" onClick={() => setTipoFiltro('')} className={`text-left rounded-xl border p-3 transition-all ${!tipoFiltro ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/30'}`}>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Todos</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Todos")}</p>
                     <p className="text-2xl font-black text-slate-800 dark:text-white">{daPessoa.length}</p>
                 </button>
                 {TIPOS.filter(t => !t.soSeTiver || totais[t.chave].total > 0).map(t => (
                     <button key={t.chave} type="button" onClick={() => setTipoFiltro(tipoFiltro === t.chave ? '' : t.chave)} className={`text-left rounded-xl border p-3 transition-all ${tipoFiltro === t.chave ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/30'}`}>
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate" title={t.rotulo}>{t.rotulo}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate" title={tx(t.rotulo)}>{tx(t.rotulo)}</p>
                         <p className={`text-2xl font-black ${t.cor}`}>{totais[t.chave].total}</p>
-                        {totais[t.chave].sem > 0 && <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{totais[t.chave].sem} sem WhatsApp</p>}
+                        {totais[t.chave].sem > 0 && <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{totais[t.chave].sem}{' '}{tx("sem WhatsApp")}</p>}
                     </button>
                 ))}
             </div>
@@ -242,17 +213,17 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-50 dark:bg-slate-800/60">
                         <tr>
-                            <th className={th}>Quando</th>
-                            <th className={th}>Recepcionista</th>
-                            <th className={th}>Tipo</th>
-                            <th className={th}>Pessoa</th>
-                            <th className={th}>Meio</th>
-                            <th className={th}>Unidade</th>
+                            <th className={th}>{tx("Quando")}</th>
+                            <th className={th}>{tx("Recepcionista")}</th>
+                            <th className={th}>{tx("Tipo")}</th>
+                            <th className={th}>{tx("Pessoa")}</th>
+                            <th className={th}>{tx("Meio")}</th>
+                            <th className={th}>{tx("Unidade")}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {filtradas.length === 0 ? (
-                            <tr><td colSpan="6" className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">{carregando ? 'Carregando...' : 'Nenhum contato no período.'}</td></tr>
+                            <tr><td colSpan="6" className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">{carregando ? tx("Carregando...") : tx("Nenhum contato no período.")}</td></tr>
                         ) : filtradas.slice(0, limite).map(l => (
                             <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                                 <td className="px-4 py-2.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatarDataHora(l.quando)}</td>
@@ -262,11 +233,11 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
                                 </td>
                                 <td className="px-4 py-2.5"><span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{ROTULO_TIPO[l.tipo] || l.tipo}</span></td>
                                 <td className="px-4 py-2.5">
-                                    <button type="button" onClick={() => setContatoFicha(l.contato)} className="text-[11px] font-bold text-slate-800 dark:text-white uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2" title="Abrir a ficha do aluno">{l.nome}</button>
+                                    <button type="button" onClick={() => setContatoFicha(l.contato)} className="text-[11px] font-bold text-slate-800 dark:text-white uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2" title={tx("Abrir a ficha do aluno")}>{l.nome}</button>
                                 </td>
                                 <td className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest whitespace-nowrap">
                                     {l.semWhatsApp
-                                        ? <span className="text-rose-600 dark:text-rose-400" title={l.justificativa}>Sem WhatsApp{l.justificativa ? ` · ${l.justificativa}` : ''}</span>
+                                        ? <span className="text-rose-600 dark:text-rose-400" title={l.justificativa}>{tx("Sem WhatsApp")}{l.justificativa ? ` · ${l.justificativa}` : ''}</span>
                                         : <span className={l.meio === 'WhatsApp' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}>{l.meio}</span>}
                                 </td>
                                 <td className="px-4 py-2.5 text-[10px] font-black uppercase text-slate-400 whitespace-nowrap">{l.unidade}</td>
@@ -277,7 +248,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
             </div>
             {filtradas.length > limite && (
                 <button type="button" onClick={() => setLimite(n => n + 100)} className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5">
-                    <ChevronDown className="w-4 h-4" /> Ver mais ({filtradas.length - limite} restantes)
+                    <ChevronDown className="w-4 h-4" />{' '}{tx("Ver mais (")}{filtradas.length - limite}{' '}{tx("restantes)")}
                 </button>
             )}
 

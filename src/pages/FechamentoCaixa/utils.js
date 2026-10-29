@@ -1,4 +1,5 @@
-export const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
+import { localeAtual, tx } from '../../i18n/traduzir.js';
+export const formatMoney = (val) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(val) || 0);
 
 export const formatDataBR = (dataIso) => {
     if (!dataIso) return '';
@@ -10,7 +11,7 @@ export const formatDataBR = (dataIso) => {
 export const formatarDataHora = (isoString) => {
     if (!isoString) return '';
     const data = new Date(isoString);
-    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) + ' às ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    return data.toLocaleDateString(localeAtual(), { day: '2-digit', month: '2-digit' }) + ' ' + tx('às') + ' ' + data.toLocaleTimeString(localeAtual(), { hour: '2-digit', minute: '2-digit' });
 };
 
 export const mesesLista = [
