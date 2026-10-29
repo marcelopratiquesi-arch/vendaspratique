@@ -395,16 +395,31 @@ export default function App() {
         let isMounted = true; 
         fetchUnidades(isMounted); fetchColaboradores(isMounted); fetchCatalogo(isMounted); fetchVendas(isMounted); fetchLeads(isMounted); fetchAvaliacoes(isMounted);
 
+        // Muitos avisos seguidos (ex.: correção de milhares de vendas no banco) viram UMA recarga só:
+        // espera 3 s sem aviso novo (no máximo 10 s desde o primeiro) e recarrega uma vez.
+        // Sem isso, cada tela aberta recarregava tudo a cada aviso e entupia o banco (29/10/2026).
+        const pendentes = {};
+        const agendar = (nome, recarregar) => () => {
+            const p = pendentes[nome] || (pendentes[nome] = { primeiro: Date.now(), timer: null });
+            clearTimeout(p.timer);
+            const espera = Math.max(0, Math.min(3000, p.primeiro + 10000 - Date.now()));
+            p.timer = setTimeout(() => { delete pendentes[nome]; if (isMounted) recarregar(isMounted); }, espera);
+        };
+
         const realtimeChannel = supabase.channel('sistema-pratique-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => fetchVendas(isMounted))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, () => fetchLeads(isMounted))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'avaliacoes_realizadas' }, () => fetchAvaliacoes(isMounted))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, () => fetchColaboradores(isMounted))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, () => fetchCatalogo(isMounted))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, () => fetchUnidades(isMounted))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, agendar('vendas', fetchVendas))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, agendar('leads', fetchLeads))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'avaliacoes_realizadas' }, agendar('avaliacoes', fetchAvaliacoes))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, agendar('colaboradores', fetchColaboradores))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, agendar('catalogo', fetchCatalogo))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, agendar('unidades', fetchUnidades))
             .subscribe();
 
-        return () => { isMounted = false; supabase.removeChannel(realtimeChannel); };
+        return () => {
+            isMounted = false;
+            Object.values(pendentes).forEach(p => clearTimeout(p.timer));
+            supabase.removeChannel(realtimeChannel);
+        };
     }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]); 
 
     const vendasEnriquecidas = useMemo(() => {
