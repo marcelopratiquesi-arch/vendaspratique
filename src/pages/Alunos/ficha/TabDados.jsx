@@ -58,7 +58,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
     const valueContainer = "flex items-center gap-3 self-end sm:self-auto min-w-0";
     const valueText = "text-[13px] font-bold text-slate-800 dark:text-slate-100";
     const nestedContainer = "bg-[#F8FAFC] dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl flex flex-col";
-    const pillButton = "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm";
+    const pillButton = "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm dark:text-slate-400 dark:hover:text-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800/60";
 
     return (
         <div className="space-y-5 animate-[fadeIn_0.2s_ease-out]">
@@ -66,7 +66,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                 
                 <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
                             <User className="w-4 h-4 text-slate-400" /> Pessoal
                         </h3>
                         <button type="button" className={pillButton} title="Funcionalidade em breve">
@@ -112,7 +112,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
 
                 <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                        <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
                             <Phone className="w-4 h-4 text-slate-400" /> Contatos
                         </h3>
                         <button onClick={onEditar} type="button" className={pillButton}>
@@ -158,16 +158,16 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
             {temVisaoGlobal && (
                 <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 dark:bg-blue-500/10 dark:text-blue-400">
                             <Building2 className="w-4 h-4" />
                         </div>
                         <div>
-                            <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-800">Vínculo de Unidade</h4>
-                            <p className="text-[11px] font-medium text-slate-500 mt-0.5">Unidade onde o aluno está matriculado e ativo.</p>
+                            <h4 className="text-[11px] font-extrabold uppercase tracking-widest text-slate-800 dark:text-white">Vínculo de Unidade</h4>
+                            <p className="text-[11px] font-medium text-slate-500 mt-0.5 dark:text-slate-400">Unidade onde o aluno está matriculado e ativo.</p>
                         </div>
                     </div>
-                    <div className="bg-[#F8FAFC] border border-slate-200/80 px-4 py-2 rounded-lg shadow-sm shrink-0 text-center">
-                        <span className="text-xs font-bold text-indigo-600 uppercase tracking-widest">
+                    <div className="bg-[#F8FAFC] border border-slate-200/80 px-4 py-2 rounded-lg shadow-sm shrink-0 text-center dark:border-slate-800">
+                        <span className="text-xs font-bold text-blue-600 uppercase tracking-widest dark:text-blue-400">
                             {aluno.unidade || 'SEM VÍNCULO'}
                         </span>
                     </div>

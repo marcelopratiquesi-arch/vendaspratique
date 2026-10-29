@@ -151,7 +151,7 @@ const CartaoEvolucao = ({ titulo, valores, sufixo, tipo, corLinha }) => {
                             <Icone className="w-3 h-3" /> {variacao > 0 ? '+' : ''}{fmt(variacao)}
                         </span>
                     ) : (
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Primeira avaliação</span>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Primeira avaliação</span>
                     )}
                 </div>
                 {pontos.length > 1 && (
@@ -179,7 +179,7 @@ const Secao = ({ icone: Icone, titulo, children }) => (
 
 const Campo = ({ rotulo, valor, destaque }) => (
     <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3">
-        <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{rotulo}</span>
+        <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{rotulo}</span>
         <span className={`block text-sm font-black ${destaque || 'text-slate-800 dark:text-white'}`}>{valor ?? '—'}</span>
     </div>
 );
@@ -187,7 +187,7 @@ const Campo = ({ rotulo, valor, destaque }) => (
 const LinhaIndicador = ({ rotulo, valor, status }) => (
     <div className="flex items-center justify-between gap-3 py-3 border-b last:border-b-0 border-slate-100 dark:border-slate-700">
         <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{rotulo}: <strong className="text-slate-800 dark:text-white">{valor}</strong></span>
-        {status && <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest shrink-0 ${classeStatus(status)}`}>{status}</span>}
+        {status && <span className={`px-2 py-0.5 rounded border text-[10px] font-black uppercase tracking-widest shrink-0 ${classeStatus(status)}`}>{status}</span>}
     </div>
 );
 
@@ -197,7 +197,7 @@ const Variacao = ({ atual, anterior, tipo }) => {
     if (Math.abs(v) < 0.1) return <span className="text-[10px] font-bold text-slate-400 flex items-center justify-center gap-1"><Minus className="w-3 h-3" /> Estável</span>;
     const subiu = v > 0;
     const bom = tipo === 'gordura' ? !subiu : tipo === 'musculo' ? subiu : null;
-    const cor = bom === true ? 'text-emerald-600' : bom === false ? 'text-rose-600' : 'text-slate-500';
+    const cor = bom === true ? 'text-emerald-600 dark:text-emerald-400' : bom === false ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400';
     return (
         <span className={`text-[10px] font-black flex items-center justify-center gap-0.5 ${cor}`}>
             {subiu ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} {subiu ? '+' : ''}{fmt(v)} vs anterior
@@ -271,7 +271,7 @@ const ModalVerAvaliacao = ({ avaliacoes, indiceInicial, alunoNome, perguntasPorI
 
     const cartoes = [
         { rotulo: 'Peso', icone: Scale, cor: 'text-slate-400', valor: fmt(av.peso), sufixo: 'kg', atual: parseNum(av.peso), ant: anterior ? parseNum(anterior.peso) : null, tipo: 'neutro' },
-        { rotulo: 'Massa muscular', icone: Dumbbell, cor: 'text-indigo-500', valor: fmt(mAtual), sufixo: 'kg', atual: mAtual, ant: mAnt, tipo: 'musculo' },
+        { rotulo: 'Massa muscular', icone: Dumbbell, cor: 'text-blue-500', valor: fmt(mAtual), sufixo: 'kg', atual: mAtual, ant: mAnt, tipo: 'musculo' },
         { rotulo: 'Gordura', icone: Droplet, cor: 'text-orange-500', valor: fmt(gAtual), sufixo: 'kg', atual: gAtual, ant: gAnt, tipo: 'gordura' },
         { rotulo: '% Gordura', icone: Percent, cor: 'text-rose-500', valor: fmt(av.pgc), sufixo: '%', atual: parseNum(av.pgc), ant: anterior ? parseNum(anterior.pgc) : null, tipo: 'gordura' },
     ];
@@ -452,7 +452,7 @@ const TabAvaliacoes = ({ avaliacoes, alunoNome, podeExcluir, onExcluir, podeEdit
             {/* Evolução */}
             <div className="flex gap-4 overflow-x-auto custom-scrollbar pb-1">
                 <CartaoEvolucao titulo="Peso" valores={cronologica.map((a) => parseNum(a.peso))} sufixo="kg" tipo="neutro" corLinha="stroke-slate-400" />
-                <CartaoEvolucao titulo="Massa muscular" valores={cronologica.map(massaMuscular)} sufixo="kg" tipo="musculo" corLinha="stroke-indigo-500" />
+                <CartaoEvolucao titulo="Massa muscular" valores={cronologica.map(massaMuscular)} sufixo="kg" tipo="musculo" corLinha="stroke-blue-500" />
                 <CartaoEvolucao titulo="Gordura" valores={cronologica.map(gorduraKg)} sufixo="kg" tipo="gordura" corLinha="stroke-orange-500" />
                 <CartaoEvolucao titulo="% Gordura" valores={cronologica.map((a) => parseNum(a.pgc))} sufixo="%" tipo="gordura" corLinha="stroke-rose-500" />
             </div>
@@ -483,7 +483,7 @@ const TabAvaliacoes = ({ avaliacoes, alunoNome, podeExcluir, onExcluir, podeEdit
                                     </td>
                                     <td className="px-5 py-3 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase" title={av.professor || ''}>{nomeCurto(av.professor)}</td>
                                     <td className="px-5 py-3 text-xs font-black text-slate-800 dark:text-white text-right">{fmt(av.peso) ? `${fmt(av.peso)} kg` : '—'}</td>
-                                    <td className="px-5 py-3 text-xs font-black text-indigo-600 dark:text-indigo-400 text-right">{m !== null ? `${fmt(m)} kg` : '—'}</td>
+                                    <td className="px-5 py-3 text-xs font-black text-blue-600 dark:text-blue-400 text-right">{m !== null ? `${fmt(m)} kg` : '—'}</td>
                                     <td className="px-5 py-3 text-xs font-black text-orange-600 dark:text-orange-400 text-right">{g !== null ? `${fmt(g)} kg` : '—'}</td>
                                     <td className="px-5 py-3 text-xs font-black text-rose-600 dark:text-rose-400 text-right">{fmt(av.pgc) ? `${fmt(av.pgc)}%` : '—'}</td>
                                     <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
@@ -492,12 +492,12 @@ const TabAvaliacoes = ({ avaliacoes, alunoNome, podeExcluir, onExcluir, podeEdit
                                                 <Eye className="w-3.5 h-3.5" /> Ver avaliação
                                             </button>
                                             {av.arquivo_inbody_url && (
-                                                <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors">
+                                                <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors dark:hover:bg-blue-500/20">
                                                     <FileText className="w-3.5 h-3.5" /> PDF
                                                 </a>
                                             )}
                                             {podeExcluir && onExcluir && (
-                                                <button type="button" onClick={() => onExcluir(av.id)} aria-label="Excluir avaliação" title="Excluir avaliação" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors">
+                                                <button type="button" onClick={() => onExcluir(av.id)} aria-label="Excluir avaliação" title="Excluir avaliação" className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors dark:hover:text-rose-400">
                                                     <Trash2 className="w-4 h-4" />
                                                 </button>
                                             )}

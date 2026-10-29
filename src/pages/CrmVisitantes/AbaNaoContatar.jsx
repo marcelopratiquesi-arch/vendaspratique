@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Ban, Search, X, Loader2, Undo2, AlertTriangle } from 'lucide-react';
 import { contatoCombinaComBusca, formatarDataHora, papelReal } from './utils';
 import { carregarListaNaoContatar, tirarNaoContatar } from './contatosFeitos';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // ABA "NÃO CONTATAR"
@@ -40,13 +41,13 @@ const AbaNaoContatar = ({ unidade, operador, usuarioLogado, versao = 0, onMudou 
             setLista(prev => (prev || []).filter(r => r.id !== registro.id));
             if (onMudou) onMudou();
         } catch (err) {
-            alert(`Não foi possível tirar da lista.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível tirar da lista.\n\n${err?.message || ''}`);
         } finally {
             setTirando(null);
         }
     };
 
-    const th = 'px-4 py-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
+    const th = 'px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
 
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-rose-200 dark:border-rose-500/30 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out]">
@@ -102,7 +103,7 @@ const AbaNaoContatar = ({ unidade, operador, usuarioLogado, versao = 0, onMudou 
                                 <td className="px-4 py-3 text-[10px] font-black uppercase text-slate-400">{r.unidade}</td>
                                 {podeTirar && (
                                     <td className="px-4 py-3 text-right">
-                                        <button type="button" onClick={() => tirar(r)} disabled={tirando === r.id} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[9px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 inline-flex items-center gap-1">
+                                        <button type="button" onClick={() => tirar(r)} disabled={tirando === r.id} className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 inline-flex items-center gap-1">
                                             {tirando === r.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Undo2 className="w-3.5 h-3.5" />} Tirar da lista
                                         </button>
                                     </td>

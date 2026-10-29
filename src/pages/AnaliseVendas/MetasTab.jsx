@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { getCategoriaItem } from './utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, Info } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Input com Auto-Save (CORRIGIDO)
@@ -24,7 +25,7 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
             setTimeout(() => setShowSuccess(false), 2000);
         } catch (err) {
             console.error("Erro ao salvar campo:", err);
-            alert("Erro ao gravar. Verifique sua conexão.");
+            avisar("Erro ao gravar. Verifique sua conexão.");
         } finally {
             setIsSaving(false);
         }
@@ -36,9 +37,9 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
     };
 
     const styles = {
-        blue: { ring: 'focus:ring-blue-500', btn: 'bg-blue-600 hover:bg-blue-700 text-white', iconTxt: 'text-blue-600' },
+        blue: { ring: 'focus:ring-blue-500', btn: 'bg-blue-600 hover:bg-blue-700 text-white', iconTxt: 'text-blue-600 dark:text-blue-400' },
         amber: { ring: 'focus:ring-amber-500', btn: 'bg-amber-500 hover:bg-amber-600 text-white', iconTxt: 'text-amber-500' },
-        emerald: { ring: 'focus:ring-emerald-500', btn: 'bg-emerald-600 hover:bg-emerald-700 text-white', iconTxt: 'text-emerald-600' }
+        emerald: { ring: 'focus:ring-emerald-500', btn: 'bg-emerald-600 hover:bg-emerald-700 text-white', iconTxt: 'text-emerald-600 dark:text-emerald-400' }
     }[theme];
 
     if (large) {
@@ -48,14 +49,14 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
                     type="number"
                     value={value}
                     onChange={handleChange}
-                    className="w-[200px] h-[72px] bg-white border-2 border-emerald-400 rounded-xl text-4xl font-black text-emerald-700 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 text-center shadow-sm transition-all"
+                    className="w-[200px] h-[72px] bg-white border-2 border-emerald-400 rounded-xl text-4xl font-black text-emerald-700 outline-none focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 text-center shadow-sm transition-all dark:bg-slate-900 dark:text-emerald-400"
                 />
                 <button
                     onClick={handleSave}
                     disabled={!hasChanged || isSaving}
                     title={!hasChanged ? "Sem alterações pendentes" : "Salvar esta meta"}
                     className={`w-16 h-[72px] rounded-xl transition-all flex items-center justify-center shrink-0 shadow-sm border border-transparent
-                        ${!hasChanged ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white'}
+                        ${!hasChanged ? 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-600 hover:text-white dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30'}
                         ${isSaving ? 'opacity-70 cursor-wait' : ''}
                         ${showSuccess ? '!bg-emerald-500 !text-white !border-emerald-600 scale-105' : ''}
                     `}
@@ -69,19 +70,19 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
     }
 
     return (
-        <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-2xl shadow-sm gap-3">
+        <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-2xl shadow-sm gap-3 dark:bg-slate-900 dark:border-slate-800">
             <div className="flex items-center gap-3 min-w-0 flex-1">
                 {Icon && (
-                    <div className={`p-2 rounded-xl bg-slate-50 border border-slate-100 shrink-0 ${styles.iconTxt}`}>
+                    <div className={`p-2 rounded-xl bg-slate-50 border border-slate-100 shrink-0 dark:bg-slate-800/60 dark:border-slate-800 ${styles.iconTxt}`}>
                         <Icon className="w-5 h-5" />
                     </div>
                 )}
                 <div className="flex flex-col min-w-0">
-                    <div className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate">
+                    <div className="text-[11px] font-black text-slate-800 uppercase tracking-widest truncate dark:text-white">
                         {label}
                     </div>
                     <div className="flex items-center gap-1 mt-0.5">
-                        {subtitle && <span className="text-rose-500 text-[9px] font-bold shrink-0">{subtitle}</span>}
+                        {subtitle && <span className="text-rose-500 text-[10px] font-bold shrink-0">{subtitle}</span>}
                         {description && <span className="text-[10px] font-medium text-slate-400 truncate">{description}</span>}
                     </div>
                 </div>
@@ -92,14 +93,14 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
                     type="number"
                     value={value}
                     onChange={handleChange}
-                    className={`w-[72px] h-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:bg-white focus:ring-4 ${styles.ring} text-center transition-all`}
+                    className={`w-[72px] h-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:bg-white focus:ring-4 dark:bg-slate-800/60 dark:border-slate-800 dark:text-white dark:focus:bg-slate-900 ${styles.ring} text-center transition-all`}
                 />
                 <button
                     onClick={handleSave}
                     disabled={!hasChanged || isSaving}
                     title={!hasChanged ? "Sem alterações pendentes" : "Salvar esta meta"}
                     className={`w-10 h-10 rounded-xl transition-all flex items-center justify-center shrink-0 border border-transparent
-                        ${!hasChanged ? 'bg-slate-50 text-slate-300 cursor-not-allowed' : `${styles.btn} border-current border-opacity-20`}
+                        ${!hasChanged ? 'bg-slate-50 text-slate-300 cursor-not-allowed dark:bg-slate-800/60' : `${styles.btn} border-current border-opacity-20`}
                         ${isSaving ? 'opacity-70 cursor-wait' : ''}
                         ${showSuccess ? '!bg-emerald-500 !text-white !border-emerald-600 scale-105 shadow-md' : ''}
                     `}
@@ -134,7 +135,7 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
 
     if (isBatida) {
         statusText = "META BATIDA";
-        statusColor = "text-emerald-600";
+        statusColor = "text-emerald-600 dark:text-emerald-400";
         StatusIcon = CheckCircle2;
     } else if (perc >= 80) {
         statusText = "QUASE LÁ";
@@ -148,8 +149,8 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
 
     // Definição de cores estruturais
     const corBarra = isBatida ? 'bg-emerald-500' : corTema;
-    const bgCard = isBatida ? 'bg-emerald-50/40 border-emerald-200' : 'bg-white border-slate-200 hover:border-slate-300';
-    const corPercentual = isBatida ? 'text-emerald-600' : 'text-slate-800';
+    const bgCard = isBatida ? 'bg-emerald-50/40 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30' : 'bg-white border-slate-200 hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700';
+    const corPercentual = isBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-800 dark:text-white';
 
     return (
         <div className={`p-5 rounded-2xl border ${bgCard} transition-colors duration-300 relative overflow-hidden group shadow-sm hover:shadow-md flex flex-col justify-between`}>
@@ -157,10 +158,10 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
             {/* NÍVEL 1 & 2: HIERARQUIA VISUAL DOS NÚMEROS */}
             <div className="flex justify-between items-start mb-3">
                 <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">{label}</span>
+                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide dark:text-white">{label}</span>
                     <div className="flex items-baseline gap-1 mt-0.5">
-                        <span className="text-xl font-black text-slate-800 leading-none">{realizadoVal}</span>
-                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest"> / {metaVal}</span>
+                        <span className="text-xl font-black text-slate-800 leading-none dark:text-white">{realizadoVal}</span>
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest dark:text-slate-400"> / {metaVal}</span>
                     </div>
                 </div>
                 <div className="text-right">
@@ -171,7 +172,7 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
             </div>
 
             {/* NÍVEL 3: BARRA DE PROGRESSO */}
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-4 border border-slate-200/50">
+            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-4 border border-slate-200/50 dark:bg-slate-800 dark:border-slate-800">
                 <div 
                     className={`h-full rounded-full transition-all duration-1000 ease-out ${corBarra}`} 
                     style={{ width: `${perc}%` }}
@@ -180,27 +181,27 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
 
             {/* NÍVEL 4 & 5: FALTANTE E STATUS/RECOMPENSA */}
             <div className="flex justify-between items-center mt-auto">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isBatida ? (
-                        <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-100/60 px-2.5 py-1 rounded-md border border-emerald-200/50 uppercase font-black tracking-widest text-[9px]">
+                        <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-100/60 px-2.5 py-1 rounded-md border border-emerald-200/50 uppercase font-black tracking-widest text-[10px] dark:text-emerald-400 dark:bg-emerald-500/20 dark:border-emerald-500/30">
                             <StatusIcon className="w-3.5 h-3.5" /> {statusText}
                         </span>
                     ) : (
                         <>
-                            <span className="text-slate-500 uppercase tracking-widest text-[9px] font-black">Faltam</span>
-                            <strong className="text-slate-800 font-black text-sm">{faltaVal}</strong>
+                            <span className="text-slate-500 uppercase tracking-widest text-[10px] font-black dark:text-slate-400">Faltam</span>
+                            <strong className="text-slate-800 font-black text-sm dark:text-white">{faltaVal}</strong>
                         </>
                     )}
                 </div>
 
                 <div className="flex items-center gap-2">
                     {!isBatida && (
-                        <span className={`flex items-center gap-1 text-[9px] font-black uppercase tracking-widest ${statusColor}`}>
+                        <span className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${statusColor}`}>
                             <StatusIcon className="w-3.5 h-3.5" /> {statusText}
                         </span>
                     )}
                     {recompensa && !isBatida && (
-                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-1 rounded-md border border-amber-100 ml-1 shadow-sm">
+                        <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider bg-amber-50 px-2 py-1 rounded-md border border-amber-100 ml-1 shadow-sm dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/30">
                             + {recompensa}
                         </span>
                     )}
@@ -407,24 +408,24 @@ const MetasTab = ({
             {podeEditarCampos ? (
                 <div className="mb-8 animate-[slideDown_0.3s_ease-out]">
                     
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white rounded-[24px] border border-slate-200 shadow-sm p-5 mb-6 gap-4">
+                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white rounded-[24px] border border-slate-200 shadow-sm p-5 mb-6 gap-4 dark:bg-slate-900 dark:border-slate-800">
                         <div className="flex items-center gap-4">
                             <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
                                 <Target className="w-6 h-6" />
                             </div>
                             <div>
-                                <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Configuração das Metas</h2>
-                                <p className="text-xs font-medium text-slate-500 mt-0.5">
-                                    <strong className="text-slate-800 uppercase">{unidadeAtivaEdicao}</strong> • Defina os objetivos da sua unidade
+                                <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase dark:text-white">Configuração das Metas</h2>
+                                <p className="text-xs font-medium text-slate-500 mt-0.5 dark:text-slate-400">
+                                    <strong className="text-slate-800 uppercase dark:text-white">{unidadeAtivaEdicao}</strong> • Defina os objetivos da sua unidade
                                 </p>
                             </div>
                         </div>
                         
-                        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl w-full lg:w-auto">
-                            <div className="text-blue-600 shrink-0"><Zap className="w-5 h-5" /></div>
+                        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl w-full lg:w-auto dark:bg-slate-800/60 dark:border-slate-800">
+                            <div className="text-blue-600 shrink-0 dark:text-blue-400"><Zap className="w-5 h-5" /></div>
                             <div className="flex flex-col">
-                                <span className="text-[11px] font-black text-blue-700 uppercase tracking-widest">Modo de Edição Rápida Ativo</span>
-                                <span className="text-[10px] font-medium text-slate-500">Faça alterações e salve individualmente</span>
+                                <span className="text-[11px] font-black text-blue-700 uppercase tracking-widest dark:text-blue-400">Modo de Edição Rápida Ativo</span>
+                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">Faça alterações e salve individualmente</span>
                             </div>
                             <div className="ml-auto lg:ml-2 w-10 h-6 bg-emerald-400 rounded-full flex items-center justify-end px-1 shadow-inner shrink-0">
                                 <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
@@ -434,15 +435,15 @@ const MetasTab = ({
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         
-                        <div className="flex flex-col bg-gradient-to-b from-blue-50/50 to-white border border-blue-100 rounded-[24px] p-6 shadow-sm h-full">
+                        <div className="flex flex-col bg-gradient-to-b from-blue-50/50 to-white border border-blue-100 rounded-[24px] p-6 shadow-sm h-full dark:border-blue-500/30">
                             <div className="flex items-center gap-3 mb-2">
-                                <Zap className="w-6 h-6 text-blue-600 shrink-0" />
-                                <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight">META START</h3>
-                                <span className="bg-blue-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">Primordial</span>
+                                <Zap className="w-6 h-6 text-blue-600 shrink-0 dark:text-blue-400" />
+                                <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight dark:text-blue-300">META START</h3>
+                                <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">Primordial</span>
                             </div>
-                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed">
+                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
                                 Defina as metas iniciais da sua unidade.<br/>
-                                <strong className="text-blue-700">Conclua todos os indicadores</strong> para liberar a gratificação.
+                                <strong className="text-blue-700 dark:text-blue-400">Conclua todos os indicadores</strong> para liberar a gratificação.
                             </p>
                             
                             <div className="space-y-3 flex-1">
@@ -451,26 +452,26 @@ const MetasTab = ({
                                 <InputFieldWithSave label="Personal Class" subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" />
                             </div>
 
-                            <div className="mt-5 bg-blue-50/80 border border-blue-100 rounded-xl p-4 flex items-center gap-3 shadow-sm">
+                            <div className="mt-5 bg-blue-50/80 border border-blue-100 rounded-xl p-4 flex items-center gap-3 shadow-sm dark:bg-blue-500/10 dark:border-blue-500/30">
                                 <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center shrink-0">
                                     <Trophy className="w-4 h-4" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest">Gratificação Start</p>
-                                    <p className="text-[10px] font-medium text-blue-600 mt-0.5 leading-snug">Conclua todas as metas para liberar a gratificação.</p>
+                                    <p className="text-[10px] font-black text-blue-800 uppercase tracking-widest dark:text-blue-300">Gratificação Start</p>
+                                    <p className="text-[10px] font-medium text-blue-600 mt-0.5 leading-snug dark:text-blue-400">Conclua todas as metas para liberar a gratificação.</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="flex flex-col bg-gradient-to-b from-amber-50/50 to-white border border-amber-100 rounded-[24px] p-6 shadow-sm h-full">
+                        <div className="flex flex-col bg-gradient-to-b from-amber-50/50 to-white border border-amber-100 rounded-[24px] p-6 shadow-sm h-full dark:border-amber-500/30">
                             <div className="flex items-center gap-3 mb-2">
                                 <Award className="w-6 h-6 text-amber-500 shrink-0" />
-                                <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight">META MENSAL</h3>
-                                <span className="bg-amber-500 text-white text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ 200</span>
+                                <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight dark:text-amber-300">META MENSAL</h3>
+                                <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ 200</span>
                             </div>
-                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed">
+                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
                                 Defina as metas mensais da sua unidade.<br/>
-                                Cada indicador concluído representa <strong className="text-amber-600">R$ 50 de gratificação</strong>.
+                                Cada indicador concluído representa <strong className="text-amber-600 dark:text-amber-400">R$ 50 de gratificação</strong>.
                             </p>
                             
                             <div className="space-y-3 flex-1">
@@ -480,18 +481,18 @@ const MetasTab = ({
                                 <InputFieldWithSave label="Personal Class" subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" />
                             </div>
 
-                            <div className="mt-5 pt-5 border-t border-slate-200/80 flex flex-col items-center justify-center text-center">
-                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest">R$ 200 de Gratificação</p>
-                                <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-widest">4 indicadores • R$ 50 cada meta concluída</p>
+                            <div className="mt-5 pt-5 border-t border-slate-200/80 flex flex-col items-center justify-center text-center dark:border-slate-800">
+                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest dark:text-amber-400">R$ 200 de Gratificação</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">4 indicadores • R$ 50 cada meta concluída</p>
                             </div>
                         </div>
 
-                        <div className="flex flex-col bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-100 rounded-[24px] p-6 shadow-sm h-full">
+                        <div className="flex flex-col bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-100 rounded-[24px] p-6 shadow-sm h-full dark:border-emerald-500/30">
                             <div className="flex items-center gap-3 mb-2">
-                                <Activity className="w-6 h-6 text-emerald-600 shrink-0" />
-                                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight">Qtd. Ativos Atual</h3>
+                                <Activity className="w-6 h-6 text-emerald-600 shrink-0 dark:text-emerald-400" />
+                                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight dark:text-emerald-300">Qtd. Ativos Atual</h3>
                             </div>
-                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed">
+                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
                                 Atualize diariamente a quantidade de alunos ativos da unidade.
                             </p>
                             
@@ -499,19 +500,19 @@ const MetasTab = ({
                                 <InputFieldWithSave large={true} value={ativosAtual} dbValue={metaCache?.ativos_atual} onChange={setAtivosAtual} onSave={(val) => salvarCampo('ativos_atual', val)} theme="emerald" />
                                 
                                 <div className="mt-8 w-full space-y-3">
-                                    <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 flex gap-3 shadow-sm">
-                                        <Activity className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                                    <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 flex gap-3 shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
+                                        <Activity className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 dark:text-emerald-400" />
                                         <div className="flex flex-col">
-                                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest">Controle Diário</p>
-                                            <p className="text-[10px] font-medium text-emerald-700 mt-1 leading-snug">Mantenha este valor atualizado para um acompanhamento preciso.</p>
+                                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest dark:text-emerald-300">Controle Diário</p>
+                                            <p className="text-[10px] font-medium text-emerald-700 mt-1 leading-snug dark:text-emerald-400">Mantenha este valor atualizado para um acompanhamento preciso.</p>
                                         </div>
                                     </div>
                                     
                                     <div className="flex items-start gap-2.5 px-2">
                                         <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
                                         <div className="flex flex-col">
-                                            <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Dica</p>
-                                            <p className="text-[9px] font-medium text-slate-400 mt-0.5 leading-snug">Atualize sempre que houver mudanças significativas na base.</p>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">Dica</p>
+                                            <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-snug">Atualize sempre que houver mudanças significativas na base.</p>
                                         </div>
                                     </div>
                                 </div>
@@ -521,17 +522,17 @@ const MetasTab = ({
                     </div>
                 </div>
             ) : (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center mb-8">
-                    <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[20px] flex items-center justify-center mb-6 shadow-sm">
+                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center mb-8 dark:bg-slate-900 dark:border-slate-800">
+                    <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[20px] flex items-center justify-center mb-6 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">
                         <Target className="w-10 h-10 text-slate-300" />
                     </div>
-                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight">Painel de Configuração Oculto</h3>
-                    <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto">Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.</p>
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight dark:text-white">Painel de Configuração Oculto</h3>
+                    <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto dark:text-slate-400">Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.</p>
                 </div>
             )}
 
             {dadosPorUnidade.map((item, index) => (
-                <div key={index} className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-8 animate-[slideDown_0.3s_ease-out]">
+                <div key={index} className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-8 animate-[slideDown_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
                     
                     <div className="bg-slate-900 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-5 border-b border-slate-800">
                         <div className="flex items-center gap-4">
@@ -542,7 +543,7 @@ const MetasTab = ({
                                 <h4 className="text-xl font-black text-white tracking-tight uppercase">{item.unidade}</h4>
                                 <div className="flex items-center gap-2 mt-0.5">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Performance de Metas</span>
-                                    <span className="text-slate-600">•</span>
+                                    <span className="text-slate-600 dark:text-slate-300">•</span>
                                     <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">{String(filtroMes).padStart(2, '0')}/{filtroAno}</span>
                                 </div>
                             </div>
@@ -564,14 +565,14 @@ const MetasTab = ({
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
                         
-                        <div className="p-6 md:p-8 bg-slate-50/40">
+                        <div className="p-6 md:p-8 bg-slate-50/40 dark:bg-slate-800/40">
                             <div className="mb-6 flex flex-col">
-                                <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
-                                    <Zap className="w-5 h-5 text-blue-600"/> META START
+                                <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 dark:text-white">
+                                    <Zap className="w-5 h-5 text-blue-600 dark:text-blue-400"/> META START
                                 </h5>
-                                <p className="text-xs font-medium text-slate-500 mt-1">Conclua todos os indicadores para liberar a gratificação.</p>
+                                <p className="text-xs font-medium text-slate-500 mt-1 dark:text-slate-400">Conclua todos os indicadores para liberar a gratificação.</p>
                             </div>
                             
                             <div className="flex flex-col gap-4">
@@ -583,15 +584,15 @@ const MetasTab = ({
                             </div>
                         </div>
 
-                        <div className="p-6 md:p-8 bg-amber-50/10">
+                        <div className="p-6 md:p-8 bg-amber-50/10 dark:bg-amber-500/10">
                             <div className="mb-6 flex flex-col">
-                                <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                                <h5 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 dark:text-white">
                                     <Award className="w-5 h-5 text-amber-500"/> META MENSAL
                                 </h5>
                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest">R$ 200 de gratificação</span>
+                                    <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest dark:bg-amber-500/20 dark:text-amber-400">R$ 200 de gratificação</span>
                                     <span className="text-slate-300">•</span>
-                                    <span className="text-xs font-medium text-slate-500">R$ 50 por indicador concluído.</span>
+                                    <span className="text-xs font-medium text-slate-500 dark:text-slate-400">R$ 50 por indicador concluído.</span>
                                 </div>
                             </div>
                             

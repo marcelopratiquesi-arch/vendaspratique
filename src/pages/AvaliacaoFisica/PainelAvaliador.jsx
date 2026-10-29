@@ -10,6 +10,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { getMeses } from '../AnaliseVendas/utils.js';
 import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
 import FormAvaliacao from './FormAvaliacao';
+import { avisar } from '../../components/avisar.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -145,13 +146,13 @@ const PainelAvaliador = ({
     };
 
     const removerAvaliacao = async (id) => {
-        if (!podeEditar) return alert("Você não tem permissão.");
+        if (!podeEditar) return avisar("Você não tem permissão.");
         if (window.confirm('🚨 ATENÇÃO: Tem certeza que deseja excluir esta avaliação?')) {
             try {
                 const { error } = await supabase.from('avaliacoes_realizadas').delete().eq('id', id);
                 if (error) throw error;
                 setDadosFiltrados(prev => prev.filter(item => item.id !== id));
-            } catch (err) { console.error(err); alert('Erro ao excluir avaliação.'); }
+            } catch (err) { console.error(err); avisar('Erro ao excluir avaliação.'); }
         }
     };
 
@@ -178,7 +179,7 @@ const PainelAvaliador = ({
             ));
         } catch (err) {
             console.error("Erro ao alterar avaliador:", err);
-            alert("Erro ao alterar o avaliador. Verifique a conexão.");
+            avisar("Erro ao alterar o avaliador. Verifique a conexão.");
         } finally {
             setEditingAvaliadorId(null);
         }
@@ -397,7 +398,7 @@ const PainelAvaliador = ({
                         <ArrowLeft className="w-3.5 h-3.5"/> Voltar
                     </button>
                     
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 text-blue-600 dark:text-blue-400 rounded-[14px] flex items-center justify-center text-lg font-black shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-inner">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-50 dark:from-blue-900/40 dark:to-blue-900/40 text-blue-600 dark:text-blue-400 rounded-[14px] flex items-center justify-center text-lg font-black shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-inner">
                         {professorAtivo.id === 'GLOBAL' ? <Building2 className="w-5 h-5"/> : professorAtivo.id === 'GERAL' ? <BarChart3 className="w-5 h-5"/> : professorAtivo.nome.charAt(0)}
                     </div>
                     
@@ -438,15 +439,15 @@ const PainelAvaliador = ({
                             </div>
                             <div>
                                 <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight leading-none">Filtros de Histórico</h2>
-                                <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Ajuste a visualização dos dados</p>
+                                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Ajuste a visualização dos dados</p>
                             </div>
                         </div>
 
                         <div className="flex flex-col lg:flex-row items-center gap-3 w-full xl:w-auto">
                             <div className="flex bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl w-full md:w-auto shadow-inner border border-slate-200/50 dark:border-slate-700/50">
-                                <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Dia</button>
-                                <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Mês</button>
-                                <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Período</button>
+                                <button onClick={() => setTipoFiltro('dia')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'dia' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Dia</button>
+                                <button onClick={() => setTipoFiltro('mes')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'mes' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Mês</button>
+                                <button onClick={() => setTipoFiltro('periodo')} className={`flex-1 min-w-[70px] px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${tipoFiltro === 'periodo' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>Período</button>
                             </div>
 
                             <div className="flex items-center gap-2 w-full md:w-auto bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 shadow-sm focus-within:ring-1 focus-within:ring-blue-500/50">
@@ -467,7 +468,7 @@ const PainelAvaliador = ({
                                     <div className="flex items-center gap-1 px-2">
                                         <CalendarIcon className="w-3.5 h-3.5 text-blue-500 mr-1" />
                                         <input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-28" />
-                                        <span className="text-slate-400 font-bold text-[9px] px-1 uppercase">até</span>
+                                        <span className="text-slate-400 font-bold text-[10px] px-1 uppercase">até</span>
                                         <input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="bg-transparent border-none py-1 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none w-28" />
                                     </div>
                                 )}
@@ -486,7 +487,7 @@ const PainelAvaliador = ({
                                     <FileDigit className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-0.5">Total Avaliações</span>
+                                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-0.5">Total Avaliações</span>
                                     <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{metricasDashboard.total}</span>
                                 </div>
                             </div>
@@ -498,7 +499,7 @@ const PainelAvaliador = ({
                                     <TrendingUp className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Peso Médio</span>
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Peso Médio</span>
                                     <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-baseline gap-1">
                                         {metricasDashboard.pesoMedio} <span className="text-xs font-bold text-slate-400">kg</span>
                                     </span>
@@ -512,7 +513,7 @@ const PainelAvaliador = ({
                                     <ArrowUpDown className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Altura Média</span>
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Altura Média</span>
                                     <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-baseline gap-1">
                                         {metricasDashboard.alturaMedia} <span className="text-xs font-bold text-slate-400">m</span>
                                     </span>
@@ -526,14 +527,14 @@ const PainelAvaliador = ({
                                     <CalendarDays className="w-5 h-5" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Última Avaliação</span>
+                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Última Avaliação</span>
                                     {metricasDashboard.ultimaAvaliacao ? (
                                         <>
                                             <span className="text-lg md:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
                                                 {metricasDashboard.ultimaAvaliacao.toLocaleDateString(langAtual, {day:'2-digit', month:'2-digit', year:'numeric'})}
                                             </span>
                                             {metricasDashboard.diasAtras !== null && (
-                                                <span className="text-[9px] font-bold text-slate-400 mt-1">
+                                                <span className="text-[10px] font-bold text-slate-400 mt-1">
                                                     {metricasDashboard.diasAtras === 0 ? 'Feita Hoje' : `${metricasDashboard.diasAtras} dias atrás`}
                                                 </span>
                                             )}
@@ -556,10 +557,10 @@ const PainelAvaliador = ({
                                     </h3>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button onClick={() => setModalRelatorioAberto(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
+                                    <button onClick={() => setModalRelatorioAberto(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
                                         <Send className="w-3 h-3" /> Relatório WPP
                                     </button>
-                                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades} Ativos</span>
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades} Ativos</span>
                                 </div>
                             </div>
                             <div className="p-4 flex gap-4 overflow-x-auto custom-scrollbar">
@@ -593,12 +594,12 @@ const PainelAvaliador = ({
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-black text-slate-900 dark:text-white tracking-tight leading-none">Histórico de Avaliações</h3>
-                                        <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Acompanhe os registros deste avaliador.</p>
+                                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">Acompanhe os registros deste avaliador.</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" /> Resumo</button>
-                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" /> Avançado</button>
+                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" /> Resumo</button>
+                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" /> Avançado</button>
                                 </div>
                             </div>
                             <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
@@ -675,7 +676,7 @@ const PainelAvaliador = ({
                                                                 </div>
                                                                 <div className="flex flex-col items-start gap-1">
                                                                     <span className="text-[13px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.aluno || 'NÃO INFORMADO'}</span>
-                                                                    <button onClick={() => setAlunoEvolucaoModal({ id: a.aluno_id, nome: a.aluno, cpf: a.cpf })} className="flex items-center gap-1 text-[9px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors uppercase tracking-widest">
+                                                                    <button onClick={() => setAlunoEvolucaoModal({ id: a.aluno_id, nome: a.aluno, cpf: a.cpf })} className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors uppercase tracking-widest">
                                                                         <LineChart className="w-3 h-3" /> Evolução
                                                                     </button>
                                                                 </div>
@@ -757,7 +758,7 @@ const PainelAvaliador = ({
                                                                 <div className="flex items-center gap-2 group/edit">
                                                                     <div className="flex flex-col">
                                                                         <span className="text-[11px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.professor || 'SISTEMA'}</span>
-                                                                        <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase">REG: {a.registrado_por_nome || 'SISTEMA'}</span>
+                                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5 uppercase">REG: {a.registrado_por_nome || 'SISTEMA'}</span>
                                                                     </div>
                                                                     {podeEditar && (
                                                                         <button 
@@ -788,7 +789,7 @@ const PainelAvaliador = ({
                                                                     <button className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title="Visualizar Detalhes">
                                                                         <Eye className="w-3.5 h-3.5" />
                                                                     </button>
-                                                                    <button onClick={() => handleEditar(a)} className="p-2 text-indigo-500 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 rounded-lg transition-colors border border-transparent hover:border-indigo-200 dark:hover:border-indigo-700" title="Editar Avaliação">
+                                                                    <button onClick={() => handleEditar(a)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title="Editar Avaliação">
                                                                         <Edit3 className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     <button onClick={() => removerAvaliacao(a.id)} className="p-2 text-rose-400 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-300 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-700" title="Excluir Permanentemente">

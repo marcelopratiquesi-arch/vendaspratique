@@ -80,21 +80,21 @@ export const ModalConfirmarExclusaoAluno = ({
                         <p className="text-xs font-black text-slate-800 dark:text-white uppercase">
                             {aluno.nome}
                         </p>
-                        <p className="text-xs font-mono font-bold text-slate-500 mt-1">
+                        <p className="text-xs font-mono font-bold text-slate-500 mt-1 dark:text-slate-400">
                             CPF: {formatarCPF(aluno.cpf)} {aluno.matricula ? `• Matrícula #${aluno.matricula}` : ''}
                         </p>
                     </div>
 
                     {erroBloqueio ? (
                         <div className="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-4 rounded-2xl flex items-start gap-3">
-                            <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                            <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0 mt-0.5 dark:text-rose-400" />
                             <div className="text-xs font-bold text-rose-700 dark:text-rose-300 leading-relaxed">
                                 {erroBloqueio}
                             </div>
                         </div>
                     ) : (
                         <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60 p-3.5 rounded-xl flex items-start gap-2.5">
-                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 dark:text-amber-400" />
                             <p className="text-[11px] font-semibold text-amber-800 dark:text-amber-300 leading-snug">
                                 Se este aluno possuir vendas ou avaliações vinculadas, o banco bloqueará a exclusão automaticamente para proteger o histórico financeiro.
                             </p>
@@ -102,7 +102,7 @@ export const ModalConfirmarExclusaoAluno = ({
                     )}
 
                     <div>
-                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 dark:text-slate-400">
                             Motivo para o Registro de Auditoria *
                         </label>
                         <input
@@ -118,7 +118,7 @@ export const ModalConfirmarExclusaoAluno = ({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+                            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                             Cancelar
                         </button>

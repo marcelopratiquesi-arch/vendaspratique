@@ -7,7 +7,7 @@ export const SmartFilter = ({
     setOcultos, 
     label = "Filtro", 
     Icone, 
-    iconColor = "text-slate-500" 
+    iconColor = "text-slate-500 dark:text-slate-400" 
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -81,24 +81,24 @@ export const SmartFilter = ({
 
     return (
         <div className="relative flex flex-col gap-1.5 min-w-[200px] flex-1" ref={containerRef}>
-            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5">
+            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center gap-1.5 dark:text-slate-400">
                {Icone && <Icone className={`w-3 h-3 ${iconColor}`} />} {label}
             </label>
             <div 
                 onClick={() => {
                     if (optionsSafe.length > 0) setIsOpen(!isOpen);
                 }}
-                className={`bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none flex justify-between items-center select-none shadow-sm h-[46px] transition-colors ${optionsSafe.length === 0 ? 'opacity-50 cursor-not-allowed bg-slate-50' : 'cursor-pointer hover:border-blue-400 text-slate-700'}`}
+                className={`bg-white border border-slate-200 rounded-xl p-3 text-xs font-bold outline-none flex justify-between items-center select-none shadow-sm h-[46px] transition-colors dark:bg-slate-900 dark:border-slate-800 ${optionsSafe.length === 0 ? 'opacity-50 cursor-not-allowed bg-slate-50 dark:bg-slate-800/60' : 'cursor-pointer hover:border-blue-400 text-slate-700 dark:text-slate-200'}`}
             >
                 <span className="truncate pr-2 uppercase">{textoResumo}</span>
                 {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
             </div>
             
             {isOpen && optionsSafe.length > 0 && (
-                <div className="absolute top-[100%] left-0 right-0 mt-2 bg-white border border-slate-200 shadow-2xl rounded-xl z-50 flex flex-col py-1 overflow-hidden" style={{ maxHeight: '350px' }}>
+                <div className="absolute top-[100%] left-0 right-0 mt-2 bg-white border border-slate-200 shadow-2xl rounded-xl z-50 flex flex-col py-1 overflow-hidden dark:bg-slate-900 dark:border-slate-800" style={{ maxHeight: '350px' }}>
                     
                     {/* INPUT DE BUSCA */}
-                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50">
+                    <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
                         <div className="relative">
                             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                             <input 
@@ -107,25 +107,25 @@ export const SmartFilter = ({
                                 placeholder={`Buscar...`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                                className="w-full bg-white border border-slate-300 rounded-lg pl-9 pr-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200"
                             />
                         </div>
                     </div>
 
                     {filteredOptions.length > 0 && (
                         <div 
-                            className={`px-4 py-3 border-b flex items-center gap-3 cursor-pointer select-none transition-colors ${isAllFilteredSelected ? 'bg-rose-50/50 hover:bg-rose-50 border-rose-100' : 'bg-blue-50/50 hover:bg-blue-50 border-blue-100'}`}
+                            className={`px-4 py-3 border-b flex items-center gap-3 cursor-pointer select-none transition-colors ${isAllFilteredSelected ? 'bg-rose-50/50 hover:bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/10 dark:border-rose-500/30' : 'bg-blue-50/50 hover:bg-blue-50 border-blue-100 dark:bg-blue-500/10 dark:hover:bg-blue-500/10 dark:border-blue-500/30'}`}
                             onClick={toggleFilteredAll}
                         >
                             {isAllFilteredSelected ? (
                                 <>
                                     <Square className="w-4 h-4 text-rose-500 shrink-0" />
-                                    <span className="text-[11px] font-black text-rose-600 uppercase tracking-wider">Desmarcar {searchTerm ? 'Buscados' : 'Todos'}</span>
+                                    <span className="text-[11px] font-black text-rose-600 uppercase tracking-wider dark:text-rose-400">Desmarcar {searchTerm ? 'Buscados' : 'Todos'}</span>
                                 </>
                             ) : (
                                 <>
-                                    <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" />
-                                    <span className="text-[11px] font-black text-blue-700 uppercase tracking-wider">Selecionar {searchTerm ? 'Buscados' : 'Todos'}</span>
+                                    <CheckSquare className="w-4 h-4 text-blue-600 shrink-0 dark:text-blue-400" />
+                                    <span className="text-[11px] font-black text-blue-700 uppercase tracking-wider dark:text-blue-400">Selecionar {searchTerm ? 'Buscados' : 'Todos'}</span>
                                 </>
                             )}
                         </div>
@@ -137,11 +137,11 @@ export const SmartFilter = ({
                             return (
                                 <div 
                                     key={opt} 
-                                    className="px-4 py-3 hover:bg-slate-50 flex items-center gap-3 cursor-pointer select-none border-b border-slate-50 last:border-0 transition-colors"
+                                    className="px-4 py-3 hover:bg-slate-50 flex items-center gap-3 cursor-pointer select-none border-b border-slate-50 last:border-0 transition-colors dark:hover:bg-slate-800/60 dark:border-slate-800"
                                     onClick={() => toggleOption(opt)}
                                 >
-                                    {isChecked ? <CheckSquare className="w-4 h-4 text-blue-600 shrink-0" /> : <Square className="w-4 h-4 text-slate-300 shrink-0" />}
-                                    <span className={`text-[11px] font-bold uppercase truncate tracking-wide ${isChecked ? 'text-slate-700' : 'text-slate-400'}`} title={opt}>{opt}</span>
+                                    {isChecked ? <CheckSquare className="w-4 h-4 text-blue-600 shrink-0 dark:text-blue-400" /> : <Square className="w-4 h-4 text-slate-300 shrink-0" />}
+                                    <span className={`text-[11px] font-bold uppercase truncate tracking-wide ${isChecked ? 'text-slate-700 dark:text-slate-200' : 'text-slate-400'}`} title={opt}>{opt}</span>
                                 </div>
                             );
                         })}

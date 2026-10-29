@@ -6,6 +6,7 @@ import {
     PenTool, History, Loader2, Trophy, Target, UserPlus, MoveRight, 
     CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban, CalendarClock, Snowflake
 } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 const Modais = ({
     modalWpp, setModalWpp,
@@ -218,7 +219,7 @@ const Modais = ({
                 ========================================== */}
             {modalWpp.show && modalWpp.lead && (
                 <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center p-4">
-                    <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: '550px', minHeight: '400px', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(400px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         <div onMouseDown={handleMouseDownWpp} className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
                             <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest flex items-center gap-2 pointer-events-none">
                                 <MessageCircle className="w-5 h-5 text-emerald-500" /> Revisão de Mensagem
@@ -232,10 +233,10 @@ const Modais = ({
                                 <span className={`inline-block px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase border shadow-sm ${STATUS_TOKENS[modalWpp.lead.status]?.bg} ${STATUS_TOKENS[modalWpp.lead.status]?.text} ${STATUS_TOKENS[modalWpp.lead.status]?.border}`}>Fase: {modalWpp.lead.status}</span>
                                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Enviando para: <strong className="text-slate-800 dark:text-white">{modalWpp.lead.nome}</strong></span>
                             </div>
-                            <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner"></textarea>
+                            <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
                         </div>
                         <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-4 shrink-0">
-                            <button onClick={() => { navigator.clipboard.writeText(modalWpp.texto); alert("Texto copiado!"); }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                            <button onClick={() => { navigator.clipboard.writeText(modalWpp.texto); avisar("Texto copiado!"); }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
                                 <Copy className="w-4 h-4" /> Copiar
                             </button>
                             <button onClick={enviarWppDireto} className="flex-[2] py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
@@ -251,16 +252,16 @@ const Modais = ({
                 ========================================== */}
             {modalDetalhe.show && modalDetalhe.lead && (
                 <div className="fixed inset-0 z-[200] pointer-events-none flex items-center justify-center p-4 lg:p-10">
-                    <div className="relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col pointer-events-auto border-2 border-slate-300 dark:border-slate-700 overflow-hidden animate-[scaleIn_0.2s_ease-out]" style={{ width: '1100px', minHeight: '650px', maxHeight: '90vh', transform: `translate(${posDetalhe.x}px, ${posDetalhe.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col pointer-events-auto border-2 border-slate-300 dark:border-slate-700 overflow-hidden animate-[scaleIn_0.2s_ease-out]" style={{ width: 'min(1100px, 100%)', minHeight: 'min(650px, 85vh)', maxHeight: '90vh', transform: `translate(${posDetalhe.x}px, ${posDetalhe.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         
                         {/* CABEÇALHO ARRASTÁVEL ESCURO */}
                         <div onMouseDown={handleMouseDownDetalhe} className="bg-slate-900 p-6 lg:px-8 flex justify-between items-start shrink-0 cursor-move hover:bg-slate-800 transition-colors">
                             <div className="pointer-events-none">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <h2 className="text-3xl font-black text-white tracking-tight uppercase">{modalDetalhe.lead.nome}</h2>
+                                <div className="flex flex-wrap items-center gap-3 mb-2">
+                                    <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase break-words">{modalDetalhe.lead.nome}</h2>
                                     <span className={`px-2.5 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${modalDetalhe.lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : String(modalDetalhe.lead.tipo_lead || '').toUpperCase() === 'CANCELADO' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>{modalDetalhe.lead.tipo_lead || 'LEAD'}</span>
                                 </div>
-                                <div className="flex items-center gap-6 text-sm font-bold text-slate-400">
+                                <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm font-bold text-slate-400">
                                     <span className="flex items-center gap-2 text-blue-300"><Phone className="w-4 h-4" /> {modalDetalhe.lead.telefone}</span>
                                     {modalDetalhe.lead.cpf && <span className="flex items-center gap-2"><IdCard className="w-4 h-4" /> {modalDetalhe.lead.cpf}</span>}
                                 </div>
@@ -270,7 +271,7 @@ const Modais = ({
                             </button>
                         </div>
                         
-                        <div className="flex-1 overflow-hidden flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-800/60">
+                        <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-800/60">
                             
                             {/* COLUNA ESQUERDA (Ações e Metadados) */}
                             <div className="w-full lg:w-[380px] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-y-auto custom-scrollbar shrink-0">
@@ -337,11 +338,11 @@ const Modais = ({
                                     {/* INFORMAÇÕES DE CADASTRO */}
                                     <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
                                         <div className="flex items-center gap-4 text-sm">
-                                            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 flex items-center justify-center border border-indigo-100 dark:border-indigo-500/20 shrink-0">
+                                            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-500/10 text-blue-500 flex items-center justify-center border border-blue-100 dark:border-blue-500/20 shrink-0">
                                                 <User className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Consultor Responsável</p>
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Consultor Responsável</p>
                                                 <p className="font-black text-slate-700 dark:text-slate-200 uppercase leading-tight">{modalDetalhe.lead.vendedor || 'Não Atribuído'}</p>
                                             </div>
                                         </div>
@@ -351,7 +352,7 @@ const Modais = ({
                                                 <Calendar className="w-5 h-5" />
                                             </div>
                                             <div>
-                                                <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Data de Captura</p>
+                                                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Data de Captura</p>
                                                 <p className="font-bold text-slate-700 dark:text-slate-200 leading-tight">{formatarDataHora(modalDetalhe.lead.puxado_em || dataDoLead(modalDetalhe.lead))}</p>
                                             </div>
                                         </div>
@@ -362,7 +363,7 @@ const Modais = ({
                                                     <CreditCard className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Golden Record (CPF)</p>
+                                                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-0.5">Golden Record (CPF)</p>
                                                     <p className="font-black text-slate-700 dark:text-slate-200 leading-tight">{modalDetalhe.lead.cpf}</p>
                                                 </div>
                                             </div>
@@ -427,7 +428,7 @@ const Modais = ({
                                             value={novaNota} 
                                             onChange={(e) => setNovaNota(e.target.value)} 
                                             placeholder="Descreva o que aconteceu neste contato..." 
-                                            className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner"
+                                            className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner dark:focus:bg-slate-900"
                                         />
                                         <button type="submit" disabled={!novaNota.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-8 py-4 rounded-xl transition-all shadow-[0_4px_15px_rgba(37,99,235,0.3)] flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest shrink-0">
                                             <Save className="w-5 h-5" /> Salvar Nota
@@ -448,7 +449,7 @@ const Modais = ({
                     <div 
                         className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-slate-300 dark:border-slate-700 overflow-hidden animate-[zoomIn_0.2s_ease-out]" 
                         style={{ 
-                            width: '450px', minHeight: '520px', maxHeight: '90vh', 
+                            width: 'min(450px, 100%)', minHeight: 'min(520px, 85vh)', maxHeight: '90vh', 
                             transform: `translate(${posRelatorio.x}px, ${posRelatorio.y}px)`, 
                             resize: 'both', overflow: 'hidden' 
                         }}
@@ -472,14 +473,14 @@ const Modais = ({
                             <textarea 
                                 value={textoRelatorio} 
                                 onChange={(e) => setTextoRelatorio(e.target.value)} 
-                                className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 font-mono text-[11px] text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner"
+                                className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-4 font-mono text-[11px] text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"
                             />
                         </div>
                         
                         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-3 shrink-0 flex-col">
                             <div className="flex gap-2 w-full">
                                 <button 
-                                    onClick={() => { navigator.clipboard.writeText(textoRelatorio); alert("Relatório copiado!"); }} 
+                                    onClick={() => { navigator.clipboard.writeText(textoRelatorio); avisar("Relatório copiado!"); }} 
                                     className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 rounded-xl font-black uppercase text-[10px] tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
                                 >
                                     <Copy className="w-4 h-4" /> Copiar 
@@ -488,7 +489,7 @@ const Modais = ({
                                 <button 
                                     onClick={() => { 
                                         navigator.clipboard.writeText(textoRelatorio); 
-                                        alert("Turno finalizado! Relatório copiado para a área de transferência.");
+                                        avisar("Turno finalizado! Relatório copiado para a área de transferência.");
                                         setMostrarRelatorio(false);
                                         if(setConsultorAtivo) setConsultorAtivo(null); 
                                     }} 

@@ -4,6 +4,7 @@ import { UserRoundPen, X, Loader2, Save, UserPlus, AlertTriangle, Link, ArrowRig
 import { normalizarNome, normalizarNumeros, formatarTelefone, validarEmail, validarTelefone, calcularIdade, mascaraCPF } from '../../pages/CadastroGeral/utilsAlunos.js';
 import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade } from '../../pages/Alunos/utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
+import { avisar } from '../avisar.js';
 
 const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogado, unidadeDestino }) => {
     const { t } = useI18n(); 
@@ -261,41 +262,41 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
         e.preventDefault();
         
         if (erroMatricula || erroTelefone || erroEmail) {
-            return alert("Corrija os erros apontados em vermelho antes de salvar.");
+            return avisar("Corrija os erros apontados em vermelho antes de salvar.");
         }
         if (situacao === 'CARREGANDO') {
-            return alert("Aguarde um instante: conferindo a unidade do aluno.");
+            return avisar("Aguarde um instante: conferindo a unidade do aluno.");
         }
         
         // 🔥 BARREIRA CONTRA ALUNO "FANTASMA" SEM UNIDADE
         // (completar só os dados pessoais de um aluno de outra unidade não precisa de unidade escolhida)
         if (!unidadeAtiva && !somenteDadosPessoais) {
-            return alert("🚨 ERRO CRÍTICO: Selecione uma unidade específica no topo da tela antes de cadastrar. Não é possível salvar um aluno na visão 'TODAS'.");
+            return avisar("🚨 ERRO CRÍTICO: Selecione uma unidade específica no topo da tela antes de cadastrar. Não é possível salvar um aluno na visão 'TODAS'.");
         }
         
         const rawEmail = formData.email || '';
         const rawMatricula = formData.matricula || '';
         const rawPhone = formData.telefone || '';
 
-        if (/\s/.test(rawEmail)) return alert(t('validation.emailWhitespace', {defaultValue: "🚨 BLOQUEADO: Remova os espaços em branco do E-MAIL."}));
-        if (!somenteDadosPessoais && /\s/.test(rawMatricula)) return alert("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA.");
+        if (/\s/.test(rawEmail)) return avisar(t('validation.emailWhitespace', {defaultValue: "🚨 BLOQUEADO: Remova os espaços em branco do E-MAIL."}));
+        if (!somenteDadosPessoais && /\s/.test(rawMatricula)) return avisar("🚨 BLOQUEADO: Remova os espaços em branco da MATRÍCULA.");
         
         const phoneError = validatePhoneStrict(rawPhone);
-        if (phoneError) return alert(`🚨 BLOQUEADO: ${phoneError}`);
+        if (phoneError) return avisar(`🚨 BLOQUEADO: ${phoneError}`);
 
         const nomeLimpo = normalizarNome(formData.nome);
         const cpfLimpo = normalizarNumeros(formData.cpf);
         const telefoneLimpo = rawPhone.replace(/\D/g, ''); 
         const dataNasc = formData.data_nascimento;
 
-        if (!cpfLimpo) return alert("O CPF é obrigatório para o cadastro.");
-        if (cpfLimpo.length !== 11) return alert("O CPF informado está incompleto.");
-        if (!nomeLimpo) return alert("O nome completo é obrigatório.");
-        if (!dataNasc) return alert("A data de nascimento é obrigatória.");
-        if (!telefoneLimpo) return alert("O telefone de contato é obrigatório.");
-        if (!somenteDadosPessoais && !rawMatricula) return alert(modoTransferir ? `Informe a matrícula do aluno em ${unidadeAtiva} para transferir.` : "A matrícula é obrigatória. (Se for um visitante, digite 'VISITANTE').");
-        if (!rawEmail) return alert("O e-mail é obrigatório.");
-        if (!validarEmail(rawEmail)) return alert(t('validation.emailInvalid', {defaultValue: "O formato do e-mail é inválido."}));
+        if (!cpfLimpo) return avisar("O CPF é obrigatório para o cadastro.");
+        if (cpfLimpo.length !== 11) return avisar("O CPF informado está incompleto.");
+        if (!nomeLimpo) return avisar("O nome completo é obrigatório.");
+        if (!dataNasc) return avisar("A data de nascimento é obrigatória.");
+        if (!telefoneLimpo) return avisar("O telefone de contato é obrigatório.");
+        if (!somenteDadosPessoais && !rawMatricula) return avisar(modoTransferir ? `Informe a matrícula do aluno em ${unidadeAtiva} para transferir.` : "A matrícula é obrigatória. (Se for um visitante, digite 'VISITANTE').");
+        if (!rawEmail) return avisar("O e-mail é obrigatório.");
+        if (!validarEmail(rawEmail)) return avisar(t('validation.emailInvalid', {defaultValue: "O formato do e-mail é inválido."}));
 
         setIsSubmitting(true);
         try {
@@ -306,7 +307,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 if (errCpf) throw errCpf;
                 if (dupCpf && dupCpf.length > 0) {
                     setIsSubmitting(false);
-                    return alert(`🚨 BLOQUEADO: O CPF ${formData.cpf} já está cadastrado para ${String(dupCpf[0].nome || '').toUpperCase()}. Busque o aluno pelo CPF em vez de cadastrar de novo.`);
+                    return avisar(`🚨 BLOQUEADO: O CPF ${formData.cpf} já está cadastrado para ${String(dupCpf[0].nome || '').toUpperCase()}. Busque o aluno pelo CPF em vez de cadastrar de novo.`);
                 }
             }
 
@@ -324,8 +325,8 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                     const conflitoTelefone = conflitosGlobais.find(a => [telefoneLimpo, telSemNove, telComNove].includes(a.telefone));
                     const conflitoEmail = conflitosGlobais.find(a => (a.email || '').toLowerCase() === rawEmail.toLowerCase());
                     
-                    if (conflitoTelefone) { setIsSubmitting(false); return alert(`🚨 BLOQUEADO: O telefone ${formData.telefone} já existe no banco de dados!`); }
-                    if (conflitoEmail) { setIsSubmitting(false); return alert(`🚨 BLOQUEADO: O e-mail ${rawEmail} já existe no banco de dados!`); }
+                    if (conflitoTelefone) { setIsSubmitting(false); return avisar(`🚨 BLOQUEADO: O telefone ${formData.telefone} já existe no banco de dados!`); }
+                    if (conflitoEmail) { setIsSubmitting(false); return avisar(`🚨 BLOQUEADO: O e-mail ${rawEmail} já existe no banco de dados!`); }
                 }
             }
 
@@ -345,7 +346,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 if (dupLocal && dupLocal.length > 0) {
                     const conflitoMatricula = dupLocal.filter(link => link.aluno_id !== formData.id);
                     if (conflitoMatricula.length > 0) {
-                        setIsSubmitting(false); return alert(`🚨 BLOQUEADO: A matrícula ${rawMatricula} já está em uso nesta unidade!`);
+                        setIsSubmitting(false); return avisar(`🚨 BLOQUEADO: A matrícula ${rawMatricula} já está em uso nesta unidade!`);
                     }
                 }
             }
@@ -392,7 +393,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                 // Move o vínculo para esta unidade (apaga os das outras unidades) com a matrícula nova
                 const resultado = await moverVinculoAlunos(unidadeAtiva, [alunoIdDestino], [rawMatricula]);
                 if (!resultado.ok) {
-                    alert(`Os dados pessoais foram salvos, mas a transferência para ${unidadeAtiva} NÃO foi feita.\n\nMotivo: ${resultado.erro}`);
+                    avisar(`Os dados pessoais foram salvos, mas a transferência para ${unidadeAtiva} NÃO foi feita.\n\nMotivo: ${resultado.erro}`);
                 }
             } else {
                 // Aluno novo, sem vínculo, ou já desta unidade: grava/atualiza o vínculo DESTA unidade
@@ -414,7 +415,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
             onClose();
         } catch (error) {
             console.error(error);
-            alert('Erro interno ao salvar os dados do aluno. Verifique sua conexão.');
+            avisar('Erro interno ao salvar os dados do aluno. Verifique sua conexão.');
         } finally {
             setIsSubmitting(false);
         }
@@ -437,7 +438,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{formData.id ? 'Editar Dados do Cliente' : 'Cadastrar Novo Cliente'}</h3>
                             <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
-                                Vínculo: <span className="text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[9px]">
+                                Vínculo: <span className="text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px]">
                                     {situacao === 'CARREGANDO' ? '...'
                                         : (situacao === 'NOVO' || situacao === 'SEM_VINCULO' || modoTransferir) ? (unidadeAtiva || 'NENHUMA')
                                         : vinculosAluno.join(' + ')}

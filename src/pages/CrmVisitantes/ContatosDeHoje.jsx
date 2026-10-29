@@ -10,6 +10,7 @@ import {
     carregarNaoContatar, carregarAniversariantes, chaveContatoFeito, estaNaoContatar, incluirNaoContatar
 } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // POP-UP "CONTATOS DE HOJE"
@@ -105,7 +106,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
 
     // Anti-golpe: abrir o WhatsApp JÁ conta como feito (canal WHATSAPP) e tira a pessoa da lista
     const abrirWhatsApp = async (pessoa) => {
-        if (!pessoa.telefone) return alert('Este contato está sem telefone cadastrado.');
+        if (!pessoa.telefone) return avisar('Este contato está sem telefone cadastrado.');
         const texto = textoDe(pessoa);
         window.open(linkWhatsApp(pessoa.telefone, texto), '_blank');
         if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'WhatsApp', `Mensagem enviada: "${texto}"`);
@@ -136,7 +137,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
             setFeitos(prev => new Set(prev).add(pessoa.chave));
         } catch (err) {
             console.error('Erro ao marcar contato como feito:', err);
-            alert(`Não foi possível marcar como feito.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível marcar como feito.\n\n${err?.message || ''}`);
         } finally {
             setMarcando('');
         }
@@ -161,7 +162,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                 <PenSquare className="w-3.5 h-3.5" /> Mensagens
                             </button>
                         )}
-                        <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title="Fechar"><X className="w-4 h-4" /></button>
+                        <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title="Fechar"><X className="w-4 h-4" /></button>
                     </div>
                 </div>
 
@@ -196,7 +197,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                                     <button type="button" onClick={() => setJustificando(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title="Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)">
                                                         <Check className="w-3.5 h-3.5" /> Feito sem WhatsApp
                                                     </button>
-                                                    <button type="button" onClick={() => setBloqueando(p)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors" title="Não contatar (a pessoa pediu para não receber contato)">
+                                                    <button type="button" onClick={() => setBloqueando(p)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title="Não contatar (a pessoa pediu para não receber contato)">
                                                         <Ban className="w-4 h-4" />
                                                     </button>
                                                 </div>

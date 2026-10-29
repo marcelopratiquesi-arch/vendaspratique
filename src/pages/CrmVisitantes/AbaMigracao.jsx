@@ -8,6 +8,7 @@ import {
 } from './contatosFeitos';
 import { JanelaNaoContatar, JanelaJustificativa } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // ABA MIGRAÇÃO
@@ -152,7 +153,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             .filter(l => l.disponivel && (!planoPuxar || l.ultimo_plano === planoPuxar))
             .sort((a, b) => String(b.data_compra || '').localeCompare(String(a.data_compra || '')))
             .slice(0, qtdPuxar);
-        if (candidatos.length === 0) return alert('Não há alunos disponíveis para puxar com esse filtro.');
+        if (candidatos.length === 0) return avisar('Não há alunos disponíveis para puxar com esse filtro.');
         setPuxando(true);
         try {
             const confirmados = await puxarParaFilaMigracao({ alunoIds: candidatos.map(c => c.aluno_id), unidade: unidadeChave, operador });
@@ -162,11 +163,11 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             setVisao('FILA');
             setFiltroAndamento('PENDENTES');
             const perdidos = candidatos.length - confirmados.length;
-            if (confirmados.length === 0) alert('Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada.');
-            else if (perdidos > 0) alert(`${confirmados.length} aluno(s) puxado(s). ${perdidos} já tinha(m) sido puxado(s) por outra pessoa.`);
+            if (confirmados.length === 0) avisar('Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada.');
+            else if (perdidos > 0) avisar(`${confirmados.length} aluno(s) puxado(s). ${perdidos} já tinha(m) sido puxado(s) por outra pessoa.`);
         } catch (err) {
             console.error('Erro ao puxar alunos da migração:', err);
-            alert(`Não foi possível puxar.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível puxar.\n\n${err?.message || ''}`);
         } finally {
             setPuxando(false);
         }
@@ -193,14 +194,14 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             }
         } catch (err) {
             console.error('Erro ao registrar contato de migração:', err);
-            alert(`Não foi possível registrar o contato.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível registrar o contato.\n\n${err?.message || ''}`);
         } finally {
             setSalvando('');
         }
     };
 
     const abrirWhatsApp = async (linha) => {
-        if (!linha.telefone) return alert('Este aluno está sem telefone cadastrado.');
+        if (!linha.telefone) return avisar('Este aluno está sem telefone cadastrado.');
         window.open(linkWhatsApp(linha.telefone, preencherMensagem(mensagem, { nome: linha.nome, unidade: unidadeChave })), '_blank');
         await registrarContato(linha, { canal: 'WHATSAPP' });
     };
@@ -212,7 +213,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             await salvarAndamentoMigracao({ aluno_id: linha.aluno_id, unidade: unidadeChave, status: novo, quem: operador });
             atualizarLocal(linha.aluno_id, { status: novo });
         } catch (err) {
-            alert(`Não foi possível salvar.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível salvar.\n\n${err?.message || ''}`);
         } finally {
             setSalvando('');
         }
@@ -224,13 +225,13 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             await devolverDaFilaMigracao({ aluno_id: linha.aluno_id, unidade: unidadeChave, quem: operador });
             atualizarLocal(linha.aluno_id, { status: 'NA_FILA', puxado_por: null, puxado_em: null });
         } catch (err) {
-            alert(`Não foi possível devolver.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível devolver.\n\n${err?.message || ''}`);
         } finally {
             setSalvando('');
         }
     };
 
-    const th = 'px-4 py-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
+    const th = 'px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
     const seletor = 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer';
 
     return (
@@ -245,7 +246,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {Object.entries(ANDAMENTOS).map(([chave, a]) => (
-                        <span key={chave} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{contagem[chave]} {a.rotulo}</span>
+                        <span key={chave} className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{contagem[chave]} {a.rotulo}</span>
                     ))}
                 </div>
             </div>
@@ -283,7 +284,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 <div className="relative">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, CPF ou telefone" className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30" />
-                    {busca && <button type="button" onClick={() => setBusca('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700"><X className="w-3.5 h-3.5" /></button>}
+                    {busca && <button type="button" onClick={() => setBusca('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-3.5 h-3.5" /></button>}
                 </div>
                 <select value={filtroAndamento} onChange={(e) => setFiltroAndamento(e.target.value)} className={seletor}>
                     {FILTROS_ANDAMENTO.map(f => <option key={f.val} value={f.val}>{f.label}</option>)}
@@ -328,39 +329,39 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                     <td className="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{l.data_compra ? String(l.data_compra).split('-').reverse().join('/') : '—'}</td>
                                     <td className="px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 whitespace-nowrap">{l.telefone || '—'}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{a.rotulo}</span>
+                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{a.rotulo}</span>
                                     </td>
                                     {visao === 'TODOS' && <td className="px-4 py-3 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">{l.disponivel ? 'Disponível' : (l.dono ? String(l.dono).split(' ')[0] : '—')}</td>}
                                     <td className="px-4 py-3">
                                         <div className="flex items-center justify-end gap-1.5">
                                             {podeTrabalhar && (
                                                 <>
-                                                    <button type="button" onClick={() => abrirWhatsApp(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1" title="Abre o WhatsApp com a mensagem de migração e já registra o contato">
+                                                    <button type="button" onClick={() => abrirWhatsApp(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title="Abre o WhatsApp com a mensagem de migração e já registra o contato">
                                                         {ocupado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />} WhatsApp
                                                     </button>
                                                     {jaHoje ? (
-                                                        <span className="px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[9px] font-black uppercase tracking-widest flex items-center gap-1" title="O contato de hoje já foi registrado. Abrir o WhatsApp de novo não soma outra vez.">
+                                                        <span className="px-2.5 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title="O contato de hoje já foi registrado. Abrir o WhatsApp de novo não soma outra vez.">
                                                             <Check className="w-3.5 h-3.5" /> Contatado hoje
                                                         </span>
                                                     ) : (
-                                                        <button type="button" onClick={() => setJustificando(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title="Contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)">
+                                                        <button type="button" onClick={() => setJustificando(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title="Contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)">
                                                             <Check className="w-3.5 h-3.5" /> Registrar contato
                                                         </button>
                                                     )}
                                                     {l.situacao !== 'NAO_CONTATADO' && (
-                                                        <button type="button" onClick={() => mudarInteresse(l)} disabled={ocupado} className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest flex items-center gap-1 border disabled:opacity-60 ${l.situacao === 'INTERESSADO' ? 'bg-amber-500 text-white border-amber-600' : 'border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`} title="Marcar/desmarcar como interessado">
+                                                        <button type="button" onClick={() => mudarInteresse(l)} disabled={ocupado} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 border disabled:opacity-60 ${l.situacao === 'INTERESSADO' ? 'bg-amber-500 text-white border-amber-600' : 'border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`} title="Marcar/desmarcar como interessado">
                                                             <Star className="w-3.5 h-3.5" /> Interessado
                                                         </button>
                                                     )}
                                                     {l.situacao === 'NAO_CONTATADO' && (
-                                                        <button type="button" onClick={() => devolver(l)} disabled={ocupado} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60" title="Devolver para os Disponíveis">
+                                                        <button type="button" onClick={() => devolver(l)} disabled={ocupado} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 dark:hover:text-blue-400" title="Devolver para os Disponíveis">
                                                             <Undo2 className="w-4 h-4" />
                                                         </button>
                                                     )}
                                                 </>
                                             )}
                                             {l.situacao !== 'MIGROU' && (
-                                                <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10" title="Não contatar">
+                                                <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title="Não contatar">
                                                     <Ban className="w-4 h-4" />
                                                 </button>
                                             )}

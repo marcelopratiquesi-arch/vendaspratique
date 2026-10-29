@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Loader2, Ban, CheckCircle2, Snowflake, CalendarClock } from 'lucide-react';
 import { MOTIVOS_NAO_CONTATAR, JUSTIFICATIVAS_SEM_WHATSAPP, MOTIVOS_PERDA, PREFIXO_MOTIVO_OUTRO, diaISO, formatarDiaCurto } from './utils';
 import { colocarNaoContatar } from './contatosFeitos';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // JANELAS PEQUENAS DO CRM
@@ -53,7 +54,7 @@ export const JanelaNaoContatar = ({ pessoa, unidade, quem, onFechar, onFeito }) 
 
     const salvar = async () => {
         const motivo = textoEscolhido(valor, outro);
-        if (!motivo) return alert('Escolha ou escreva o motivo.');
+        if (!motivo) return avisar('Escolha ou escreva o motivo.');
         setSalvando(true);
         try {
             await colocarNaoContatar({ unidade, cpf: pessoa.cpf, aluno_id: pessoa.aluno_id || null, lead_id: pessoa.lead_id || null, nome: pessoa.nome, motivo, colocado_por: quem });
@@ -61,7 +62,7 @@ export const JanelaNaoContatar = ({ pessoa, unidade, quem, onFechar, onFeito }) 
             onFechar();
         } catch (err) {
             console.error('Erro ao colocar em Não contatar:', err);
-            alert(`Não foi possível salvar.\n\n${err?.message || ''}`);
+            avisar(`Não foi possível salvar.\n\n${err?.message || ''}`);
         } finally {
             setSalvando(false);
         }
@@ -88,7 +89,7 @@ export const JanelaJustificativa = ({ pessoa, onFechar, onConfirmar }) => {
 
     const confirmar = async () => {
         const justificativa = textoEscolhido(valor, outro);
-        if (!justificativa) return alert('Escolha ou escreva como o contato foi feito.');
+        if (!justificativa) return avisar('Escolha ou escreva como o contato foi feito.');
         setSalvando(true);
         await onConfirmar(justificativa);
         setSalvando(false);
@@ -117,7 +118,7 @@ export const JanelaMotivoPerda = ({ quantidade = 1, nome, onFechar, onConfirmar 
 
     const confirmar = async () => {
         const escolhido = textoEscolhido(valor, outro);
-        if (!escolhido) return alert('Escolha ou escreva o motivo da perda.');
+        if (!escolhido) return avisar('Escolha ou escreva o motivo da perda.');
         setSalvando(true);
         await onConfirmar(valor === 'Outro' ? `${PREFIXO_MOTIVO_OUTRO}${escolhido}` : escolhido);
         setSalvando(false);
@@ -152,7 +153,7 @@ export const JanelaProximoContato = ({ nome, dataAtual = '', posContato = false,
     const hoje = diaISO(0);
 
     const salvar = async (valor) => {
-        if (valor && valor < hoje) return alert('Escolha hoje ou uma data futura.');
+        if (valor && valor < hoje) return avisar('Escolha hoje ou uma data futura.');
         setSalvando(true);
         const ok = await onSalvar(valor || null);
         setSalvando(false);
@@ -168,7 +169,7 @@ export const JanelaProximoContato = ({ nome, dataAtual = '', posContato = false,
                     {ATALHOS_PROXIMO.map(a => (
                         <button key={a.dias} type="button" disabled={salvando} onClick={() => salvar(diaISO(a.dias))} className="py-3 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 hover:text-white text-blue-700 dark:text-blue-300 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-60">
                             {a.rotulo}
-                            <span className="block text-[9px] font-bold opacity-70 mt-0.5">{formatarDiaCurto(diaISO(a.dias))}</span>
+                            <span className="block text-[10px] font-bold opacity-70 mt-0.5">{formatarDiaCurto(diaISO(a.dias))}</span>
                         </button>
                     ))}
                 </div>

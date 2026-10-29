@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShoppingCart, UserPlus, ClipboardSignature } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 const HubSelecao = ({ setModalidade }) => {
     
@@ -25,44 +26,44 @@ const HubSelecao = ({ setModalidade }) => {
         }
 
         if (!conseguiuClicar) {
-            alert('Não foi possível encontrar o botão no menu lateral. Vamos precisar do arquivo principal (App.jsx ou Dashboard.jsx).');
+            avisar('Não foi possível encontrar o botão no menu lateral. Vamos precisar do arquivo principal (App.jsx ou Dashboard.jsx).');
         }
     };
 
     return (
         <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 animate-[fadeIn_0.2s_ease-out]">
             
-            <button onClick={() => setModalidade('venda')} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-400 transition-all duration-300 min-h-[240px] relative overflow-hidden">
-                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-emerald-100 shadow-inner">
+            <button onClick={() => setModalidade('venda')} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-emerald-400 transition-all duration-300 min-h-[240px] relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+                <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-emerald-100 shadow-inner dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30">
                     <ShoppingCart className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Venda Financeira</h2>
-                    <p className="text-sm text-slate-500 leading-relaxed">Registrar venda de planos, produtos físicos, diárias ou taxas.</p>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">Venda Financeira</h2>
+                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">Registrar venda de planos, produtos físicos, diárias ou taxas.</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>
 
-            <button onClick={() => setModalidade('visitante')} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all duration-300 min-h-[240px] relative overflow-hidden">
-                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-blue-100 shadow-inner">
+            <button onClick={() => setModalidade('visitante')} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-blue-400 transition-all duration-300 min-h-[240px] relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-blue-100 shadow-inner dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">
                     <UserPlus className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Novo Visitante</h2>
-                    <p className="text-sm text-slate-500 leading-relaxed">Cadastrar uma pessoa que veio conhecer a academia. Vai pro CRM.</p>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">Novo Visitante</h2>
+                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">Cadastrar uma pessoa que veio conhecer a academia. Vai pro CRM.</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>
 
             {/* === BOTÃO COM A LÓGICA NINJA DE CLIQUE === */}
-            <button onClick={irParaAvaliacao} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-orange-400 transition-all duration-300 min-h-[240px] relative overflow-hidden">
-                <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-orange-100 shadow-inner">
+            <button onClick={irParaAvaliacao} className="group text-left flex flex-col justify-between bg-white p-10 rounded-[24px] border border-slate-200 shadow-sm hover:shadow-xl hover:border-orange-400 transition-all duration-300 min-h-[240px] relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+                <div className="w-16 h-16 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-8 group-hover:scale-110 transition-transform duration-300 border border-orange-100 shadow-inner dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30">
                     <ClipboardSignature className="w-8 h-8" />
                 </div>
                 <div className="relative z-10">
-                    <h2 className="text-xl font-bold text-slate-900 mb-2">Avaliação Física</h2>
+                    <h2 className="text-xl font-bold text-slate-900 mb-2 dark:text-white">Avaliação Física</h2>
                     {/* A frase "Módulo completo" abaixo é usada como trava de segurança no código, não mude ela! */}
-                    <p className="text-sm text-slate-500 leading-relaxed">Módulo completo para gerenciar avaliações e importar exames.</p>
+                    <p className="text-sm text-slate-500 leading-relaxed dark:text-slate-400">Módulo completo para gerenciar avaliações e importar exames.</p>
                 </div>
                 <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-orange-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </button>

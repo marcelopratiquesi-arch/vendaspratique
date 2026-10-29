@@ -54,13 +54,13 @@ export const BotaoCopiarPadrao = ({ valor, apenasDigitos = false, label = 'Copia
 
 // Mapa central de cores para os planos
 const mapCoresPlanos = {
-    'FIT + NUTRI': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400',
-    'FIT': 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-400',
-    'PLUS + NUTRI': 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/20 dark:text-indigo-400',
-    'PLUS': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400',
-    'SSP': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400',
-    'PROMO': 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400',
-    'DEFAULT': 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400'
+    'FIT + NUTRI': 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-500/30',
+    'FIT': 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-400 dark:border-teal-500/30',
+    'PLUS + NUTRI': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-500/30',
+    'PLUS': 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-500/30',
+    'SSP': 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-500/30',
+    'PROMO': 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-900/20 dark:text-rose-400 dark:border-rose-500/30',
+    'DEFAULT': 'bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800'
 };
 
 const getCorPlano = (nomePlano) => {
@@ -239,7 +239,7 @@ const ListaAlunos = ({
                                                         {aluno.ultimo_plano}
                                                     </span>
                                                     {aluno.ultimo_plano_data && (
-                                                        <span className="text-[9px] font-medium text-slate-400 mt-1 ml-0.5">em {formatarDataBR(aluno.ultimo_plano_data)}</span>
+                                                        <span className="text-[10px] font-medium text-slate-400 mt-1 ml-0.5">em {formatarDataBR(aluno.ultimo_plano_data)}</span>
                                                     )}
                                                 </div>
                                             ) : (

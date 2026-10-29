@@ -30,17 +30,17 @@ begin
 end;
 $$;
 
--- Pedaços de regra (o banco calcula a lista UMA vez por consulta, por causa do "(select ...)")
+-- Pedaços de regra, numa lista dentro do próprio comando (funciona mesmo se o SQL Editor rodar os comandos separados).
+-- O banco calcula a lista UMA vez por consulta, por causa do "(select ...)")
 --   minha   = a unidade da linha está nas minhas unidades
 --   global  = Admin
 --   le      = funcionário; se for Mentor, só as unidades dele
 --   gestor  = Admin, ou Líder/Mentor nas unidades dele
-create temporary table seg_tmp_pedacos on commit drop as select
-  $p$public.seg_normalizar(unidade) = any ((select public.seg_minhas_unidades()))$p$ as minha,
+with seg_tmp_pedacos as (select
+  $p$public.seg_normalizar(unidade) = any ((select public.seg_minhas_unidades())::text[])$p$ as minha,
   $p$(select public.seg_eh_global())$p$ as global,
   $p$(select public.crm_eh_global())$p$ as crm_global,
-  $p$(select public.seg_papel())$p$ as papel;
-
+  $p$(select public.seg_papel())$p$ as papel)
 select resultado from (
   select 1 as ordem, public.seg_tmp_trocar_regra('vendas', 'SELECT',
            format('(%1$s is not null and (%1$s <> ''MENTOR'' or %2$s))', papel, minha), null) as resultado from seg_tmp_pedacos
@@ -69,10 +69,10 @@ select resultado from (
            format('(%s or (%s in (''LIDER'', ''MENTOR'') and %s))', global, papel, minha)) from seg_tmp_pedacos
 
   union all select 30, public.seg_tmp_trocar_regra('unidades', 'SELECT',
-           format('(%1$s is not null and (%1$s <> ''MENTOR'' or public.seg_normalizar(nome) = any ((select public.seg_minhas_unidades()))))', papel), null) from seg_tmp_pedacos
+           format('(%1$s is not null and (%1$s <> ''MENTOR'' or public.seg_normalizar(nome) = any ((select public.seg_minhas_unidades())::text[])))', papel), null) from seg_tmp_pedacos
 
   union all select 40, public.seg_tmp_trocar_regra('alunos', 'SELECT',
-           format('((not exists (select 1 from public.alunos_unidades au where au.aluno_id = alunos.id)) or exists (select 1 from public.alunos_unidades au where au.aluno_id = alunos.id and (%s or public.seg_normalizar(au.unidade) = any ((select public.seg_minhas_unidades())))))', global), null) from seg_tmp_pedacos
+           format('((not exists (select 1 from public.alunos_unidades au where au.aluno_id = alunos.id)) or exists (select 1 from public.alunos_unidades au where au.aluno_id = alunos.id and (%s or public.seg_normalizar(au.unidade) = any ((select public.seg_minhas_unidades())::text[]))))', global), null) from seg_tmp_pedacos
   union all select 41, public.seg_tmp_trocar_regra('alunos_unidades', 'SELECT',
            format('(%s or %s)', global, minha), null) from seg_tmp_pedacos
   union all select 42, public.seg_tmp_trocar_regra('alunos_unidades', 'INSERT', null,

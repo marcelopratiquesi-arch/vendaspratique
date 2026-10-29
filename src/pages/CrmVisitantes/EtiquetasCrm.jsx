@@ -17,7 +17,7 @@ export const EtiquetaParado = ({ lead }) => {
         ? 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30'
         : 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30';
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${cor}`} title="Dias sem nenhuma ação neste contato (WhatsApp, ligação, anotação, mudança de fase)">
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title="Dias sem nenhuma ação neste contato (WhatsApp, ligação, anotação, mudança de fase)">
             <Hourglass className="w-3 h-3" /> Parado há {dias} dias
         </span>
     );
@@ -33,7 +33,7 @@ export const EtiquetaProximo = ({ lead }) => {
             : 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30';
     const texto = situacao === 'hoje' ? 'Contatar hoje' : `${situacao === 'atrasado' ? 'Atrasado · ' : 'Próximo: '}${formatarDiaCurto(lead.proximo_contato)}`;
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${cor}`} title="Data marcada para o próximo contato">
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title="Data marcada para o próximo contato">
             <CalendarClock className="w-3 h-3" /> {texto}
         </span>
     );

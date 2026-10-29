@@ -35,7 +35,7 @@ const TabProdutos = ({ produtos, temVisaoGlobal }) => {
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {produtos.map((p, idx) => (
                         <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
-                            <td className="px-5 py-4 text-xs font-black text-amber-600">{String(p.quantidade || 1).padStart(2, '0')}x</td>
+                            <td className="px-5 py-4 text-xs font-black text-amber-600 dark:text-amber-400">{String(p.quantidade || 1).padStart(2, '0')}x</td>
                             <td className="px-5 py-4">
                                 <div className="flex items-center gap-2">
                                     {idx === 0 && <span className="bg-amber-500 w-2 h-2 rounded-full"></span>}
@@ -45,7 +45,7 @@ const TabProdutos = ({ produtos, temVisaoGlobal }) => {
                             <td className="px-5 py-4 text-xs font-bold text-slate-600 dark:text-slate-400">{formatarDataBR(p.data || p.created_at)}</td>
                             <td className="px-5 py-4 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">{p.vendedor || 'Sistema'}</td>
                             <td className="px-5 py-4 text-xs font-black text-slate-800 dark:text-slate-200 text-right">{formatMoney(p.valor)}</td>
-                            {temVisaoGlobal && <td className="px-5 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">{p.unidade}</td>}
+                            {temVisaoGlobal && <td className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{p.unidade}</td>}
                         </tr>
                     ))}
                 </tbody>

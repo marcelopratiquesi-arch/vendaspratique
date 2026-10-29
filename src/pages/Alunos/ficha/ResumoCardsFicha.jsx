@@ -27,35 +27,35 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
             valor: formatarDataBR(aluno.created_at),
             subvalor: 'Data de cadastro',
             icone: CalendarDays,
-            bgIcon: 'bg-blue-50 text-blue-600',
+            bgIcon: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
         },
         {
             titulo: 'Último Plano',
             valor: loading ? '...' : ultimoPlano,
             subvalor: loading ? '' : dataUltimoPlano,
             icone: Bookmark,
-            bgIcon: 'bg-emerald-50 text-emerald-600',
+            bgIcon: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400',
         },
         {
             titulo: 'Última Compra (Extra)',
             valor: loading ? '...' : ultimaCompraExtra,
             subvalor: loading ? '' : dataUltimaCompraExtra,
             icone: ShoppingBag,
-            bgIcon: 'bg-amber-50 text-amber-600',
+            bgIcon: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400',
         },
         {
             titulo: 'Última Avaliação',
             valor: loading ? '...' : dataUltimaAvaliacao,
             subvalor: loading ? '' : profUltimaAvaliacao,
             icone: Activity,
-            bgIcon: 'bg-rose-50 text-rose-600',
+            bgIcon: 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400',
         },
         {
             titulo: 'Último Contato CRM',
             valor: loading ? '...' : ultimoCrm,
             subvalor: loading ? '' : dataUltimoCrm,
             icone: MessageCircle,
-            bgIcon: 'bg-indigo-50 text-indigo-600',
+            bgIcon: 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400',
         }
     ];
 
@@ -64,12 +64,12 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
             {cards.map((c, i) => {
                 const Icone = c.icone;
                 return (
-                    <div key={i} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[105px]">
+                    <div key={i} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[105px] dark:bg-slate-900 dark:border-slate-800">
                         <div className="flex items-center gap-2.5 mb-2">
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${c.bgIcon}`}>
                                 <Icone className="w-3.5 h-3.5" strokeWidth={2.5} />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate dark:text-slate-400">
                                 {c.titulo}
                             </span>
                         </div>
@@ -79,7 +79,7 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
                                 <Loader2 className="w-4 h-4 animate-spin text-slate-300 mt-1" />
                             ) : (
                                 <>
-                                    <span className="text-[15px] font-extrabold uppercase tracking-tight text-slate-800 truncate" title={c.valor}>
+                                    <span className="text-[15px] font-extrabold uppercase tracking-tight text-slate-800 truncate dark:text-white" title={c.valor}>
                                         {c.valor}
                                     </span>
                                     <span className="text-[10px] font-medium text-slate-400 mt-0.5 truncate" title={c.subvalor}>

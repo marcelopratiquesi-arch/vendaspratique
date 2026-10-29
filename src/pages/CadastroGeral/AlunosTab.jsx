@@ -5,6 +5,7 @@ import { buscarUnidadesDeVariosAlunos, moverVinculoAlunos, mesmaUnidade } from '
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { parseSmartPaste, mascaraCPF, formatarTelefone } from './utilsAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
+import { avisar } from '../../components/avisar.js';
 
 const AlunosTab = (props) => {
     const { usuarioLogado, usuarioVirtual } = props;
@@ -140,7 +141,7 @@ const AlunosTab = (props) => {
     // ==========================================
     const analisarDados = async () => {
         if (!rawText.trim()) return;
-        if (isVisaoGlobal) return alert('Selecione uma unidade específica de destino no menu superior da tela.');
+        if (isVisaoGlobal) return avisar('Selecione uma unidade específica de destino no menu superior da tela.');
 
         setAnalisando(true);
         try {
@@ -308,7 +309,7 @@ const AlunosTab = (props) => {
             setFiltroDashboard('TODOS');
         } catch (err) {
             console.error(err);
-            alert(`Erro ao analisar os dados cruzados com a nuvem.${err?.message ? `\n\n${err.message}` : ''}`);
+            avisar(`Erro ao analisar os dados cruzados com a nuvem.${err?.message ? `\n\n${err.message}` : ''}`);
         } finally {
             setAnalisando(false);
         }
@@ -330,7 +331,7 @@ const AlunosTab = (props) => {
         );
 
         if (validos.length === 0) return;
-        if (isVisaoGlobal) return alert('Selecione uma unidade específica de destino.');
+        if (isVisaoGlobal) return avisar('Selecione uma unidade específica de destino.');
 
         setImportando(true);
         setProgresso(0);
@@ -391,7 +392,7 @@ const AlunosTab = (props) => {
                 setProgresso(Math.round((gravados / validos.length) * 100));
             }
 
-            alert('Integração de alunos e correção de matrículas processada com sucesso!');
+            avisar('Integração de alunos e correção de matrículas processada com sucesso!');
             setModalPasteOpen(false);
             setRawText('');
             setPreviewData([]);
@@ -400,7 +401,7 @@ const AlunosTab = (props) => {
             carregarAlunos(); 
         } catch (error) {
             console.error("Erro na importação:", error);
-            alert(`Erro crítico ao gravar os dados. Verifique a conexão com a internet.${error?.message ? `\n\n${error.message}` : ''}`);
+            avisar(`Erro crítico ao gravar os dados. Verifique a conexão com a internet.${error?.message ? `\n\n${error.message}` : ''}`);
         } finally {
             setImportando(false);
             setProgresso(0);
@@ -445,10 +446,10 @@ const AlunosTab = (props) => {
 
     if (erroUnidadePerdida) {
         return (
-            <div className="flex flex-col items-center justify-center h-[60vh] bg-rose-50 border-2 border-dashed border-rose-200 rounded-[32px] p-8 text-center animate-[fadeIn_0.3s_ease-out]">
-                <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner"><ShieldAlert className="w-10 h-10" /></div>
-                <h2 className="text-2xl font-black text-rose-800 uppercase tracking-tight">FALHA DE AUTORIZAÇÃO</h2>
-                <p className="text-sm font-bold text-rose-600 mt-2 max-w-md">Não foi possível identificar a sua unidade de trabalho ativa. Por motivos de segurança, o acesso ao banco de alunos foi bloqueado.</p>
+            <div className="flex flex-col items-center justify-center h-[60vh] bg-rose-50 border-2 border-dashed border-rose-200 rounded-[32px] p-8 text-center animate-[fadeIn_0.3s_ease-out] dark:bg-rose-500/10 dark:border-rose-500/30">
+                <div className="w-20 h-20 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 shadow-inner dark:bg-rose-500/20 dark:text-rose-400"><ShieldAlert className="w-10 h-10" /></div>
+                <h2 className="text-2xl font-black text-rose-800 uppercase tracking-tight dark:text-rose-300">FALHA DE AUTORIZAÇÃO</h2>
+                <p className="text-sm font-bold text-rose-600 mt-2 max-w-md dark:text-rose-400">Não foi possível identificar a sua unidade de trabalho ativa. Por motivos de segurança, o acesso ao banco de alunos foi bloqueado.</p>
                 <button onClick={() => window.location.reload()} className="mt-8 px-6 py-3 bg-rose-600 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md hover:bg-rose-700 transition-colors">Recarregar Sistema</button>
             </div>
         );
@@ -466,16 +467,16 @@ const AlunosTab = (props) => {
                 unidadeDestino={isVisaoGlobal ? '' : unidadeAtiva} 
             />
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner">
+                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner dark:bg-blue-500/10 dark:text-blue-400">
                         <Users className="w-6 h-6" />
                     </div>
                     <div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight">{t('students.title', {defaultValue: 'Banco de Alunos'})}</h2>
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{t('students.title', {defaultValue: 'Banco de Alunos'})}</h2>
                         <div className="flex items-center gap-2 mt-0.5">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                UNIDADE ATUAL: <span className="text-blue-600">{isVisaoGlobal ? 'VISÃO GLOBAL' : unidadeAtiva}</span>
+                                UNIDADE ATUAL: <span className="text-blue-600 dark:text-blue-400">{isVisaoGlobal ? 'VISÃO GLOBAL' : unidadeAtiva}</span>
                             </p>
                         </div>
                     </div>
@@ -484,22 +485,22 @@ const AlunosTab = (props) => {
                 <div className="flex w-full sm:w-auto gap-3">
                     <button 
                         onClick={() => {
-                            if (isVisaoGlobal) return alert("Selecione uma unidade específica no menu do cabeçalho da página antes de colar dados.");
+                            if (isVisaoGlobal) return avisar("Selecione uma unidade específica no menu do cabeçalho da página antes de colar dados.");
                             setModalPasteOpen(true);
                         }} 
                         disabled={isVisaoGlobal}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
                     >
                         <ClipboardPaste className="w-4 h-4" /> Smart Paste (Colar Dados)
                     </button>
                 </div>
             </div>
 
-            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px]">
-                <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between gap-4 bg-slate-50 shrink-0">
+            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px] dark:bg-slate-900 dark:border-slate-800">
+                <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between gap-4 bg-slate-50 shrink-0 dark:border-slate-800 dark:bg-slate-800/60">
                     <div className="relative w-full sm:w-96">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={t('students.search', {defaultValue: 'Buscar por Nome ou CPF...'})} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all" />
+                        <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={t('students.search', {defaultValue: 'Buscar por Nome ou CPF...'})} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
                     </div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest self-end sm:self-center">
                         {totalItems} {isVisaoGlobal ? 'ALUNOS NA REDE' : `ALUNOS REGISTRADOS EM ${unidadeAtiva}`}
@@ -508,36 +509,36 @@ const AlunosTab = (props) => {
                 
                 <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
                     {loading ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10">
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10 dark:bg-slate-900/50">
                             <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
                         </div>
                     ) : (
                         <table className="w-full text-left border-collapse min-w-[800px]">
-                            <thead className="bg-white sticky top-0 z-10 shadow-sm">
+                            <thead className="bg-white sticky top-0 z-10 shadow-sm dark:bg-slate-900">
                                 <tr>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('students.table.name')}</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('students.table.cpf')}</th>
-                                    {isVisaoGlobal && <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">VÍNCULOS</th>}
-                                    {!isVisaoGlobal && <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('students.table.enrollment')}</th>}
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('students.table.contact')}</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200">{t('students.table.created')}</th>
-                                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">{t('students.table.actions')}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.name')}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.cpf')}</th>
+                                    {isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center dark:border-slate-800">VÍNCULOS</th>}
+                                    {!isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.enrollment')}</th>}
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.contact')}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.created')}</th>
+                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center dark:border-slate-800">{t('students.table.actions')}</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
+                            <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
                                 {alunos.length > 0 ? (
                                     alunos.map(a => (
-                                        <tr key={a.id} className="hover:bg-slate-50/50 transition-colors">
+                                        <tr key={a.id} className="hover:bg-slate-50/50 transition-colors dark:hover:bg-slate-800/40">
                                             <td className="px-6 py-4">
-                                                <span className="text-sm font-black text-slate-800 uppercase">{a.nome}</span>
+                                                <span className="text-sm font-black text-slate-800 uppercase dark:text-white">{a.nome}</span>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-xs font-bold text-slate-600 tracking-widest">{a.cpf ? mascaraCPF(a.cpf) : '—'}</span>
+                                                <span className="text-xs font-bold text-slate-600 tracking-widest dark:text-slate-300">{a.cpf ? mascaraCPF(a.cpf) : '—'}</span>
                                             </td>
                                             
                                             {isVisaoGlobal && (
                                                 <td className="px-6 py-4 text-center">
-                                                    <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${a.total_vinculos > 1 ? 'text-purple-700 bg-purple-100 border-purple-200' : a.total_vinculos === 1 ? 'text-blue-700 bg-blue-100 border-blue-200' : 'text-slate-500 bg-slate-100 border-slate-200'}`}>
+                                                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${a.total_vinculos > 1 ? 'text-purple-700 bg-purple-100 border-purple-200 dark:text-purple-400 dark:bg-purple-500/20 dark:border-purple-500/30' : a.total_vinculos === 1 ? 'text-blue-700 bg-blue-100 border-blue-200 dark:text-blue-400 dark:bg-blue-500/20 dark:border-blue-500/30' : 'text-slate-500 bg-slate-100 border-slate-200 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-800'}`}>
                                                         {a.total_vinculos === 0 ? 'SEM VÍNCULO' : a.total_vinculos > 1 ? 'MULTIPLO' : a.unidade_vinculo}
                                                     </span>
                                                 </td>
@@ -545,21 +546,21 @@ const AlunosTab = (props) => {
 
                                             {!isVisaoGlobal && (
                                                 <td className="px-6 py-4">
-                                                    <span className="text-xs font-bold text-slate-500">{a.matricula || '—'}</span>
+                                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{a.matricula || '—'}</span>
                                                 </td>
                                             )}
 
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-slate-700">{a.telefone ? formatarTelefone(a.telefone) : '—'}</span>
+                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{a.telefone ? formatarTelefone(a.telefone) : '—'}</span>
                                                     <span className="text-[10px] font-semibold text-slate-400 truncate max-w-[200px]" title={a.email}>{a.email || '—'}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-xs font-bold text-slate-500">{a.created_at ? new Date(a.created_at).toLocaleDateString(langAtual) : '—'}</span>
+                                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{a.created_at ? new Date(a.created_at).toLocaleDateString(langAtual) : '—'}</span>
                                             </td>
                                             <td className="px-6 py-4 text-center">
-                                                <button onClick={() => { setAlunoEditando(a); setModalAlunoAberto(true); }} className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors">
+                                                <button onClick={() => { setAlunoEditando(a); setModalAlunoAberto(true); }} className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors dark:bg-slate-800/60 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 dark:border-slate-800 dark:hover:border-blue-500/30">
                                                     <UserRoundPen className="w-4 h-4" />
                                                 </button>
                                             </td>
@@ -570,8 +571,8 @@ const AlunosTab = (props) => {
                                         <td colSpan={isVisaoGlobal ? "7" : "6"} className="text-center py-20">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Users className="w-12 h-12 text-slate-200 mb-3" />
-                                                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">
-                                                    NENHUM ALUNO CADASTRADO PARA A UNIDADE: <span className="text-blue-600">{unidadeAtiva}</span>
+                                                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] dark:text-slate-400">
+                                                    NENHUM ALUNO CADASTRADO PARA A UNIDADE: <span className="text-blue-600 dark:text-blue-400">{unidadeAtiva}</span>
                                                 </p>
                                             </div>
                                         </td>
@@ -583,11 +584,11 @@ const AlunosTab = (props) => {
                 </div>
                 
                 {totalPaginas > 1 && (
-                    <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0">
+                    <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0 dark:border-slate-800 dark:bg-slate-800/60">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('students.pagination.page')} {pagina} {t('students.pagination.of')} {totalPaginas}</span>
                         <div className="flex gap-2">
-                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors">{t('students.pagination.prev')}</button>
-                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors">{t('students.pagination.next')}</button>
+                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.prev')}</button>
+                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.next')}</button>
                         </div>
                     </div>
                 )}
@@ -596,25 +597,25 @@ const AlunosTab = (props) => {
             {/* MODAL SMART PASTE COM DASHBOARD INTERATIVO */}
             {modalPasteOpen && (
                 <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-8 animate-[fadeIn_0.2s_ease-out]">
-                    <div className="bg-slate-50 rounded-[32px] shadow-2xl w-full max-w-7xl flex flex-col h-full max-h-[90vh] overflow-hidden border border-slate-200">
+                    <div className="bg-slate-50 rounded-[32px] shadow-2xl w-full max-w-7xl flex flex-col h-full max-h-[90vh] overflow-hidden border border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                         
-                        <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center shrink-0">
+                        <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 dark:border-slate-800 dark:bg-slate-900">
                             <div className="flex items-center gap-4">
-                                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner"><ClipboardPaste className="w-6 h-6" /></div>
+                                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><ClipboardPaste className="w-6 h-6" /></div>
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-800 tracking-tight">Smart Paste: Importação TECACE</h3>
-                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1.5">
-                                        Importando dados para: <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded">{unidadeAtiva}</span>
+                                    <h3 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">Smart Paste: Importação TECACE</h3>
+                                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1.5 dark:text-slate-400">
+                                        Importando dados para: <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded dark:text-emerald-400 dark:bg-emerald-500/10">{unidadeAtiva}</span>
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={handleCloseModal} className="p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 rounded-full transition-colors shadow-sm"><X className="w-5 h-5" /></button>
+                            <button onClick={handleCloseModal} className="p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 rounded-full transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-rose-500/10 dark:hover:border-rose-500/30"><X className="w-5 h-5" /></button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto flex flex-col">
                             {previewData.length === 0 ? (
                                 <div className="p-8 flex flex-col h-full max-w-4xl mx-auto w-full">
-                                    <div className="bg-blue-50 border border-blue-200 p-5 rounded-2xl text-blue-800 text-sm font-semibold shadow-inner mb-6 flex gap-4 items-start">
+                                    <div className="bg-blue-50 border border-blue-200 p-5 rounded-2xl text-blue-800 text-sm font-semibold shadow-inner mb-6 flex gap-4 items-start dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">
                                         <Info className="w-6 h-6 text-blue-500 shrink-0" />
                                         <div>
                                             <span className="font-black tracking-tight block mb-1 text-base">Como Copiar e Colar (Integração TECACE)?</span>
@@ -624,7 +625,7 @@ const AlunosTab = (props) => {
                                     <textarea 
                                         value={rawText} 
                                         onChange={(e) => setRawText(e.target.value)} 
-                                        className="flex-1 w-full bg-white border border-slate-200 rounded-2xl p-6 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 resize-none shadow-sm transition-all"
+                                        className="flex-1 w-full bg-white border border-slate-200 rounded-2xl p-6 text-xs font-mono outline-none focus:ring-2 focus:ring-emerald-500 resize-none shadow-sm transition-all dark:bg-slate-900 dark:border-slate-800"
                                         placeholder="Cole as colunas copiadas do Excel do TECACE aqui (Ctrl+V)..."
                                     ></textarea>
                                     <div className="flex justify-end mt-6">
@@ -639,73 +640,73 @@ const AlunosTab = (props) => {
                                     <div className="grid grid-cols-1 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6 shrink-0">
                                         <button 
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'NOVOS' ? 'TODOS' : 'NOVOS')}
-                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'NOVOS' ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-200 scale-[1.02]' : 'bg-white border-emerald-200 hover:border-emerald-400'}`}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'NOVOS' ? 'bg-emerald-50 border-emerald-500 ring-2 ring-emerald-200 scale-[1.02] dark:bg-emerald-500/10' : 'bg-white border-emerald-200 hover:border-emerald-400 dark:bg-slate-900 dark:border-emerald-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-emerald-50/50"><CheckCircle2 className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1 relative z-10">Novos Alunos</p>
-                                            <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.novos}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-1 relative z-10 dark:text-emerald-400">Novos Alunos</p>
+                                            <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.novos}</p>
                                         </button>
                                         
                                         <button 
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'VINCULOS' ? 'TODOS' : 'VINCULOS')}
-                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'VINCULOS' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 scale-[1.02]' : 'bg-white border-blue-200 hover:border-blue-400'}`}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'VINCULOS' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 scale-[1.02] dark:bg-blue-500/10' : 'bg-white border-blue-200 hover:border-blue-400 dark:bg-slate-900 dark:border-blue-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-blue-50/50"><Link className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10">Novos Vínculos</p>
-                                            <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.vinculos}</p>
-                                            <p className="text-[9px] font-bold text-slate-400 relative z-10 mt-1">Já cadastrados, sem unidade</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10 dark:text-blue-400">Novos Vínculos</p>
+                                            <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.vinculos}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 relative z-10 mt-1">Já cadastrados, sem unidade</p>
                                         </button>
 
                                         {/* TRANSFERÊNCIAS: alunos que saem de outra unidade e passam a ser só desta */}
                                         <button
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'TRANSFERIR' ? 'TODOS' : 'TRANSFERIR')}
-                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'TRANSFERIR' ? 'bg-indigo-50 border-indigo-500 ring-2 ring-indigo-200 scale-[1.02]' : 'bg-white border-indigo-200 hover:border-indigo-400'}`}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'TRANSFERIR' ? 'bg-blue-50 border-blue-500 ring-2 ring-blue-200 scale-[1.02] dark:bg-blue-500/10' : 'bg-white border-blue-200 hover:border-blue-400 dark:bg-slate-900 dark:border-blue-500/30'}`}
                                         >
-                                            <div className="absolute right-[-10px] bottom-[-10px] text-indigo-50/50"><ArrowRightLeft className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-1 relative z-10">Transferidos p/ {unidadeAtiva}</p>
-                                            <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.transferir}</p>
+                                            <div className="absolute right-[-10px] bottom-[-10px] text-blue-50/50"><ArrowRightLeft className="w-24 h-24" /></div>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1 relative z-10 dark:text-blue-400">Transferidos p/ {unidadeAtiva}</p>
+                                            <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.transferir}</p>
                                             {dashboardStats.origens.length > 0 && (
                                                 <div className="relative z-10 mt-1 space-y-0.5">
                                                     {dashboardStats.origens.slice(0, 3).map(([origem, qtd]) => (
-                                                        <p key={origem} className="text-[9px] font-bold text-indigo-500 uppercase truncate" title={`${qtd} saem de ${origem}`}>{qtd} de {origem}</p>
+                                                        <p key={origem} className="text-[10px] font-bold text-blue-500 uppercase truncate" title={`${qtd} saem de ${origem}`}>{qtd} de {origem}</p>
                                                     ))}
-                                                    {dashboardStats.origens.length > 3 && <p className="text-[9px] font-bold text-slate-400">+ {dashboardStats.origens.length - 3} unidades</p>}
+                                                    {dashboardStats.origens.length > 3 && <p className="text-[10px] font-bold text-slate-400">+ {dashboardStats.origens.length - 3} unidades</p>}
                                                 </div>
                                             )}
                                         </button>
                                         
                                         <button 
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'ATUALIZACOES' ? 'TODOS' : 'ATUALIZACOES')}
-                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ATUALIZACOES' ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-200 scale-[1.02]' : 'bg-white border-amber-200 hover:border-amber-400'}`}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ATUALIZACOES' ? 'bg-amber-50 border-amber-500 ring-2 ring-amber-200 scale-[1.02] dark:bg-amber-500/10' : 'bg-white border-amber-200 hover:border-amber-400 dark:bg-slate-900 dark:border-amber-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-amber-50/50"><RefreshCcw className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1 relative z-10">Matrículas Novas</p>
-                                            <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.atualizacoes}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-1 relative z-10 dark:text-amber-400">Matrículas Novas</p>
+                                            <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.atualizacoes}</p>
                                         </button>
                                         
                                         <button 
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'CONFLITOS' ? 'TODOS' : 'CONFLITOS')}
-                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'CONFLITOS' ? 'bg-rose-100 border-rose-500 ring-2 ring-rose-300 scale-[1.02]' : dashboardStats.conflitosGerais > 0 ? 'bg-rose-50 border-rose-300 hover:border-rose-400 ring-2 ring-rose-100' : 'bg-white border-rose-200 hover:border-rose-300'}`}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'CONFLITOS' ? 'bg-rose-100 border-rose-500 ring-2 ring-rose-300 scale-[1.02] dark:bg-rose-500/20' : dashboardStats.conflitosGerais > 0 ? 'bg-rose-50 border-rose-300 hover:border-rose-400 ring-2 ring-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30' : 'bg-white border-rose-200 hover:border-rose-300 dark:bg-slate-900 dark:border-rose-500/30 dark:hover:border-rose-500/30'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-rose-500/10"><AlertTriangle className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 mb-1 relative z-10">Ação Necessária</p>
-                                            <p className="text-3xl font-black text-rose-700 relative z-10">{dashboardStats.conflitosGerais}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 mb-1 relative z-10 dark:text-rose-400">Ação Necessária</p>
+                                            <p className="text-3xl font-black text-rose-700 relative z-10 dark:text-rose-400">{dashboardStats.conflitosGerais}</p>
                                         </button>
                                         
                                         <button 
                                             onClick={() => setFiltroDashboard(filtroDashboard === 'ERROS' ? 'TODOS' : 'ERROS')}
-                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ERROS' ? 'bg-slate-100 border-slate-500 ring-2 ring-slate-200 scale-[1.02]' : 'bg-white border-slate-200 hover:border-slate-400'}`}
+                                            className={`text-left border rounded-2xl p-5 shadow-sm relative overflow-hidden transition-all cursor-pointer ${filtroDashboard === 'ERROS' ? 'bg-slate-100 border-slate-500 ring-2 ring-slate-200 scale-[1.02] dark:bg-slate-800' : 'bg-white border-slate-200 hover:border-slate-400 dark:bg-slate-900 dark:border-slate-800'}`}
                                         >
                                             <div className="absolute right-[-10px] bottom-[-10px] text-slate-100"><ShieldAlert className="w-24 h-24" /></div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 relative z-10">Erros e Dados Repetidos</p>
-                                            <p className="text-3xl font-black text-slate-800 relative z-10">{dashboardStats.errosIniciais}</p>
+                                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 relative z-10 dark:text-slate-400">Erros e Dados Repetidos</p>
+                                            <p className="text-3xl font-black text-slate-800 relative z-10 dark:text-white">{dashboardStats.errosIniciais}</p>
                                         </button>
                                     </div>
 
                                     {/* TABELA DE AUDITORIA FILTRÁVEL */}
-                                    <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-2xl bg-white shadow-sm mb-6">
+                                    <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-2xl bg-white shadow-sm mb-6 dark:border-slate-800 dark:bg-slate-900">
                                         <table className="w-full text-left text-[10px] whitespace-nowrap">
-                                            <thead className="bg-slate-100 font-black text-slate-500 uppercase tracking-widest sticky top-0 z-10 shadow-sm border-b border-slate-200">
+                                            <thead className="bg-slate-100 font-black text-slate-500 uppercase tracking-widest sticky top-0 z-10 shadow-sm border-b border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800">
                                                 <tr>
                                                     <th className="p-4 pl-6">Relatório de Decisão</th>
                                                     <th className="p-4">CPF Analisado</th>
@@ -714,7 +715,7 @@ const AlunosTab = (props) => {
                                                     <th className="p-4">Ação Especial</th>
                                                 </tr>
                                             </thead>
-                                            <tbody className="divide-y divide-slate-100">
+                                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                                 {dadosExibicao.length === 0 ? (
                                                     <tr>
                                                         <td colSpan="5" className="p-10 text-center text-slate-400 font-bold uppercase tracking-widest">
@@ -731,20 +732,20 @@ const AlunosTab = (props) => {
                                                         const isIgnorado = linha.status === 'JÁ NESTA UNIDADE';
                                                         const isTransferir = linha.status === 'TRANSFERIR';
 
-                                                        let rowBg = isNovo ? 'bg-emerald-50/20 hover:bg-emerald-50/50'
-                                                                  : isTransferir ? 'bg-indigo-50/30 hover:bg-indigo-50/60'
-                                                                  : isAtualizar ? 'bg-amber-50/30 hover:bg-amber-50/60'
-                                                                  : isIgnorado ? 'bg-slate-50/50' 
-                                                                  : 'bg-rose-50 hover:bg-rose-100';
+                                                        let rowBg = isNovo ? 'bg-emerald-50/20 hover:bg-emerald-50/50 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/10'
+                                                                  : isTransferir ? 'bg-blue-50/30 hover:bg-blue-50/60 dark:bg-blue-500/10 dark:hover:bg-blue-500/10'
+                                                                  : isAtualizar ? 'bg-amber-50/30 hover:bg-amber-50/60 dark:bg-amber-500/10 dark:hover:bg-amber-500/10'
+                                                                  : isIgnorado ? 'bg-slate-50/50 dark:bg-slate-800/40' 
+                                                                  : 'bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20';
 
-                                                        let badgeColor = isNovo ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                                                                         : isTransferir ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
-                                                                         : isAtualizar ? 'bg-amber-100 text-amber-700 border-amber-300'
-                                                                         : isIgnorado ? 'bg-slate-100 text-slate-500 border-slate-200'
+                                                        let badgeColor = isNovo ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30'
+                                                                         : isTransferir ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30'
+                                                                         : isAtualizar ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30'
+                                                                         : isIgnorado ? 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800'
                                                                          : 'bg-rose-600 text-white border-rose-700';
 
                                                         if (isConflito && linha.forcarTroca) {
-                                                            rowBg = 'bg-emerald-50 border-emerald-200';
+                                                            rowBg = 'bg-emerald-50 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/30';
                                                             badgeColor = 'bg-emerald-500 text-white border-emerald-600';
                                                         }
 
@@ -753,44 +754,44 @@ const AlunosTab = (props) => {
                                                         return (
                                                             <tr key={i} className={`transition-colors ${rowBg}`}>
                                                                 <td className="p-4 pl-6">
-                                                                    <span className={`px-2.5 py-1 rounded-md border font-black uppercase tracking-widest text-[9px] shadow-sm ${badgeColor}`}>
+                                                                    <span className={`px-2.5 py-1 rounded-md border font-black uppercase tracking-widest text-[10px] shadow-sm ${badgeColor}`}>
                                                                         {displayStatus}
                                                                     </span>
                                                                 </td>
-                                                                <td className="p-4 font-mono font-bold text-slate-700">{linha.cpf_mascarado || '—'}</td>
+                                                                <td className="p-4 font-mono font-bold text-slate-700 dark:text-slate-200">{linha.cpf_mascarado || '—'}</td>
                                                                 <td className="p-4">
                                                                     <div className="flex flex-col gap-1">
-                                                                        <span className={`font-black ${isAtualizar ? 'text-amber-600' : isConflito ? 'text-rose-600' : 'text-slate-600'}`}>
+                                                                        <span className={`font-black ${isAtualizar ? 'text-amber-600 dark:text-amber-400' : isConflito ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>
                                                                             {linha.matricula || '-'}
                                                                         </span>
                                                                         {linha.matriculaAntiga && (
-                                                                            <span className="text-[9px] font-bold text-slate-400 line-through">Antiga: {linha.matriculaAntiga}</span>
+                                                                            <span className="text-[10px] font-bold text-slate-400 line-through">Antiga: {linha.matriculaAntiga}</span>
                                                                         )}
                                                                     </div>
                                                                 </td>
-                                                                <td className="p-4 font-bold text-slate-800 uppercase">{linha.nome}</td>
+                                                                <td className="p-4 font-bold text-slate-800 uppercase dark:text-white">{linha.nome}</td>
                                                                 
                                                                 <td className="p-4">
                                                                     {isConflito && (
                                                                         <div className="flex flex-col gap-1.5 items-start">
-                                                                            <span className="text-rose-600 font-bold text-[9px] max-w-xs whitespace-normal leading-tight">
+                                                                            <span className="text-rose-600 font-bold text-[10px] max-w-xs whitespace-normal leading-tight dark:text-rose-400">
                                                                                 {linha.conflitoMsg}
                                                                             </span>
                                                                             <button 
                                                                                 onClick={() => handleForcarTroca(i)}
-                                                                                className={`px-3 py-1.5 rounded font-black text-[9px] uppercase tracking-widest transition-all ${linha.forcarTroca ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm'}`}
+                                                                                className={`px-3 py-1.5 rounded font-black text-[10px] uppercase tracking-widest transition-all ${linha.forcarTroca ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm'}`}
                                                                             >
                                                                                 {linha.forcarTroca ? 'Desfazer' : 'Confirmar e Roubar Matrícula'}
                                                                             </button>
                                                                         </div>
                                                                     )}
                                                                     {linha.status === 'DADO DE OUTRO ALUNO' && (
-                                                                        <span className="text-rose-600 font-bold text-[9px] max-w-xs whitespace-normal leading-tight block">
+                                                                        <span className="text-rose-600 font-bold text-[10px] max-w-xs whitespace-normal leading-tight block dark:text-rose-400">
                                                                             {linha.conflitoMsg}
                                                                         </span>
                                                                     )}
                                                                     {!isConflito && linha.origem && (
-                                                                        <span className="inline-flex items-center gap-1 text-indigo-600 font-black text-[9px] uppercase tracking-widest">
+                                                                        <span className="inline-flex items-center gap-1 text-blue-600 font-black text-[10px] uppercase tracking-widest dark:text-blue-400">
                                                                             <ArrowRightLeft className="w-3 h-3" /> Sai de {linha.origem}
                                                                         </span>
                                                                     )}
@@ -805,12 +806,12 @@ const AlunosTab = (props) => {
                                     </div>
 
                                     {/* RODAPÉ E AÇÕES DE IMPORTAÇÃO */}
-                                    <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0 gap-4">
+                                    <div className="flex flex-col sm:flex-row justify-between items-center bg-white p-5 rounded-2xl border border-slate-200 shadow-sm shrink-0 gap-4 dark:bg-slate-900 dark:border-slate-800">
                                         <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                                             {previewData.length} Linhas • {dashboardStats.totalParaImportar} prontas para aplicar na nuvem.
                                         </div>
                                         <div className="flex gap-3 w-full sm:w-auto">
-                                            <button onClick={handleCloseModal} className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors">Voltar</button>
+                                            <button onClick={handleCloseModal} className="flex-1 sm:flex-none px-6 py-3.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">Voltar</button>
                                             <button onClick={importarAlunosValidos} disabled={importando || dashboardStats.totalParaImportar === 0} className="flex-1 sm:flex-none px-8 py-3.5 bg-emerald-500 text-white hover:bg-emerald-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50">
                                                 {importando ? (
                                                     <><Loader2 className="w-4 h-4 animate-spin" /> SALVANDO: {progresso}%</>

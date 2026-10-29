@@ -140,7 +140,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Formato PDF</p>
                                     </div>
                                 </div>
-                                <a href={comunicadoBloqueante.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm">Abrir Documento</a>
+                                <a href={comunicadoBloqueante.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm dark:hover:bg-blue-500/10 dark:hover:text-blue-400">Abrir Documento</a>
                             </div>
                         )}
 
@@ -182,7 +182,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                                 {perg.alternativas?.map((alt, aIdx) => {
                                                     const isSelecionada = respostasSelecionadas[perg.id] === alt;
                                                     return (
-                                                        <div key={aIdx} onClick={() => toggleResposta(perg.id, alt)} className={`flex items-center gap-4 p-4 border rounded-xl transition-all ${bloqueioFatal ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${isSelecionada ? 'bg-purple-50 border-purple-500 dark:bg-purple-500/10' : 'bg-white dark:bg-transparent border-slate-200 dark:border-white/10 hover:border-purple-300'}`}>
+                                                        <div key={aIdx} onClick={() => toggleResposta(perg.id, alt)} className={`flex items-center gap-4 p-4 border rounded-xl transition-all ${bloqueioFatal ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'} ${isSelecionada ? 'bg-purple-50 border-purple-500 dark:bg-purple-500/10' : 'bg-white dark:bg-transparent border-slate-200 dark:border-white/10 hover:border-purple-300 dark:hover:border-purple-500/30'}`}>
                                                             <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${isSelecionada ? 'border-purple-600 bg-purple-600 dark:border-purple-500 dark:bg-purple-500' : 'border-slate-300 dark:border-slate-600'}`}>
                                                                 {isSelecionada && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                                             </div>
@@ -196,7 +196,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                 })}
 
                                 {resultado && !resultado.sucesso && (
-                                    <div className={`p-5 rounded-2xl flex items-start gap-4 text-sm font-bold border animate-[shake_0.4s_ease-in-out] ${bloqueioFatal ? 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400'}`}>
+                                    <div className={`p-5 rounded-2xl flex items-start gap-4 text-sm font-bold border animate-[shake_0.4s_ease-in-out] ${bloqueioFatal ? 'bg-rose-100 text-rose-700 border-rose-300 dark:bg-rose-500/20 dark:text-rose-300 dark:border-rose-500/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30'}`}>
                                         <ShieldAlert className="w-6 h-6 shrink-0 mt-0.5" />
                                         <div className="flex-1 leading-relaxed">
                                             {resultado.mensagem}
@@ -208,7 +208,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                     <button 
                                         onClick={submeter}
                                         disabled={validando || !formularioCompleto || resultado?.sucesso}
-                                        className="w-full mt-6 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
+                                        className="w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
                                     >
                                         {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? 'Acesso Liberado!' : 'Confirmar Respostas'}
                                     </button>
@@ -219,7 +219,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                         {!isQuestionario && (
                             <div className="text-center space-y-6">
                                 {resultado && !resultado.sucesso && (
-                                    <div className="p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400">
+                                    <div className="p-4 rounded-xl flex items-center justify-center gap-3 text-sm font-bold bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30">
                                         <ShieldAlert className="w-5 h-5" /> Erro ao registrar confirmação.
                                     </div>
                                 )}
@@ -227,7 +227,7 @@ export default function BlockingGate({ comunicadoBloqueante, onConcluido }) {
                                 <button 
                                     onClick={submeter}
                                     disabled={validando || resultado?.sucesso}
-                                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
+                                    className="w-full bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white font-black uppercase tracking-widest py-5 rounded-2xl shadow-lg transition-all flex justify-center items-center gap-3 text-sm disabled:opacity-50 active:scale-[0.98]"
                                 >
                                     {validando ? <Loader2 className="w-5 h-5 animate-spin" /> : resultado?.sucesso ? <><CheckCircle className="w-5 h-5" /> Acesso Liberado!</> : <><CheckCircle className="w-5 h-5" /> Li e estou ciente</>}
                                 </button>

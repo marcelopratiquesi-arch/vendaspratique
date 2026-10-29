@@ -5,7 +5,7 @@ export const FundoGlobalComFotos = () => (
         {/* Camadas de Cores e Luzes */}
         <div className="absolute top-[-15%] left-[-10%] w-[70vw] h-[70vw] max-w-[1000px] max-h-[1000px] bg-gradient-to-br from-blue-300/40 via-blue-200/20 to-transparent rounded-full blur-[120px]"></div>
         <div className="absolute top-[-10%] right-[-5%] w-[60vw] h-[60vw] max-w-[900px] max-h-[900px] bg-gradient-to-bl from-orange-300/20 via-amber-200/10 to-transparent rounded-full blur-[100px]"></div>
-        <div className="absolute bottom-[5%] left-[25%] w-[50vw] h-[50vw] max-w-[800px] max-h-[800px] bg-gradient-to-tr from-indigo-200/20 via-blue-100/10 to-transparent rounded-full blur-[100px]"></div>
+        <div className="absolute bottom-[5%] left-[25%] w-[50vw] h-[50vw] max-w-[800px] max-h-[800px] bg-gradient-to-tr from-blue-200/20 via-blue-100/10 to-transparent rounded-full blur-[100px]"></div>
         
         {/* Foto Mulher Fitness (Esquerda) */}
         <div className="absolute top-0 left-0 w-[50vw] max-w-[800px] h-[100vh] opacity-[0.6] mix-blend-multiply"

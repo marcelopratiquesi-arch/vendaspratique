@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase, conexaoParaCriarLogin } from '../supabaseClient.js';
 import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2, Building2, AlertTriangle } from 'lucide-react';
 import ModalUnidadesMentor from '../components/Modals/ModalUnidadesMentor.jsx';
+import { avisar } from '../components/avisar.js';
 
 // Mentor: quantas etiquetas de unidade aparecem no cartão antes do "+N"
 const MAX_ETIQUETAS_MENTOR = 4;
@@ -68,7 +69,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             setNomeUnidade('');
             mostrarSucesso();
         } else {
-            alert('Erro ao salvar unidade: ' + error?.message);
+            avisar('Erro ao salvar unidade: ' + error?.message);
         }
     };
 
@@ -96,7 +97,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         });
 
         if (authError && !authError.message.includes('already registered')) {
-            alert('Erro na autenticação do Supabase: ' + authError.message);
+            avisar('Erro na autenticação do Supabase: ' + authError.message);
             return;
         }
 
@@ -117,7 +118,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             carregarVinculosMentor();
             mostrarSucesso();
         } else {
-            alert('Erro ao salvar permissões: ' + error?.message);
+            avisar('Erro ao salvar permissões: ' + error?.message);
         }
     };
 
@@ -139,7 +140,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         const incluir = nomesMarcados.filter(n => !atuaisNorm.has(normalizarUnidade(n)));
 
         const falhou = async (error) => {
-            alert('Não foi possível salvar as unidades do mentor.\n\n' + (error?.message || ''));
+            avisar('Não foi possível salvar as unidades do mentor.\n\n' + (error?.message || ''));
             await carregarVinculosMentor();
             return false;
         };
@@ -160,36 +161,36 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
     };
 
     // Estilo unificado para inputs claros (Minimalismo Vivo TECACE)
-    const inputCSS = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all";
+    const inputCSS = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all dark:bg-slate-800/60 dark:border-slate-800 dark:text-white dark:focus:bg-slate-900";
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative pb-10">
             
             {sucesso && (
-                <div className="absolute top-0 right-0 bg-emerald-50 border border-emerald-200 text-emerald-600 px-6 py-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(16,185,129,0.2)] flex items-center gap-3 font-black uppercase tracking-wider text-[10px] z-50">
+                <div className="absolute top-0 right-0 bg-emerald-50 border border-emerald-200 text-emerald-600 px-6 py-3 rounded-2xl shadow-[0_10px_40px_-10px_rgba(16,185,129,0.2)] flex items-center gap-3 font-black uppercase tracking-wider text-[10px] z-50 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400">
                     <ShieldCheck className="w-4 h-4" /> Alterações salvas com sucesso!
                 </div>
             )}
 
             {/* HEADER DO PAINEL ADMIN (CLARO E MODERNO) */}
-            <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden">
+            <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center gap-5 relative z-10">
-                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 shadow-inner flex-shrink-0">
+                    <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center border border-blue-100 shadow-inner flex-shrink-0 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">
                         <Settings className="w-8 h-8" strokeWidth={2} />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight">Painel de Administração</h2>
+                        <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">Painel de Administração</h2>
                         <p className="text-[10px] font-bold text-rose-500 uppercase tracking-widest mt-1.5 flex items-center gap-1.5">
                             <Lock className="w-3 h-3" /> Acesso Restrito do Sistema
                         </p>
                     </div>
                 </div>
 
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto relative z-10 shadow-inner">
-                    <button onClick={() => setAbaAtiva('acessos')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'acessos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-800 border border-transparent'}`}>
+                <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto relative z-10 shadow-inner dark:bg-slate-800 dark:border-slate-800">
+                    <button onClick={() => setAbaAtiva('acessos')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'acessos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
                         <Shield className="w-4 h-4" strokeWidth={2.5} /> Logins e Permissões
                     </button>
-                    <button onClick={() => setAbaAtiva('unidades')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'unidades' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-800 border border-transparent'}`}>
+                    <button onClick={() => setAbaAtiva('unidades')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'unidades' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
                         <MapPin className="w-4 h-4" strokeWidth={2.5} /> Gestão de Unidades
                     </button>
                 </div>
@@ -198,22 +199,22 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 
                 {/* LADO ESQUERDO: FORMULÁRIOS */}
-                <div className="lg:col-span-4 bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 md:p-8 relative overflow-hidden">
+                <div className="lg:col-span-4 bg-white rounded-[32px] shadow-sm border border-slate-200 p-6 md:p-8 relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                     
                     {abaAtiva === 'acessos' && (
                         <form onSubmit={handleSalvarAcesso} className="space-y-5 animate-[fadeIn_0.3s_ease-out] relative z-10">
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
-                                <div className="p-2 bg-blue-50 rounded-lg border border-blue-100 text-blue-600 shadow-inner"><Key className="w-4 h-4" /></div>
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4 dark:text-white dark:border-slate-800">
+                                <div className="p-2 bg-blue-50 rounded-lg border border-blue-100 text-blue-600 shadow-inner dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400"><Key className="w-4 h-4" /></div>
                                 Conceder Novo Acesso
                             </h3>
                             
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">E-mail do Usuário</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">E-mail do Usuário</label>
                                 <input type="email" value={acessoEmail} onChange={(e) => setAcessoEmail(e.target.value)} required placeholder="email@pratique.com" className={`${inputCSS} lowercase`} />
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nível de Permissão</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Nível de Permissão</label>
                                 <select value={acessoRole} onChange={(e) => setAcessoRole(e.target.value)} required className={`${inputCSS} cursor-pointer appearance-none`}>
                                     <option value="" disabled>Selecione o Nível...</option>
                                     <option value="ADMIN">Administrador Global (Admin)</option>
@@ -224,7 +225,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Senha Inicial</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Senha Inicial</label>
                                 <input 
                                     type="text" 
                                     value={acessoSenha} 
@@ -232,20 +233,20 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                     required 
                                     placeholder="Defina uma senha segura" 
                                     disabled={acessoRole === 'LIDER' || acessoRole === 'RECEPCAO'}
-                                    className={`${inputCSS} disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed`} 
+                                    className={`${inputCSS} disabled:opacity-50 disabled:bg-slate-100 disabled:cursor-not-allowed dark:disabled:bg-slate-800`} 
                                 />
                                 {(acessoRole === 'LIDER' || acessoRole === 'RECEPCAO') && (
-                                    <p className="text-[9px] font-bold text-slate-400 mt-1 ml-1 uppercase tracking-widest">Senha padrão "123456" aplicada automaticamente.</p>
+                                    <p className="text-[10px] font-bold text-slate-400 mt-1 ml-1 uppercase tracking-widest">Senha padrão "123456" aplicada automaticamente.</p>
                                 )}
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nome de Exibição</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Nome de Exibição</label>
                                 <input type="text" value={acessoNome} onChange={(e) => setAcessoNome(e.target.value)} required placeholder="Ex: Marcelo de Paula" className={`${inputCSS} uppercase`} />
                             </div>
                             
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Vincular à Unidade</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Vincular à Unidade</label>
                                 <select value={acessoUnidade} onChange={(e) => setAcessoUnidade(e.target.value)} required className={`${inputCSS} cursor-pointer uppercase appearance-none`}>
                                     <option value="" disabled>Selecione a Unidade...</option>
                                     <option value="TODAS">Todas as Unidades (Global)</option>
@@ -261,12 +262,12 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
 
                     {abaAtiva === 'unidades' && (
                         <form onSubmit={handleSalvarUnidade} className="space-y-5 animate-[fadeIn_0.3s_ease-out] relative z-10">
-                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4">
-                                <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-600 shadow-inner"><MapPin className="w-4 h-4" /></div>
+                            <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-3 border-b border-slate-100 pb-4 dark:text-white dark:border-slate-800">
+                                <div className="p-2 bg-emerald-50 rounded-lg border border-emerald-100 text-emerald-600 shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><MapPin className="w-4 h-4" /></div>
                                 Cadastrar Nova Unidade
                             </h3>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nome Oficial da Unidade</label>
+                                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">Nome Oficial da Unidade</label>
                                 <input type="text" value={nomeUnidade} onChange={(e) => setNomeUnidade(e.target.value)} required placeholder="Ex: SANTA INÊS 2" className={`${inputCSS} uppercase`} />
                             </div>
                             <button type="submit" className="w-full mt-6 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest py-3.5 px-4 rounded-xl shadow-md active:scale-[0.98] transition-all flex justify-center items-center gap-2 text-[10px]">
@@ -277,10 +278,10 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                 </div>
 
                 {/* LADO DIREITO: LISTAS DE AUDITORIA */}
-                <div className="lg:col-span-8 bg-slate-50/50 rounded-[32px] shadow-inner border border-slate-200 flex flex-col h-[750px] relative overflow-hidden">
+                <div className="lg:col-span-8 bg-slate-50/50 rounded-[32px] shadow-inner border border-slate-200 flex flex-col h-[750px] relative overflow-hidden dark:bg-slate-800/40 dark:border-slate-800">
                     
-                    <div className="p-6 md:p-8 border-b border-slate-200 bg-white flex justify-between items-center shrink-0">
-                        <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
+                    <div className="p-6 md:p-8 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 dark:border-slate-800 dark:bg-slate-900">
+                        <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest flex items-center gap-2 dark:text-slate-300">
                             <Shield className="w-4 h-4 text-slate-400" /> Diretório do Sistema
                         </h3>
                         <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
@@ -297,34 +298,34 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                     <div key={u.email} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex flex-col gap-3 hover:shadow-md transition-all group">
                                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-lg font-black shadow-inner shrink-0">
+                                            <div className="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 flex items-center justify-center text-lg font-black shadow-inner shrink-0 dark:bg-slate-800 dark:border-slate-800 dark:text-slate-300">
                                                 {u.nome.charAt(0)}
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-sm font-black text-slate-800 uppercase truncate">{u.nome}</p>
+                                                <p className="text-sm font-black text-slate-800 uppercase truncate dark:text-white">{u.nome}</p>
                                                 <p className="text-xs font-semibold text-slate-400 lowercase mt-0.5 truncate">{u.email}</p>
                                             </div>
                                         </div>
                                         
                                         <div className="flex flex-col sm:items-end gap-2 shrink-0">
-                                            <span className={`w-fit px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border shadow-sm ${
-                                                u.role === 'ADMIN' ? 'bg-rose-100 text-rose-700 border-rose-200' : 
-                                                u.role === 'MENTOR' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                                                u.role === 'LIDER' ? 'bg-amber-100 text-amber-700 border-amber-200' :
-                                                'bg-blue-100 text-blue-700 border-blue-200'
+                                            <span className={`w-fit px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider border shadow-sm ${
+                                                u.role === 'ADMIN' ? 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30' : 
+                                                u.role === 'MENTOR' ? 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/20 dark:text-purple-400 dark:border-purple-500/30' :
+                                                u.role === 'LIDER' ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30' :
+                                                'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30'
                                             }`}>
                                                 {u.role === 'RECEPCAO' ? 'RECEPÇÃO / CONSULTOR' : u.role}
                                             </span>
-                                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1">
+                                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-slate-500 mt-1 dark:text-slate-400">
                                                 <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3 text-slate-400" /> {u.unidade}</span>
                                                 
                                                 {u.role === 'MENTOR' && (
-                                                    <button onClick={() => setMentorEditando(u)} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 hover:text-blue-700 transition-colors px-2.5 py-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-md shadow-sm text-[10px] font-black uppercase tracking-widest" title="Escolher as unidades deste mentor">
+                                                    <button onClick={() => setMentorEditando(u)} className="flex items-center gap-1.5 text-blue-600 dark:text-blue-300 hover:text-blue-700 transition-colors px-2.5 py-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-200 dark:border-blue-500/30 rounded-md shadow-sm text-[10px] font-black uppercase tracking-widest dark:hover:text-blue-400" title="Escolher as unidades deste mentor">
                                                         <Building2 className="w-3.5 h-3.5" /> Unidades
                                                     </button>
                                                 )}
                                                 {u.role !== 'ADMIN' && (
-                                                    <button onClick={() => handleDeleteAcesso(u.email)} className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-md shadow-sm" title="Revogar Acesso">
+                                                    <button onClick={() => handleDeleteAcesso(u.email)} className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-md shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title="Revogar Acesso">
                                                         <UserMinus className="w-3.5 h-3.5" />
                                                     </button>
                                                 )}
@@ -343,9 +344,9 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                         return (
                                             <div className="flex flex-wrap items-center gap-1.5" title={ordenada.join(', ')}>
                                                 {ordenada.slice(0, MAX_ETIQUETAS_MENTOR).map(nome => (
-                                                    <span key={nome} className="px-2 py-1 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 text-[9px] font-black uppercase tracking-widest">{nome}</span>
+                                                    <span key={nome} className="px-2 py-1 rounded-md bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-700 dark:text-purple-300 text-[10px] font-black uppercase tracking-widest">{nome}</span>
                                                 ))}
-                                                {extras > 0 && <span className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase tracking-widest">+{extras}</span>}
+                                                {extras > 0 && <span className="px-2 py-1 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest">+{extras}</span>}
                                             </div>
                                         );
                                     })()}
@@ -356,13 +357,13 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                             {/* LISTA UNIDADES */}
                             {abaAtiva === 'unidades' && (
                                 unidades.map(u => (
-                                    <div key={u.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 hover:shadow-md transition-all group">
+                                    <div key={u.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 hover:shadow-md transition-all group dark:bg-slate-900 dark:border-slate-800">
                                         <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner"><Building className="w-5 h-5" /></div>
+                                            <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><Building className="w-5 h-5" /></div>
                                             {/* 🔥 O PROBLEMA ESTAVA AQUI: text-white removido. Adicionado text-slate-800 forte */}
-                                            <span className="text-sm font-black text-slate-800 uppercase tracking-wider">{u.nome}</span>
+                                            <span className="text-sm font-black text-slate-800 uppercase tracking-wider dark:text-white">{u.nome}</span>
                                         </div>
-                                        <button onClick={() => handleDeleteUnidade(u.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl shadow-sm" title="Excluir Unidade">
+                                        <button onClick={() => handleDeleteUnidade(u.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title="Excluir Unidade">
                                             <Trash2 className="w-4 h-4" />
                                         </button>
                                     </div>

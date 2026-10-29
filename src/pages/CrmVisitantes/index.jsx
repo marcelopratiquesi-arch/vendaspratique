@@ -18,6 +18,7 @@ import { diaISO, contarPessoasDaMeta } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
 import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Database, Users, ArrowRightCircle, ClipboardPaste, Trash2, CheckCircle2, Info, CheckSquare, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, UserPlus, Loader2, CalendarCheck } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 // O App só carrega leads dos últimos 90 dias. O CRM busca à parte os leads mais antigos que ainda estão em aberto
 // (Base, Kanban e Geladeira) para nenhum contato sumir. Fechados antigos não precisam ser trabalhados.
@@ -344,21 +345,21 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         e.preventDefault();
         
         if (leadDuplicadoManual) {
-            alert(`🚨 BLOQUEADO: Este CPF já está registrado no sistema para o aluno ${leadDuplicadoManual.nome}.`);
+            avisar(`🚨 BLOQUEADO: Este CPF já está registrado no sistema para o aluno ${leadDuplicadoManual.nome}.`);
             return;
         }
 
         if (!formData.nome.trim() || !cpfValido(formData.cpf) || !formData.telefone.trim() || !formData.tipo_lead || !formData.vendedor) {
-            alert('Preencha todos os campos corretamente.'); return;
+            avisar('Preencha todos os campos corretamente.'); return;
         }
-        if (!unidadeOperacao) { alert('Não foi possível saber a unidade deste contato. Escolha uma unidade no topo ou a recepcionista que está operando.'); return; }
+        if (!unidadeOperacao) { avisar('Não foi possível saber a unidade deste contato. Escolha uma unidade no topo ou a recepcionista que está operando.'); return; }
 
         setIsSubmitting(true);
 
         const cpfDigitos = apenasDigitos(formData.cpf);
         const existente = await buscarCpfNoBanco(cpfDigitos);
         if (existente) {
-            alert(`🚨 BLOQUEADO: Este CPF já está no CRM para ${existente.nome} (${existente.status}${existente.unidade ? ` · ${existente.unidade}` : ''}).`);
+            avisar(`🚨 BLOQUEADO: Este CPF já está no CRM para ${existente.nome} (${existente.status}${existente.unidade ? ` · ${existente.unidade}` : ''}).`);
             setIsSubmitting(false);
             return;
         }
@@ -384,8 +385,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         const { data, error } = await supabase.from('leads').insert([novoLead]).select();
 
         if (error) {
-            if (error.code === '23505') alert("Erro do Banco de Dados: Este CPF já está registrado na nuvem de forma definitiva.");
-            else alert("Erro ao salvar o contato: " + error.message);
+            if (error.code === '23505') avisar("Erro do Banco de Dados: Este CPF já está registrado na nuvem de forma definitiva.");
+            else avisar("Erro ao salvar o contato: " + error.message);
         } else if (data && data[0]) {
             adicionarLeads([data[0]]);
             setSucesso(true);
@@ -536,18 +537,18 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     };
 
     const confirmarSmartPaste = async () => {
-        if (pasteSemTipo) return alert('Esta lista não é do TECACE (não tem a coluna Status). Escolha no seletor se o lote é VISITANTE, CANCELADO ou INATIVO.');
+        if (pasteSemTipo) return avisar('Esta lista não é do TECACE (não tem a coluna Status). Escolha no seletor se o lote é VISITANTE, CANCELADO ou INATIVO.');
         const leadsValidos = previewLeads.filter(l => !l.isDuplicado);
         
         if (leadsValidos.length === 0) {
-            alert("Nenhum lead novo para salvar. Todos os registros colados já existem na base.");
+            avisar("Nenhum lead novo para salvar. Todos os registros colados já existem na base.");
             setTextoSmartPaste('');
             setPreviewLeads([]);
             setEstatisticasPaste({ novos: 0, duplicados: 0 });
             return;
         }
 
-        if (!unidadeOperacao) { alert('Não foi possível saber a unidade destes contatos. Escolha uma unidade no topo ou a recepcionista que está operando.'); return; }
+        if (!unidadeOperacao) { avisar('Não foi possível saber a unidade destes contatos. Escolha uma unidade no topo ou a recepcionista que está operando.'); return; }
 
         setProcessandoPaste(true);
 
@@ -614,7 +615,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             mensagem += `\n\n${recusados.length} não foram salvos:\n` + recusados.slice(0, 15).join('\n');
             if (recusados.length > 15) mensagem += `\n...e mais ${recusados.length - 15}.`;
         }
-        alert(mensagem);
+        avisar(mensagem);
 
         setTextoSmartPaste('');
         setPreviewLeads([]);
@@ -643,9 +644,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             if (error) {
                 restaurarLeads(backupVisitantes, ids);
-                alert("Erro ao excluir os contatos no banco. Ação revertida.");
+                avisar("Erro ao excluir os contatos no banco. Ação revertida.");
             } else {
-                alert(`${selecionadosBase.length} leads foram apagados definitivamente do sistema!`);
+                avisar(`${selecionadosBase.length} leads foram apagados definitivamente do sistema!`);
                 setSelecionadosBase([]);
             }
         }
@@ -661,9 +662,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             if (error) {
                 restaurarLeads(backupVisitantes, ids);
-                alert("Erro ao excluir. Ação revertida.");
+                avisar("Erro ao excluir. Ação revertida.");
             } else {
-                alert(`${ids.length} leads foram apagados permanentemente!`);
+                avisar(`${ids.length} leads foram apagados permanentemente!`);
             }
         }
     };
@@ -679,7 +680,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             if (error) {
                 restaurarLeads(backupVisitantes, [id]);
-                alert("Erro ao excluir do banco de dados.");
+                avisar("Erro ao excluir do banco de dados.");
             } else {
                 if (modalDetalhe.show && modalDetalhe.lead?.id === id) setModalDetalhe({ show: false, lead: null });
             }
@@ -691,7 +692,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     // ==========================================
     const executarPuxada = async (idsParaPuxar, msgSucesso) => {
         const consultorAtual = consultorAtivo ? consultorAtivo.nome : usuarioLogado?.nome;
-        if (!consultorAtual) return alert("Selecione um operador primeiro!");
+        if (!consultorAtual) return avisar("Selecione um operador primeiro!");
 
         const agora = new Date().toISOString();
         setVisitantes(prev => prev.map(v => idsParaPuxar.includes(v.id) ? { ...v, puxado_em: agora, puxado_por: consultorAtual, vendedor: consultorAtual } : v));
@@ -699,10 +700,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         const { error } = await supabase.from('leads').update({ puxado_em: agora, puxado_por: consultorAtual, vendedor: consultorAtual }).in('id', idsParaPuxar);
 
         if (error) {
-            alert("Erro de conexão. A fila não foi puxada corretamente.");
+            avisar("Erro de conexão. A fila não foi puxada corretamente.");
         } else {
             registrarHistoricoLote(idsParaPuxar, 'Fila de Trabalho', 'Lead puxado da base para atendimento.');
-            alert(msgSucesso);
+            avisar(msgSucesso);
             setSelecionadosBase([]); 
             setVisaoAtiva('kanban'); 
         }
@@ -710,7 +711,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
     const puxarLote = async (quantidade) => {
         const leadsLivres = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v)).sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, quantidade);
-        if (leadsLivres.length === 0) return alert("A Base de Leads está vazia!");
+        if (leadsLivres.length === 0) return avisar("A Base de Leads está vazia!");
         const ids = leadsLivres.map(l => l.id);
         executarPuxada(ids, `${leadsLivres.length} leads foram enviados para o seu Kanban!`);
     };
@@ -762,10 +763,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
         if (error) {
             setVisitantes(prev => prev.map(v => anteriores.has(v.id) ? { ...v, ...anteriores.get(v.id) } : v));
-            alert("Erro de conexão. Ação revertida.");
+            avisar("Erro de conexão. Ação revertida.");
         } else {
             registrarHistoricoLote(ids, 'Mudança de Fase', `Movido em lote para "${novoStatus}".${textoMotivo(motivoPerda)}`);
-            alert("Operação em lote concluída com sucesso!");
+            avisar("Operação em lote concluída com sucesso!");
         }
     };
 
@@ -786,7 +787,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
         if (error) {
             setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...anteriores } : v));
-            alert("Erro de conexão. Revertendo ação.");
+            avisar("Erro de conexão. Revertendo ação.");
         }
     };
 
@@ -799,7 +800,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         if (error || faltaCampo) {
             setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, proximo_contato: anterior } : v));
             setModalDetalhe(m => (m.show && m.lead?.id === lead.id ? { ...m, lead: { ...m.lead, proximo_contato: anterior } } : m));
-            alert(faltaCampo
+            avisar(faltaCampo
                 ? 'O "próximo contato" ainda não foi criado no banco. Peça ao administrador para rodar o SQL do Bloco 4 no Supabase.'
                 : 'Erro de conexão. A data não foi salva.');
             return false;
@@ -925,33 +926,33 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             {/* BARRA DE NAVEGAÇÃO / ABAS */}
             <div className="flex bg-slate-200 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-300/60 dark:border-slate-700 shadow-inner w-full max-w-6xl mx-auto overflow-x-auto custom-scrollbar">
-                <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('base')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'base' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Database className="w-4 h-4" /> Base ({leadsNaBase.length})
                 </button>
-                <button onClick={() => setVisaoAtiva('kanban')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'kanban' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('kanban')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'kanban' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <KanbanIcon className="w-4 h-4" /> Kanban
                 </button>
-                <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'lista' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'lista' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <List className="w-4 h-4" /> Lista
                 </button>
                 <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title="Contatos com o próximo contato marcado para hoje ou atrasado">
                     <CalendarClock className="w-4 h-4" /> Hoje
-                    {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[9px] font-black ${visaoAtiva === 'hoje' ? 'bg-white text-blue-700' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
+                    {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[10px] font-black ${visaoAtiva === 'hoje' ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
                 </button>
-                <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-cyan-500 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Snowflake className="w-4 h-4" /> Geladeira ({meusLeadsGeladeira.length})
                 </button>
                 <button onClick={() => setVisaoAtiva('migracao')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'migracao' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Repeat className="w-4 h-4" /> Migração
                 </button>
-                <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'naocontatar' ? 'bg-rose-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'naocontatar' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Ban className="w-4 h-4" /> Não contatar
                 </button>
-                <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-slate-900 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <PieChart className="w-4 h-4" /> Métricas
                 </button>
                 {/* ✅ ABA RELATÓRIO INSERIDA NA BARRA DE NAVEGAÇÃO */}
-                <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'relatorio' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'relatorio' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Table className="w-4 h-4" /> Relatório
                 </button>
             </div>
@@ -1015,12 +1016,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     
                     <div className="space-y-6">
                         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-[fadeIn_0.3s_ease-out] p-6 lg:p-8 flex flex-col items-center justify-center text-center">
-                            <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-500 rounded-full flex items-center justify-center mb-4 border border-indigo-100 dark:border-indigo-500/20">
+                            <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center mb-4 border border-blue-100 dark:border-blue-500/20">
                                 <Users className="w-8 h-8" />
                             </div>
                             <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">Fila de Trabalho Automática</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-6">
-                                <strong className="text-indigo-600 dark:text-indigo-400">{leadsNaBase.length} leads</strong> aguardando na Piscina. Puxe um lote para começar a vender.
+                                <strong className="text-blue-600 dark:text-blue-400">{leadsNaBase.length} leads</strong> aguardando na Piscina. Puxe um lote para começar a vender.
                             </p>
 
                             <div className="flex items-center gap-3 w-full bg-slate-50 dark:bg-slate-800/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-800">
@@ -1030,7 +1031,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     <option value="50">Puxar 50 contatos</option>
                                     <option value="100">Puxar 100 contatos</option>
                                 </select>
-                                <button onClick={() => puxarLote(Number(document.getElementById('qtdPuxar').value))} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-3.5 rounded-xl shadow-[0_4px_15px_rgba(79,70,229,0.3)] transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest">
+                                <button onClick={() => puxarLote(Number(document.getElementById('qtdPuxar').value))} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-3.5 rounded-xl shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-2 uppercase text-[10px] tracking-widest">
                                     <ArrowRightCircle className="w-5 h-5" /> Iniciar
                                 </button>
                             </div>
@@ -1052,7 +1053,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     <div className="w-1/2 flex flex-col">
                                         <input type="text" name="cpf" value={formData.cpf} onChange={handleChange} placeholder="CPF" maxLength={14} className={`bg-slate-50 dark:bg-slate-800/60 border ${leadDuplicadoManual ? 'border-rose-500 focus:ring-rose-500/20' : 'border-slate-200 dark:border-slate-800'} rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm transition-colors`} />
                                         {leadDuplicadoManual && (
-                                            <span className="text-[9px] text-rose-500 font-black uppercase mt-1.5 flex items-center gap-1 animate-[fadeIn_0.2s_ease-out]">
+                                            <span className="text-[10px] text-rose-500 font-black uppercase mt-1.5 flex items-center gap-1 animate-[fadeIn_0.2s_ease-out]">
                                                 <AlertTriangle className="w-3 h-3"/> Já Existe: {leadDuplicadoManual.nome} ({leadDuplicadoManual.status})
                                             </span>
                                         )}
@@ -1068,7 +1069,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     </select>
                                     <input type="text" name="observacao" value={formData.observacao} onChange={handleChange} placeholder="Observação..." className="w-1/2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none shadow-sm" />
                                 </div>
-                                <button type="submit" disabled={isSubmitting || !!leadDuplicadoManual} className="w-full mt-2 bg-slate-800 hover:bg-black disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3.5 rounded-xl shadow-md transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                                <button type="submit" disabled={isSubmitting || !!leadDuplicadoManual} className="w-full mt-2 bg-slate-800 hover:bg-black disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-3.5 rounded-xl shadow-md transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 dark:disabled:text-slate-400">
                                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : sucesso ? <><CheckCircle2 className="w-4 h-4" /> Salvo na Base</> : 'Salvar na Base'}
                                 </button>
                             </form>
@@ -1076,7 +1077,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     </div>
 
                     <div className="bg-white dark:bg-slate-900 rounded-[24px] border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 overflow-hidden animate-[slideUp_0.4s_ease-out] p-6 lg:p-8 flex flex-col h-full relative">
-                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-2xl shadow-sm">Mais Rápido ⚡</div>
+                        <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-2xl shadow-sm">Mais Rápido ⚡</div>
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
                                 <ClipboardPaste className="w-6 h-6" />
@@ -1101,7 +1102,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
                         <textarea 
                             value={textoSmartPaste} onChange={(e) => processarColagem(e.target.value)} placeholder="Cole aqui..."
-                            className="w-full flex-1 min-h-[180px] bg-slate-50 dark:bg-slate-800/60 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 text-sm font-mono text-slate-600 dark:text-slate-300 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all resize-none custom-scrollbar whitespace-pre"
+                            className="w-full flex-1 min-h-[180px] bg-slate-50 dark:bg-slate-800/60 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 text-sm font-mono text-slate-600 dark:text-slate-300 focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 outline-none transition-all resize-none custom-scrollbar whitespace-pre dark:focus:bg-slate-900"
                         />
 
                         {previewLeads.length > 0 && (
@@ -1130,11 +1131,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                             {previewLeads.slice(0,50).map((l) => (
                                                 <tr key={l.id_temp} className={`border-b border-slate-100 dark:border-slate-800 last:border-0 text-[10px] uppercase font-bold transition-opacity ${l.isDuplicado ? 'text-slate-400 opacity-60 bg-slate-100/50 dark:bg-slate-800' : 'text-slate-700 dark:text-slate-200'}`}>
                                                     <td className="px-3 py-2 truncate max-w-[140px] flex items-center">
-                                                        {l.isDuplicado && <span className="mr-2 text-[8px] bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded shadow-sm font-black whitespace-nowrap">{l.motivo}</span>}
+                                                        {l.isDuplicado && <span className="mr-2 text-[10px] bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded shadow-sm font-black whitespace-nowrap">{l.motivo}</span>}
                                                         <span className="truncate">{l.nome}</span>
                                                     </td>
                                                     <td className="px-3 py-2">{l.telefone || 'S/N'}</td>
-                                                    <td className="px-3 py-2 text-right">{l.tipo && <span className={`px-1.5 py-0.5 rounded border text-[8px] font-black tracking-widest ${classeTipoLead(l.tipo)}`}>{l.tipo}</span>}</td>
+                                                    <td className="px-3 py-2 text-right">{l.tipo && <span className={`px-1.5 py-0.5 rounded border text-[10px] font-black tracking-widest ${classeTipoLead(l.tipo)}`}>{l.tipo}</span>}</td>
                                                 </tr>
                                             ))}
                                             {previewLeads.length > 50 && (
@@ -1144,7 +1145,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                     </table>
                                 </div>
                                 
-                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0 || pasteSemTipo} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2">
+                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0 || pasteSemTipo} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 dark:disabled:text-slate-400">
                                     {processandoPaste ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" /> Salvar {estatisticasPaste.novos} Novos no Banco</>}
                                 </button>
                             </div>
@@ -1155,7 +1156,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                         <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
                             <div>
                                 <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 tracking-tight">
-                                    <Database className="w-5 h-5 text-indigo-500"/> Banco Bruto 
+                                    <Database className="w-5 h-5 text-blue-500"/> Banco Bruto 
                                     <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{buscaBase.trim() ? `${leadsNaBaseFiltrados.length} de ${leadsNaBase.length}` : leadsNaBase.length} Registros</span>
                                 </h3>
                                 <div className="relative mt-3">
@@ -1165,7 +1166,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                         value={buscaBase}
                                         onChange={(e) => mudarBuscaBase(e.target.value)}
                                         placeholder="Buscar por nome, CPF ou telefone"
-                                        className="w-72 max-w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 shadow-sm"
+                                        className="w-72 max-w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
                                     />
                                     {buscaBase && (
                                         <button type="button" onClick={() => mudarBuscaBase('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title="Limpar busca">
@@ -1182,7 +1183,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                             <Trash2 className="w-4 h-4" /> Apagar do Banco ({selecionadosBase.length})
                                         </button>
                                     )}
-                                    <button onClick={puxarSelecionados} className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-6 py-2.5 rounded-xl shadow-[0_4px_15px_rgba(79,70,229,0.3)] transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                    <button onClick={puxarSelecionados} className="bg-blue-600 hover:bg-blue-700 text-white font-black px-6 py-2.5 rounded-xl shadow-[0_4px_15px_rgba(37,99,235,0.3)] transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
                                         <CheckSquare className="w-4 h-4" /> Puxar para Fila
                                     </button>
                                 </div>
@@ -1196,7 +1197,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                         <th className="px-4 py-3 text-center w-12 border-b border-slate-200 dark:border-slate-800">
                                             <input 
                                                 type="checkbox" 
-                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer"
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400 focus:ring-blue-500 cursor-pointer"
                                                 checked={paginaBaseToda}
                                                 onChange={(e) => marcarPaginaBase(e.target.checked)}
                                                 title="Selecionar os contatos desta página"
@@ -1217,7 +1218,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                             <td className="px-4 py-3 text-center border-b border-slate-100 dark:border-slate-800">
                                                 <input 
                                                     type="checkbox" 
-                                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 focus:ring-indigo-500 cursor-pointer"
+                                                    className="w-4 h-4 rounded border-slate-300 dark:border-slate-700 text-blue-600 dark:text-blue-400 focus:ring-blue-500 cursor-pointer"
                                                     checked={selecionadosBase.includes(v.id)}
                                                     onChange={() => {}}
                                                     onClick={(e) => e.stopPropagation()} 
@@ -1231,7 +1232,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
-                                                <span className={`px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${classeTipoLead(v.tipo_lead)}`}>
+                                                <span className={`px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(v.tipo_lead)}`}>
                                                     {v.tipo_lead || 'N/A'}
                                                 </span>
                                             </td>
@@ -1256,7 +1257,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-3">
                                     <span>{leadsNaBaseFiltrados.length} contatos{selecionadosBase.length > 0 ? ` · ${selecionadosBase.length} selecionados` : ''}</span>
                                     {paginaBaseToda && !todosFiltradosSelecionados && (
-                                        <button type="button" onClick={() => setSelecionadosBase(leadsNaBaseFiltrados.map(l => l.id))} className="text-indigo-600 dark:text-indigo-400 hover:underline underline-offset-2">
+                                        <button type="button" onClick={() => setSelecionadosBase(leadsNaBaseFiltrados.map(l => l.id))} className="text-blue-600 dark:text-blue-400 hover:underline underline-offset-2">
                                             Selecionar todos os {leadsNaBaseFiltrados.length} encontrados
                                         </button>
                                     )}

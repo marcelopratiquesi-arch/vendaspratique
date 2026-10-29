@@ -24,6 +24,7 @@ import {
     Package,
     Briefcase
 } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 const RankingGlobalTab = ({
     vendasFiltradas = [],
@@ -54,14 +55,14 @@ const RankingGlobalTab = ({
     // 🔒 BLINDAGEM DE SEGURANÇA: Oculta completamente para Líder e Recepção
     if (!temVisaoGlobal) {
         return (
-            <div className="bg-white rounded-[24px] border border-rose-200 p-12 flex flex-col items-center justify-center text-center shadow-sm">
-                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 border border-rose-100">
+            <div className="bg-white rounded-[24px] border border-rose-200 p-12 flex flex-col items-center justify-center text-center shadow-sm dark:bg-slate-900 dark:border-rose-500/30">
+                <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mb-4 border border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30">
                     <ShieldAlert className="w-8 h-8" />
                 </div>
-                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest">
+                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest dark:text-white">
                     Acesso Restrito à Diretoria / Mentoria
                 </h3>
-                <p className="text-xs font-medium text-slate-500 mt-1 max-w-md">
+                <p className="text-xs font-medium text-slate-500 mt-1 max-w-md dark:text-slate-400">
                     A Matriz Executiva e o Ranking Global da rede estão disponíveis exclusivamente para perfis com visão global (Admin e Mentor).
                 </p>
             </div>
@@ -147,7 +148,7 @@ const RankingGlobalTab = ({
 
     const handleGerarWhatsappGlobal = () => {
         if (unidadesOrdenadas.length === 0) {
-            alert(t('analytics.report.noDataWpp', { defaultValue: "Não há dados para gerar relatório com os filtros atuais." }));
+            avisar(t('analytics.report.noDataWpp', { defaultValue: "Não há dados para gerar relatório com os filtros atuais." }));
             return;
         }
         const txt = montarTextoGlobalWhatsapp({
@@ -188,63 +189,63 @@ const RankingGlobalTab = ({
             />
 
             {/* 📌 BARRA DE TOPO: KPIs RÁPIDOS DA REDE + EXPORTAÇÃO GLOBAL */}
-            <div className="bg-white p-5 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-6 items-stretch xl:items-center justify-between">
+            <div className="bg-white p-5 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col xl:flex-row gap-6 items-stretch xl:items-center justify-between dark:bg-slate-900 dark:border-slate-800">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 flex-1">
                     <div className="bg-slate-900 text-white p-4 rounded-2xl flex items-center gap-3.5 shadow-sm">
                         <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-amber-400 shrink-0">
                             <Trophy className="w-5 h-5" />
                         </div>
                         <div>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">Total Rede</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">Total Rede</span>
                             <span className="text-xl font-black leading-none">{String(vendasGlobal).padStart(2, '0')}</span>
                         </div>
                     </div>
 
-                    <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl flex items-center gap-3.5">
-                        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="bg-emerald-50/70 border border-emerald-200 p-4 rounded-2xl flex items-center gap-3.5 dark:bg-emerald-500/10 dark:border-emerald-500/30">
+                        <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center shrink-0 dark:bg-emerald-500/20 dark:text-emerald-400">
                             <Layers className="w-5 h-5" />
                         </div>
                         <div>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700/70 block">Planos</span>
-                            <span className="text-xl font-black text-emerald-700 leading-none">{String(totaisRedeMatriz.totalPlanos).padStart(2, '0')}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700/70 block">Planos</span>
+                            <span className="text-xl font-black text-emerald-700 leading-none dark:text-emerald-400">{String(totaisRedeMatriz.totalPlanos).padStart(2, '0')}</span>
                         </div>
                     </div>
 
-                    <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl flex items-center gap-3.5">
-                        <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-2xl flex items-center gap-3.5 dark:bg-amber-500/10 dark:border-amber-500/30">
+                        <div className="w-10 h-10 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center shrink-0 dark:bg-amber-500/20 dark:text-amber-400">
                             <Package className="w-5 h-5" />
                         </div>
                         <div>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700/70 block">Produtos</span>
-                            <span className="text-xl font-black text-amber-700 leading-none">{String(totaisRedeMatriz.totalProdutos).padStart(2, '0')}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700/70 block">Produtos</span>
+                            <span className="text-xl font-black text-amber-700 leading-none dark:text-amber-400">{String(totaisRedeMatriz.totalProdutos).padStart(2, '0')}</span>
                         </div>
                     </div>
 
-                    <div className="bg-violet-50/70 border border-violet-200 p-4 rounded-2xl flex items-center gap-3.5">
-                        <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center shrink-0">
+                    <div className="bg-violet-50/70 border border-violet-200 p-4 rounded-2xl flex items-center gap-3.5 dark:bg-violet-500/10 dark:border-violet-500/30">
+                        <div className="w-10 h-10 bg-violet-100 text-violet-600 rounded-xl flex items-center justify-center shrink-0 dark:bg-violet-500/20 dark:text-violet-400">
                             <Briefcase className="w-5 h-5" />
                         </div>
                         <div>
-                            <span className="text-[9px] font-black uppercase tracking-widest text-violet-700/70 block">Serviços</span>
-                            <span className="text-xl font-black text-violet-700 leading-none">{String(totaisRedeMatriz.totalServicos).padStart(2, '0')}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-violet-700/70 block">Serviços</span>
+                            <span className="text-xl font-black text-violet-700 leading-none dark:text-violet-400">{String(totaisRedeMatriz.totalServicos).padStart(2, '0')}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Controles de Exportação Global (Planilha e WhatsApp da Rede) */}
                 <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
-                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto">
+                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto dark:bg-slate-800 dark:border-slate-800">
                         <button
                             type="button"
                             onClick={() => setVisaoDetalhada(false)}
-                            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!visaoDetalhada ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!visaoDetalhada ? 'bg-white shadow-sm text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                         >
                             Resumo
                         </button>
                         <button
                             type="button"
                             onClick={() => setVisaoDetalhada(true)}
-                            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visaoDetalhada ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+                            className={`flex-1 sm:flex-none px-5 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visaoDetalhada ? 'bg-white shadow-sm text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                         >
                             Detalhado
                         </button>
@@ -254,14 +255,14 @@ const RankingGlobalTab = ({
                         <button
                             type="button"
                             onClick={handleExportarCSV}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-slate-200"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-800"
                         >
                             <Download className="w-4 h-4" /> Planilha
                         </button>
                         <button
                             type="button"
                             onClick={handleGerarWhatsappGlobal}
-                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200"
+                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
                         >
                             <Share2 className="w-4 h-4" /> WhatsApp Rede
                         </button>
@@ -271,24 +272,24 @@ const RankingGlobalTab = ({
 
             {/* 🏆 MATRIZ EXECUTIVA ALINHADA + PÓDIO TOP 3 */}
             {baseRankingUnidades.length === 0 ? (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60 dark:bg-slate-900 dark:border-slate-800">
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 dark:bg-slate-800">
                         <FileX2 className="w-8 h-8 text-slate-400" />
                     </div>
-                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
+                    <p className="text-sm font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
                         Nenhuma venda encontrada para o período selecionado.
                     </p>
                 </div>
             ) : (
-                <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 overflow-hidden">
+                <div className="bg-white rounded-[24px] shadow-[0_4px_20px_rgb(0,0,0,0.03)] border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                     {/* CABEÇALHO DO RANKING + 4 BOTÕES DE CATEGORIA */}
-                    <div className="p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white">
+                    <div className="p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:border-slate-800 dark:bg-slate-900">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 shadow-inner">
+                            <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-500 shadow-inner dark:bg-amber-500/10 dark:border-amber-500/30">
                                 <Building2 className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest">
+                                <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">
                                     Ranking Global & Matriz de Composição
                                 </h3>
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
@@ -299,32 +300,32 @@ const RankingGlobalTab = ({
 
                         <div className="flex flex-wrap items-center gap-2">
                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-1">Categoria:</span>
-                            <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1">
+                            <div className="flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1 dark:bg-slate-800 dark:border-slate-800">
                                 <button
                                     type="button"
                                     onClick={() => handleTrocarEscopoRanking('TOTAL')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'TOTAL' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'TOTAL' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     Total Geral ({vendasGlobal})
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleTrocarEscopoRanking('PLANOS')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'PLANOS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'PLANOS' ? 'bg-emerald-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     Só Planos ({totaisRedeMatriz.totalPlanos})
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleTrocarEscopoRanking('PRODUTOS')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'PRODUTOS' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'PRODUTOS' ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     Só Produtos ({totaisRedeMatriz.totalProdutos})
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => handleTrocarEscopoRanking('SERVICOS')}
-                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'SERVICOS' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`px-3.5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${criterioRanking === 'SERVICOS' ? 'bg-violet-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     Só Serviços ({totaisRedeMatriz.totalServicos})
                                 </button>
@@ -334,7 +335,7 @@ const RankingGlobalTab = ({
 
                     {/* 🥇🥈🥉 PÓDIO TOP 3 DINÂMICO */}
                     {top3Unidades.length > 0 && (
-                        <div className="p-6 bg-slate-50/70 border-b border-slate-200/80 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-6 bg-slate-50/70 border-b border-slate-200/80 grid grid-cols-1 md:grid-cols-3 gap-4 dark:bg-slate-800/40 dark:border-slate-800">
                             {top3Unidades.map((uni, idx) => {
                                 const valorPrincipalPodio = criterioRanking === 'PLANOS'
                                     ? uni.totalPlanos
@@ -367,21 +368,21 @@ const RankingGlobalTab = ({
                                 const estilosPodio = [
                                     {
                                         medalha: '🥇 1º LUGAR',
-                                        card: 'bg-gradient-to-br from-amber-50/90 via-white to-white border-amber-300 ring-1 ring-amber-200/60',
-                                        badge: 'bg-amber-100 text-amber-800 border-amber-300',
-                                        numero: 'text-amber-600'
+                                        card: 'bg-gradient-to-br from-amber-50/90 via-white to-white border-amber-300 ring-1 ring-amber-200/60 dark:border-amber-500/30',
+                                        badge: 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-500/20 dark:text-amber-300 dark:border-amber-500/30',
+                                        numero: 'text-amber-600 dark:text-amber-400'
                                     },
                                     {
                                         medalha: '🥈 2º LUGAR',
-                                        card: 'bg-gradient-to-br from-slate-100/80 via-white to-white border-slate-300',
-                                        badge: 'bg-slate-200/80 text-slate-700 border-slate-300',
-                                        numero: 'text-slate-700'
+                                        card: 'bg-gradient-to-br from-slate-100/80 via-white to-white border-slate-300 dark:border-slate-700',
+                                        badge: 'bg-slate-200/80 text-slate-700 border-slate-300 dark:text-slate-200 dark:border-slate-700',
+                                        numero: 'text-slate-700 dark:text-slate-200'
                                     },
                                     {
                                         medalha: '🥉 3º LUGAR',
-                                        card: 'bg-gradient-to-br from-orange-50/70 via-white to-white border-orange-200',
-                                        badge: 'bg-orange-100 text-orange-800 border-orange-200',
-                                        numero: 'text-orange-600'
+                                        card: 'bg-gradient-to-br from-orange-50/70 via-white to-white border-orange-200 dark:border-orange-500/30',
+                                        badge: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-500/20 dark:text-orange-300 dark:border-orange-500/30',
+                                        numero: 'text-orange-600 dark:text-orange-400'
                                     }
                                 ][idx];
 
@@ -395,14 +396,14 @@ const RankingGlobalTab = ({
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">
                                                 <div className="flex items-center gap-1.5">
-                                                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-widest border ${estilosPodio.badge}`}>
+                                                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${estilosPodio.badge}`}>
                                                         {estilosPodio.medalha}
                                                     </span>
-                                                    <span className="text-[9px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                    <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200 dark:bg-slate-800 dark:border-slate-800">
                                                         {pctShareRede}% da Rede
                                                     </span>
                                                 </div>
-                                                <h4 className="text-base font-black text-slate-800 uppercase tracking-tight truncate mt-2" title={uni.nome}>
+                                                <h4 className="text-base font-black text-slate-800 uppercase tracking-tight truncate mt-2 dark:text-white" title={uni.nome}>
                                                     {uni.nome}
                                                 </h4>
                                             </div>
@@ -410,13 +411,13 @@ const RankingGlobalTab = ({
                                                 <span className={`text-3xl font-black leading-none ${estilosPodio.numero}`}>
                                                     {String(valorPrincipalPodio).padStart(2, '0')}
                                                 </span>
-                                                <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
+                                                <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">
                                                     {labelPrincipalPodio}
                                                 </span>
                                             </div>
                                         </div>
 
-                                        <div className="mt-4 pt-3 border-t border-slate-200/60">
+                                        <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-800">
                                             {criterioRanking === 'TOTAL' && (() => {
                                                 const tot = uni.vendas || 1;
                                                 const pctPlanos = Math.round((uni.totalPlanos / tot) * 100);
@@ -424,12 +425,12 @@ const RankingGlobalTab = ({
                                                 const pctServ = Math.max(0, 100 - pctPlanos - pctProd);
                                                 return (
                                                     <>
-                                                        <div className="flex flex-wrap justify-between text-[9px] font-black uppercase tracking-wider mb-1.5 gap-1">
-                                                            <span className="text-emerald-600">📋 {String(uni.totalPlanos).padStart(2, '0')} Planos ({pctPlanos}%)</span>
-                                                            <span className="text-amber-600">🛍️ {String(uni.totalProdutos).padStart(2, '0')} Prod ({pctProd}%)</span>
-                                                            <span className="text-violet-600">🧾 {String(uni.totalServicos).padStart(2, '0')} Serv ({pctServ}%)</span>
+                                                        <div className="flex flex-wrap justify-between text-[10px] font-black uppercase tracking-wider mb-1.5 gap-1">
+                                                            <span className="text-emerald-600 dark:text-emerald-400">📋 {String(uni.totalPlanos).padStart(2, '0')} Planos ({pctPlanos}%)</span>
+                                                            <span className="text-amber-600 dark:text-amber-400">🛍️ {String(uni.totalProdutos).padStart(2, '0')} Prod ({pctProd}%)</span>
+                                                            <span className="text-violet-600 dark:text-violet-400">🧾 {String(uni.totalServicos).padStart(2, '0')} Serv ({pctServ}%)</span>
                                                         </div>
-                                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex">
+                                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex dark:bg-slate-700">
                                                             <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${pctPlanos}%` }}></div>
                                                             <div className="bg-amber-400 h-full transition-all duration-500" style={{ width: `${pctProd}%` }}></div>
                                                             <div className="bg-violet-500 h-full transition-all duration-500" style={{ width: `${pctServ}%` }}></div>
@@ -446,16 +447,16 @@ const RankingGlobalTab = ({
                                                 const pOutros = Math.max(0, 100 - pNutri - pPlus - pFit);
                                                 return (
                                                     <>
-                                                        <div className="flex flex-wrap justify-between text-[9px] font-black uppercase tracking-wider mb-1.5 gap-1">
-                                                            <span className="text-emerald-600">🥗 Nutri: {String(uni.colunas.NUTRI || 0).padStart(2, '0')}</span>
-                                                            <span className="text-blue-600">⭐ Plus: {String(uni.colunas.PLUS || 0).padStart(2, '0')}</span>
-                                                            <span className="text-indigo-600">🏃 Fit: {String(uni.colunas.FIT || 0).padStart(2, '0')}</span>
-                                                            <span className="text-rose-600">🏋️ Pers/Out: {String((uni.colunas.PERSONAL || 0) + (uni.colunas.OUTROS_PLANOS || 0)).padStart(2, '0')}</span>
+                                                        <div className="flex flex-wrap justify-between text-[10px] font-black uppercase tracking-wider mb-1.5 gap-1">
+                                                            <span className="text-emerald-600 dark:text-emerald-400">🥗 Nutri: {String(uni.colunas.NUTRI || 0).padStart(2, '0')}</span>
+                                                            <span className="text-blue-600 dark:text-blue-400">⭐ Plus: {String(uni.colunas.PLUS || 0).padStart(2, '0')}</span>
+                                                            <span className="text-blue-600 dark:text-blue-400">🏃 Fit: {String(uni.colunas.FIT || 0).padStart(2, '0')}</span>
+                                                            <span className="text-rose-600 dark:text-rose-400">🏋️ Pers/Out: {String((uni.colunas.PERSONAL || 0) + (uni.colunas.OUTROS_PLANOS || 0)).padStart(2, '0')}</span>
                                                         </div>
-                                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex">
+                                                        <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden flex dark:bg-slate-700">
                                                             <div className="bg-emerald-500 h-full" style={{ width: `${pNutri}%` }}></div>
                                                             <div className="bg-blue-500 h-full" style={{ width: `${pPlus}%` }}></div>
-                                                            <div className="bg-indigo-500 h-full" style={{ width: `${pFit}%` }}></div>
+                                                            <div className="bg-blue-500 h-full" style={{ width: `${pFit}%` }}></div>
                                                             <div className="bg-rose-400 h-full" style={{ width: `${pOutros}%` }}></div>
                                                         </div>
                                                     </>
@@ -465,7 +466,7 @@ const RankingGlobalTab = ({
                                             {criterioRanking === 'PRODUTOS' && (
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {uni.itensProdutosDetalhados.slice(0, 3).map(([nomeItem, d]) => (
-                                                        <span key={nomeItem} className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded text-[9px] font-black uppercase truncate max-w-[140px]">
+                                                        <span key={nomeItem} className="inline-flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded text-[10px] font-black uppercase truncate max-w-[140px] dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
                                                             {String(d.total).padStart(2, '0')}x {nomeItem}
                                                         </span>
                                                     ))}
@@ -475,7 +476,7 @@ const RankingGlobalTab = ({
                                             {criterioRanking === 'SERVICOS' && (
                                                 <div className="flex flex-wrap gap-1.5">
                                                     {uni.itensServicosDetalhados.slice(0, 3).map(([nomeItem, d]) => (
-                                                        <span key={nomeItem} className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-800 px-2 py-0.5 rounded text-[9px] font-black uppercase truncate max-w-[140px]">
+                                                        <span key={nomeItem} className="inline-flex items-center gap-1 bg-violet-50 border border-violet-200 text-violet-800 px-2 py-0.5 rounded text-[10px] font-black uppercase truncate max-w-[140px] dark:bg-violet-500/10 dark:border-violet-500/30 dark:text-violet-300">
                                                             {String(d.total).padStart(2, '0')}x {nomeItem}
                                                         </span>
                                                     ))}
@@ -492,14 +493,14 @@ const RankingGlobalTab = ({
                     <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[750px]">
                             <thead>
-                                <tr className="border-b border-slate-200 bg-slate-100/70">
+                                <tr className="border-b border-slate-200 bg-slate-100/70 dark:border-slate-800">
                                     <th className="py-3.5 px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16 text-center">Pos</th>
-                                    <th className="py-3.5 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest min-w-[180px] sticky left-0 bg-slate-100/95 backdrop-blur z-10">Unidade</th>
+                                    <th className="py-3.5 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest min-w-[180px] sticky left-0 bg-slate-100/95 backdrop-blur z-10 dark:text-slate-400">Unidade</th>
 
                                     {criterioRanking === 'TOTAL' && (
                                         <th
                                             onClick={() => setColunaOrdemMatriz(null)}
-                                            className="py-3.5 px-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center bg-slate-200/60 w-28 cursor-pointer hover:bg-slate-200 transition-colors"
+                                            className="py-3.5 px-3 text-[10px] font-black text-slate-800 uppercase tracking-widest text-center bg-slate-200/60 w-28 cursor-pointer hover:bg-slate-200 transition-colors dark:text-white dark:hover:bg-slate-700"
                                             title="Ordenar pelo Total Geral"
                                         >
                                             Total Geral
@@ -509,7 +510,7 @@ const RankingGlobalTab = ({
                                     {(criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') && (
                                         <th
                                             onClick={() => setColunaOrdemMatriz(null)}
-                                            className="py-3.5 px-3 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-center bg-emerald-50/70 border-x border-slate-200/70 w-28 cursor-pointer hover:bg-emerald-100/60 transition-colors"
+                                            className="py-3.5 px-3 text-[10px] font-black text-emerald-700 uppercase tracking-widest text-center bg-emerald-50/70 border-x border-slate-200/70 w-28 cursor-pointer hover:bg-emerald-100/60 transition-colors dark:text-emerald-400 dark:bg-emerald-500/10 dark:border-slate-800 dark:hover:bg-emerald-500/20"
                                             title="Ordenar pelo Total de Planos"
                                         >
                                             {criterioRanking === 'PLANOS' ? 'Total Planos' : 'Planos'}
@@ -522,14 +523,14 @@ const RankingGlobalTab = ({
                                             <th
                                                 key={col.key}
                                                 onClick={() => handleOrdenarPorColunaMatriz(col.key)}
-                                                className={`py-3.5 px-2.5 text-[10px] font-black uppercase tracking-wider text-center w-28 cursor-pointer select-none transition-colors ${isOrdenada ? 'bg-blue-50/80 ring-1 ring-inset ring-blue-300' : 'hover:bg-slate-200/50'}`}
+                                                className={`py-3.5 px-2.5 text-[10px] font-black uppercase tracking-wider text-center w-28 cursor-pointer select-none transition-colors ${isOrdenada ? 'bg-blue-50/80 ring-1 ring-inset ring-blue-300 dark:bg-blue-500/10' : 'hover:bg-slate-200/50'}`}
                                                 title={`Clique para ordenar por ${col.label}`}
                                             >
                                                 <div className="flex flex-col items-center justify-center leading-tight">
                                                     <span className="text-xs mb-0.5">{col.icone}</span>
                                                     <span className={`flex items-center gap-0.5 ${col.headerColor}`}>
                                                         {col.label}
-                                                        <ArrowUpDown className={`w-2.5 h-2.5 ${isOrdenada ? 'opacity-100 text-blue-600' : 'opacity-30'}`} />
+                                                        <ArrowUpDown className={`w-2.5 h-2.5 ${isOrdenada ? 'opacity-100 text-blue-600 dark:text-blue-400' : 'opacity-30'}`} />
                                                     </span>
                                                 </div>
                                             </th>
@@ -537,13 +538,13 @@ const RankingGlobalTab = ({
                                     })}
 
                                     {(criterioRanking === 'PRODUTOS' || criterioRanking === 'SERVICOS') && (
-                                        <th className="py-3.5 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        <th className="py-3.5 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                             Composição de Itens Vendidos (Clique para auditar)
                                         </th>
                                     )}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {rankingUnidades.length === 0 ? (
                                     <tr>
                                         <td colSpan="12" className="py-12 text-center text-xs font-black text-slate-400 uppercase tracking-widest">
@@ -557,12 +558,12 @@ const RankingGlobalTab = ({
                                         const isTop3 = idx === 2;
 
                                         const posBadge = isTop1
-                                            ? 'bg-amber-400 text-slate-900 shadow-sm'
+                                            ? 'bg-amber-400 text-slate-900 shadow-sm dark:text-white'
                                             : isTop2
-                                            ? 'bg-slate-300 text-slate-800'
+                                            ? 'bg-slate-300 text-slate-800 dark:text-white'
                                             : isTop3
-                                            ? 'bg-orange-200 text-orange-900'
-                                            : 'bg-slate-100 text-slate-500';
+                                            ? 'bg-orange-200 text-orange-900 dark:text-orange-300'
+                                            : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400';
 
                                         const valorEscopoUnidade = criterioRanking === 'PLANOS'
                                             ? uni.totalPlanos
@@ -581,23 +582,23 @@ const RankingGlobalTab = ({
                                             : uni.itensServicosDetalhados;
 
                                         return (
-                                            <tr key={uni.nome} className={`transition-colors hover:bg-blue-50/30 ${isTop1 ? 'bg-amber-50/15' : 'bg-white'}`}>
+                                            <tr key={uni.nome} className={`transition-colors hover:bg-blue-50/30 dark:hover:bg-blue-500/10 ${isTop1 ? 'bg-amber-50/15 dark:bg-amber-500/10' : 'bg-white dark:bg-slate-900'}`}>
                                                 <td className="py-3.5 px-4 text-center">
                                                     <span className={`w-7 h-7 mx-auto rounded-lg flex items-center justify-center text-[11px] font-black ${posBadge}`}>
                                                         {idx + 1}º
                                                     </span>
                                                 </td>
-                                                <td className="py-3.5 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white/95 backdrop-blur z-10 border-r border-slate-100">
+                                                <td className="py-3.5 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white/95 backdrop-blur z-10 border-r border-slate-100 dark:text-white dark:bg-slate-900/95 dark:border-slate-800">
                                                     <div className="flex items-center justify-between gap-2">
                                                         <span className="truncate">{uni.nome}</span>
-                                                        <span className="text-[9px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0" title="Participação no total da rede">
+                                                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded shrink-0 dark:bg-slate-800" title="Participação no total da rede">
                                                             {pctRedeUnidade}%
                                                         </span>
                                                     </div>
                                                 </td>
 
                                                 {criterioRanking === 'TOTAL' && (
-                                                    <td className="py-3.5 px-3 text-center bg-slate-50/70">
+                                                    <td className="py-3.5 px-3 text-center bg-slate-50/70 dark:bg-slate-800/40">
                                                         <button
                                                             type="button"
                                                             onClick={() => abrirModalAuditoria(`Todas as Vendas — ${uni.nome}`, uni.nome, 'VENDA', uni.todosRegistrosUnidade, uni.vendas)}
@@ -610,11 +611,11 @@ const RankingGlobalTab = ({
                                                 )}
 
                                                 {(criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') && (
-                                                    <td className="py-3.5 px-3 text-center bg-emerald-50/20 border-x border-slate-100">
+                                                    <td className="py-3.5 px-3 text-center bg-emerald-50/20 border-x border-slate-100 dark:bg-emerald-500/10 dark:border-slate-800">
                                                         <button
                                                             type="button"
                                                             onClick={() => abrirModalAuditoria(`Todos os Planos — ${uni.nome}`, uni.nome, 'VENDA', uni.registrosPlanosUnidade, uni.totalPlanos)}
-                                                            className="inline-flex items-center justify-center min-w-[42px] px-2.5 py-1 rounded-lg text-xs font-black text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200 border border-emerald-300 transition-colors shadow-sm"
+                                                            className="inline-flex items-center justify-center min-w-[42px] px-2.5 py-1 rounded-lg text-xs font-black text-emerald-800 bg-emerald-100/80 hover:bg-emerald-200 border border-emerald-300 transition-colors shadow-sm dark:text-emerald-300 dark:bg-emerald-500/20 dark:border-emerald-500/30"
                                                             title="Auditar apenas os planos vendidos nesta unidade"
                                                         >
                                                             {String(uni.totalPlanos).padStart(2, '0')}
@@ -628,7 +629,7 @@ const RankingGlobalTab = ({
                                                     const isColOrdenada = colunaOrdemMatriz === col.key;
 
                                                     return (
-                                                        <td key={col.key} className={`py-3.5 px-2.5 text-center ${isColOrdenada ? 'bg-blue-50/20' : ''}`}>
+                                                        <td key={col.key} className={`py-3.5 px-2.5 text-center ${isColOrdenada ? 'bg-blue-50/20 dark:bg-blue-500/10' : ''}`}>
                                                             {valorCel > 0 ? (
                                                                 <button
                                                                     type="button"
@@ -655,12 +656,12 @@ const RankingGlobalTab = ({
                                                                     onClick={() => abrirModalAuditoria(`${nomeItem} — ${uni.nome}`, uni.nome, 'VENDA', itemData.vendasAuditaveis, itemData.total)}
                                                                     className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all shadow-sm cursor-pointer ${
                                                                         criterioRanking === 'PRODUTOS'
-                                                                            ? 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200 hover:border-amber-300'
-                                                                            : 'bg-white hover:bg-violet-50 text-slate-700 border-slate-200 hover:border-violet-300'
+                                                                            ? 'bg-white hover:bg-amber-50 text-slate-700 border-slate-200 hover:border-amber-300 dark:bg-slate-900 dark:hover:bg-amber-500/10 dark:text-slate-200 dark:border-slate-800 dark:hover:border-amber-500/30'
+                                                                            : 'bg-white hover:bg-violet-50 text-slate-700 border-slate-200 hover:border-violet-300 dark:bg-slate-900 dark:hover:bg-violet-500/10 dark:text-slate-200 dark:border-slate-800 dark:hover:border-violet-500/30'
                                                                     }`}
                                                                     title={`Auditar ${nomeItem}`}
                                                                 >
-                                                                    <span className={criterioRanking === 'PRODUTOS' ? 'text-amber-600' : 'text-violet-600'}>
+                                                                    <span className={criterioRanking === 'PRODUTOS' ? 'text-amber-600 dark:text-amber-400' : 'text-violet-600 dark:text-violet-400'}>
                                                                         {String(itemData.total).padStart(2, '0')}x
                                                                     </span>
                                                                     <span className="uppercase truncate max-w-[180px]">{nomeItem}</span>
@@ -678,7 +679,7 @@ const RankingGlobalTab = ({
                             {/* RODAPÉ TOTALIZADOR DA REDE */}
                             {rankingUnidades.length > 1 && (
                                 <tfoot>
-                                    <tr className="bg-slate-900 text-white font-black border-t-2 border-slate-300">
+                                    <tr className="bg-slate-900 text-white font-black border-t-2 border-slate-300 dark:border-slate-700">
                                         <td className="py-3.5 px-4 text-center text-[10px] uppercase tracking-widest text-amber-400">∑</td>
                                         <td className="py-3.5 px-4 text-[11px] uppercase tracking-widest sticky left-0 bg-slate-900 z-10">
                                             TOTAL DA REDE

@@ -278,14 +278,14 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             valorTotal: 0,
             qtdTotal: 0,
             grupos: {
-                "NUTRI": { qtd: 0, valor: 0, itens: {}, icone: Leaf, cor: 'text-emerald-600', bg: 'bg-emerald-100', border: 'border-emerald-200' },
-                "PLUS": { qtd: 0, valor: 0, itens: {}, icone: Star, cor: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
-                "FIT": { qtd: 0, valor: 0, itens: {}, icone: Activity, cor: 'text-indigo-600', bg: 'bg-indigo-100', border: 'border-indigo-200' },
-                "PERSONAL CLASS": { qtd: 0, valor: 0, itens: {}, icone: Dumbbell, cor: 'text-rose-600', bg: 'bg-rose-100', border: 'border-rose-200' },
-                "OUTROS PLANOS": { qtd: 0, valor: 0, itens: {}, icone: Layers, cor: 'text-slate-600', bg: 'bg-slate-200', border: 'border-slate-300' },
-                "PRODUTOS": { qtd: 0, valor: 0, itens: {}, icone: ShoppingBag, cor: 'text-amber-600', bg: 'bg-amber-100', border: 'border-amber-200' },
-                "SERVIÇOS": { qtd: 0, valor: 0, itens: {}, icone: Receipt, cor: 'text-violet-600', bg: 'bg-violet-100', border: 'border-violet-200' },
-                "NÃO CATALOGADO": { qtd: 0, valor: 0, itens: {}, icone: AlertTriangle, cor: 'text-red-600', bg: 'bg-red-100', border: 'border-red-400' }
+                "NUTRI": { qtd: 0, valor: 0, itens: {}, icone: Leaf, cor: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/20', border: 'border-emerald-200 dark:border-emerald-500/30' },
+                "PLUS": { qtd: 0, valor: 0, itens: {}, icone: Star, cor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/20', border: 'border-blue-200 dark:border-blue-500/30' },
+                "FIT": { qtd: 0, valor: 0, itens: {}, icone: Activity, cor: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/20', border: 'border-blue-200 dark:border-blue-500/30' },
+                "PERSONAL CLASS": { qtd: 0, valor: 0, itens: {}, icone: Dumbbell, cor: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-500/20', border: 'border-rose-200 dark:border-rose-500/30' },
+                "OUTROS PLANOS": { qtd: 0, valor: 0, itens: {}, icone: Layers, cor: 'text-slate-600 dark:text-slate-300', bg: 'bg-slate-200 dark:bg-slate-700', border: 'border-slate-300 dark:border-slate-700' },
+                "PRODUTOS": { qtd: 0, valor: 0, itens: {}, icone: ShoppingBag, cor: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/20', border: 'border-amber-200 dark:border-amber-500/30' },
+                "SERVIÇOS": { qtd: 0, valor: 0, itens: {}, icone: Receipt, cor: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-500/20', border: 'border-violet-200 dark:border-violet-500/30' },
+                "NÃO CATALOGADO": { qtd: 0, valor: 0, itens: {}, icone: AlertTriangle, cor: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-500/20', border: 'border-red-400' }
             }
         };
         
@@ -404,19 +404,19 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             {/* ========================================== */}
             {/* 🚀 FILTROS DE HISTÓRICO (versão compacta) */}
             {/* ========================================== */}
-            <div className="bg-white rounded-[20px] border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-4 md:p-5 relative z-20 flex flex-col gap-4">
+            <div className="bg-white rounded-[20px] border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-4 md:p-5 relative z-20 flex flex-col gap-4 dark:bg-slate-900 dark:border-slate-800">
 
                 {/* Título + o que está sendo exibido | Limpar + Período */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight">Histórico de vendas</h2>
-                        <p className="text-[12px] font-semibold text-slate-500 mt-0.5 truncate">
+                        <h2 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">Histórico de vendas</h2>
+                        <p className="text-[12px] font-semibold text-slate-500 mt-0.5 truncate dark:text-slate-400">
                             {descricaoPeriodo} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? 'Todas as unidades' : filtroUnidade) : (usuarioLogado?.unidade || '')}
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                         {temFiltroAtivo && (
-                            <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors">
+                            <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
                                 <RefreshCw className="w-3.5 h-3.5" /> Limpar filtros
                             </button>
                         )}
@@ -438,7 +438,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
 
                 {/* Busca + filtros lado a lado */}
                 <div className="flex flex-wrap gap-2.5">
-                    <label className="flex-[2] min-w-[240px] h-[42px] px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow">
+                    <label className="flex-[2] min-w-[240px] h-[42px] px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow dark:bg-slate-900 dark:border-slate-800">
                         <Search className="w-4 h-4 text-slate-400 shrink-0" />
                         <input
                             type="text"
@@ -446,10 +446,10 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                             onChange={(e) => setBusca(e.target.value)}
                             placeholder="Buscar por aluno, CPF ou matrícula"
                             aria-label="Buscar venda por aluno, CPF ou matrícula"
-                            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium text-slate-800 placeholder-slate-400"
+                            className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium text-slate-800 placeholder-slate-400 dark:text-white"
                         />
                         {busca && (
-                            <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca" className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100">
+                            <button type="button" onClick={() => setBusca('')} aria-label="Limpar busca" className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -457,12 +457,12 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
 
                     {temVisaoGlobal && (
                         <div className="relative flex-1 min-w-[170px]">
-                            <Building2 className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroUnidade !== 'TODOS' ? 'text-blue-700' : 'text-slate-400'}`} />
+                            <Building2 className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroUnidade !== 'TODOS' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
                             <select
                                 value={filtroUnidade}
                                 onChange={(e) => setFiltroUnidade(e.target.value)}
                                 aria-label="Unidade"
-                                className={`w-full h-[42px] pl-9 pr-8 rounded-xl border text-[13px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${filtroUnidade !== 'TODOS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold'}`}
+                                className={`w-full h-[42px] pl-9 pr-8 rounded-xl border text-[13px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${filtroUnidade !== 'TODOS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:text-slate-200'}`}
                             >
                                 {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'Unidade: todas' : u}</option>)}
                             </select>
@@ -479,11 +479,11 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                 {/* Filtros ativos (com X para tirar) */}
                 {filtrosAtivos.length > 0 && (
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[11px] font-bold text-slate-500">Filtros ativos:</span>
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Filtros ativos:</span>
                         {filtrosAtivos.map(f => (
-                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700">
+                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                 {f.texto}
-                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors">
+                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
                                     <X className="w-3 h-3" strokeWidth={3} />
                                 </button>
                             </span>
@@ -493,29 +493,29 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             </div>
 
             {exibirDashboard && (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 animate-[slideDown_0.3s_ease-out]">
+                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 animate-[slideDown_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
                     
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-slate-100">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-inner">
+                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-inner dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">
                                 <UserCheck className="w-6 h-6" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                                    Desempenho: <span className="text-blue-600 capitalize">Seleção Personalizada</span>
+                                <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">
+                                    Desempenho: <span className="text-blue-600 capitalize dark:text-blue-400">Seleção Personalizada</span>
                                 </h2>
-                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1.5">
+                                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1.5 dark:text-slate-400">
                                     Resumo operacional
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-4 rounded-xl max-w-sm shadow-sm">
+                        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 p-4 rounded-xl max-w-sm shadow-sm dark:bg-amber-500/10 dark:border-amber-500/30">
                             <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                             <div>
-                                <p className="text-xs font-black text-amber-700 uppercase tracking-widest mb-1">Aviso de Fechamento</p>
+                                <p className="text-xs font-black text-amber-700 uppercase tracking-widest mb-1 dark:text-amber-400">Aviso de Fechamento</p>
                                 <p className="text-xs font-semibold text-amber-600/80 leading-relaxed">
-                                    Este painel exibe o <strong className="text-amber-600">faturamento a conferir</strong>. O valor real depende da auditoria no Caixa.
+                                    Este painel exibe o <strong className="text-amber-600 dark:text-amber-400">faturamento a conferir</strong>. O valor real depende da auditoria no Caixa.
                                 </p>
                             </div>
                         </div>
@@ -526,7 +526,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                         <div className="md:col-span-12 lg:col-span-4 bg-slate-900 rounded-[24px] p-6 md:p-8 border border-slate-800 shadow-xl flex flex-col justify-center relative overflow-hidden h-full">
                             <div className="relative z-10">
                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                                    <Wallet className="w-4 h-4 text-slate-500" /> Faturamento a Conferir
+                                    <Wallet className="w-4 h-4 text-slate-500 dark:text-slate-400" /> Faturamento a Conferir
                                 </p>
                                 <p className="text-4xl md:text-5xl font-black text-white tracking-tight">{formatMoney(resumoVendedor.valorTotal)}</p>
                                 <div className="flex items-center gap-2 mt-4 bg-blue-500/10 text-blue-400 w-max px-3 py-1.5 rounded-lg border border-blue-500/20">
@@ -555,35 +555,35 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                                             <button 
                                                 onClick={() => toggleCategoria(nomeGrupo)} 
                                                 aria-expanded={isExpanded}
-                                                className="w-full text-left px-5 py-4 flex items-center justify-between bg-white"
+                                                className="w-full text-left px-5 py-4 flex items-center justify-between bg-white dark:bg-slate-900"
                                             >
                                                 <div className="flex items-center gap-3">
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${info.bg} ${info.cor}`}>
                                                         <IconeCategoria className="w-5 h-5" />
                                                     </div>
                                                     <div>
-                                                        <h3 className="text-xl font-black text-slate-800 tracking-tight">{String(info.qtd).padStart(2, '0')}</h3>
+                                                        <h3 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{String(info.qtd).padStart(2, '0')}</h3>
                                                         <p className={`text-[10px] font-black uppercase tracking-widest ${info.cor}`}>{nomeGrupo}</p>
                                                     </div>
                                                 </div>
-                                                <div aria-hidden="true" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-slate-100 text-slate-800' : 'bg-slate-50 text-slate-400'}`}>
+                                                <div aria-hidden="true" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white' : 'bg-slate-50 text-slate-400 dark:bg-slate-800/60'}`}>
                                                     {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                                                 </div>
                                             </button>
 
                                             <div className={`transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[400px] opacity-100 overflow-y-auto custom-scrollbar' : 'max-h-0 opacity-0 overflow-hidden'}`}>
-                                                <div className="px-5 pb-5 pt-2 bg-slate-50/50 border-t border-slate-100">
+                                                <div className="px-5 pb-5 pt-2 bg-slate-50/50 border-t border-slate-100 dark:bg-slate-800/40 dark:border-slate-800">
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Detalhamento dos Lançamentos</p>
                                                     <div className="space-y-3">
                                                         {Object.entries(info.itens)
                                                             .sort((a,b) => b[1].qtd - a[1].qtd)
                                                             .map(([nomeProduto, dadosProd]) => (
-                                                                <div key={nomeProduto} className="flex items-start gap-3 bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                                                                    <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-[10px] font-black shrink-0 mt-0.5" title="Quantidade Deduplicada">
+                                                                <div key={nomeProduto} className="flex items-start gap-3 bg-white p-3 rounded-xl border border-slate-100 shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                                                                    <div className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-[10px] font-black shrink-0 mt-0.5 dark:bg-slate-800 dark:text-slate-300" title="Quantidade Deduplicada">
                                                                         {String(dadosProd.qtd).padStart(2, '0')}x
                                                                     </div>
                                                                     <div>
-                                                                        <p className="text-xs font-bold text-slate-700 leading-snug">{toTitleCase(nomeProduto)}</p>
+                                                                        <p className="text-xs font-bold text-slate-700 leading-snug dark:text-slate-200">{toTitleCase(nomeProduto)}</p>
                                                                         <p className="text-[10px] font-bold text-slate-400 mt-1">{formatMoney(dadosProd.valor)}</p>
                                                                     </div>
                                                                 </div>

@@ -31,11 +31,11 @@ const TabContatosCrm = ({ historico }) => {
                         </div>
                         <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
                             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-2">
-                                <span className={`text-[10px] font-black uppercase tracking-widest ${h.alerta ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500'}`}>{h.tipo_acao || 'Anotação'}</span>
+                                <span className={`text-[10px] font-black uppercase tracking-widest ${h.alerta ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>{h.tipo_acao || 'Anotação'}</span>
                                 <span className="text-[10px] font-bold text-slate-400">{formatarDataBR(h.created_at)} às {new Date(h.created_at).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})}</span>
                             </div>
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-300 leading-relaxed mt-2">{h.descricao}</p>
-                            <div className="mt-3 text-[9px] font-black uppercase tracking-widest text-slate-400 text-right">— Por: {h.autor || 'Sistema'}</div>
+                            <div className="mt-3 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">— Por: {h.autor || 'Sistema'}</div>
                         </div>
                     </div>
                 );

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trash2, RotateCcw, Loader2, Info, FilterX } from 'lucide-react';
 import { supabase } from '../../../supabaseClient.js';
 import { formatMoney, formatarCPF, formatDataBR, toTitleCase } from '../utils.js';
+import { avisar } from '../../../components/avisar.js';
 
 // ==========================================
 // ABA "LIXEIRA" DO HISTÓRICO
@@ -38,7 +39,7 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
         const { error } = await supabase.rpc('restaurar_venda', { p_venda_id: Number(linha.venda_id) });
         setRestaurandoId(null);
         if (error) {
-            alert(`Não foi possível restaurar a venda.\n\n${error.message || ''}`);
+            avisar(`Não foi possível restaurar a venda.\n\n${error.message || ''}`);
             return;
         }
         // As vendas voltam sozinhas (tempo real do App); a lixeira recarrega para os contadores
@@ -66,7 +67,7 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                 </div>
                 <div className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 rounded-xl px-4 py-2 text-right self-start lg:self-auto">
                     <p className="text-lg font-black text-rose-600 dark:text-rose-300 leading-none">{visiveis.length} {visiveis.length === 1 ? 'venda' : 'vendas'}</p>
-                    <p className="text-[9px] font-black text-rose-500 dark:text-rose-300/80 uppercase tracking-widest mt-1">{formatMoney(totalComissao)} em comissão excluída</p>
+                    <p className="text-[10px] font-black text-rose-500 dark:text-rose-300/80 uppercase tracking-widest mt-1">{formatMoney(totalComissao)} em comissão excluída</p>
                 </div>
             </div>
 
@@ -109,7 +110,7 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                                         {temVisaoGlobal && !unidadeFiltro && <p className="text-[10px] font-black text-rose-500 uppercase mt-1">{l.unidade}</p>}
                                     </td>
                                     <td className="px-4 py-3">
-                                        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-300 uppercase">{l.quantidade ? `${l.quantidade}x ` : ''}{l.produto}</p>
+                                        <p className="text-xs font-bold text-blue-600 dark:text-blue-300 uppercase">{l.quantidade ? `${l.quantidade}x ` : ''}{l.produto}</p>
                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Venda de {formatDataBR(l.data_venda)} · {toTitleCase(l.vendedor || '')}</p>
                                     </td>
                                     <td className="px-4 py-3 text-xs font-black text-slate-700 dark:text-slate-200 whitespace-nowrap">{formatMoney(l.valor)}</td>

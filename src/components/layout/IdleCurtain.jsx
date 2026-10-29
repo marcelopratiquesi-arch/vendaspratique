@@ -17,7 +17,7 @@ export default function IdleCurtain({ isIdle }) {
                 <p className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-8 leading-relaxed px-4">{t('idle.description')}</p>
                 <button
                     onClick={() => window.location.reload()}
-                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-[0_4px_20px_rgba(37,99,235,0.3)] dark:shadow-[0_4px_20px_rgba(37,99,235,0.4)] active:scale-95 flex items-center justify-center gap-2 border border-blue-400/20"
+                    className="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-[0_4px_20px_rgba(37,99,235,0.3)] dark:shadow-[0_4px_20px_rgba(37,99,235,0.4)] active:scale-95 flex items-center justify-center gap-2 border border-blue-400/20"
                 >
                     <Zap className="w-4 h-4 fill-current text-amber-300" /> {t('idle.button')}
                 </button>

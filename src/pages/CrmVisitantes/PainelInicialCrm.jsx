@@ -41,7 +41,7 @@ const Kpi = ({ icone: Icone, titulo, valor, cor }) => (
         <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-3 ${cor}`}>
             <Icone className="w-4 h-4" />
         </div>
-        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{titulo}</p>
+        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{titulo}</p>
         <p className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{valor}</p>
     </div>
 );
@@ -275,7 +275,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const ehLider = !ehRecepcaoLogada;
     const nomeUnidade = unidadeFoco?.nome || (visaoGlobal ? 'Todas as unidades' : usuarioLogado?.unidade);
     const historicoNoLimite = historico.length >= LIMITE_HISTORICO;
-    const th = 'px-4 py-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
+    const th = 'px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
     const td = 'px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 text-center';
 
     return (
@@ -327,17 +327,17 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                 </div>
                                 <div>
                                     <span className="font-black text-slate-700 dark:text-slate-100 group-hover:text-blue-700 dark:group-hover:text-blue-400 block leading-tight uppercase">{partes[0]}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">{partes.slice(1).join(' ')}</span>
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">{partes.slice(1).join(' ')}</span>
                                     {visaoGlobal && c.unidade && (
-                                        <span className="inline-block mt-1.5 px-1.5 py-px rounded text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">{c.unidade}</span>
+                                        <span className="inline-block mt-1.5 px-1.5 py-px rounded text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">{c.unidade}</span>
                                     )}
                                 </div>
                                 {mostrarPainel && l && (
                                     <div className="w-full pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-3 gap-1">
-                                        <div><p className="text-base font-black text-blue-600 dark:text-blue-400">{l.emAtendimento}</p><p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Carteira</p></div>
-                                        <div><p className="text-base font-black text-slate-700 dark:text-slate-200">{l.acoes}</p><p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Ações</p></div>
-                                        <div><p className="text-base font-black text-emerald-600 dark:text-emerald-400">{l.fechados}</p><p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Fechou</p></div>
-                                        <p className="col-span-3 text-[9px] font-bold text-slate-400 mt-1 truncate">
+                                        <div><p className="text-base font-black text-blue-600 dark:text-blue-400">{l.emAtendimento}</p><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Carteira</p></div>
+                                        <div><p className="text-base font-black text-slate-700 dark:text-slate-200">{l.acoes}</p><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Ações</p></div>
+                                        <div><p className="text-base font-black text-emerald-600 dark:text-emerald-400">{l.fechados}</p><p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Fechou</p></div>
+                                        <p className="col-span-3 text-[10px] font-bold text-slate-400 mt-1 truncate">
                                             {l.ultima ? `Última: ${formatarDataHora(l.ultima)}` : 'Sem ação no período'}
                                         </p>
                                     </div>
@@ -428,11 +428,11 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                             <td className="px-4 py-3">
                                                 <p className="text-xs font-black text-slate-800 dark:text-white uppercase flex items-center gap-1.5">
                                                     {l.colaborador.nome}
-                                                    <button type="button" onClick={(e) => { e.stopPropagation(); abrirRelatorioDe(l.colaborador.nome); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10" title="Ver o relatório de contatos desta recepcionista">
+                                                    <button type="button" onClick={(e) => { e.stopPropagation(); abrirRelatorioDe(l.colaborador.nome); }} className="p-1 rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-400" title="Ver o relatório de contatos desta recepcionista">
                                                         <FileText className="w-3.5 h-3.5" />
                                                     </button>
                                                 </p>
-                                                {visaoGlobal && l.colaborador.unidade && <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{l.colaborador.unidade}</p>}
+                                                {visaoGlobal && l.colaborador.unidade && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{l.colaborador.unidade}</p>}
                                             </td>
                                             <td className={td}>{l.puxados}</td>
                                             <td className={td}>{l.visitantes}</td>
@@ -538,15 +538,15 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                             <tr key={h.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                                 <td className="px-4 py-2.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatarDataHora(h.data_registro || h.created_at)}</td>
                                                 <td className="px-4 py-2.5 text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase whitespace-nowrap">{String(h.consultor || '').split(' ')[0]}</td>
-                                                <td className="px-4 py-2.5"><span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{h.tipo_acao}</span></td>
+                                                <td className="px-4 py-2.5"><span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{h.tipo_acao}</span></td>
                                                 <td className="px-4 py-2.5 text-[11px] font-bold text-slate-800 dark:text-white uppercase whitespace-nowrap">{lead ? (
                                                     <button type="button" onClick={() => setContatoFicha(lead)} className="uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2 transition-colors" title="Abrir a ficha do aluno">
                                                         {lead.nome}
                                                     </button>
                                                 ) : <span className="text-slate-400 normal-case font-medium">Contato fora da lista atual</span>}</td>
-                                                <td className="px-4 py-2.5 text-[9px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{lead?.tipo_lead || '—'}</td>
+                                                <td className="px-4 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">{lead?.tipo_lead || '—'}</td>
                                                 <td className="px-4 py-2.5">
-                                                    {lead ? <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded border ${token?.bg || ''} ${token?.text || 'text-slate-500'} ${token?.border || 'border-slate-200'}`}>{lead.status}</span> : <span className="text-slate-400">—</span>}
+                                                    {lead ? <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border ${token?.bg || ''} ${token?.text || 'text-slate-500 dark:text-slate-400'} ${token?.border || 'border-slate-200 dark:border-slate-800'}`}>{lead.status}</span> : <span className="text-slate-400">—</span>}
                                                 </td>
                                                 <td className="px-4 py-2.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 max-w-[320px] truncate" title={h.observacao}>{h.observacao}</td>
                                             </tr>

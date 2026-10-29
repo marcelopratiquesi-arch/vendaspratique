@@ -6,6 +6,7 @@ import {
     Info, Calendar, Clock, ArrowLeft, Loader2, Plus, Trash2, 
     FileText, Video, Link as LinkIcon, X 
 } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 export default function FormularioComunicado({ usuarioLogado, unidades = [], onVoltar, onSalvo }) {
     const { t } = useI18n();
@@ -57,7 +58,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             setNomePdf(file.name);
         } else if (tipoMedia === 'video') {
             if (file.size > 25 * 1024 * 1024) { // Limite de 25MB
-                alert('O vídeo deve ter no máximo 25MB. Para vídeos maiores, use um link do YouTube.');
+                avisar('O vídeo deve ter no máximo 25MB. Para vídeos maiores, use um link do YouTube.');
                 return;
             }
             setArquivoVideo(file);
@@ -67,7 +68,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
 
     // === HANDLERS DO QUESTIONÁRIO MÚLTIPLO ===
     const adicionarPergunta = () => {
-        if (perguntas.length >= 10) return alert('Máximo de 10 perguntas atingido.');
+        if (perguntas.length >= 10) return avisar('Máximo de 10 perguntas atingido.');
         setPerguntas([...perguntas, { id: Date.now().toString(), texto: '', alternativas: ['', ''], correta: '' }]);
     };
 
@@ -118,16 +119,16 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
     // === PUBLICAÇÃO CENTRAL ===
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!titulo.trim() || !conteudo.trim()) return alert('Preencha o título e o conteúdo principal.');
+        if (!titulo.trim() || !conteudo.trim()) return avisar('Preencha o título e o conteúdo principal.');
 
         // Validação estrita do Questionário
         if (tipo === 'QUESTIONARIO') {
             for (let i = 0; i < perguntas.length; i++) {
                 const p = perguntas[i];
-                if (!p.texto.trim()) return alert(`A Pergunta ${i + 1} está vazia.`);
+                if (!p.texto.trim()) return avisar(`A Pergunta ${i + 1} está vazia.`);
                 const altPreenchidas = p.alternativas.filter(a => a.trim() !== '');
-                if (altPreenchidas.length < 2) return alert(`A Pergunta ${i + 1} precisa de pelo menos 2 alternativas preenchidas.`);
-                if (!p.correta.trim()) return alert(`Selecione a resposta correta para a Pergunta ${i + 1}.`);
+                if (altPreenchidas.length < 2) return avisar(`A Pergunta ${i + 1} precisa de pelo menos 2 alternativas preenchidas.`);
+                if (!p.correta.trim()) return avisar(`Selecione a resposta correta para a Pergunta ${i + 1}.`);
             }
         }
 
@@ -218,7 +219,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             onSalvo();
         } catch (err) {
             console.error(err);
-            alert('Erro ao publicar: ' + (err.message || err));
+            avisar('Erro ao publicar: ' + (err.message || err));
         } finally {
             setLoading(false);
         }
@@ -231,7 +232,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             
             {/* HEADER COMPACTO */}
             <div className="flex flex-col gap-2 mb-8">
-                <button onClick={onVoltar} className="w-fit flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-white/60 dark:bg-white/5 px-4 py-2 rounded-lg border border-slate-200/50 dark:border-white/5 shadow-sm backdrop-blur-md">
+                <button onClick={onVoltar} className="w-fit flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-white/60 dark:bg-white/5 px-4 py-2 rounded-lg border border-slate-200/50 dark:border-white/5 shadow-sm backdrop-blur-md dark:text-slate-400 dark:hover:text-blue-400">
                     <ArrowLeft className="w-3.5 h-3.5" /> {t('communications.back', {defaultValue: 'Voltar'})}
                 </button>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mt-2">{t('communications.new', {defaultValue: 'Novo Comunicado Operacional'})}</h2>
@@ -260,20 +261,20 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                         {/* ANEXOS RICOS */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-slate-200/50 dark:border-white/5">
                             
-                            <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${previewBanner ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-300 dark:border-white/10 hover:border-blue-300 bg-slate-50/50 dark:bg-white/5'}`}>
+                            <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${previewBanner ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-300 dark:border-white/10 hover:border-blue-300 bg-slate-50/50 dark:bg-white/5 dark:hover:border-blue-500/30'}`}>
                                 <ImageIcon className={`w-6 h-6 mb-2 ${previewBanner ? 'text-blue-500' : 'text-slate-400'}`} />
                                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{previewBanner ? 'Imagem Anexada' : 'Adicionar Banner/Imagem'}</span>
                                 <input type="file" accept="image/png, image/jpeg, image/webp" onChange={(e) => handleFileChange(e, 'banner')} className="hidden" />
                             </label>
 
-                            <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${nomePdf ? 'border-rose-400 bg-rose-50/50 dark:bg-rose-500/10' : 'border-slate-300 dark:border-white/10 hover:border-rose-300 bg-slate-50/50 dark:bg-white/5'}`}>
+                            <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${nomePdf ? 'border-rose-400 bg-rose-50/50 dark:bg-rose-500/10' : 'border-slate-300 dark:border-white/10 hover:border-rose-300 bg-slate-50/50 dark:bg-white/5 dark:hover:border-rose-500/30'}`}>
                                 <FileText className={`w-6 h-6 mb-2 ${nomePdf ? 'text-rose-500' : 'text-slate-400'}`} />
                                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate px-2 w-full">{nomePdf || 'Anexar Documento (PDF)'}</span>
                                 <input type="file" accept="application/pdf" onChange={(e) => handleFileChange(e, 'pdf')} className="hidden" />
                             </label>
 
-                            <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${nomeVideo ? 'border-indigo-400 bg-indigo-50/50 dark:bg-indigo-500/10' : 'border-slate-300 dark:border-white/10 hover:border-indigo-300 bg-slate-50/50 dark:bg-white/5'}`}>
-                                <Video className={`w-6 h-6 mb-2 ${nomeVideo ? 'text-indigo-500' : 'text-slate-400'}`} />
+                            <label className={`cursor-pointer border-2 border-dashed rounded-2xl flex flex-col items-center justify-center p-4 transition-all text-center ${nomeVideo ? 'border-blue-400 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-300 dark:border-white/10 hover:border-blue-300 bg-slate-50/50 dark:bg-white/5 dark:hover:border-blue-500/30'}`}>
+                                <Video className={`w-6 h-6 mb-2 ${nomeVideo ? 'text-blue-500' : 'text-slate-400'}`} />
                                 <span className="text-xs font-bold text-slate-600 dark:text-slate-300 truncate px-2 w-full">{nomeVideo || 'Vídeo Curto (Até 25MB)'}</span>
                                 <input type="file" accept="video/mp4, video/webm" onChange={(e) => handleFileChange(e, 'video')} className="hidden" />
                             </label>
@@ -295,7 +296,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-                        <button type="button" onClick={() => setTipo('INFORMATIVO')} className={`p-5 rounded-2xl border text-left flex flex-col gap-2.5 transition-all ${tipo === 'INFORMATIVO' ? 'bg-emerald-50 dark:bg-emerald-600/10 border-emerald-400 shadow-md shadow-emerald-500/10 text-slate-900 dark:text-white' : 'bg-white/80 dark:bg-white/5 border-slate-200/70 dark:border-white/10 text-slate-500 hover:border-emerald-300 dark:hover:border-white/30 shadow-sm'}`}>
+                        <button type="button" onClick={() => setTipo('INFORMATIVO')} className={`p-5 rounded-2xl border text-left flex flex-col gap-2.5 transition-all ${tipo === 'INFORMATIVO' ? 'bg-emerald-50 dark:bg-emerald-600/10 border-emerald-400 shadow-md shadow-emerald-500/10 text-slate-900 dark:text-white' : 'bg-white/80 dark:bg-white/5 border-slate-200/70 dark:border-white/10 text-slate-500 hover:border-emerald-300 dark:hover:border-white/30 shadow-sm dark:text-slate-400'}`}>
                             <div className={`p-2 w-fit rounded-xl ${tipo === 'INFORMATIVO' ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-slate-100 dark:bg-white/10 text-slate-400'}`}>
                                 <CheckCircle className="w-5 h-5" />
                             </div>
@@ -303,7 +304,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             <span className="text-[11px] font-semibold leading-tight opacity-80">Usuário destrava clicando em "Li e estou ciente".</span>
                         </button>
 
-                        <button type="button" onClick={() => setTipo('QUESTIONARIO')} className={`p-5 rounded-2xl border text-left flex flex-col gap-2.5 transition-all ${tipo === 'QUESTIONARIO' ? 'bg-purple-50 dark:bg-purple-600/10 border-purple-400 shadow-md shadow-purple-500/10 text-slate-900 dark:text-white' : 'bg-white/80 dark:bg-white/5 border-slate-200/70 dark:border-white/10 text-slate-500 hover:border-purple-300 dark:hover:border-white/30 shadow-sm'}`}>
+                        <button type="button" onClick={() => setTipo('QUESTIONARIO')} className={`p-5 rounded-2xl border text-left flex flex-col gap-2.5 transition-all ${tipo === 'QUESTIONARIO' ? 'bg-purple-50 dark:bg-purple-600/10 border-purple-400 shadow-md shadow-purple-500/10 text-slate-900 dark:text-white' : 'bg-white/80 dark:bg-white/5 border-slate-200/70 dark:border-white/10 text-slate-500 hover:border-purple-300 dark:hover:border-white/30 shadow-sm dark:text-slate-400'}`}>
                             <div className={`p-2 w-fit rounded-xl ${tipo === 'QUESTIONARIO' ? 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400' : 'bg-slate-100 dark:bg-white/10 text-slate-400'}`}>
                                 <HelpCircle className="w-5 h-5" />
                             </div>
@@ -422,7 +423,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
 
                 <button 
                     type="submit" disabled={loading}
-                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black uppercase tracking-widest py-5 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-sm disabled:opacity-50"
+                    className="w-full bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white font-black uppercase tracking-widest py-5 rounded-[20px] shadow-[0_10px_40px_-10px_rgba(37,99,235,0.6)] active:scale-[0.98] transition-all flex items-center justify-center gap-3 text-sm disabled:opacity-50"
                 >
                     {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Publicando Interrupção...</> : <><Send className="w-5 h-5" /> Publicar e Bloquear Destinatários</>}
                 </button>

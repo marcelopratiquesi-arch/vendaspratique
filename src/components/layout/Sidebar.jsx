@@ -200,7 +200,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                     </button>
                 )}
                 {modo === 'mobile' && (
-                    <button onClick={onFecharMobile} className="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                    <button onClick={onFecharMobile} className="w-9 h-9 flex items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 dark:hover:bg-white/5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-slate-400">
                         <X className="w-5 h-5" />
                     </button>
                 )}

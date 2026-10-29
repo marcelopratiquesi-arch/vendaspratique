@@ -7,6 +7,7 @@ import {
     HelpCircle, Info, ShieldAlert, X, Loader2, Trash2, Eye, FileText,
     BarChart3, Users, Lock, Unlock, ArrowLeft, ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
     const { locale, language } = useI18n(); 
@@ -79,10 +80,10 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
             if (error) throw error;
             
             setInboxes(prev => prev.map(i => i.id === inboxId ? { ...i, tentativas: 0, status_leitura: 'PENDENTE' } : i));
-            alert("Nova chance liberada com sucesso!");
+            avisar("Nova chance liberada com sucesso!");
         } catch (err) {
             console.error("ERRO DO SUPABASE:", err);
-            alert("Erro ao liberar nova chance: " + (err.message || "Erro desconhecido"));
+            avisar("Erro ao liberar nova chance: " + (err.message || "Erro desconhecido"));
         }
     };
 
@@ -106,11 +107,11 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl p-6 rounded-[32px] border border-slate-200/50 dark:border-white/5 shadow-sm">
                 <div>
-                    <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors mb-4">
+                    <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors mb-4 dark:text-slate-400 dark:hover:text-blue-400">
                         <ArrowLeft className="w-3.5 h-3.5" /> Voltar para Central
                     </button>
                     <div className="flex items-center gap-3 mb-1">
-                        <span className="bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-500/20">
+                        <span className="bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-500/20">
                             {comunicado.tipo}
                         </span>
                         <span className="text-xs font-bold text-slate-400">{new Date(comunicado.inicio_em).toLocaleDateString(langAtual)}</span>
@@ -171,18 +172,18 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                                     <tr key={item.id} className="border-b border-slate-100 dark:border-white/5 hover:bg-slate-50/50 dark:hover:bg-white/[0.02] transition-colors">
                                         <td className="px-6 py-4">
                                             <p className="text-sm font-bold text-slate-900 dark:text-white">{item.nome}</p>
-                                            <p className="text-[10px] font-semibold text-slate-500 mt-0.5">{item.email_usuario} • {item.unidade}</p>
+                                            <p className="text-[10px] font-semibold text-slate-500 mt-0.5 dark:text-slate-400">{item.email_usuario} • {item.unidade}</p>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${item.tentativas >= 5 ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20' : item.tentativas > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20' : 'bg-slate-100 text-slate-400 dark:bg-white/5'}`}>
+                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${item.tentativas >= 5 ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : item.tentativas > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-400 dark:bg-white/5'}`}>
                                                 {item.tentativas}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className={`px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border ${
-                                                item.status_leitura === 'CONCLUIDO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
-                                                item.status_leitura === 'BLOQUEADO' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20' :
-                                                item.status_leitura === 'PENDENTE' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20' :
+                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
+                                                item.status_leitura === 'CONCLUIDO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' :
+                                                item.status_leitura === 'BLOQUEADO' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400' :
+                                                item.status_leitura === 'PENDENTE' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400' :
                                                 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-white/5 dark:border-white/10 dark:text-slate-400'
                                             }`}>
                                                 {item.status_leitura}
@@ -190,7 +191,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             {item.status_leitura === 'BLOQUEADO' ? (
-                                                <button onClick={() => handleResetarTentativas(item.id, item.nome)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:border-rose-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">
+                                                <button onClick={() => handleResetarTentativas(item.id, item.nome)} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 dark:border-rose-500/30 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm dark:text-rose-400">
                                                     <Unlock className="w-3.5 h-3.5" /> Liberar
                                                 </button>
                                             ) : (
@@ -215,8 +216,8 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                     <div className="p-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/10">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Página {pagina} de {totalPaginas}</span>
                         <div className="flex gap-2">
-                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5"><ChevronLeft className="w-4 h-4" /></button>
-                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5"><ChevronRight className="w-4 h-4" /></button>
+                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
+                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
                         </div>
                     </div>
                 )}
@@ -346,7 +347,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                 fetchDados(); 
             } catch (err) {
                 console.error("Erro ao excluir:", err);
-                alert("Erro ao excluir comunicado.");
+                avisar("Erro ao excluir comunicado.");
             }
         }
     };
@@ -413,7 +414,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                         <input type="text" placeholder={t('communications.search', { defaultValue: 'Buscar...' })} value={filtroTexto} onChange={(e) => setFiltroTexto(e.target.value)} className="w-full bg-white dark:bg-white/5 border border-slate-200/70 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-slate-700 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm" />
                     </div>
                     {isGestor && (
-                        <button onClick={() => setModo('criar')} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] active:scale-95 shrink-0">
+                        <button onClick={() => setModo('criar')} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] active:scale-95 shrink-0">
                             <Plus className="w-4 h-4" /> {t('communications.new', { defaultValue: 'Novo' })}
                         </button>
                     )}
@@ -425,7 +426,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
             ) : cardsVisiveis.length === 0 ? (
                 <div className="col-span-full py-20 flex flex-col items-center justify-center opacity-50">
                     <Megaphone className="w-16 h-16 text-slate-400 mb-4" strokeWidth={1} />
-                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">{t('communications.empty', {defaultValue: 'Nenhum comunicado encontrado.'})}</p>
+                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">{t('communications.empty', {defaultValue: 'Nenhum comunicado encontrado.'})}</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -440,12 +441,12 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                         return (
                             <div key={com.id} className="bg-white/90 dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200/70 dark:border-white/10 shadow-sm rounded-3xl p-5 flex flex-col relative transition-all hover:shadow-lg">
                                 
-                                {(isUnread || isPending) && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-500"></div>}
+                                {(isUnread || isPending) && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-500"></div>}
                                 {isBlocked && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>}
                                 {isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-slate-300 dark:bg-white/20"></div>}
 
                                 <div className="flex justify-between items-start mb-3">
-                                    <span className="px-2.5 py-1 rounded-md text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/5 dark:text-slate-300 dark:border-white/10">
+                                    <span className="px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border flex items-center gap-1.5 bg-slate-100 text-slate-600 border-slate-200 dark:bg-white/5 dark:text-slate-300 dark:border-white/10">
                                         {com.tipo === 'INFORMATIVO' ? <Info className="w-3 h-3" /> : <HelpCircle className="w-3 h-3" />} {com.tipo}
                                     </span>
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(com.inicio_em).toLocaleDateString(langAtual)}</span>
@@ -469,10 +470,10 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
 
                                 {isAuthor && card.metrics && (
                                     <div className="mb-4 py-3 border-t border-b border-slate-100 dark:border-white/5 grid grid-cols-4 gap-1 text-center">
-                                        <div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Enviados</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
-                                        <div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Abertos</span><span className="text-xs font-black text-blue-600 dark:text-blue-400">{card.metrics.lidos}</span></div>
-                                        <div className="flex flex-col"><span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Ok</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.concluidos}</span></div>
-                                        <div className="flex flex-col"><span className="text-[8px] font-black text-rose-400 uppercase tracking-widest">Block</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{card.metrics.bloqueados}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Enviados</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Abertos</span><span className="text-xs font-black text-blue-600 dark:text-blue-400">{card.metrics.lidos}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ok</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.concluidos}</span></div>
+                                        <div className="flex flex-col"><span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Block</span><span className="text-xs font-black text-rose-600 dark:text-rose-400">{card.metrics.bloqueados}</span></div>
                                     </div>
                                 )}
 
@@ -483,7 +484,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                     
                                     {isAuthor && (
                                         <>
-                                            <button onClick={(e) => abrirRelatorio(e, com)} className="px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-100 dark:bg-indigo-500/10 dark:border-indigo-500/20 dark:hover:bg-indigo-500/20 dark:text-indigo-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
+                                            <button onClick={(e) => abrirRelatorio(e, com)} className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20 dark:hover:bg-blue-500/20 dark:text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
                                                 <BarChart3 className="w-3.5 h-3.5" /> Relatório
                                             </button>
                                             <button onClick={(e) => excluirComunicado(e, com.id, getTextoLocalizado(com, 'titulo'))} className="p-2 bg-slate-50 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-transparent hover:border-rose-100 dark:bg-transparent dark:hover:bg-rose-500/10 dark:hover:border-rose-500/20 dark:hover:text-rose-400 rounded-xl transition-all" title="Excluir">
@@ -541,7 +542,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Formato PDF</p>
                                                 </div>
                                             </div>
-                                            <a href={com.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm">Abrir Arquivo</a>
+                                            <a href={com.pdf_url} target="_blank" rel="noreferrer" className="px-5 py-2.5 bg-white dark:bg-white/10 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-200 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-blue-50 hover:text-blue-600 transition-colors shadow-sm dark:hover:bg-blue-500/10 dark:hover:text-blue-400">Abrir Arquivo</a>
                                         </div>
                                     )}
                                     {com.video_url && (

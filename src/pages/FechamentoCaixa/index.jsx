@@ -7,6 +7,7 @@ import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
 import { CalendarDays, CalendarRange, Sun, RefreshCw, Building2, UserCheck, AlertCircle, PieChart, ShieldAlert, Wallet, ClipboardCheck, Users, BarChart2 } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 // Data de hoje no horário do computador (Brasília): o dia vai até 23h59, e não vira às 21h como no horário UTC
 const hojeLocalISO = () => {
@@ -79,7 +80,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         if (error) {
             console.error("Erro ao atualizar:", error);
-            alert("Erro de conexão. Revertendo alteração.");
+            avisar("Erro de conexão. Revertendo alteração.");
             setVendas(vendas.map(v => v.id === id ? { ...v, conferiu: statusAtual } : v));
         }
     };
@@ -104,7 +105,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         if (error) {
             console.error("Erro ao editar venda:", error);
-            alert("Erro ao salvar a edição. Tente novamente.");
+            avisar("Erro ao salvar a edição. Tente novamente.");
             throw error; 
         } else {
             setVendas(vendas.map(v => v.id === vendaEditada.id ? { ...v, ...vendaEditada, comissao: vendaEditada.valor } : v));
@@ -118,7 +119,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         const error = await excluirVendaComMotivo(supabase, id, motivo);
         if (error) {
             console.error("Erro ao excluir venda:", error);
-            alert(`Não foi possível excluir a venda.\n\n${error.message || ''}`);
+            avisar(`Não foi possível excluir a venda.\n\n${error.message || ''}`);
             return false;
         }
         setVendas(vendas.filter(v => v.id !== id));
@@ -239,33 +240,33 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto pb-10">
             
             {/* NOVO HEADER REDESIGN PREMIUM */}
-            <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-slate-200 p-6 md:p-8 relative z-20">
+            <div className="bg-white rounded-[24px] shadow-[0_2px_10px_rgba(0,0,0,0.02)] border border-slate-200 p-6 md:p-8 relative z-20 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-indigo-600 text-white rounded-[18px] flex items-center justify-center shrink-0 shadow-md">
+                        <div className="w-14 h-14 bg-blue-600 text-white rounded-[18px] flex items-center justify-center shrink-0 shadow-md">
                             <Wallet className="w-6 h-6" />
                         </div>
                         <div className="flex flex-col">
-                            <h2 className="text-2xl font-black text-slate-800 tracking-tight">Fechamento & Auditoria</h2>
-                            <p className="text-[13px] font-medium text-slate-500 mt-0.5">Gestão Financeira • Unidade {usuarioLogado?.unidade}</p>
+                            <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">Fechamento & Auditoria</h2>
+                            <p className="text-[13px] font-medium text-slate-500 mt-0.5 dark:text-slate-400">Gestão Financeira • Unidade {usuarioLogado?.unidade}</p>
                             <p className="text-[11px] font-medium text-slate-400 mt-0.5">Selecione o período desejado para conferência de caixa e comissionamento.</p>
                         </div>
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-                        <button onClick={limparFiltros} title="Limpar Filtros" className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-500 rounded-[16px] transition-all shadow-sm shrink-0">
+                        <button onClick={limparFiltros} title="Limpar Filtros" className="flex flex-col items-center justify-center w-14 h-14 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-500 rounded-[16px] transition-all shadow-sm shrink-0 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:hover:bg-slate-800/60 dark:text-slate-400">
                             <RefreshCw className="w-4 h-4 mb-0.5" />
-                            <span className="text-[8px] font-black uppercase tracking-widest leading-none text-center">Limpar<br/>Filtros</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest leading-none text-center">Limpar<br/>Filtros</span>
                         </button>
                         
-                        <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-200 flex-1 md:flex-none overflow-x-auto custom-scrollbar shadow-inner">
-                            <button onClick={() => setTipoFiltroAvancado('mes')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'mes' ? 'bg-white shadow-sm text-indigo-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                        <div className="flex bg-slate-50 p-1.5 rounded-[20px] border border-slate-200 flex-1 md:flex-none overflow-x-auto custom-scrollbar shadow-inner dark:bg-slate-800/60 dark:border-slate-800">
+                            <button onClick={() => setTipoFiltroAvancado('mes')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'mes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                                 <CalendarDays className="w-4 h-4" /> Mês
                             </button>
-                            <button onClick={() => setTipoFiltroAvancado('periodo')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'periodo' ? 'bg-white shadow-sm text-indigo-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                            <button onClick={() => setTipoFiltroAvancado('periodo')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'periodo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                                 <CalendarRange className="w-4 h-4" /> Período
                             </button>
-                            <button onClick={() => setTipoFiltroAvancado('dia')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'dia' ? 'bg-white shadow-sm text-indigo-700 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                            <button onClick={() => setTipoFiltroAvancado('dia')} className={`flex-1 md:w-32 px-4 py-3 rounded-[14px] text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${tipoFiltroAvancado === 'dia' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                                 <Sun className="w-4 h-4" /> Dia
                             </button>
                         </div>
@@ -275,15 +276,15 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6 mb-6">
                     {tipoFiltroAvancado === 'mes' && (
                         <>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Mês Ref.</label>
-                                <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm cursor-pointer">
+                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
+                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Mês Ref.</label>
+                                <select value={filtroMes} onChange={(e) => setFiltroMes(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200">
                                     {mesesLista.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
                                 </select>
                             </div>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Ano Ref.</label>
-                                <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm cursor-pointer">
+                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
+                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Ano Ref.</label>
+                                <select value={filtroAno} onChange={(e) => setFiltroAno(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm cursor-pointer dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200">
                                     {anosUnicos.map(a => <option key={a} value={a}>{a}</option>)}
                                 </select>
                             </div>
@@ -292,28 +293,28 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
                     {tipoFiltroAvancado === 'periodo' && (
                         <>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">A partir de</label>
-                                <input type="date" value={dataInicialInput} onChange={(e) => setDataInicialInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm" />
+                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
+                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">A partir de</label>
+                                <input type="date" value={dataInicialInput} onChange={(e) => setDataInicialInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
                             </div>
-                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Até (Fim)</label>
-                                <input type="date" value={dataFinalInput} onChange={(e) => setDataFinalInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm" />
+                            <div className="bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
+                                <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Até (Fim)</label>
+                                <input type="date" value={dataFinalInput} onChange={(e) => setDataFinalInput(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
                             </div>
                         </>
                     )}
 
                     {tipoFiltroAvancado === 'dia' && (
-                        <div className="xl:col-span-2 bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50">
-                            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest">Dia Específico</label>
-                            <input type="date" value={filtroDia} onChange={(e) => setFiltroDia(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm" />
+                        <div className="xl:col-span-2 bg-slate-50/50 border border-slate-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-slate-50 dark:bg-slate-800/40 dark:border-slate-800 dark:hover:bg-slate-800/60">
+                            <label className="text-[11px] font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">Dia Específico</label>
+                            <input type="date" value={filtroDia} onChange={(e) => setFiltroDia(e.target.value)} className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
                         </div>
                     )}
 
                     {temVisaoGlobal && (
-                        <div className="bg-rose-50/30 border border-rose-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-rose-50/50">
-                            <label className="text-[11px] font-black text-rose-700 uppercase tracking-widest flex items-center gap-2"><Building2 className="w-3 h-3"/> Isolar Unidade</label>
-                            <select value={filtroUnidadeIsolada} onChange={(e) => setFiltroUnidadeIsolada(e.target.value)} className="w-full bg-white border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm font-black outline-none cursor-pointer uppercase shadow-sm">
+                        <div className="bg-rose-50/30 border border-rose-100 rounded-[20px] p-4 flex flex-col gap-3 transition-colors hover:bg-rose-50/50 dark:bg-rose-500/10 dark:border-rose-500/30 dark:hover:bg-rose-500/10">
+                            <label className="text-[11px] font-black text-rose-700 uppercase tracking-widest flex items-center gap-2 dark:text-rose-400"><Building2 className="w-3 h-3"/> Isolar Unidade</label>
+                            <select value={filtroUnidadeIsolada} onChange={(e) => setFiltroUnidadeIsolada(e.target.value)} className="w-full bg-white border border-rose-200 text-rose-700 rounded-xl px-4 py-3 text-sm font-black outline-none cursor-pointer uppercase shadow-sm dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-400">
                                 {unidadesUnicas.map(u => <option key={u} value={u}>{u === 'TODOS' ? 'TODAS AS UNIDADES' : u}</option>)}
                             </select>
                         </div>
@@ -321,18 +322,18 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 </div>
 
                 {/* BOTÕES DE ABAS */}
-                <div className="flex bg-slate-100 p-1.5 rounded-[18px] w-full border border-slate-200 overflow-x-auto custom-scrollbar shadow-inner mt-4">
-                    <button onClick={() => setSubAba('conferencia')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'conferencia' ? 'bg-white shadow-sm text-indigo-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                <div className="flex bg-slate-100 p-1.5 rounded-[18px] w-full border border-slate-200 overflow-x-auto custom-scrollbar shadow-inner mt-4 dark:bg-slate-800 dark:border-slate-800">
+                    <button onClick={() => setSubAba('conferencia')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'conferencia' ? 'bg-white shadow-sm text-blue-600 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                         <ClipboardCheck className="w-4 h-4" /> Conferência
                     </button>
-                    <button onClick={() => setSubAba('comissoes')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'comissoes' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                    <button onClick={() => setSubAba('comissoes')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'comissoes' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200/50 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                         <Users className="w-4 h-4" /> Comissões
                     </button>
-                    <button onClick={() => setSubAba('geral')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'geral' ? 'bg-white shadow-sm text-violet-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                    <button onClick={() => setSubAba('geral')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'geral' ? 'bg-white shadow-sm text-blue-600 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                         <PieChart className="w-4 h-4" /> Visão Geral
                     </button>
                     {temVisaoGlobal && (
-                        <button onClick={() => setSubAba('auditoria')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'auditoria' ? 'bg-white shadow-sm text-rose-600 border border-slate-200/50' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}>
+                        <button onClick={() => setSubAba('auditoria')} className={`flex-1 md:min-w-[150px] px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${subAba === 'auditoria' ? 'bg-white shadow-sm text-rose-600 border border-slate-200/50 dark:bg-slate-900 dark:text-rose-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 dark:text-slate-400 dark:hover:text-slate-200'}`}>
                             <ShieldAlert className="w-4 h-4" /> Auditoria
                         </button>
                     )}
@@ -340,34 +341,34 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
             </div>
 
             {subAba === 'comissoes' && (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-[fadeIn_0.3s_ease-out]">
+                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-[fadeIn_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
                     <div>
-                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2">Status do Repasse</h3>
-                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full">
+                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2 dark:text-slate-400">Status do Repasse</h3>
+                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full dark:bg-emerald-500/10 dark:border-emerald-500/30">
                             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">Pagamento Aprovado</span>
+                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest dark:text-emerald-400">Pagamento Aprovado</span>
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1">Comissão Total Auditada</p>
-                        <p className="text-4xl font-bold text-emerald-700 tracking-tight leading-none">{formatMoney(comissaoTotalGeral)}</p>
+                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 dark:text-slate-400">Comissão Total Auditada</p>
+                        <p className="text-4xl font-bold text-emerald-700 tracking-tight leading-none dark:text-emerald-400">{formatMoney(comissaoTotalGeral)}</p>
                     </div>
                 </div>
             )}
 
             {subAba === 'auditoria' && (
                 <div className="flex gap-4 w-full xl:w-auto flex-wrap sm:flex-nowrap animate-[fadeIn_0.3s_ease-out]">
-                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm">
-                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Total Registrado</span>
-                        <span className="text-3xl font-black text-slate-800 tracking-tight leading-none mt-1">{totalAuditoriaRegistrados}</span>
+                    <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">
+                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">Total Registrado</span>
+                        <span className="text-3xl font-black text-slate-800 tracking-tight leading-none mt-1 dark:text-white">{totalAuditoriaRegistrados}</span>
                     </div>
-                    <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm">
+                    <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
                         <span className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Conferidos</span>
-                        <span className="text-3xl font-black text-emerald-700 tracking-tight leading-none mt-1">{totalAuditoriaConferidos}</span>
+                        <span className="text-3xl font-black text-emerald-700 tracking-tight leading-none mt-1 dark:text-emerald-400">{totalAuditoriaConferidos}</span>
                     </div>
-                    <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm">
+                    <div className="bg-rose-50 border border-rose-100 p-4 rounded-2xl flex flex-col items-end flex-1 shadow-sm dark:bg-rose-500/10 dark:border-rose-500/30">
                         <span className="text-[10px] font-black text-rose-500 uppercase tracking-widest">Pendentes</span>
-                        <span className="text-3xl font-black text-rose-700 tracking-tight leading-none mt-1">{totalAuditoriaPendentes}</span>
+                        <span className="text-3xl font-black text-rose-700 tracking-tight leading-none mt-1 dark:text-rose-400">{totalAuditoriaPendentes}</span>
                     </div>
                 </div>
             )}

@@ -27,6 +27,8 @@ Sistema de vendas usado por uma rede de academias (Pratique). O dono do projeto 
    - **Azul como cor principal** (botões e destaques em `blue-*`); verde (`emerald`) para dinheiro/sucesso, vermelho (`rose`) para erro.
    - Sempre manter o modo escuro funcionando (classes `dark:`).
    - Fonte Inter. Ícones da biblioteca `lucide-react`.
+   - **Padronização de 29/10/2026 (decisão do dono):** roxo/índigo de destaque virou azul (ficam com cor própria só as cores de categoria: etiqueta VISITANTE, grupos de planos, Serviços, questionário dos Comunicados, Mentor). Todas as telas ganharam modo escuro, com a tabela de cores do CRM (`bg-white`→`dark:bg-slate-900`, `bg-slate-50`→`dark:bg-slate-800/60`, `border-slate-200`→`dark:border-slate-800`, `text-slate-800`→`dark:text-white`, `bg-COR-50`→`dark:bg-COR-500/10`). Abas escolhidas do CRM sempre azuis. Letra mínima de **10px** (não usar `text-[8px]`/`text-[9px]`). Janelas com largura fixa usam `min(Npx, 100%)` para caber no celular. O Login tem desenho próprio (painel escuro) e ficou de fora.
+   - **Avisos:** nunca usar `alert()`. Usar `avisar(texto)` de [src/components/avisar.js](src/components/avisar.js): aviso no canto da tela, cor pelo texto (erro vermelho, sucesso verde, atenção amarelo) ou forçada (`avisar(texto, 'erro')`). A central [Avisos.jsx](src/components/Avisos.jsx) é montada no main.jsx. Perguntas (sim/não) continuam com `window.confirm`.
 
 8. **A busca de alunos é sempre na rede inteira (decisão do dono — não "corrigir").**
    - O sistema é de comissão e unificado: um aluno de uma unidade pode comprar em outra (ex.: aluno de Neves compra em Santa Inês). É melhor achar o cadastro dele do que cadastrar de novo.

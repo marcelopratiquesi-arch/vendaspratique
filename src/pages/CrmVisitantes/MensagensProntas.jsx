@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Save, Loader2, RotateCcw } from 'lucide-react';
 import { MENSAGENS_PADRAO, preencherMensagem } from './utils';
 import { salvarMensagemPronta, TIPOS_CONTATO } from './contatosFeitos';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // EDITOR DAS MENSAGENS PRONTAS DO WHATSAPP (só Admin e Líder)
@@ -14,7 +15,7 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo }) => {
     const [salvando, setSalvando] = useState(false);
 
     const salvar = async () => {
-        if (CHAVES.some(c => !String(textos[c] || '').trim())) return alert('Nenhuma mensagem pode ficar vazia.');
+        if (CHAVES.some(c => !String(textos[c] || '').trim())) return avisar('Nenhuma mensagem pode ficar vazia.');
         setSalvando(true);
         const erros = [];
         for (const chave of CHAVES) {
@@ -23,7 +24,7 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo }) => {
             if (erro) erros.push(`${TIPOS_CONTATO[chave]}: ${erro.message}`);
         }
         setSalvando(false);
-        if (erros.length) return alert(`Não foi possível salvar:\n\n${erros.join('\n')}`);
+        if (erros.length) return avisar(`Não foi possível salvar:\n\n${erros.join('\n')}`);
         onSalvo({ ...mensagens, ...textos });
         onFechar();
     };
@@ -36,14 +37,14 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo }) => {
                         <h3 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">Mensagens prontas</h3>
                         <p className="text-[10px] font-bold text-slate-400 mt-0.5">Use <strong>{'{nome}'}</strong> para o primeiro nome e <strong>{'{unidade}'}</strong> para a unidade. Vale para todas as unidades.</p>
                     </div>
-                    <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-6 space-y-5 max-h-[70vh] overflow-y-auto custom-scrollbar">
                     {CHAVES.map(chave => (
                         <div key={chave}>
                             <div className="flex items-center justify-between mb-1.5">
                                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{TIPOS_CONTATO[chave]}</label>
-                                <button type="button" onClick={() => setTextos(prev => ({ ...prev, [chave]: MENSAGENS_PADRAO[chave] }))} className="text-[9px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-1">
+                                <button type="button" onClick={() => setTextos(prev => ({ ...prev, [chave]: MENSAGENS_PADRAO[chave] }))} className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-1 dark:hover:text-blue-400">
                                     <RotateCcw className="w-3 h-3" /> Texto padrão
                                 </button>
                             </div>

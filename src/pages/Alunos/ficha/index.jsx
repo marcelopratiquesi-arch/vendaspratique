@@ -11,6 +11,7 @@ import TabContatosCrm from './TabContatosCrm.jsx';
 import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
 import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/contatosFeitos.js';
+import { avisar } from '../../../components/avisar.js';
 
 const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEditar, onVender, onAvaliar, usuarioLogado }) => {
     const [abaAtiva, setAbaAtiva] = useState('dados');
@@ -145,7 +146,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                 }
 
                 const timeline = [];
-                timeline.push({ id: `cad_${aluno.id}`, data_real: new Date(aluno.created_at), tipo: 'CADASTRO', titulo: 'Cadastro Realizado', descricao: `Aluno cadastrado no sistema (${aluno.unidade || 'Sem Vínculo'}).`, icone: UserPlus, corBg: 'bg-indigo-500' });
+                timeline.push({ id: `cad_${aluno.id}`, data_real: new Date(aluno.created_at), tipo: 'CADASTRO', titulo: 'Cadastro Realizado', descricao: `Aluno cadastrado no sistema (${aluno.unidade || 'Sem Vínculo'}).`, icone: UserPlus, corBg: 'bg-blue-500' });
                 vendasAll.forEach(v => timeline.push({ id: `venda_${v.id}`, data_real: new Date(v.data || v.created_at), tipo: 'VENDA', titulo: `Compra: ${v.produto}`, descricao: `Por ${v.vendedor || 'Sistema'} na unidade ${v.unidade}.`, icone: ShoppingCart, corBg: 'bg-blue-500' }));
                 avaliacoesAll.forEach(av => timeline.push({ id: `aval_${av.id}`, data_real: new Date(av.data || av.created_at), tipo: 'AVALIACAO', titulo: 'Avaliação Física', descricao: `Avaliador: ${av.professor || 'N/I'}. Peso: ${av.peso}kg | Gordura: ${av.pgc}%`, icone: Dumbbell, corBg: 'bg-emerald-500' }));
                 leadsAll.forEach(l => timeline.push({ id: `crm_lead_${l.id}`, data_real: new Date(l.created_at || l.data), tipo: 'CRM', titulo: `Funil CRM: ${l.status || l.fase || 'CONTATO'}`, descricao: `Consultor: ${l.vendedor || l.consultor || 'N/I'}.${l.status === 'Perdido' && l.motivo_perda ? ` Motivo da perda: ${l.motivo_perda}.` : ''}`, icone: MessageCircle, corBg: 'bg-amber-500' }));
@@ -204,7 +205,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
         const { error } = await supabase.from('avaliacoes_realizadas').delete().eq('id', id);
         if (error) {
             console.error('Erro ao excluir avaliação:', error);
-            alert('Não foi possível excluir a avaliação. Tente novamente.');
+            avisar('Não foi possível excluir a avaliação. Tente novamente.');
             return;
         }
         // Remove da aba Avaliações e também do Histórico, sem precisar recarregar
@@ -230,7 +231,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
             <div className="mb-5 flex items-center">
                 <button 
                     onClick={onVoltar} 
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60"
                 >
                     <ArrowLeft className="w-3.5 h-3.5" /> {rotuloVoltar}
                 </button>
@@ -241,7 +242,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
 
             <ResumoCardsFicha aluno={aluno} dadosFicha={dadosFicha} loading={loadingDados} />
 
-            <div className="flex bg-white p-1.5 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar mb-6 shadow-sm">
+            <div className="flex bg-white p-1.5 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar mb-6 shadow-sm dark:bg-slate-900 dark:border-slate-800">
                 {abasMenu.map(aba => {
                     const Icone = aba.icon;
                     const ativo = abaAtiva === aba.id;
@@ -251,8 +252,8 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = 'Voltar para Lista', onEdi
                             onClick={() => setAbaAtiva(aba.id)} 
                             className={`flex-1 min-w-[100px] px-3 py-2.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 whitespace-nowrap outline-none ${
                                 ativo 
-                                ? 'bg-blue-50 text-blue-700' 
-                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                                ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' 
+                                : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'
                             }`}
                         >
                             <Icone className="w-3.5 h-3.5" strokeWidth={ativo ? 2.5 : 2} /> {aba.label}

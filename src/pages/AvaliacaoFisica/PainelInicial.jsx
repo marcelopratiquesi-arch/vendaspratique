@@ -9,7 +9,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 
 const colorThemes = [
     { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50/70 dark:bg-blue-900/50', border: 'hover:border-blue-400 dark:hover:border-blue-600', shadow: 'hover:shadow-[0_8px_25px_rgba(59,130,246,0.12)]' },
-    { bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-600 dark:text-indigo-400', iconBg: 'bg-indigo-50/70 dark:bg-indigo-900/50', border: 'hover:border-indigo-400 dark:hover:border-indigo-600', shadow: 'hover:shadow-[0_8px_25px_rgba(99,102,241,0.12)]' },
+    { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50/70 dark:bg-blue-900/50', border: 'hover:border-blue-400 dark:hover:border-blue-600', shadow: 'hover:shadow-[0_8px_25px_rgba(99,102,241,0.12)]' },
     { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-50/70 dark:bg-orange-900/50', border: 'hover:border-orange-400 dark:hover:border-orange-600', shadow: 'hover:shadow-[0_8px_25px_rgba(249,115,22,0.12)]' },
     { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-50/70 dark:bg-emerald-900/50', border: 'hover:border-emerald-400 dark:hover:border-emerald-600', shadow: 'hover:shadow-[0_8px_25px_rgba(16,185,129,0.12)]' },
     { bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-600 dark:text-rose-400', iconBg: 'bg-rose-50/70 dark:bg-rose-900/50', border: 'hover:border-rose-400 dark:hover:border-rose-600', shadow: 'hover:shadow-[0_8px_25px_rgba(244,63,94,0.12)]' }
@@ -38,7 +38,7 @@ const extrairIniciais = (nome) => {
     return `${partes[0][0]}${partes[partes.length - 1][0]}`.toUpperCase();
 };
 const getAvatarColor = (nome) => {
-    const colors = ['bg-blue-100 text-blue-700 border-blue-200', 'bg-emerald-100 text-emerald-700 border-emerald-200', 'bg-violet-100 text-violet-700 border-violet-200', 'bg-amber-100 text-amber-700 border-amber-200', 'bg-rose-100 text-rose-700 border-rose-200', 'bg-cyan-100 text-cyan-700 border-cyan-200'];
+    const colors = ['bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30', 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30', 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-500/20 dark:text-violet-400 dark:border-violet-500/30', 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30', 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-500/20 dark:text-rose-400 dark:border-rose-500/30', 'bg-cyan-100 text-cyan-700 border-cyan-200 dark:bg-cyan-500/20 dark:text-cyan-400 dark:border-cyan-500/30'];
     if (!nome) return colors[0];
     let hash = 0;
     for (let i = 0; i < nome.length; i++) hash = nome.charCodeAt(i) + ((hash << 5) - hash);
@@ -180,7 +180,7 @@ const Secao = ({ icone: Icone, titulo, children }) => (
 
 const Campo = ({ rotulo, valor, destaque }) => (
     <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-700 rounded-xl px-4 py-3">
-        <span className="block text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{rotulo}</span>
+        <span className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{rotulo}</span>
         <span className={`block text-sm font-black ${destaque || 'text-slate-800 dark:text-white'}`}>{valor ?? '—'}</span>
     </div>
 );
@@ -188,7 +188,7 @@ const Campo = ({ rotulo, valor, destaque }) => (
 const LinhaIndicador = ({ rotulo, valor, status }) => (
     <div className="flex items-center justify-between gap-3 py-3 border-b last:border-b-0 border-slate-100 dark:border-slate-700">
         <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{rotulo}: <strong className="text-slate-800 dark:text-white">{valor}</strong></span>
-        {status && <span className={`px-2 py-0.5 rounded border text-[9px] font-black uppercase tracking-widest shrink-0 ${classeStatus(status)}`}>{status}</span>}
+        {status && <span className={`px-2 py-0.5 rounded border text-[10px] font-black uppercase tracking-widest shrink-0 ${classeStatus(status)}`}>{status}</span>}
     </div>
 );
 
@@ -198,7 +198,7 @@ const Variacao = ({ atual, anterior, tipo }) => {
     if (Math.abs(v) < 0.1) return <span className="text-[10px] font-bold text-slate-400 flex items-center justify-center gap-1"><Minus className="w-3 h-3" /> Estável</span>;
     const subiu = v > 0;
     const bom = tipo === 'gordura' ? !subiu : tipo === 'musculo' ? subiu : null;
-    const cor = bom === true ? 'text-emerald-600' : bom === false ? 'text-rose-600' : 'text-slate-500';
+    const cor = bom === true ? 'text-emerald-600 dark:text-emerald-400' : bom === false ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400';
     return (
         <span className={`text-[10px] font-black flex items-center justify-center gap-0.5 ${cor}`}>
             {subiu ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} {subiu ? '+' : ''}{fmt(v)} vs anterior
@@ -275,7 +275,7 @@ const ModalVerAvaliacao = ({ avaliacoes, initialIndex, onClose, perguntasPorId }
 
     const cartoes = [
         { rotulo: 'Peso', icone: Scale, cor: 'text-slate-400', valor: fmt(av.peso), sufixo: 'kg', atual: parseNum(av.peso), ant: anterior ? parseNum(anterior.peso) : null, tipo: 'neutro' },
-        { rotulo: 'Massa muscular', icone: Dumbbell, cor: 'text-indigo-500', valor: fmt(mAtual), sufixo: 'kg', atual: mAtual, ant: mAnt, tipo: 'musculo' },
+        { rotulo: 'Massa muscular', icone: Dumbbell, cor: 'text-blue-500', valor: fmt(mAtual), sufixo: 'kg', atual: mAtual, ant: mAnt, tipo: 'musculo' },
         { rotulo: 'Gordura', icone: Droplet, cor: 'text-orange-500', valor: fmt(gAtual), sufixo: 'kg', atual: gAtual, ant: gAnt, tipo: 'gordura' },
         { rotulo: '% Gordura', icone: Percent, cor: 'text-rose-500', valor: fmt(av.pgc), sufixo: '%', atual: parseNum(av.pgc), ant: anterior ? parseNum(anterior.pgc) : null, tipo: 'gordura' },
     ];
@@ -539,11 +539,11 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     return (
         <div className="w-full relative pb-20 animate-[fadeIn_0.5s_ease-out]">
             <div className="relative w-full max-w-[1440px] mx-auto pt-4 md:pt-6 pb-6 px-4 flex flex-col items-center z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-[16px] flex items-center justify-center mb-3 shadow-[0_8px_25px_rgba(37,99,235,0.4)] border border-blue-400/50 dark:border-blue-500/20">
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-[16px] flex items-center justify-center mb-3 shadow-[0_8px_25px_rgba(37,99,235,0.4)] border border-blue-400/50 dark:border-blue-500/20">
                     <Dumbbell className="w-7 h-7" />
                 </div>
                 <h1 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight text-center max-w-2xl leading-tight">
-                    Painel de <span className="text-blue-600 dark:text-blue-400 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">Avaliação Física</span>
+                    Painel de <span className="text-blue-600 dark:text-blue-400 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-600 dark:from-blue-400 dark:to-blue-400">Avaliação Física</span>
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-3 font-medium text-center text-sm max-w-lg mb-5">
                     Acesse a gestão estratégica ou selecione o perfil de um avaliador.
@@ -561,7 +561,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                 </div>
                                 <div className="text-left">
                                     <span className="font-black uppercase tracking-widest text-xs text-white block mb-0.5">Dashboard Global</span>
-                                    <span className="text-[9px] text-blue-100 font-bold uppercase tracking-widest block">Desempenho de todas as unidades</span>
+                                    <span className="text-[10px] text-blue-100 font-bold uppercase tracking-widest block">Desempenho de todas as unidades</span>
                                 </div>
                             </div>
                             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-colors relative z-10">
@@ -582,7 +582,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                 </div>
                                 <div className="text-left">
                                     <span className="font-black uppercase tracking-widest text-xs text-white block mb-0.5">Dashboard da Unidade</span>
-                                    <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Métricas da Unidade {usuarioLogado?.unidade}</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block">Métricas da Unidade {usuarioLogado?.unidade}</span>
                                 </div>
                             </div>
                             <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30 group-hover:bg-orange-400 transition-colors relative z-10">
@@ -627,7 +627,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <span className="font-extrabold text-slate-800 dark:text-white block leading-tight text-sm truncate" title={c.nome}>{c.nome.split(' ')[0]}</span>
-                                            <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5 block truncate" title={c.nome.split(' ').slice(1).join(' ')}>
+                                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5 block truncate" title={c.nome.split(' ').slice(1).join(' ')}>
                                                 {c.nome.split(' ').slice(1).join(' ') || 'Avaliador'}
                                             </span>
                                         </div>
@@ -640,7 +640,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${theme.iconBg} ${theme.text}`}><BarChart2 className="w-4 h-4" /></div>
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-black text-slate-800 dark:text-white leading-none">{metrica.mes}</span>
-                                                <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Avaliações</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">Avaliações</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 text-right">
@@ -648,7 +648,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                                 <span className="text-[11px] font-black text-slate-800 dark:text-white leading-none">
                                                     {metrica.ultima ? new Date(metrica.ultima).toLocaleDateString(langAtual, {day:'2-digit', month:'2-digit', year:'2-digit'}) : '-'}
                                                 </span>
-                                                <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Última</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">Última</span>
                                             </div>
                                             <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 dark:text-slate-500 group-hover:bg-slate-100 dark:group-hover:bg-slate-700 transition-colors">
                                                 <CalendarDays className="w-4 h-4" />
@@ -666,7 +666,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                 <div className="w-full flex items-center gap-4 mb-6">
                     <div className="h-px bg-slate-300/40 dark:bg-slate-700/50 flex-1"></div>
                     <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-700/50">
-                        <Activity className="w-4 h-4 text-indigo-500 dark:text-indigo-400"/> Acompanhamento Geral
+                        <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400"/> Acompanhamento Geral
                     </span>
                     <div className="h-px bg-slate-300/40 dark:bg-slate-700/50 flex-1"></div>
                 </div>
@@ -675,12 +675,12 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                     <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div>
                             <h2 className="text-lg font-black text-slate-800 dark:text-white tracking-tight leading-none">Últimas Avaliações</h2>
-                            <p className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5">
+                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5">
                                 {avaliacoesRecentes.length} registros encontrados
                             </p>
                         </div>
                         <div className="relative min-w-[200px]" ref={dropdownRef}>
-                            <button onClick={() => setDropdownPeriodoOpen(!dropdownPeriodoOpen)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none hover:border-slate-300 focus:ring-2 focus:ring-blue-500 flex items-center justify-between shadow-sm transition-all">
+                            <button onClick={() => setDropdownPeriodoOpen(!dropdownPeriodoOpen)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none hover:border-slate-300 focus:ring-2 focus:ring-blue-500 flex items-center justify-between shadow-sm transition-all dark:hover:border-slate-700">
                                 <div className="flex items-center gap-2">
                                     <CalendarDays className="w-4 h-4 text-blue-500" />
                                     <span className="truncate">{formatarLabelPeriodo()}</span>
@@ -699,8 +699,8 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                     {filtroPeriodo === 'Personalizado' && (
                                         <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border-t border-slate-200 dark:border-slate-700 flex flex-col gap-3">
                                             <div className="flex gap-2">
-                                                <div className="flex-1"><label className="text-[9px] font-black uppercase text-slate-400 block mb-1">De</label><input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white" /></div>
-                                                <div className="flex-1"><label className="text-[9px] font-black uppercase text-slate-400 block mb-1">Até</label><input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white" /></div>
+                                                <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-400 block mb-1">De</label><input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" /></div>
+                                                <div className="flex-1"><label className="text-[10px] font-black uppercase text-slate-400 block mb-1">Até</label><input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} className="w-full text-xs p-2 rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" /></div>
                                             </div>
                                             <button onClick={aplicarPersonalizado} disabled={!customStart || !customEnd} className="w-full py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase rounded-lg transition-colors">Aplicar Filtro</button>
                                         </div>
@@ -768,20 +768,20 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                                 </td>
                                                 {temVisaoGlobal && (
                                                     <td className="px-5 py-3">
-                                                        <span className="text-[9px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700">{av.unidade}</span>
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:text-slate-400">{av.unidade}</span>
                                                     </td>
                                                 )}
                                                 <td className="px-5 py-3 text-xs font-black text-slate-800 dark:text-white text-right">{p !== null ? `${p.toFixed(1)} kg` : '—'}</td>
-                                                <td className="px-5 py-3 text-xs font-black text-indigo-600 dark:text-indigo-400 text-right">{m !== null ? `${m.toFixed(1)} kg` : '—'}</td>
+                                                <td className="px-5 py-3 text-xs font-black text-blue-600 dark:text-blue-400 text-right">{m !== null ? `${m.toFixed(1)} kg` : '—'}</td>
                                                 <td className="px-5 py-3 text-xs font-black text-rose-600 dark:text-rose-400 text-right">{g !== null ? `${g.toFixed(1)}%` : '—'}</td>
                                                 <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
                                                     <div className="flex items-center justify-center gap-2">
-                                                        <button onClick={() => openModal(av.id)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800 flex items-center gap-1.5 px-3 bg-slate-50 dark:bg-slate-800 shadow-sm" title="Ver Avaliação Completa">
+                                                        <button onClick={() => openModal(av.id)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-800 flex items-center gap-1.5 px-3 bg-slate-50 dark:bg-slate-800 shadow-sm dark:hover:text-blue-400" title="Ver Avaliação Completa">
                                                             <Eye className="w-4 h-4 text-blue-500" />
                                                             <span className="text-[10px] font-black uppercase tracking-wider text-slate-700 dark:text-slate-300">Ver</span>
                                                         </button>
                                                         {av.arquivo_inbody_url ? (
-                                                            <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors shadow-sm" title="Ver Exame em PDF/Imagem">
+                                                            <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black uppercase tracking-widest border border-blue-200 dark:border-blue-800 hover:bg-blue-100 transition-colors shadow-sm dark:hover:bg-blue-500/20" title="Ver Exame em PDF/Imagem">
                                                                 <FileText className="w-3.5 h-3.5" /> PDF
                                                             </a>
                                                         ) : null}
@@ -796,12 +796,12 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                     </div>
                     {totalPaginas > 1 && (
                         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
-                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                 Exibindo {(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, avaliacoesRecentes.length)} de {avaliacoesRecentes.length}
                             </span>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"><ChevronLeft className="w-4 h-4"/></button>
-                                <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors"><ChevronRight className="w-4 h-4"/></button>
+                                <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronLeft className="w-4 h-4"/></button>
+                                <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronRight className="w-4 h-4"/></button>
                             </div>
                         </div>
                     )}

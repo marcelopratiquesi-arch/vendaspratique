@@ -50,9 +50,9 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full lg:w-auto">
                 <div className="relative shrink-0">
                     {aluno.foto_url ? (
-                        <img src={aluno.foto_url} alt={aluno.nome} className="w-14 h-14 rounded-full object-cover border border-slate-200 shadow-sm" />
+                        <img src={aluno.foto_url} alt={aluno.nome} className="w-14 h-14 rounded-full object-cover border border-slate-200 shadow-sm dark:border-slate-800" />
                     ) : (
-                        <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center text-lg font-bold shadow-sm">
+                        <div className="w-14 h-14 rounded-full bg-slate-100 text-slate-500 border border-slate-200 flex items-center justify-center text-lg font-bold shadow-sm dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800">
                             {extrairIniciais(aluno.nome)}
                         </div>
                     )}
@@ -62,16 +62,16 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
                 </div>
 
                 <div className="flex flex-col w-full">
-                    <h2 className="text-[19px] font-extrabold text-slate-800 uppercase tracking-tight mb-1.5">
+                    <h2 className="text-[19px] font-extrabold text-slate-800 uppercase tracking-tight mb-1.5 dark:text-white">
                         {aluno.nome}
                     </h2>
                     
-                    <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-[12px] font-medium text-slate-500">
+                    <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-[12px] font-medium text-slate-500 dark:text-slate-400">
                         
                         {/* MATRÍCULA - AZUL */}
                         <div className="flex items-center gap-1.5">
                             <IdCard className="w-3.5 h-3.5 text-blue-500" />
-                            <span className="text-blue-600 font-semibold">{aluno.matricula && aluno.matricula !== 'VISITANTE' ? `#${aluno.matricula}` : 'S/ Matrícula'}</span>
+                            <span className="text-blue-600 font-semibold dark:text-blue-400">{aluno.matricula && aluno.matricula !== 'VISITANTE' ? `#${aluno.matricula}` : 'S/ Matrícula'}</span>
                             {aluno.matricula && aluno.matricula !== 'VISITANTE' && (
                                 <CopyButton value={aluno.matricula} label="Copiar Matrícula" className="!w-6 !h-6 !min-w-[24px] !rounded-md" />
                             )}
@@ -115,7 +115,7 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
             </div>
 
             <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
-                <button onClick={onEditar} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-1.5">
+                <button onClick={onEditar} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60">
                     <UserRoundPen className="w-3.5 h-3.5" /> Editar
                 </button>
                 

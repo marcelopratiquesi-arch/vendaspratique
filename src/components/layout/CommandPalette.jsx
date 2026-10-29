@@ -231,7 +231,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                     {mostrarVazio && (
                         <div className="px-4 py-12 text-center flex flex-col items-center gap-3">
                             <Search className="w-8 h-8 text-slate-300 dark:text-slate-600" />
-                            <p className="text-[14px] font-medium text-slate-500">
+                            <p className="text-[14px] font-medium text-slate-500 dark:text-slate-400">
                                 Nenhum aluno encontrado para "{termo}"
                             </p>
                         </div>
@@ -292,7 +292,7 @@ export default function CommandPalette({ isOpen, onClose, onSelectAluno, usuario
                                 </div>
                                 
                                 {isRecente && (
-                                    <button onClick={(e) => handleRemoverRecente(e, aluno.id)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all" title="Remover histórico"><X className="w-4 h-4" /></button>
+                                    <button onClick={(e) => handleRemoverRecente(e, aluno.id)} className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-all dark:hover:bg-rose-500/10" title="Remover histórico"><X className="w-4 h-4" /></button>
                                 )}
                             </div>
                         );

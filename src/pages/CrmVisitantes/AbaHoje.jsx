@@ -3,6 +3,7 @@ import { CalendarCheck, AlarmClock, MessageCircle, Check, Info, Ban, CalendarClo
 import { JanelaJustificativa } from './JanelasContato';
 import { EtiquetaParado } from './EtiquetasCrm';
 import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, linkWhatsApp, classeTipoLead } from './utils';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // ABA "HOJE" (Bloco 4): contatos com o próximo contato marcado para hoje ou já atrasado.
@@ -33,7 +34,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
     }, [visitantes]);
 
     const abrirWhatsApp = async (lead) => {
-        if (!lead.telefone) return alert('Este contato está sem telefone cadastrado.');
+        if (!lead.telefone) return avisar('Este contato está sem telefone cadastrado.');
         const texto = gerarTextoWhatsApp(lead);
         window.open(linkWhatsApp(lead.telefone, texto), '_blank');
         setRegistrando(lead.id);
@@ -82,7 +83,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <button type="button" onClick={() => abrirFicha(v)} className="text-sm font-black text-slate-800 dark:text-white uppercase truncate hover:text-blue-600 dark:hover:text-blue-400 text-left" title="Ver ficha e histórico">{v.nome}</button>
-                                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{v.tipo_lead || 'LEAD'}</span>
+                                                <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{v.tipo_lead || 'LEAD'}</span>
                                                 <EtiquetaParado lead={v} />
                                             </div>
                                             <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">
@@ -104,7 +105,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                                                 <Info className="w-4 h-4" />
                                             </button>
                                             {onNaoContatar && (
-                                                <button type="button" onClick={() => onNaoContatar(v)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors" title="Não contatar (a pessoa pediu para não receber contato)">
+                                                <button type="button" onClick={() => onNaoContatar(v)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title="Não contatar (a pessoa pediu para não receber contato)">
                                                     <Ban className="w-4 h-4" />
                                                 </button>
                                             )}

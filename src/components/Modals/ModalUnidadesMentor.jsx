@@ -110,7 +110,7 @@ const ModalUnidadesMentor = ({ mentor, unidades = [], marcadasIniciais = [], onC
                         const marcada = marcadas.has(normalizar(u.nome));
                         return (
                             <label key={u.id ?? u.nome} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer transition-colors ${marcada ? 'bg-blue-50 dark:bg-blue-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
-                                <input type="checkbox" checked={marcada} onChange={() => alternar(u.nome)} disabled={salvando} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500" />
+                                <input type="checkbox" checked={marcada} onChange={() => alternar(u.nome)} disabled={salvando} className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-blue-600 focus:ring-blue-500 dark:text-blue-400" />
                                 <span className={`flex-1 text-sm font-bold uppercase truncate ${marcada ? 'text-blue-700 dark:text-blue-200' : 'text-slate-700 dark:text-slate-200'}`}>{u.nome}</span>
                             </label>
                         );

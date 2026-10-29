@@ -42,7 +42,7 @@ const LeadCard = memo(({
 
             <div className="flex justify-between items-start mb-3 relative z-10">
                 <div className="flex flex-wrap gap-2 items-center">
-                    <span className={`inline-block px-2 py-1 rounded text-[9px] font-black tracking-widest uppercase border ${classeTipoLead(lead.tipo_lead)}`}>
+                    <span className={`inline-block px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(lead.tipo_lead)}`}>
                         {lead.tipo_lead || 'Não Informado'}
                     </span>
                     <EtiquetaProximo lead={lead} />
@@ -82,7 +82,7 @@ const LeadCard = memo(({
                     </div>
                 )}
                 <div className="flex items-center gap-2 text-[10px] font-bold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 w-fit pr-3 py-1 rounded-full border border-slate-100 dark:border-slate-800 uppercase mt-1">
-                    <div className="w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-[8px] ml-1 border border-indigo-200 dark:border-indigo-500/30">
+                    <div className="w-4 h-4 rounded-full bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 flex items-center justify-center text-[10px] ml-1 border border-blue-200 dark:border-blue-500/30">
                         {lead.vendedor ? lead.vendedor.charAt(0) : '?'}
                     </div>
                     {lead.vendedor}
@@ -143,12 +143,12 @@ const LeadCard = memo(({
                         onChange={(e) => setNota(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleSalvar(); }}
                         disabled={isSendingNota}
-                        className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 h-9 text-[10px] font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none shadow-inner disabled:opacity-60"
+                        className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 h-9 text-[10px] font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none shadow-inner disabled:opacity-60 dark:focus:bg-slate-900"
                     />
                     <button
                         onClick={handleSalvar}
                         disabled={!nota.trim() || isSendingNota}
-                        className={`h-9 w-9 flex items-center justify-center rounded-lg transition-colors shadow-sm disabled:opacity-50 ${notaSalva ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white disabled:hover:bg-slate-100 disabled:hover:text-slate-500'}`}
+                        className={`h-9 w-9 flex items-center justify-center rounded-lg transition-colors shadow-sm disabled:opacity-50 ${notaSalva ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white disabled:hover:bg-slate-100 disabled:hover:text-slate-500 dark:disabled:hover:bg-slate-800 dark:disabled:hover:text-slate-400'}`}
                         title="Salvar Nota"
                     >
                         {notaSalva ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}

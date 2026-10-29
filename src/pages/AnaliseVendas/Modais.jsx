@@ -27,7 +27,7 @@ const ModalTextoWhatsapp = ({
     return (
         // 🔥 Z-INDEX NO MÁXIMO (9999) PARA COBRIR MENU LATERAL E TOPBAR
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col h-[600px] border border-slate-200">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-lg overflow-hidden flex flex-col h-[600px] border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                 <div className="p-6 bg-slate-900 text-white flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 ${cores.badge} rounded-full flex items-center justify-center`}>
@@ -37,15 +37,15 @@ const ModalTextoWhatsapp = ({
                     </div>
                     <button onClick={onFechar} className="hover:rotate-90 transition-transform"><i data-lucide="x" className="w-6 h-6"></i></button>
                 </div>
-                <div className="p-6 flex-1 bg-slate-50">
+                <div className="p-6 flex-1 bg-slate-50 dark:bg-slate-800/60">
                     <textarea
                         value={texto}
                         onChange={(e) => setTexto(e.target.value)}
-                        className="w-full h-full p-5 bg-white border border-slate-200 rounded-2xl outline-none font-mono text-sm text-slate-700 resize-none shadow-inner focus:ring-2 focus:ring-emerald-500/20 transition-all"
+                        className="w-full h-full p-5 bg-white border border-slate-200 rounded-2xl outline-none font-mono text-sm text-slate-700 resize-none shadow-inner focus:ring-2 focus:ring-emerald-500/20 transition-all dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"
                     ></textarea>
                 </div>
-                <div className="p-6 border-t bg-white grid grid-cols-3 gap-3">
-                    <button onClick={onFechar} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors">
+                <div className="p-6 border-t bg-white grid grid-cols-3 gap-3 dark:bg-slate-900">
+                    <button onClick={onFechar} className="px-4 py-3 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
                         {t('analytics.modals.close', { defaultValue: 'Fechar' })}
                     </button>
                     <button onClick={onCopiar} className={`px-4 py-3 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 ${copiado ? 'bg-emerald-500' : 'bg-blue-600 hover:bg-blue-700'}`}>

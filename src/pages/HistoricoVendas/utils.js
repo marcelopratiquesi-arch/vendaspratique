@@ -1,3 +1,4 @@
+import { avisar } from '../../components/avisar.js';
 // ==========================================
 // 🧠 UTILITÁRIOS GLOBAIS DE SISTEMA (B2B SaaS)
 // Otimizado para Performance e Segurança
@@ -168,7 +169,7 @@ export const pedirMotivoExclusao = () => {
     if (resposta === null) return null;
     const motivo = resposta.trim();
     if (motivo.length < MOTIVO_EXCLUSAO_MINIMO) {
-        alert(`Exclusão cancelada: o motivo precisa ter pelo menos ${MOTIVO_EXCLUSAO_MINIMO} letras.`);
+        avisar(`Exclusão cancelada: o motivo precisa ter pelo menos ${MOTIVO_EXCLUSAO_MINIMO} letras.`);
         return null;
     }
     return motivo;

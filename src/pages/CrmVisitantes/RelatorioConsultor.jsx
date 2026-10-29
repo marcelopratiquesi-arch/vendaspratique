@@ -181,7 +181,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
         document.body.removeChild(link);
     };
 
-    const th = 'px-4 py-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
+    const th = 'px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
     const seletor = 'bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer';
 
     return (
@@ -225,15 +225,15 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
 
             {/* TOTAIS POR TIPO (clicar filtra a lista) */}
             <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
-                <button type="button" onClick={() => setTipoFiltro('')} className={`text-left rounded-xl border p-3 transition-all ${!tipoFiltro ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300'}`}>
-                    <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">Todos</p>
+                <button type="button" onClick={() => setTipoFiltro('')} className={`text-left rounded-xl border p-3 transition-all ${!tipoFiltro ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/30'}`}>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Todos</p>
                     <p className="text-2xl font-black text-slate-800 dark:text-white">{daPessoa.length}</p>
                 </button>
                 {TIPOS.filter(t => !t.soSeTiver || totais[t.chave].total > 0).map(t => (
-                    <button key={t.chave} type="button" onClick={() => setTipoFiltro(tipoFiltro === t.chave ? '' : t.chave)} className={`text-left rounded-xl border p-3 transition-all ${tipoFiltro === t.chave ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300'}`}>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 truncate" title={t.rotulo}>{t.rotulo}</p>
+                    <button key={t.chave} type="button" onClick={() => setTipoFiltro(tipoFiltro === t.chave ? '' : t.chave)} className={`text-left rounded-xl border p-3 transition-all ${tipoFiltro === t.chave ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/30'}`}>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 truncate" title={t.rotulo}>{t.rotulo}</p>
                         <p className={`text-2xl font-black ${t.cor}`}>{totais[t.chave].total}</p>
-                        {totais[t.chave].sem > 0 && <p className="text-[9px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{totais[t.chave].sem} sem WhatsApp</p>}
+                        {totais[t.chave].sem > 0 && <p className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{totais[t.chave].sem} sem WhatsApp</p>}
                     </button>
                 ))}
             </div>
@@ -258,9 +258,9 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
                                 <td className="px-4 py-2.5 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{formatarDataHora(l.quando)}</td>
                                 <td className="px-4 py-2.5 text-[11px] font-black text-slate-700 dark:text-slate-200 uppercase whitespace-nowrap">
                                     {String(l.consultor || '').split(' ')[0]}
-                                    {l.feitoPor && <span className="block text-[9px] font-bold normal-case text-amber-600 dark:text-amber-400">{l.feitoPor}</span>}
+                                    {l.feitoPor && <span className="block text-[10px] font-bold normal-case text-amber-600 dark:text-amber-400">{l.feitoPor}</span>}
                                 </td>
-                                <td className="px-4 py-2.5"><span className="text-[9px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{ROTULO_TIPO[l.tipo] || l.tipo}</span></td>
+                                <td className="px-4 py-2.5"><span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{ROTULO_TIPO[l.tipo] || l.tipo}</span></td>
                                 <td className="px-4 py-2.5">
                                     <button type="button" onClick={() => setContatoFicha(l.contato)} className="text-[11px] font-bold text-slate-800 dark:text-white uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2" title="Abrir a ficha do aluno">{l.nome}</button>
                                 </td>

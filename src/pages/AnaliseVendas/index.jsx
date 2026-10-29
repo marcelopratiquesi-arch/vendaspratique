@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
+import { avisar } from '../../components/avisar.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -235,7 +236,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const salvarMetasNuvem = async () => {
         const unidadeAlvo = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
         if (!unidadeAlvo || unidadeAlvo === 'TODOS') {
-            alert(t('analytics.alerts.selectUnitSave', { defaultValue: "Atenção: Selecione uma unidade específica no filtro acima para poder salvar as metas." }));
+            avisar(t('analytics.alerts.selectUnitSave', { defaultValue: "Atenção: Selecione uma unidade específica no filtro acima para poder salvar as metas." }));
             return;
         }
 
@@ -259,9 +260,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
         if (error) {
             console.error("Erro no banco:", error);
-            alert("Erro ao salvar as metas no banco de dados.");
+            avisar("Erro ao salvar as metas no banco de dados.");
         } else {
-            alert("Metas atualizadas com sucesso!");
+            avisar("Metas atualizadas com sucesso!");
         }
     };
 
@@ -427,11 +428,11 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             {/* ========================================== */}
             {/* 🚀 ABAS + FILTROS (versão compacta, mesmo padrão do Histórico) */}
             {/* ========================================== */}
-            <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-4 md:p-5 relative z-20 flex flex-col gap-4">
+            <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-4 md:p-5 relative z-20 flex flex-col gap-4 dark:bg-slate-900 dark:border-slate-800">
 
                 {/* Abas | o que está sendo exibido + período */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1" role="tablist" aria-label="Seções">
+                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 dark:bg-slate-800" role="tablist" aria-label="Seções">
                         {[
                             ['dashboard', 'Dashboard', BarChart3],
                             ['visaoGeral', 'Metas da unidade', Target],
@@ -446,7 +447,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                                     role="tab"
                                     aria-selected={ativa}
                                     onClick={() => setAbaPrincipal(id)}
-                                    className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold' : 'text-slate-500 hover:text-slate-800 font-bold'}`}
+                                    className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     <Icone className={`w-4 h-4 ${id === 'rankingGlobal' ? 'text-amber-500' : ''}`} /> {rotulo}
                                 </button>
@@ -455,7 +456,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[12px] font-semibold text-slate-500">
+                        <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                             {descricaoPeriodo} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? 'Todas as unidades' : filtroUnidade) : (usuarioLogado?.unidade || '')}
                         </span>
                         <SeletorPeriodo
@@ -485,16 +486,16 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 {/* Filtros ativos */}
                 {(filtrosAtivos.length > 0 || temFiltroAtivo) && (
                     <div className="flex flex-wrap items-center gap-2">
-                        {filtrosAtivos.length > 0 && <span className="text-[11px] font-bold text-slate-500">Filtros ativos:</span>}
+                        {filtrosAtivos.length > 0 && <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Filtros ativos:</span>}
                         {filtrosAtivos.map(f => (
-                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700">
+                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                 {f.texto}
-                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors">
+                                <button type="button" onClick={f.remover} aria-label={`Remover filtro: ${f.texto}`} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
                                     <X className="w-3 h-3" strokeWidth={3} />
                                 </button>
                             </span>
                         ))}
-                        <button type="button" onClick={limparFiltros} className="h-7 px-2.5 rounded-lg text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors">
+                        <button type="button" onClick={limparFiltros} className="h-7 px-2.5 rounded-lg text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
                             <RefreshCw className="w-3.5 h-3.5" /> Limpar filtros
                         </button>
                     </div>

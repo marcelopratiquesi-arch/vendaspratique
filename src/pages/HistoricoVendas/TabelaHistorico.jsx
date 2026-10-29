@@ -7,6 +7,7 @@ import AbaDuplicidades from './duplicidades/AbaDuplicidades.jsx';
 import { carregarLegitimas, marcarComoLegitima, desfazerLegitima } from './duplicidades/legitimas.js';
 import AbaLixeira from './lixeira/AbaLixeira.jsx';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia
@@ -50,7 +51,7 @@ const CopyButton = ({ textToCopy, label }) => {
             onClick={handleCopy}
             onMouseDown={(e) => e.stopPropagation()} 
             onPointerDown={(e) => e.stopPropagation()} 
-            className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded transition-all flex-shrink-0"
+            className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded transition-all flex-shrink-0 dark:hover:bg-blue-500/10"
             title={copied ? "Copiado!" : label}
             aria-label={copied ? "Copiado" : label}
         >
@@ -77,19 +78,19 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const abrirFichaDoAluno = async (vendaId, cpf) => {
         if (!onAbrirAluno || abrindoAlunoId) return;
         const cpfLimpo = String(cpf || '').replace(/\D/g, '');
-        if (cpfLimpo.length !== 11) return alert('Esta venda não tem um CPF completo. Não dá para abrir a ficha do aluno.');
+        if (cpfLimpo.length !== 11) return avisar('Esta venda não tem um CPF completo. Não dá para abrir a ficha do aluno.');
         setAbrindoAlunoId(vendaId);
         try {
             const { data: achados, error } = await supabase.from('alunos').select('*')
                 .or(`cpf.eq.${cpfLimpo},cpf.eq."${formatarCPF(cpfLimpo)}"`).limit(2);
             if (error) throw error;
-            if (!achados || achados.length === 0) return alert('Aluno não encontrado no cadastro para este CPF.');
-            if (achados.length > 1) return alert('Existe mais de um aluno com este CPF. Peça ao gestor para corrigir os cadastros.');
+            if (!achados || achados.length === 0) return avisar('Aluno não encontrado no cadastro para este CPF.');
+            if (achados.length > 1) return avisar('Existe mais de um aluno com este CPF. Peça ao gestor para corrigir os cadastros.');
             const [comUnidade] = await anexarUnidades(achados);
             onAbrirAluno(comUnidade || achados[0]);
         } catch (err) {
             console.error('Erro ao abrir a ficha do aluno:', err);
-            alert('Não foi possível abrir a ficha do aluno. Tente novamente.');
+            avisar('Não foi possível abrir a ficha do aluno. Tente novamente.');
         } finally {
             setAbrindoAlunoId(null);
         }
@@ -184,7 +185,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
         if (error) {
             console.error("Erro ao excluir venda:", error);
-            alert(`Não foi possível excluir a venda. A ação foi revertida.\n\n${error.message || ''}`);
+            avisar(`Não foi possível excluir a venda. A ação foi revertida.\n\n${error.message || ''}`);
             setData(backupDados);
         } else {
             recarregarLixeira();
@@ -248,9 +249,9 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
     const salvarEdicao = async (vendaOriginal) => {
         if (isSubmitting) return;
-        if (!dadosEdicao.data) return alert('Informe a data da venda.');
+        if (!dadosEdicao.data) return avisar('Informe a data da venda.');
         if (['buscando', 'nao_encontrado', 'duplicado', 'incompleto', 'erro'].includes(dadosEdicao.alunoStatus || '')) {
-            return alert('Não é possível salvar: confira o CPF do aluno. Ele precisa estar completo e cadastrado no sistema.');
+            return avisar('Não é possível salvar: confira o CPF do aluno. Ele precisa estar completo e cadastrado no sistema.');
         }
         setIsSubmitting(true);
 
@@ -282,7 +283,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         
         if (error) {
             console.error("Erro ao editar venda:", error);
-            alert("Falha de conexão com o servidor. As alterações não foram salvas.");
+            avisar("Falha de conexão com o servidor. As alterações não foram salvas.");
             setData(backupDados); 
             setEditandoId(vendaOriginal.id); 
         }
@@ -298,7 +299,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         setMarcandoChave(null);
         if (error || !marcacao) {
             console.error('Erro ao marcar como legítima:', error);
-            alert(`Não foi possível salvar a marcação.\n\n${error?.message || ''}`);
+            avisar(`Não foi possível salvar a marcação.\n\n${error?.message || ''}`);
             return;
         }
         setLegitimas(atual => [marcacao, ...atual]);
@@ -309,7 +310,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         if (!window.confirm('Desfazer a marcação "Não é duplicidade"? O grupo volta para a lista de possíveis duplicidades.')) return;
         const error = await desfazerLegitima(supabase, marcacao.id);
         if (error) {
-            alert(`Não foi possível desfazer.\n\n${error.message || ''}`);
+            avisar(`Não foi possível desfazer.\n\n${error.message || ''}`);
             return;
         }
         setLegitimas(atual => atual.filter(m => m.id !== marcacao.id));
@@ -359,7 +360,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         return ordenacao.direcao === 'asc' ? <ChevronUp className="w-3 h-3 text-blue-500" /> : <ChevronDown className="w-3 h-3 text-blue-500" />;
     };
     
-    const thClass = "px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 select-none group whitespace-nowrap align-top";
+    const thClass = "px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 select-none group whitespace-nowrap align-top dark:border-slate-800 dark:bg-slate-800/40";
 
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-[fadeIn_0.3s_ease-out]">
@@ -369,7 +370,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto custom-scrollbar">
                     <button
                         onClick={() => setVisaoAtual('registros')}
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
                         <History className="w-4 h-4" /> Registros de Vendas
                     </button>
@@ -378,12 +379,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         title={gruposDuplicados.length > 0
                             ? `${gruposDuplicados.length} ${gruposDuplicados.length === 1 ? 'grupo' : 'grupos'} · ${resultadoDuplicidades.excedentes} ${resultadoDuplicidades.excedentes === 1 ? 'lançamento excedente' : 'lançamentos excedentes'}`
                             : 'Nenhuma possível duplicidade encontrada'}
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
                         <Copy className="w-4 h-4" /> Duplicidades
 
                         {gruposDuplicados.length > 0 && (
-                            <span className="ml-1 bg-amber-500 text-white px-2 py-0.5 rounded-md text-[9px] animate-pulse shadow-sm">
+                            <span className="ml-1 bg-amber-500 text-white px-2 py-0.5 rounded-md text-[10px] animate-pulse shadow-sm">
                                 {gruposDuplicados.length}
                             </span>
                         )}
@@ -393,12 +394,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         title={lixeira.length > 0
                             ? `${lixeira.length} ${lixeira.length === 1 ? 'venda excluída' : 'vendas excluídas'} no período`
                             : 'Nenhuma venda excluída no período'}
-                        className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'}`}
+                        className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
                         <Trash2 className="w-4 h-4" /> Lixeira
 
                         {lixeira.length > 0 && (
-                            <span className="ml-1 bg-rose-600 dark:bg-rose-500 text-white px-2 py-0.5 rounded-md text-[9px] shadow-sm">
+                            <span className="ml-1 bg-rose-600 dark:bg-rose-500 text-white px-2 py-0.5 rounded-md text-[10px] shadow-sm">
                                 {lixeira.length}
                             </span>
                         )}
@@ -406,7 +407,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 </div>
 
                 {visaoAtual === 'registros' && (
-                    <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner text-center sm:text-right w-full sm:w-auto">
+                    <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner text-center sm:text-right w-full sm:w-auto dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
                         {vendasOrdenadas.length} de {data.length} Encontrados
                     </div>
                 )}
@@ -425,7 +426,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         style={{ maxHeight: '65vh' }}
                     >
                         <table className="w-full text-left border-collapse min-w-max">
-                            <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm border-b border-slate-200">
+                            <thead className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 shadow-sm border-b border-slate-200 dark:bg-slate-800/40 dark:border-slate-800">
                                 <tr>
                                     <th className={thClass}>
                                         <div className="flex flex-col gap-2">
@@ -433,7 +434,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 DATA {<RenderSortIcon coluna="data" />}
                                             </div>
                                             {temVisaoGlobal && (
-                                                <div onClick={() => handleOrdenar('unidade')} className="flex items-center gap-1 cursor-pointer hover:text-rose-500 text-[9px] w-fit transition-colors">
+                                                <div onClick={() => handleOrdenar('unidade')} className="flex items-center gap-1 cursor-pointer hover:text-rose-500 text-[10px] w-fit transition-colors">
                                                     UNIDADE {<RenderSortIcon coluna="unidade" />}
                                                 </div>
                                             )}
@@ -445,7 +446,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             <div onClick={() => handleOrdenar('nome_aluno')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 w-fit transition-colors">
                                                 ALUNO {<RenderSortIcon coluna="nome_aluno" />}
                                             </div>
-                                            <div onClick={() => handleOrdenar('cpf')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[9px] w-fit transition-colors">
+                                            <div onClick={() => handleOrdenar('cpf')} className="flex items-center gap-1 cursor-pointer hover:text-blue-500 text-[10px] w-fit transition-colors">
                                                 CPF {<RenderSortIcon coluna="cpf" />}
                                             </div>
                                         </div>
@@ -475,10 +476,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                         </div>
                                     </th>
                                     
-                                    {podeEditar && <th className={`${thClass} sticky right-0 z-20 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] border-l border-slate-200 text-center w-28`}>Gestão</th>}
+                                    {podeEditar && <th className={`${thClass} sticky right-0 z-20 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] border-l border-slate-200 text-center w-28 dark:border-slate-800`}>Gestão</th>}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white">
+                            <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
                                 {vendasPaginadas.map((row) => {
                                     const isEditing = editandoId === row.id;
 
@@ -502,19 +503,19 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                     const cpfExibicao = formatarCPF(rawCpf);
 
                                     return (
-                                        <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30' : 'hover:bg-slate-50'}`}>
+                                        <tr key={row.id} className={`group transition-colors ${isEditing ? 'bg-blue-50/30 dark:bg-blue-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}>
                                             
                                             {/* COLUNA 1: DATA E UNIDADE */}
                                             <td className="px-5 py-3 align-middle whitespace-nowrap">
                                                 {isEditing ? (
-                                                    <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
+                                                    <input type="date" value={dadosEdicao.data} onChange={e => handleEdicaoChange('data', e.target.value)} className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
                                                 ) : (
                                                     <div>
-                                                        <p className="text-xs font-semibold text-slate-700 whitespace-nowrap">{formatDataBR(row.data || row.created_at)}</p>
+                                                        <p className="text-xs font-semibold text-slate-700 whitespace-nowrap dark:text-slate-200">{formatDataBR(row.data || row.created_at)}</p>
                                                         {row.created_at && (
-                                                            <div className="flex items-center gap-1.5 mt-1 text-slate-500 w-max">
+                                                            <div className="flex items-center gap-1.5 mt-1 text-slate-500 w-max dark:text-slate-400">
                                                                 <User className="w-3 h-3 text-slate-400" />
-                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                                                                     {toTitleCase(row.criado_por ? row.criado_por.split(' ')[0] : 'Sistema')} • {extrairHoraCriacao(row.created_at)}
                                                                 </span>
                                                             </div>
@@ -532,8 +533,8 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             <td className="px-5 py-3 align-middle no-drag">
                                                 {isEditing ? (
                                                     <div className="flex flex-col gap-2">
-                                                        <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm" />
-                                                        <input type="text" placeholder="CPF (Apenas números)" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
+                                                        <input type="text" placeholder="Nome do Aluno" value={dadosEdicao.nome_aluno} onChange={e => handleEdicaoChange('nome_aluno', e.target.value)} className="w-full bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
+                                                        <input type="text" placeholder="CPF (Apenas números)" value={dadosEdicao.cpf} onChange={e => handleEdicaoChange('cpf', e.target.value)} maxLength="14" className="w-36 bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
                                                     </div>
                                                 ) : (
                                                     <div className="flex flex-col gap-1">
@@ -543,13 +544,13 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                                     type="button"
                                                                     onClick={() => abrirFichaDoAluno(row.id, rawCpf)}
                                                                     disabled={Boolean(abrindoAlunoId)}
-                                                                    className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase text-left hover:text-blue-600 hover:underline underline-offset-2 transition-colors cursor-pointer disabled:cursor-wait"
+                                                                    className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase text-left hover:text-blue-600 hover:underline underline-offset-2 transition-colors cursor-pointer disabled:cursor-wait dark:text-white dark:hover:text-blue-400"
                                                                     title={`Abrir a ficha de ${rawName}`}
                                                                 >
                                                                     {nomeExibicao}
                                                                 </button>
                                                             ) : (
-                                                                <p className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase" title={rawName}>
+                                                                <p className="text-xs font-black text-slate-800 max-w-[200px] truncate uppercase dark:text-white" title={rawName}>
                                                                     {nomeExibicao}
                                                                 </p>
                                                             )}
@@ -559,7 +560,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <div className="flex items-center gap-1">
-                                                                <span className="text-[10px] font-mono font-bold text-slate-500">
+                                                                <span className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">
                                                                     {cpfExibicao}
                                                                 </span>
                                                                 {rawCpf && <CopyButton textToCopy={cpfExibicao} label="Copiar CPF do aluno" />}
@@ -575,16 +576,16 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                 {isEditing ? (
                                                     <div className="flex flex-col gap-2">
                                                         <div className="flex gap-2">
-                                                            <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm" />
-                                                            <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm">
+                                                            <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
+                                                            <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300">
                                                                 <option value="" disabled>Selecione...</option>
                                                                 {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-xs font-bold text-indigo-600 uppercase flex items-center gap-1.5">
-                                                        <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[10px]">{row.quantidade || '1'}x</span>
+                                                    <div className="text-xs font-bold text-blue-600 uppercase flex items-center gap-1.5 dark:text-blue-400">
+                                                        <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] dark:bg-blue-500/20 dark:text-blue-300">{row.quantidade || '1'}x</span>
                                                         {row.produto}
                                                     </div>
                                                 )}
@@ -596,7 +597,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                     <select 
                                                         value={(dadosEdicao.vendedor || '').toUpperCase()} 
                                                         onChange={e => handleEdicaoChange('vendedor', e.target.value)} 
-                                                        className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm"
+                                                        className="w-full min-w-[150px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300"
                                                     >
                                                         <option value="" disabled>Selecione o Vendedor...</option>
                                                         {vendedoresDaUnidade.sort().map(v => (
@@ -604,9 +605,9 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                         ))}
                                                     </select>
                                                 ) : (
-                                                    <div className="flex items-center gap-1.5 bg-slate-100 w-fit px-2 py-1 rounded-md border border-slate-200" title={row.vendedor}>
+                                                    <div className="flex items-center gap-1.5 bg-slate-100 w-fit px-2 py-1 rounded-md border border-slate-200 dark:bg-slate-800 dark:border-slate-800" title={row.vendedor}>
                                                         <User className="w-3 h-3 text-slate-400" />
-                                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{shortName(row.vendedor)}</span>
+                                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest dark:text-slate-300">{shortName(row.vendedor)}</span>
                                                     </div>
                                                 )}
                                             </td>
@@ -614,9 +615,9 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                             {/* COLUNA 5: VALOR */}
                                             <td className="px-5 py-3 align-middle no-drag whitespace-nowrap">
                                                 {isEditing ? (
-                                                    <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-left bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner" title="O valor calcula sozinho" />
+                                                    <input type="text" value={formatMoney(dadosEdicao.valorCalculado)} readOnly className="w-28 text-left bg-slate-100 border border-slate-300 text-slate-500 rounded-lg px-3 py-2 cursor-not-allowed font-black text-sm shadow-inner dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400" title="O valor calcula sozinho" />
                                                 ) : (
-                                                    <div className="text-sm font-black text-slate-800">
+                                                    <div className="text-sm font-black text-slate-800 dark:text-white">
                                                         {formatMoney(row.valor)}
                                                     </div>
                                                 )}
@@ -624,13 +625,13 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
 
                                             {/* COLUNA 6: GESTÃO */}
                                             {podeEditar && (
-                                                <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] bg-white`}>
+                                                <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] bg-white dark:border-slate-800 dark:bg-slate-900`}>
                                                     {isEditing ? (
                                                         <div className="flex flex-col gap-2 items-center justify-center">
                                                             <button disabled={isSubmitting} onClick={() => salvarEdicao(row)} title="Salvar Alterações" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-md">
                                                                 {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Salvar
                                                             </button>
-                                                            <button disabled={isSubmitting} onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm">
+                                                            <button disabled={isSubmitting} onClick={cancelarEdicao} title="Cancelar" className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-slate-200 text-slate-700 hover:bg-slate-300 disabled:opacity-50 rounded-lg text-xs font-black uppercase tracking-widest transition-all shadow-sm dark:bg-slate-700 dark:text-slate-200">
                                                                 <X className="w-4 h-4" /> Cancelar
                                                             </button>
                                                         </div>
@@ -639,14 +640,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                             <button 
                                                                 onClick={() => iniciarEdicao(row)} 
                                                                 title="Editar Registro"
-                                                                className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-blue-50 text-blue-600 rounded transition-all border border-blue-200 hover:border-blue-400 text-[9px] font-black uppercase tracking-widest shadow-sm"
+                                                                className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-blue-50 text-blue-600 rounded transition-all border border-blue-200 hover:border-blue-400 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-slate-900 dark:hover:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"
                                                             >
                                                                 <Edit3 className="w-3 h-3" /> Editar
                                                             </button>
                                                             <button 
                                                                 onClick={() => removerLancamento(row.id)} 
                                                                 title="Excluir Registro"
-                                                                className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-rose-50 text-rose-500 rounded transition-all border border-rose-200 hover:border-rose-400 text-[9px] font-black uppercase tracking-widest shadow-sm"
+                                                                className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-rose-50 text-rose-500 rounded transition-all border border-rose-200 hover:border-rose-400 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-slate-900 dark:hover:bg-rose-500/10 dark:border-rose-500/30"
                                                             >
                                                                 <Trash2 className="w-3 h-3" /> Apagar
                                                             </button>
@@ -670,9 +671,9 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     </div>
 
                     {/* PAGINAÇÃO PADRÃO */}
-                    <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 dark:bg-slate-800/60 dark:border-slate-800">
                         <div className="flex items-center gap-4">
-                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+                            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                 Página {paginaAtual} de {totalPaginas || 1}
                             </p>
                             <div className="h-4 w-px bg-slate-300 hidden sm:block"></div>
@@ -681,7 +682,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 <select 
                                     value={itensPorPagina} 
                                     onChange={(e) => setItensPorPagina(Number(e.target.value))}
-                                    className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm"
+                                    className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"
                                 >
                                     <option value={10}>10 linhas</option>
                                     <option value={50}>50 linhas</option>
@@ -697,14 +698,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 <button 
                                     onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
                                     disabled={paginaAtual === 1}
-                                    className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm"
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
                                     Anterior
                                 </button>
                                 <button 
                                     onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
                                     disabled={paginaAtual === totalPaginas}
-                                    className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm"
+                                    className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
                                     Próxima
                                 </button>

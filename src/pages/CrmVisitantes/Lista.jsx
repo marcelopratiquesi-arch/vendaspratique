@@ -115,12 +115,12 @@ const Lista = ({
                             <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest mr-2">{selecionados.length} Selecionados:</span>
                             
                             {podeApagar && (
-                                <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[9px] tracking-widest shadow-sm">
+                                <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
                                     <Trash2 className="w-3.5 h-3.5" /> Excluir do Banco
                                 </button>
                             )}
 
-                            <button onClick={() => limparEExecutar(alterarStatusEmLote, 'Perdido')} className="bg-cyan-500 hover:bg-cyan-600 text-white font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[9px] tracking-widest shadow-sm">
+                            <button onClick={() => limparEExecutar(alterarStatusEmLote, 'Perdido')} className="bg-cyan-500 hover:bg-cyan-600 text-white font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
                                 <Snowflake className="w-3.5 h-3.5" /> Enviar p/ Geladeira
                             </button>
                         </div>
@@ -145,14 +145,14 @@ const Lista = ({
                     <button
                         type="button"
                         onClick={() => { setSoParados(v => !v); setSelecionados([]); }}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${soParados ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300'}`}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${soParados ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300 dark:hover:border-amber-500/30'}`}
                         title={`Só os contatos há ${DIAS_PARADO_AMARELO} dias ou mais sem nenhuma ação`}
                     >
                         <Hourglass className="w-3.5 h-3.5" /> Só parados
                     </button>
 
                     <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
-                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
+                        <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">Filtrar:</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
                             <option value="">TODOS OS STATUS</option>
                             {COLUNAS.map(c => <option key={c} value={c}>{c}</option>)}
@@ -215,7 +215,7 @@ const Lista = ({
                                             >
                                                 {v.nome}
                                             </button>
-                                            <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>
+                                            <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded mt-1 inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>
                                                 {v.tipo_lead || 'LEAD'}
                                             </span>
                                             <div className="flex flex-wrap gap-1.5 mt-1">

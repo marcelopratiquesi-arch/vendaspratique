@@ -8,6 +8,7 @@ import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCi
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
 import { pendenciasCadastroAluno } from '../Alunos/utils.js';
+import { avisar } from '../../components/avisar.js';
 
 const IconBraco = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.2 10.4a4.1 4.1 0 0 0-1.8-1.8 19 19 0 0 0-6.1-1.7c-2.4-.3-4.6-.2-6.5.6a4.1 4.1 0 0 0-2.3 2.3 4.1 4.1 0 0 0 .5 3.6c.9 1.4 2.5 2.4 4.5 2.8 1.9.4 4.1.2 6.5-.6.5-.2 1-.3 1.5-.5.6-.2 1.3-.4 1.9-.7a11.1 11.1 0 0 0 3-2 4 4 0 0 0 .6-3.8z" /></svg>);
 const IconPerna = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v9l-3 4-2 6h4l1-3 3-1V2h-3z" /></svg>);
@@ -31,7 +32,7 @@ const CopyButton = ({ textToCopy, label }) => {
 
 const InfoTooltip = ({ text }) => (
     <div className="relative flex items-center group cursor-pointer">
-        <Info className="w-3.5 h-3.5 text-blue-400 hover:text-blue-600 transition-colors" />
+        <Info className="w-3.5 h-3.5 text-blue-400 hover:text-blue-600 transition-colors dark:hover:text-blue-400" />
         <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] leading-relaxed rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all shadow-xl font-medium normal-case pointer-events-none z-[9999]">
             {text}
             <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
@@ -43,7 +44,7 @@ const getLocalIsoDate = () => { const d = new Date(); return new Date(d.getTime(
 const getBorderClass = (textClass) => { if (!textClass) return 'border-slate-200 dark:border-slate-700'; if (textClass.includes('emerald')) return 'border-emerald-200 dark:border-emerald-800'; if (textClass.includes('amber')) return 'border-amber-200 dark:border-amber-800'; if (textClass.includes('rose')) return 'border-rose-200 dark:border-rose-800'; if (textClass.includes('orange')) return 'border-orange-200 dark:border-orange-800'; if (textClass.includes('blue')) return 'border-blue-200 dark:border-blue-800'; return 'border-slate-200 dark:border-slate-700'; };
 
 const anamneseIcons = [
-    { Icon: Droplet, bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-500 dark:text-rose-400' }, { Icon: HeartPulse, bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-500 dark:text-rose-400' }, { Icon: Apple, bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-500 dark:text-emerald-400' }, { Icon: Dumbbell, bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-500 dark:text-orange-400' }, { Icon: MessageCircle, bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-500 dark:text-purple-400' }, { Icon: Smartphone, bg: 'bg-teal-50 dark:bg-teal-900/30', text: 'text-teal-500 dark:text-teal-400' }, { Icon: Users, bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-500 dark:text-amber-400' }, { Icon: Zap, bg: 'bg-indigo-50 dark:bg-indigo-900/30', text: 'text-indigo-500 dark:text-indigo-400' }
+    { Icon: Droplet, bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-500 dark:text-rose-400' }, { Icon: HeartPulse, bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-500 dark:text-rose-400' }, { Icon: Apple, bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-500 dark:text-emerald-400' }, { Icon: Dumbbell, bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-500 dark:text-orange-400' }, { Icon: MessageCircle, bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-500 dark:text-purple-400' }, { Icon: Smartphone, bg: 'bg-teal-50 dark:bg-teal-900/30', text: 'text-teal-500 dark:text-teal-400' }, { Icon: Users, bg: 'bg-amber-50 dark:bg-amber-900/30', text: 'text-amber-500 dark:text-amber-400' }, { Icon: Zap, bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-500 dark:text-blue-400' }
 ];
 
 const labelClass = "block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1";
@@ -231,7 +232,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             setIaProgress(60);
 
             if (!resultado.success) {
-                alert(resultado.error);
+                avisar(resultado.error);
                 setArquivoInBody(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
                 setIsImportingIA(false);
@@ -256,7 +257,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
         } catch (error) {
             console.error("Erro na leitura do arquivo:", error);
-            alert("Falha inesperada ao ler o documento. Verifique a consola.");
+            avisar("Falha inesperada ao ler o documento. Verifique a consola.");
             setArquivoInBody(null);
         } finally {
             setTimeout(() => { 
@@ -293,14 +294,14 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!alunoEncontrado) return alert(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
-        if (pendenciasCadastro.length > 0) return alert(`Cadastro incompleto. Falta: ${pendenciasCadastro.join(', ')}. Clique em "Completar cadastro" antes de lançar a avaliação.`);
+        if (!alunoEncontrado) return avisar(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
+        if (pendenciasCadastro.length > 0) return avisar(`Cadastro incompleto. Falta: ${pendenciasCadastro.join(', ')}. Clique em "Completar cadastro" antes de lançar a avaliação.`);
         const unidadeFinal = unidadeDestino || usuarioLogado?.unidade;
-        if (!unidadeFinal || unidadeFinal === 'TODAS') return alert(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
-        if (!avaliadorResponsavel) return alert("Selecione o Avaliador Responsável."); // 🔥 Validação do avaliador
+        if (!unidadeFinal || unidadeFinal === 'TODAS') return avisar(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
+        if (!avaliadorResponsavel) return avisar("Selecione o Avaliador Responsável."); // 🔥 Validação do avaliador
 
-        if (p === null || p <= 0 || p > 300) return alert(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
-        if (alt === null || alt < 0.5 || alt > 2.5) return alert(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida ou não informada.'}));
+        if (p === null || p <= 0 || p > 300) return avisar(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
+        if (alt === null || alt < 0.5 || alt > 2.5) return avisar(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida ou não informada.'}));
 
         const respostasFinais = { ...respostasDinamicas };
         for (const p of perguntasDinamicas) {
@@ -317,7 +318,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             }
             if (p.obrigatorio) {
                 const resp = respostasFinais[p.id];
-                if (!resp || (Array.isArray(resp) && resp.length === 0)) { alert(`A pergunta "${p.pergunta}" é obrigatória.`); return; }
+                if (!resp || (Array.isArray(resp) && resp.length === 0)) { avisar(`A pergunta "${p.pergunta}" é obrigatória.`); return; }
             }
         }
 
@@ -333,7 +334,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 const { data: uploadData, error: uploadError } = await supabase.storage.from('exames_inbody').upload(`avaliacoes/${nomeArquivo}`, arquivoInBody);
                 if (uploadError) {
                     console.error("Erro ao subir arquivo no Storage:", uploadError);
-                    alert("A avaliação será salva, mas houve um erro ao guardar o anexo PDF/Imagem. Confirme as permissões do Bucket.");
+                    avisar("A avaliação será salva, mas houve um erro ao guardar o anexo PDF/Imagem. Confirme as permissões do Bucket.");
                 } else if (uploadData) {
                     const { data: { publicUrl } } = supabase.storage.from('exames_inbody').getPublicUrl(`avaliacoes/${nomeArquivo}`);
                     urlArquivoInBody = publicUrl;
@@ -366,7 +367,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             }
             
             setSucesso(true); setTimeout(() => { setSucesso(false); voltar(); }, 2000);
-        } catch (err) { console.error(err); alert(t('assessment.form.errorSave', {defaultValue: 'Erro ao salvar avaliação.'})); } finally { setIsSubmitting(false); }
+        } catch (err) { console.error(err); avisar(t('assessment.form.errorSave', {defaultValue: 'Erro ao salvar avaliação.'})); } finally { setIsSubmitting(false); }
     };
 
     return (
@@ -456,7 +457,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                                                 <div>
                                                     <span className="text-[11px] font-black uppercase tracking-widest block">Não encontrado</span>
-                                                    <span className="text-[9px] font-bold opacity-80 leading-tight">Proceda com o cadastro.</span>
+                                                    <span className="text-[10px] font-bold opacity-80 leading-tight">Proceda com o cadastro.</span>
                                                 </div>
                                             </div>
                                             <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">Cadastrar</button>
@@ -509,7 +510,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         <div className="flex items-center gap-3 sm:pr-5 shrink-0">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><Phone className="w-4 h-4" /></div>
                                             <div className="flex flex-col group">
-                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Telefone</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Telefone</span>
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.telefone ? formatarTelefone(alunoEncontrado.telefone) : 'N/I'}</span>
                                                     {alunoEncontrado.telefone && <CopyButton textToCopy={alunoEncontrado.telefone} label="Copiar Telefone" />}
@@ -519,7 +520,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         <div className="flex items-center gap-3 sm:px-5 flex-1 min-w-0">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><Mail className="w-4 h-4" /></div>
                                             <div className="flex flex-col min-w-0 group">
-                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">E-mail</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">E-mail</span>
                                                 <div className="flex items-center gap-1">
                                                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 truncate">{alunoEncontrado.email || 'N/I'}</span>
                                                     {alunoEncontrado.email && <CopyButton textToCopy={alunoEncontrado.email} label="Copiar E-mail" />}
@@ -529,7 +530,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                         <div className="flex items-center gap-3 sm:pl-5 shrink-0">
                                             <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-500 dark:text-blue-400 flex items-center justify-center shrink-0"><User className="w-4 h-4" /></div>
                                             <div className="flex flex-col">
-                                                <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Idade</span>
+                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Idade</span>
                                                 <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300 whitespace-nowrap">{alunoEncontrado.data_nascimento ? `${calcularIdade(alunoEncontrado.data_nascimento)} anos` : 'N/I'}</span>
                                             </div>
                                         </div>
@@ -552,9 +553,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                 <div className={`transition-all duration-500 ${!avaliacaoLiberada ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-slate-800 dark:to-slate-900 border-2 border-blue-200/60 dark:border-blue-900/50 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 border-2 border-blue-200/60 dark:border-blue-900/50 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
                         <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-200/20 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
-                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-200/20 dark:bg-indigo-600/10 rounded-full blur-3xl"></div>
+                        <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-200/20 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
                         
                         <div className="flex items-center gap-5 relative z-10">
                             <div className="w-14 h-14 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-blue-100 dark:border-slate-700">
@@ -562,7 +563,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             </div>
                             <div>
                                 <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                                    Preenchimento Inteligente <span className="bg-blue-600 dark:bg-blue-500 text-white text-[9px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
+                                    Preenchimento Inteligente <span className="bg-blue-600 dark:bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
                                 </h3>
                                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-lg leading-relaxed">Faça o upload do exame InBody ou Superbio. A IA extrairá as medidas automaticamente.</p>
                             </div>
@@ -582,7 +583,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                             {arquivoInBody.name}
                                         </span>
                                     </div>
-                                    <button type="button" onClick={removerArquivo} className="text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors">
+                                    <button type="button" onClick={removerArquivo} className="text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors dark:hover:text-rose-400">
                                         Remover Arquivo
                                     </button>
                                 </div>
@@ -633,7 +634,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                     <div className={`${sectionClass} mt-6`}>
                         <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-8">
-                            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 dark:text-indigo-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
+                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
                                 <Activity className="w-6 h-6" />
                             </div>
                             <div>

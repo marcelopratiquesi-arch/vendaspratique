@@ -23,6 +23,7 @@ import {
     FileX2,
     Users
 } from 'lucide-react';
+import { avisar } from '../../components/avisar.js';
 
 const RelatorioTab = ({
     vendasFiltradas = [],
@@ -152,7 +153,7 @@ const RelatorioTab = ({
 
     const handleGerarRelatorioGlobalWhatsapp = () => {
         if (unidadesOrdenadas.length === 0) {
-            alert(t('analytics.report.noDataWpp', { defaultValue: "Não há dados para gerar relatório com os filtros atuais." }));
+            avisar(t('analytics.report.noDataWpp', { defaultValue: "Não há dados para gerar relatório com os filtros atuais." }));
             return;
         }
         const txt = montarTextoGlobalWhatsapp({
@@ -208,13 +209,13 @@ const RelatorioTab = ({
             <div className="space-y-8">
                 {/* 📌 BARRA DE AÇÕES GERENCIAIS E EXPORTAÇÃO */}
                 {unidadesOrdenadas.length > 0 && permissaoGerencial && (
-                    <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 items-center justify-between no-drag">
+                    <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 items-center justify-between no-drag dark:bg-slate-900 dark:border-slate-800">
                         <div className="flex items-center gap-4 w-full md:w-auto">
                             <div className="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center shadow-md shrink-0">
                                 <LayoutList className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest">
+                                <h3 className="text-base font-black text-slate-800 uppercase tracking-widest dark:text-white">
                                     Fechamento Operacional
                                 </h3>
                                 <p className="text-[11px] font-bold text-slate-400 mt-0.5">
@@ -224,18 +225,18 @@ const RelatorioTab = ({
                         </div>
 
                         <div className="flex flex-col sm:flex-row w-full md:w-auto gap-4 items-center">
-                            <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto">
+                            <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full sm:w-auto dark:bg-slate-800 dark:border-slate-800">
                                 <button
                                     type="button"
                                     onClick={() => setVisaoDetalhada(false)}
-                                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!visaoDetalhada ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${!visaoDetalhada ? 'bg-white shadow-sm text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     Resumo
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setVisaoDetalhada(true)}
-                                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visaoDetalhada ? 'bg-white shadow-sm text-blue-700' : 'text-slate-500 hover:text-slate-800'}`}
+                                    className={`flex-1 sm:flex-none px-6 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${visaoDetalhada ? 'bg-white shadow-sm text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}
                                 >
                                     Detalhado
                                 </button>
@@ -245,7 +246,7 @@ const RelatorioTab = ({
                                 <button
                                     type="button"
                                     onClick={handleExportarCSV}
-                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-slate-200"
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-800"
                                 >
                                     <Download className="w-4 h-4" /> Planilha
                                 </button>
@@ -253,7 +254,7 @@ const RelatorioTab = ({
                                     <button
                                         type="button"
                                         onClick={handleGerarRelatorioGlobalWhatsapp}
-                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200"
+                                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
                                     >
                                         <Share2 className="w-4 h-4" /> WhatsApp Geral
                                     </button>
@@ -265,11 +266,11 @@ const RelatorioTab = ({
 
                 {/* 🏢 CARDS SANFONA POR UNIDADE COM INTERAÇÃO DE MODAL */}
                 {unidadesOrdenadas.length === 0 ? (
-                    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60 pointer-events-none">
-                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                    <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60 pointer-events-none dark:bg-slate-900 dark:border-slate-800">
+                        <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4 dark:bg-slate-800">
                             <FileX2 className="w-8 h-8 text-slate-400" />
                         </div>
-                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest">
+                        <p className="text-sm font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
                             {t('analytics.report.emptyData', { defaultValue: 'Nenhum dado neste período.' })}
                         </p>
                     </div>
@@ -286,7 +287,7 @@ const RelatorioTab = ({
                             .filter(([_, info]) => info.total > 0);
 
                         return (
-                            <div key={unidade} className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300">
+                            <div key={unidade} className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300 dark:bg-slate-900 dark:border-slate-800">
                                 <div
                                     className="bg-slate-900 px-6 py-5 flex flex-col md:flex-row md:items-center justify-between gap-5 transition-colors cursor-pointer select-none group"
                                     onClick={() => toggleUnidade(unidade)}
@@ -330,12 +331,12 @@ const RelatorioTab = ({
                                     </div>
                                 </div>
 
-                                <div className={`transition-all duration-300 ${isRecolhido ? 'h-0 opacity-0 overflow-hidden' : 'p-6 md:p-8 bg-slate-50/50 border-t border-slate-200'}`}>
+                                <div className={`transition-all duration-300 ${isRecolhido ? 'h-0 opacity-0 overflow-hidden' : 'p-6 md:p-8 bg-slate-50/50 border-t border-slate-200 dark:bg-slate-800/40 dark:border-slate-800'}`}>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                         {/* VENDAS POR GRUPO (CLICÁVEIS) */}
                                         {gruposUnidadeFiltrados.map(([grupo, info]) => (
-                                            <div key={grupo} className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-slate-300">
-                                                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white">
+                                            <div key={grupo} className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700">
+                                                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white dark:border-slate-800 dark:bg-slate-900">
                                                     <div className="flex items-center gap-3">
                                                         <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${info.bgIcone}`}>
                                                             {info.icone}
@@ -344,12 +345,12 @@ const RelatorioTab = ({
                                                             {grupo}
                                                         </span>
                                                     </div>
-                                                    <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200">
+                                                    <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
                                                         {String(info.total).padStart(2, '0')} UN
                                                     </span>
                                                 </div>
 
-                                                <div className="flex-1 divide-y divide-slate-100 bg-slate-50/30 max-h-[160px] overflow-y-auto custom-scrollbar animate-[fadeIn_0.3s_ease-out] no-drag">
+                                                <div className="flex-1 divide-y divide-slate-100 bg-slate-50/30 max-h-[160px] overflow-y-auto custom-scrollbar animate-[fadeIn_0.3s_ease-out] no-drag dark:divide-slate-800 dark:bg-slate-800/40">
                                                     {Object.entries(info.itens).sort((a, b) => b[1].total - a[1].total).map(([nomeItem, itemData]) => {
                                                         if (itemData.total === 0) return null;
 
@@ -363,21 +364,21 @@ const RelatorioTab = ({
                                                             <div
                                                                 key={nomeItem}
                                                                 onClick={(e) => { e.stopPropagation(); abrirModalAuditoria(nomeItem, unidade, 'VENDA', itemData.vendasAuditaveis, itemData.total); }}
-                                                                className="px-5 py-3.5 flex justify-between items-center bg-white hover:bg-blue-50/60 cursor-pointer transition-colors group"
+                                                                className="px-5 py-3.5 flex justify-between items-center bg-white hover:bg-blue-50/60 cursor-pointer transition-colors group dark:bg-slate-900 dark:hover:bg-blue-500/10"
                                                                 title="Clique para detalhar auditoria"
                                                             >
                                                                 <div className="flex flex-col pr-4">
-                                                                    <span className="text-[11px] font-black text-slate-700 uppercase group-hover:text-blue-600 transition-colors line-clamp-1">
+                                                                    <span className="text-[11px] font-black text-slate-700 uppercase group-hover:text-blue-600 transition-colors line-clamp-1 dark:text-slate-200 dark:group-hover:text-blue-400">
                                                                         {nomeItem}
                                                                     </span>
                                                                     {stringConsultores && (
-                                                                        <span className="text-[9px] font-bold text-slate-400 mt-0.5 line-clamp-1 flex items-center gap-1" title={stringConsultores}>
+                                                                        <span className="text-[10px] font-bold text-slate-400 mt-0.5 line-clamp-1 flex items-center gap-1" title={stringConsultores}>
                                                                             <Users className="w-2.5 h-2.5 inline-block opacity-70 shrink-0" />
                                                                             {stringConsultores}
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <span className="text-[11px] font-black text-slate-800 shrink-0 bg-slate-100 px-2 py-1 rounded-md border border-slate-200 shadow-sm group-hover:bg-blue-100 group-hover:border-blue-200 group-hover:text-blue-700 transition-colors">
+                                                                <span className="text-[11px] font-black text-slate-800 shrink-0 bg-slate-100 px-2 py-1 rounded-md border border-slate-200 shadow-sm group-hover:bg-blue-100 group-hover:border-blue-200 group-hover:text-blue-700 transition-colors dark:text-white dark:bg-slate-800 dark:border-slate-800 dark:group-hover:bg-blue-500/20 dark:group-hover:border-blue-500/30 dark:group-hover:text-blue-400">
                                                                     {String(itemData.total).padStart(2, '0')}x
                                                                 </span>
                                                             </div>
@@ -389,29 +390,29 @@ const RelatorioTab = ({
 
                                         {/* VISITANTES DE BALCÃO (CLICÁVEL) */}
                                         <div
-                                            className={`bg-white border no-drag ${hasVisitantes ? 'border-slate-200 hover:border-blue-300 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-md cursor-pointer group' : 'border-slate-200 border-dashed opacity-80 pointer-events-none'} rounded-2xl flex flex-col overflow-hidden transition-all`}
+                                            className={`bg-white border no-drag dark:bg-slate-900 ${hasVisitantes ? 'border-slate-200 hover:border-blue-300 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-md cursor-pointer group dark:border-slate-800 dark:hover:border-blue-500/30' : 'border-slate-200 border-dashed opacity-80 pointer-events-none dark:border-slate-800'} rounded-2xl flex flex-col overflow-hidden transition-all`}
                                             onClick={(e) => { if (hasVisitantes) { e.stopPropagation(); abrirModalAuditoria('Visitantes Capturados', unidade, 'VISITANTE', dados.visitantes, dados.visitantes.length); } }}
                                         >
-                                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white group-hover:bg-blue-50/50 transition-colors">
+                                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white group-hover:bg-blue-50/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:group-hover:bg-blue-500/10">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${hasVisitantes ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${hasVisitantes ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
                                                         👥
                                                     </span>
-                                                    <span className={`text-xs font-black uppercase tracking-wider ${hasVisitantes ? 'text-blue-600' : 'text-slate-400'}`}>
+                                                    <span className={`text-xs font-black uppercase tracking-wider ${hasVisitantes ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
                                                         {t('analytics.report.cardVisitors', { defaultValue: 'VISITANTES' })}
                                                     </span>
                                                 </div>
-                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border transition-colors ${hasVisitantes ? 'bg-blue-50 text-blue-600 border-blue-200 group-hover:bg-blue-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border transition-colors ${hasVisitantes ? 'bg-blue-50 text-blue-600 border-blue-200 group-hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30 dark:group-hover:bg-blue-500/20' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/60 dark:border-slate-800'}`}>
                                                     {String(dados.visitantes.length).padStart(2, '0')} UN
                                                 </span>
                                             </div>
-                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px] group-hover:bg-blue-50/20 transition-colors">
+                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px] group-hover:bg-blue-50/20 transition-colors dark:bg-slate-800/40 dark:group-hover:bg-blue-500/10">
                                                 {hasVisitantes ? (
                                                     <>
-                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-blue-600/70 transition-colors">
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-blue-600/70 transition-colors dark:text-slate-400">
                                                             {t('analytics.report.totalCaptured', { defaultValue: 'Total Capturado' })}
                                                         </p>
-                                                        <p className="text-4xl md:text-5xl font-black text-slate-800 group-hover:text-blue-700 transition-colors">
+                                                        <p className="text-4xl md:text-5xl font-black text-slate-800 group-hover:text-blue-700 transition-colors dark:text-white dark:group-hover:text-blue-400">
                                                             {dados.visitantes.length}
                                                         </p>
                                                     </>
@@ -428,29 +429,29 @@ const RelatorioTab = ({
 
                                         {/* AVALIAÇÕES FÍSICAS (CLICÁVEL) */}
                                         <div
-                                            className={`bg-white border no-drag ${hasAvaliacoes ? 'border-slate-200 hover:border-orange-300 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-md cursor-pointer group' : 'border-slate-200 border-dashed opacity-80 pointer-events-none'} rounded-2xl flex flex-col overflow-hidden transition-all`}
+                                            className={`bg-white border no-drag dark:bg-slate-900 ${hasAvaliacoes ? 'border-slate-200 hover:border-orange-300 shadow-[0_2px_10px_rgb(0,0,0,0.02)] hover:shadow-md cursor-pointer group dark:border-slate-800 dark:hover:border-orange-500/30' : 'border-slate-200 border-dashed opacity-80 pointer-events-none dark:border-slate-800'} rounded-2xl flex flex-col overflow-hidden transition-all`}
                                             onClick={(e) => { if (hasAvaliacoes) { e.stopPropagation(); abrirModalAuditoria('Avaliações Realizadas', unidade, 'AVALIACAO', dados.avaliacoes, dados.avaliacoes.length); } }}
                                         >
-                                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white group-hover:bg-orange-50/50 transition-colors">
+                                            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center bg-white group-hover:bg-orange-50/50 transition-colors dark:border-slate-800 dark:bg-slate-900 dark:group-hover:bg-orange-500/10">
                                                 <div className="flex items-center gap-3">
-                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${hasAvaliacoes ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
+                                                    <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${hasAvaliacoes ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>
                                                         📋
                                                     </span>
-                                                    <span className={`text-xs font-black uppercase tracking-wider ${hasAvaliacoes ? 'text-orange-600' : 'text-slate-400'}`}>
+                                                    <span className={`text-xs font-black uppercase tracking-wider ${hasAvaliacoes ? 'text-orange-600 dark:text-orange-400' : 'text-slate-400'}`}>
                                                         {t('analytics.report.cardAssessments', { defaultValue: 'AVALIAÇÕES' })}
                                                     </span>
                                                 </div>
-                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border transition-colors ${hasAvaliacoes ? 'bg-orange-50 text-orange-600 border-orange-200 group-hover:bg-orange-100' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                                                <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border transition-colors ${hasAvaliacoes ? 'bg-orange-50 text-orange-600 border-orange-200 group-hover:bg-orange-100 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30 dark:group-hover:bg-orange-500/20' : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/60 dark:border-slate-800'}`}>
                                                     {String(dados.avaliacoes.length).padStart(2, '0')} UN
                                                 </span>
                                             </div>
-                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px] group-hover:bg-orange-50/20 transition-colors">
+                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px] group-hover:bg-orange-50/20 transition-colors dark:bg-slate-800/40 dark:group-hover:bg-orange-500/10">
                                                 {hasAvaliacoes ? (
                                                     <>
-                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-orange-600/70 transition-colors">
+                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-orange-600/70 transition-colors dark:text-slate-400">
                                                             {t('analytics.report.doneToday', { defaultValue: 'Realizadas' })}
                                                         </p>
-                                                        <p className="text-4xl md:text-5xl font-black text-slate-800 group-hover:text-orange-700 transition-colors">
+                                                        <p className="text-4xl md:text-5xl font-black text-slate-800 group-hover:text-orange-700 transition-colors dark:text-white dark:group-hover:text-orange-400">
                                                             {dados.avaliacoes.length}
                                                         </p>
                                                     </>

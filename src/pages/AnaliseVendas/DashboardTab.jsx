@@ -10,6 +10,7 @@ import {
     safeIsoDate
 } from './utils.js';
 import { TrendingUp, X, Users, Loader2, CheckCircle2 } from 'lucide-react'; 
+import { avisar } from '../../components/avisar.js';
 
 // ==========================================
 // 🧠 COMPONENTE: JANELA FLUTUANTE (DRAGGABLE & RESIZABLE)
@@ -63,7 +64,7 @@ const DraggableWindow = ({ isOpen, onClose, title, subtitle, icon: Icon, iconCol
                 minWidth: `${minWidth}px`,
                 minHeight: `${minHeight}px`
             }}
-            className="fixed z-[200] bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] flex flex-col border border-slate-300 resize overflow-hidden animate-[zoomIn_0.2s_ease-out]"
+            className="fixed z-[200] bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] flex flex-col border border-slate-300 resize overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-slate-900 dark:border-slate-700"
         >
             {/* CABEÇALHO (ÁREA DE ARRASTE) */}
             <div
@@ -89,7 +90,7 @@ const DraggableWindow = ({ isOpen, onClose, title, subtitle, icon: Icon, iconCol
             </div>
 
             {/* CORPO DA JANELA (SCROLLÁVEL) */}
-            <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto custom-scrollbar relative">
+            <div className="flex-1 flex flex-col bg-slate-50 overflow-y-auto custom-scrollbar relative dark:bg-slate-800/60">
                 {children}
             </div>
         </div>
@@ -152,7 +153,7 @@ const DashboardTab = ({
     // ABERTURA DO PAINEL FLUTUANTE
     const handleAbrirModalAtivos = () => {
         if (unidadeAtual === 'TODOS') {
-            alert("Selecione uma unidade específica no filtro acima para editar os ativos.");
+            avisar("Selecione uma unidade específica no filtro acima para editar os ativos.");
             return;
         }
         setAtivosInput(ativosAtualBanco !== null ? String(ativosAtualBanco) : '0');
@@ -404,14 +405,14 @@ const DashboardTab = ({
             >
                 <div className="p-6 md:p-8 space-y-8">
                     <div>
-                        <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 dark:text-slate-400">
                             <i data-lucide="layers" className="w-4 h-4 text-blue-500"></i> Planos Vendidos no Período
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {todosPlanosDetalhados.map((p, i) => (
-                                <div key={i} className="bg-white border border-slate-200 p-3.5 rounded-xl flex justify-between items-center shadow-sm">
-                                    <span className="text-[10px] font-bold text-slate-700 uppercase truncate mr-2" title={p.nome}>{p.nome}</span>
-                                    <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">{p.qtd}</span>
+                                <div key={i} className="bg-white border border-slate-200 p-3.5 rounded-xl flex justify-between items-center shadow-sm dark:bg-slate-900 dark:border-slate-800">
+                                    <span className="text-[10px] font-bold text-slate-700 uppercase truncate mr-2 dark:text-slate-200" title={p.nome}>{p.nome}</span>
+                                    <span className="text-xs font-black text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg dark:text-blue-400 dark:bg-blue-500/10 dark:border-blue-500/30">{p.qtd}</span>
                                 </div>
                             ))}
                             {todosPlanosDetalhados.length === 0 && (
@@ -421,28 +422,28 @@ const DashboardTab = ({
                     </div>
 
                     <div>
-                        <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2 dark:text-slate-400">
                             <i data-lucide="calculator" className="w-4 h-4 text-rose-500"></i> Fórmula de Upsell Aplicada
                         </h4>
-                        <div className="bg-white border border-slate-200 rounded-[20px] p-6 shadow-sm space-y-5">
+                        <div className="bg-white border border-slate-200 rounded-[20px] p-6 shadow-sm space-y-5 dark:bg-slate-900 dark:border-slate-800">
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase">1. Total de Entradas (Todos os Planos)</span>
-                                <span className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">{totalPlanos}</span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">1. Total de Entradas (Todos os Planos)</span>
+                                <span className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg dark:text-white dark:bg-slate-800">{totalPlanos}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase">2. Quantidade de Planos "FIT" (Básicos)</span>
-                                <span className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg">{totalFit}</span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">2. Quantidade de Planos "FIT" (Básicos)</span>
+                                <span className="text-sm font-black text-slate-800 bg-slate-100 px-3 py-1 rounded-lg dark:text-white dark:bg-slate-800">{totalFit}</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-[11px] font-bold text-slate-500 uppercase">3. Percentual FIT <span className="text-[9px] lowercase normal-case text-slate-400">(Fit ÷ Entradas × 100)</span></span>
-                                <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-lg">{percentualFit.toFixed(1)}%</span>
+                                <span className="text-[11px] font-bold text-slate-500 uppercase dark:text-slate-400">3. Percentual FIT <span className="text-[10px] lowercase normal-case text-slate-400">(Fit ÷ Entradas × 100)</span></span>
+                                <span className="text-sm font-black text-rose-600 bg-rose-50 px-3 py-1 rounded-lg dark:text-rose-400 dark:bg-rose-500/10">{percentualFit.toFixed(1)}%</span>
                             </div>
-                            <div className="pt-5 border-t border-slate-200 flex justify-between items-center">
+                            <div className="pt-5 border-t border-slate-200 flex justify-between items-center dark:border-slate-800">
                                 <div>
-                                    <span className="block text-xs font-black text-slate-800 uppercase tracking-widest">Produtividade Final</span>
-                                    <span className="block text-[9px] font-bold text-slate-400 mt-0.5">100% - Percentual FIT</span>
+                                    <span className="block text-xs font-black text-slate-800 uppercase tracking-widest dark:text-white">Produtividade Final</span>
+                                    <span className="block text-[10px] font-bold text-slate-400 mt-0.5">100% - Percentual FIT</span>
                                 </div>
-                                <span className="text-2xl font-black text-emerald-600">{produtividadeUpsell.toFixed(1)}%</span>
+                                <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{produtividadeUpsell.toFixed(1)}%</span>
                             </div>
                         </div>
                     </div>
@@ -463,16 +464,16 @@ const DashboardTab = ({
                 <div className="p-6 md:p-8 flex flex-col gap-6 h-full justify-center">
                     {sucessoAtivos ? (
                         <div className="flex flex-col items-center justify-center py-6 animate-[zoomIn_0.2s_ease-out]">
-                            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-inner border border-emerald-200">
+                            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-inner border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30">
                                 <CheckCircle2 className="w-8 h-8" />
                             </div>
-                            <h4 className="text-lg font-black text-slate-800 tracking-tight">Ativos Atualizados!</h4>
-                            <p className="text-xs font-bold text-slate-500 mt-1 text-center">O Dashboard já foi sincronizado.</p>
+                            <h4 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">Ativos Atualizados!</h4>
+                            <p className="text-xs font-bold text-slate-500 mt-1 text-center dark:text-slate-400">O Dashboard já foi sincronizado.</p>
                         </div>
                     ) : (
                         <>
                             <div>
-                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block text-center">
+                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block text-center dark:text-slate-400">
                                     Quantidade de alunos ativos
                                 </label>
                                 <input 
@@ -481,7 +482,7 @@ const DashboardTab = ({
                                     value={ativosInput} 
                                     onChange={(e) => setAtivosInput(e.target.value)}
                                     onKeyDown={(e) => { if (e.key === 'Enter') handleSalvarAtivos(); }}
-                                    className="w-full bg-white border-2 border-emerald-300 rounded-2xl p-4 text-3xl font-black text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 text-center shadow-sm"
+                                    className="w-full bg-white border-2 border-emerald-300 rounded-2xl p-4 text-3xl font-black text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 text-center shadow-sm dark:bg-slate-900 dark:border-emerald-500/30 dark:text-emerald-400"
                                     autoFocus
                                 />
                                 {erroAtivos && <p className="text-xs font-bold text-rose-500 mt-2 text-center animate-pulse">{erroAtivos}</p>}
@@ -491,7 +492,7 @@ const DashboardTab = ({
                                 onClick={handleSalvarAtivos}
                                 disabled={!hasChangesAtivos || isSalvandoAtivos}
                                 className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2
-                                    ${!hasChangesAtivos ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
+                                    ${!hasChangesAtivos ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none dark:bg-slate-700' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
                                     ${isSalvandoAtivos ? 'opacity-70 cursor-wait' : ''}
                                 `}
                             >
@@ -575,9 +576,9 @@ const DashboardTab = ({
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 
-                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col">
-                    <div className="flex justify-between items-center border-b border-slate-100 mb-6 pb-4">
-                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col dark:bg-slate-900 dark:border-slate-800">
+                    <div className="flex justify-between items-center border-b border-slate-100 mb-6 pb-4 dark:border-slate-800">
+                        <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest flex items-center gap-2 dark:text-white">
                             <i data-lucide="layers" className="w-5 h-5 text-blue-500"></i> {t('analytics.dashboard.plansTitle', { defaultValue: 'Venda de Assinaturas' })}
                         </h3>
                     </div>
@@ -589,7 +590,7 @@ const DashboardTab = ({
                             const isExpanded = grupoExpandido === nomeGrupo && !isSingleLooseItem;
 
                             return (
-                                <div key={nomeGrupo} className="group flex flex-col gap-1 border border-slate-100 rounded-xl p-3 bg-slate-50 transition-all">
+                                <div key={nomeGrupo} className="group flex flex-col gap-1 border border-slate-100 rounded-xl p-3 bg-slate-50 transition-all dark:border-slate-800 dark:bg-slate-800/60">
                                     <div className={`flex justify-between items-center select-none ${!isSingleLooseItem ? 'cursor-pointer' : ''}`} onClick={() => !isSingleLooseItem && toggleGrupoPlanos(nomeGrupo)}>
                                         <div className="flex items-center gap-2">
                                             {!isSingleLooseItem ? <i data-lucide={isExpanded ? "chevron-up" : "chevron-down"} className="w-4 h-4 text-slate-400"></i> : <div className="w-1 h-1 rounded-full bg-slate-400 ml-1.5 mr-1.5"></div>}
@@ -597,18 +598,18 @@ const DashboardTab = ({
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="text-slate-400 text-[10px] font-bold">{perc.toFixed(0)}%</span>
-                                            <span className="bg-white px-2 py-0.5 rounded text-[10px] border shadow-sm font-black">{String(data.total).padStart(2, '0')} un</span>
+                                            <span className="bg-white px-2 py-0.5 rounded text-[10px] border shadow-sm font-black dark:bg-slate-900">{String(data.total).padStart(2, '0')} un</span>
                                         </div>
                                     </div>
-                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1">
+                                    <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden mt-1 dark:bg-slate-700">
                                         <div className={`h-full rounded-full transition-all duration-700 ease-out ${data.cor}`} style={{ width: `${perc}%` }}></div>
                                     </div>
                                     {isExpanded && (
-                                        <div className="mt-3 pt-3 border-t border-slate-200 space-y-2 animate-[fadeIn_0.2s_ease-out]">
+                                        <div className="mt-3 pt-3 border-t border-slate-200 space-y-2 animate-[fadeIn_0.2s_ease-out] dark:border-slate-800">
                                             {Object.entries(data.detalhes).sort((a,b)=>b[1]-a[1]).map(([nomePlano, qtdPlano]) => (
-                                                <div key={nomePlano} className="flex justify-between items-center text-[9px] font-bold text-slate-600 uppercase">
-                                                    <span className="truncate max-w-[180px] pl-2 border-l-2 border-slate-300">{nomePlano}</span>
-                                                    <span className="bg-white border border-slate-100 px-1.5 rounded shadow-sm">{String(qtdPlano).padStart(2, '0')} un</span>
+                                                <div key={nomePlano} className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase dark:text-slate-300">
+                                                    <span className="truncate max-w-[180px] pl-2 border-l-2 border-slate-300 dark:border-slate-700">{nomePlano}</span>
+                                                    <span className="bg-white border border-slate-100 px-1.5 rounded shadow-sm dark:bg-slate-900 dark:border-slate-800">{String(qtdPlano).padStart(2, '0')} un</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -623,23 +624,23 @@ const DashboardTab = ({
                     </button>
                 </div>
 
-                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col">
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
+                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col dark:bg-slate-900 dark:border-slate-800">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4 dark:text-white">
                         <i data-lucide="box" className="w-5 h-5 text-amber-500"></i> {t('analytics.dashboard.productsTitle', { defaultValue: 'Produtos / Complementos' })}
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-2">
                         {topProdutosLista.map((item, idx) => (
-                            <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                <span className="text-[10px] font-black text-slate-700 uppercase"><span className="text-slate-400 font-bold w-4 mr-2">{idx + 1}º</span>{item[0]}</span>
-                                <span className="bg-white px-3 py-1 rounded-lg border text-[10px] font-black text-amber-600">{String(item[1]).padStart(2, '0')} un</span>
+                            <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100 dark:bg-slate-800/60 dark:border-slate-800">
+                                <span className="text-[10px] font-black text-slate-700 uppercase dark:text-slate-200"><span className="text-slate-400 font-bold w-4 mr-2">{idx + 1}º</span>{item[0]}</span>
+                                <span className="bg-white px-3 py-1 rounded-lg border text-[10px] font-black text-amber-600 dark:bg-slate-900 dark:text-amber-400">{String(item[1]).padStart(2, '0')} un</span>
                             </div>
                         ))}
                         {topProdutosLista.length === 0 && <p className="text-center text-xs font-bold text-slate-400 py-12">{t('analytics.dashboard.emptyProducts', { defaultValue: 'Nenhum produto físico vendido.' })}</p>}
                     </div>
                 </div>
 
-                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col">
-                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4">
+                <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-5 h-[440px] flex flex-col dark:bg-slate-900 dark:border-slate-800">
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest mb-6 flex items-center gap-2 border-b pb-4 dark:text-white">
                         <i data-lucide="medal" className="w-5 h-5 text-emerald-500"></i> {t('analytics.dashboard.podiumTitle', { defaultValue: 'Pódio Físico (Garrafa/Whey)' })}
                     </h3>
                     <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pr-2">
@@ -647,17 +648,17 @@ const DashboardTab = ({
                             const preenchidos = Math.min(qtd, 3);
 
                             return (
-                                <div key={idx} className={`flex justify-between items-center p-3 rounded-xl border ${qtd === 0 ? 'bg-rose-50 border-rose-100' : 'bg-slate-50 border-slate-100'}`}>
-                                    <span className={`text-[10px] font-black uppercase truncate max-w-[120px] ${qtd === 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                                <div key={idx} className={`flex justify-between items-center p-3 rounded-xl border ${qtd === 0 ? 'bg-rose-50 border-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30' : 'bg-slate-50 border-slate-100 dark:bg-slate-800/60 dark:border-slate-800'}`}>
+                                    <span className={`text-[10px] font-black uppercase truncate max-w-[120px] ${qtd === 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-white'}`}>
                                         {idx+1}º {nome.split(' ')[0]}
                                     </span>
                                     <div className="flex items-center gap-3">
                                         <span className="flex gap-1" aria-label={`${preenchidos} de 3`}>
                                             {[0, 1, 2].map(i => (
-                                                <span key={i} className={`w-2.5 h-2.5 rounded-[3px] ${i < preenchidos ? 'bg-emerald-500' : (qtd === 0 ? 'bg-rose-200' : 'bg-slate-200')}`} />
+                                                <span key={i} className={`w-2.5 h-2.5 rounded-[3px] ${i < preenchidos ? 'bg-emerald-500' : (qtd === 0 ? 'bg-rose-200' : 'bg-slate-200 dark:bg-slate-700')}`} />
                                             ))}
                                         </span>
-                                        <span className={`text-[10px] font-black bg-white px-2 py-0.5 rounded border shadow-sm ${qtd === 0 ? 'text-rose-500 border-rose-200' : 'text-emerald-600 border-slate-200'}`}>{String(qtd).padStart(2, '0')} un</span>
+                                        <span className={`text-[10px] font-black bg-white px-2 py-0.5 rounded border shadow-sm dark:bg-slate-900 ${qtd === 0 ? 'text-rose-500 border-rose-200 dark:border-rose-500/30' : 'text-emerald-600 border-slate-200 dark:text-emerald-400 dark:border-slate-800'}`}>{String(qtd).padStart(2, '0')} un</span>
                                     </div>
                                 </div>
                             )

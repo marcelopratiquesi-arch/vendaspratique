@@ -172,7 +172,7 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
         semUso: linhas.filter(l => l.situacao.rotulo === 'Sem uso').length
     }), [linhas]);
 
-    const th = 'px-4 py-3 text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
+    const th = 'px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
     const td = 'px-4 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 text-center';
     const foco = unidadeFoco || '';
 
@@ -189,9 +189,9 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30">{resumo.usando} usando</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30">{resumo.parado} parado</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30">{resumo.semUso} sem uso</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30">{resumo.usando} usando</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30">{resumo.parado} parado</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30">{resumo.semUso} sem uso</span>
                     {foco && (
                         <button type="button" onClick={() => onFocarUnidade(null)} className="ml-1 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors">
                             <X className="w-3.5 h-3.5" /> Ver todas
@@ -239,12 +239,12 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
                                         <p className={`text-xs font-black uppercase ${ativa ? 'text-blue-700 dark:text-blue-300' : 'text-slate-800 dark:text-white'}`}>{l.unidade}</p>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${l.situacao.classe}`}>
+                                        <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${l.situacao.classe}`}>
                                             <span className={`w-1.5 h-1.5 rounded-full ${l.situacao.bolinha}`}></span>{l.situacao.rotulo}
                                         </span>
                                     </td>
                                     <td className={td}>
-                                        {l.recepcionistas > 0 ? l.recepcionistas : <span className="text-[9px] font-black uppercase tracking-widest text-rose-500">Nenhuma</span>}
+                                        {l.recepcionistas > 0 ? l.recepcionistas : <span className="text-[10px] font-black uppercase tracking-widest text-rose-500">Nenhuma</span>}
                                     </td>
                                     <td className={`${td} font-black text-slate-800 dark:text-white`}>{l.acoes}</td>
                                     <td className={`${td} text-emerald-600 dark:text-emerald-400 font-black`}>{l.fechados}</td>
@@ -253,7 +253,7 @@ const PainelRedeCrm = ({ colaboradores = [], inicioPeriodo, nomePeriodo, versao,
                                     <td className={`${td} text-cyan-600 dark:text-cyan-400`}>{l.geladeira}</td>
                                     <td className="px-4 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">
                                         {l.ultima
-                                            ? <>{formatarDataHora(l.ultima)}<span className="block text-[9px] text-slate-400">{dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`}</span></>
+                                            ? <>{formatarDataHora(l.ultima)}<span className="block text-[10px] text-slate-400">{dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`}</span></>
                                             : `Nada nos últimos ${DIAS_PARA_ULTIMA_ACAO} dias`}
                                     </td>
                                 </tr>

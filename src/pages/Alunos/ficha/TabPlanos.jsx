@@ -43,7 +43,7 @@ const TabPlanos = ({ planos, temVisaoGlobal }) => {
                             <td className="px-5 py-4 text-xs font-bold text-slate-600 dark:text-slate-400">{formatarDataBR(plano.data || plano.created_at)}</td>
                             <td className="px-5 py-4 text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">{plano.vendedor || 'Sistema'}</td>
                             <td className="px-5 py-4 text-xs font-black text-slate-800 dark:text-slate-200 text-right">{formatMoney(plano.valor)}</td>
-                            {temVisaoGlobal && <td className="px-5 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">{plano.unidade}</td>}
+                            {temVisaoGlobal && <td className="px-5 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{plano.unidade}</td>}
                         </tr>
                     ))}
                 </tbody>
