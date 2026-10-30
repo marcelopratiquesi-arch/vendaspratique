@@ -5,7 +5,7 @@ import { supabase } from '../../supabaseClient.js';
 import { grupoDoPlano, normalizeString } from './utils.js';
 import {
     TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, HelpCircle, ArrowUpDown, ArrowDown, ArrowUp,
-    HeartPulse, Info, CircleSlash, Sparkles
+    HeartPulse, Info, CircleSlash, Sparkles, Users, ChevronDown
 } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
@@ -30,6 +30,9 @@ const COR_ANTERIOR = { claro: '#64748b', escuro: '#94a3b8' };
 const MINIMO_PARA_ALERTA = 3;
 const QUEDA_RELEVANTE = 0.3;
 const SUBIDA_RELEVANTE = 0.3;
+
+// Setor (equipe) de um colaborador no cadastro da Equipe (gravado em "role", como em CadastroGeral/TabEquipe.jsx)
+const setorDe = (c) => String(c.role || c.setor || c.cargo || '').trim().toUpperCase();
 
 const CATEGORIAS = [
     ['PLANO', 'Planos'],
@@ -205,11 +208,25 @@ const SaudeUnidadeTab = ({
     planosOcultos = [],
     produtosOcultos = [],
     servicosOcultos = [],
+    colaboradores = [],
 }) => {
     const escuro = useModoEscuro();
     const paleta = escuro ? CORES.escuro : CORES.claro;
     const periodos = useMemo(() => calcularPeriodos(faixa), [faixa]);
     const unidadeFixa = temVisaoGlobal ? (filtroUnidade !== 'TODOS' ? filtroUnidade : null) : unidadeUsuario;
+
+    // Unidade inteira ou uma equipe (= setor do cadastro da Equipe, decisão do dono 30/10/2026).
+    // A equipe entra pelo vendedor da venda: conta quem está naquele setor (ativo ou não, porque vendas antigas valem).
+    const [equipe, setEquipe] = useState('TODAS');
+    const colaboradoresDaVisao = useMemo(() => colaboradores.filter(c => {
+        const u = String(c.unidade || '');
+        return unidadeFixa ? u.toUpperCase() === String(unidadeFixa).toUpperCase() : unidadesPermitidas.includes(u);
+    }), [colaboradores, unidadeFixa, unidadesPermitidas]);
+    const equipesDisponiveis = useMemo(() => [...new Set(colaboradoresDaVisao.map(setorDe).filter(Boolean))].sort(), [colaboradoresDaVisao]);
+    const membrosEquipe = useMemo(() => (equipe === 'TODAS' ? null
+        : new Set(colaboradoresDaVisao.filter(c => setorDe(c) === equipe && c.nome).map(c => String(c.nome).trim().toUpperCase()))), [equipe, colaboradoresDaVisao]);
+    // Trocou de unidade e a equipe não existe nela: volta para a unidade inteira
+    useEffect(() => { if (equipe !== 'TODAS' && !equipesDisponiveis.includes(equipe)) setEquipe('TODAS'); }, [equipe, equipesDisponiveis]);
 
     // Busca no banco os dois períodos de uma vez (são seguidos: do início do anterior ao fim do atual)
     const [doBanco, setDoBanco] = useState([]);
@@ -275,6 +292,7 @@ const SaudeUnidadeTab = ({
             if (unidadeFixa ? unidade !== unidadeFixa : !permitidas.has(unidade)) return;
             const produto = String(v.produto || '').toUpperCase();
             if (!produto || escondidos.has(produto) || vendedoresEscondidos.has(String(v.vendedor || '').toUpperCase())) return;
+            if (membrosEquipe && !membrosEquipe.has(String(v.vendedor || '').trim().toUpperCase())) return;
             const data = String(v.data || '').slice(0, 10);
             const atual = data >= periodos.inicio && data <= periodos.fim;
             const antes = data >= periodos.inicioAnt && data <= periodos.fimAnt;
@@ -339,7 +357,7 @@ const SaudeUnidadeTab = ({
 
         return { tot, totalAtual, totalAntes, listaItens, grupos: Object.values(grupos), evolucao, tipoGrupo, avisos };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- categoriaDe só depende do mapaCatalogo
-    }, [periodos, doBanco, vendas, unidadeFixa, unidadesPermitidas, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, mapaCatalogo]);
+    }, [periodos, doBanco, vendas, unidadeFixa, unidadesPermitidas, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, mapaCatalogo, membrosEquipe]);
 
     // Tabela de itens
     const [categoria, setCategoria] = useState('PLANO');
@@ -357,7 +375,7 @@ const SaudeUnidadeTab = ({
     }
 
     const d = dados;
-    const nomeUnidade = unidadeFixa || tx('Todas as unidades');
+    const nomeUnidade = `${unidadeFixa || tx('Todas as unidades')}${equipe !== 'TODAS' ? ` · ${tx('Equipe')} ${equipe}` : ''}`;
     const textoAnterior = `${dataCurta(periodos.inicioAnt)} – ${dataCurta(periodos.fimAnt)}`;
     const nomesSerie = { PLANO: tx('Planos'), PRODUTO: tx('Produtos'), SERVICO: tx('Serviços'), anterior: tx('Período anterior (total)') };
 
@@ -411,6 +429,21 @@ const SaudeUnidadeTab = ({
 
             {/* RESUMO EM UMA FAIXA */}
             <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-3 dark:bg-slate-900 dark:border-slate-800">
+                {/* Unidade inteira ou uma equipe (setor do cadastro) */}
+                <div className="relative">
+                    <Users className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${equipe !== 'TODAS' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
+                    <select
+                        value={equipe}
+                        onChange={(e) => setEquipe(e.target.value)}
+                        aria-label={tx('Ver a unidade inteira ou uma equipe')}
+                        title={tx('A equipe é o setor do cadastro da Equipe. Escolhendo uma, todos os números contam só as vendas das pessoas daquele setor.')}
+                        className={`h-9 pl-9 pr-8 rounded-xl border text-[12px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${equipe !== 'TODAS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:text-slate-200'}`}
+                    >
+                        <option value="TODAS">{unidadeFixa ? tx('Unidade inteira') : tx('Todas as equipes')}</option>
+                        {equipesDisponiveis.map(s => <option key={s} value={s}>{tx('Equipe')}: {s}</option>)}
+                    </select>
+                    <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                </div>
                 <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('Vendas')} · {nomeUnidade}</span>
                     <span className="text-lg font-black text-slate-800 tabular-nums dark:text-white">{d.totalAtual}</span>

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { getCategoriaItem } from './utils.js';
+import { grupoDaMeta } from './utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, Info } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
-import { tx } from '../../i18n/traduzir.js';
+import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { infoDoMes, avaliarMeta } from './painel/calculosPainel.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Input com Auto-Save (CORRIGIDO)
@@ -118,7 +119,15 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
 // ==========================================
 // 🚀 NOVO DESIGN CIRÚRGICO: MetaItemCard PREMIUM
 // ==========================================
-const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
+// Cor do RITMO (avaliarMeta em painel/calculosPainel.js): compara o feito com o pedaço do mês que já passou
+const COR_RITMO = {
+    verde: { ponto: 'bg-emerald-500', texto: 'No ritmo' },
+    amarelo: { ponto: 'bg-amber-500', texto: 'Um pouco abaixo' },
+    vermelho: { ponto: 'bg-rose-500', texto: 'Em risco' },
+};
+const numeroCurto = (v, casas = 0) => Number(v || 0).toLocaleString(localeAtual(), { maximumFractionDigits: casas });
+
+const MetaItemCard = ({ label, dados, corTema, recompensa, ritmo, mes }) => {
     const metaVal = Number(dados.meta) || 0;
     const realizadoVal = Number(dados.realizado) || 0;
     const faltaVal = Number(dados.falta) || 0;
@@ -159,7 +168,12 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
             {/* NÍVEL 1 & 2: HIERARQUIA VISUAL DOS NÚMEROS */}
             <div className="flex justify-between items-start mb-3">
                 <div className="flex flex-col">
-                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide dark:text-white">{tx(label)}</span>
+                    <span className="text-sm font-bold text-slate-800 uppercase tracking-wide flex items-center gap-2 dark:text-white">
+                        {tx(label)}
+                        {ritmo && COR_RITMO[ritmo.status] && !isBatida && (
+                            <span className={`w-2.5 h-2.5 rounded-full ${COR_RITMO[ritmo.status].ponto}`} title={tx(COR_RITMO[ritmo.status].texto)} aria-label={tx(COR_RITMO[ritmo.status].texto)} />
+                        )}
+                    </span>
                     <div className="flex items-baseline gap-1 mt-0.5">
                         <span className="text-xl font-black text-slate-800 leading-none dark:text-white">{realizadoVal}</span>
                         <span className="text-xs font-semibold text-slate-500 uppercase tracking-widest dark:text-slate-400"> / {metaVal}</span>
@@ -173,12 +187,25 @@ const MetaItemCard = ({ label, dados, corTema, recompensa }) => {
             </div>
 
             {/* NÍVEL 3: BARRA DE PROGRESSO */}
-            <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-4 border border-slate-200/50 dark:bg-slate-800 dark:border-slate-800">
-                <div 
-                    className={`h-full rounded-full transition-all duration-1000 ease-out ${corBarra}`} 
+            <div className="relative w-full bg-slate-100 h-2.5 rounded-full overflow-hidden mb-4 border border-slate-200/50 dark:bg-slate-800 dark:border-slate-800">
+                <div
+                    className={`h-full rounded-full transition-all duration-1000 ease-out ${corBarra}`}
                     style={{ width: `${perc}%` }}
                 />
+                {/* Risquinho: onde deveria estar hoje (só no mês em andamento) */}
+                {ritmo && mes?.situacao === 'andamento' && !isBatida && ritmo.projecao !== null && (
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-slate-700 dark:bg-slate-200" style={{ left: `${Math.min((mes.diasPassados / mes.diasMes) * 100, 100)}%` }} title={tx('Onde deveria estar hoje')} />
+                )}
             </div>
+
+            {/* Ritmo: quanto precisa por dia e onde o mês termina no ritmo de hoje */}
+            {ritmo && !isBatida && (ritmo.ritmo !== null || (ritmo.projecao !== null && mes?.situacao === 'andamento')) && (
+                <p className="-mt-2 mb-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                    {ritmo.ritmo !== null && tx('Precisa de {qtd} por dia', { qtd: numeroCurto(ritmo.ritmo, 1) })}
+                    {ritmo.ritmo !== null && ritmo.projecao !== null && ' · '}
+                    {ritmo.projecao !== null && mes?.situacao === 'andamento' && tx('Projeção: {qtd}', { qtd: numeroCurto(Math.floor(ritmo.projecao)) })}
+                </p>
+            )}
 
             {/* NÍVEL 4 & 5: FALTANTE E STATUS/RECOMPENSA */}
             <div className="flex justify-between items-center mt-auto">
@@ -219,7 +246,7 @@ const MetasTab = ({
     temVisaoGlobal, filtroUnidade, filtroMes, filtroAno, vendasFiltradas, unidadesUnicas, usuarioLogado,
     metaNutri, setMetaNutri, metaProdutos, setMetaProdutos, metaPersonal, setMetaPersonal,
     metaAtivosMensal, setMetaAtivosMensal, metaNutriMensal, setMetaNutriMensal, metaPlusMensal, setMetaPlusMensal, metaPersMensal, setMetaPersMensal,
-    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp
+    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro
 }) => {
     const { locale } = useI18n();
     const [metasDoBanco, setMetasDoBanco] = useState({});
@@ -302,6 +329,11 @@ const MetasTab = ({
         });
     };
 
+    // Ritmo das metas (precisa de X por dia, projeção, cor): só quando o período é um mês escolhido
+    const mesRitmo = tipoFiltro === 'mes' && filtroMes && filtroMes !== 'TODOS' && filtroAno && filtroAno !== 'TODOS'
+        ? infoDoMes(filtroAno, filtroMes) : null;
+    const ritmoDe = (dados) => (mesRitmo ? avaliarMeta({ meta: dados.meta, vendido: dados.realizado, mes: mesRitmo }) : null);
+
     const listaUnidadesMetas = unidadesUnicas.filter(u => u !== 'TODOS' && (temVisaoGlobal ? true : u === usuarioLogado?.unidade));
 
     const dadosPorUnidade = listaUnidadesMetas.map(unidade => {
@@ -310,16 +342,12 @@ const MetasTab = ({
 
         vendasDaUnidade.forEach(v => {
             const qtd = parseInt(v.quantidade) || 1;
-            const prodUpper = (v.produto || '').toUpperCase();
-            const cat = getCategoriaItem(prodUpper, planos, produtos);
+            const grupo = grupoDaMeta(v.produto, planos, produtos);
 
-            if (cat === 'PLANO') {
-                if (prodUpper.includes("NUTRI")) nutriRealizado += qtd;
-                else if (prodUpper.includes("PERSONAL")) personalRealizado += qtd;
-                else if (prodUpper.includes("PLUS") || prodUpper.includes("AFL")) plusRealizado += qtd;
-            } else if (cat === 'PRODUTO') {
-                produtosRealizado += qtd;
-            }
+            if (grupo === 'NUTRI') nutriRealizado += qtd;
+            else if (grupo === 'PERSONAL') personalRealizado += qtd;
+            else if (grupo === 'PLUS') plusRealizado += qtd;
+            else if (grupo === 'PRODUTO') produtosRealizado += qtd;
         });
 
         const metaUnidade = metasDoBanco[unidade.toUpperCase()] || {
@@ -577,10 +605,10 @@ const MetasTab = ({
                             </div>
                             
                             <div className="flex flex-col gap-4">
-                                <MetaItemCard label={tx("NUTRI")} dados={item.start.nutri} corTema="bg-blue-500" />
-                                <MetaItemCard label={tx("PRODUTO")} dados={item.start.produto} corTema="bg-blue-500" />
+                                <MetaItemCard label={tx("NUTRI")} dados={item.start.nutri} corTema="bg-blue-500" ritmo={ritmoDe(item.start.nutri)} mes={mesRitmo} />
+                                <MetaItemCard label={tx("PRODUTO")} dados={item.start.produto} corTema="bg-blue-500" ritmo={ritmoDe(item.start.produto)} mes={mesRitmo} />
                                 {item.start.personal.meta > 0 && (
-                                    <MetaItemCard label={tx("PERSONAL CLASS")} dados={item.start.personal} corTema="bg-blue-500" />
+                                    <MetaItemCard label={tx("PERSONAL CLASS")} dados={item.start.personal} corTema="bg-blue-500" ritmo={ritmoDe(item.start.personal)} mes={mesRitmo} />
                                 )}
                             </div>
                         </div>
@@ -599,10 +627,10 @@ const MetasTab = ({
                             
                             <div className="flex flex-col gap-4">
                                 <MetaItemCard label={tx("ATIVOS")} dados={item.mensal.ativos} corTema="bg-amber-400" recompensa="R$ 50" />
-                                <MetaItemCard label={tx("NUTRI")} dados={item.mensal.nutri} corTema="bg-amber-400" recompensa="R$ 50" />
-                                <MetaItemCard label="PLUS" dados={item.mensal.plus} corTema="bg-amber-400" recompensa="R$ 50" />
+                                <MetaItemCard label={tx("NUTRI")} dados={item.mensal.nutri} corTema="bg-amber-400" recompensa="R$ 50" ritmo={ritmoDe(item.mensal.nutri)} mes={mesRitmo} />
+                                <MetaItemCard label="PLUS" dados={item.mensal.plus} corTema="bg-amber-400" recompensa="R$ 50" ritmo={ritmoDe(item.mensal.plus)} mes={mesRitmo} />
                                 {item.mensal.personal.meta > 0 && (
-                                    <MetaItemCard label={tx("PERSONAL CLASS")} dados={item.mensal.personal} corTema="bg-amber-400" recompensa="R$ 50" />
+                                    <MetaItemCard label={tx("PERSONAL CLASS")} dados={item.mensal.personal} corTema="bg-amber-400" recompensa="R$ 50" ritmo={ritmoDe(item.mensal.personal)} mes={mesRitmo} />
                                 )}
                             </div>
                         </div>

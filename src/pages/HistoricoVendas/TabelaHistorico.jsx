@@ -736,6 +736,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                     podeRestaurar={podeRestaurar} onRestaurada={recarregarLixeira}
                 />
             )}
+
         </div>
     );
 };

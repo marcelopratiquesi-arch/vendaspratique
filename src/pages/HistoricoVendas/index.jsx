@@ -221,6 +221,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
         });
     }, [vendasBase, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, termoBusca, digitosBusca]);
 
+
     // ==========================================
     // LIXEIRA: vendas excluídas (consulta segura vendas_lixeira_listar, que já limita por perfil).
     // Usa os MESMOS filtros do Histórico: período (pela data da exclusão), unidade, busca e itens escondidos.

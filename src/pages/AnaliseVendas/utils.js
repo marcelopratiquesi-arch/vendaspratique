@@ -133,7 +133,31 @@ export const criarGruposPlanosVazio = () => ({
     "OUTROS PLANOS": { total: 0, detalhes: {}, cor: "bg-slate-500", textCor: "text-slate-700" }
 });
 
-// Grupo de um plano pelo nome. REGRA ÚNICA (painel de vendas e aba Migração do CRM usam esta mesma função):
+// ==========================================
+// NUTRI É ADICIONAL, NÃO PLANO (decisão do dono, 30/10/2026 — ETAPA 1: só o Dashboard usa esta função)
+// decomporPlano(nome) → { base, nutri }
+// - base: 'PLUS' | 'FIT' | 'PERSONAL CLASS' | 'OUTROS PLANOS' | null → o plano que conta como ENTRADA/ATIVO
+// - nutri: true/false → conta como ADICIONAL NUTRI
+// Com NUTRI no nome: nutri = true e a base sai do resto do nome (PLUS/AFL, FIT ou PERSONAL). Se o resto não
+// tiver nenhum desses (ex.: "PRATIQUE NUTRI", "NUTRI MENSAL"), base = null: é só adicional, não é entrada.
+// Sem NUTRI: PLUS ou AFL → PLUS; FIT → FIT; PERSONAL → PERSONAL CLASS; qualquer outro → OUTROS PLANOS.
+// Só vale para itens que o catálogo classifica como PLANO (getCategoriaItem). Lida na hora de mostrar:
+// não mexe em nenhum lançamento, então vale para todos os meses.
+// ==========================================
+export const decomporPlano = (nomePlano) => {
+    const n = normalizeString(nomePlano);
+    const nutri = n.includes('NUTRI');
+    const resto = nutri ? n.replace(/\+?\s*NUTRI\b/g, ' ').replace(/\s+/g, ' ').trim() : n;
+    let base = null;
+    if (resto.includes('PLUS') || resto.includes('AFL')) base = 'PLUS';
+    else if (resto.includes('FIT')) base = 'FIT';
+    else if (resto.includes('PERSONAL')) base = 'PERSONAL CLASS';
+    else if (!nutri) base = 'OUTROS PLANOS';
+    return { base, nutri };
+};
+
+// Grupo de um plano pelo nome. ⚠️ ETAPA 2: será substituído por decomporPlano (Nutri como adicional) nas outras telas.
+// REGRA ÚNICA ATUAL (Metas, Relatórios, Saúde da unidade e aba Migração do CRM usam esta mesma função):
 // NUTRI é conferido ANTES de PLUS, então "PLUS + NUTRI" é NUTRI e o "PLUS" sozinho é PLUS (sem nutricionista).
 export const grupoDoPlano = (nomePlano) => {
     const nomeNorm = normalizeString(nomePlano);
@@ -147,7 +171,24 @@ export const grupoDoPlano = (nomePlano) => {
 // Plano com nutricionista = o nome tem "NUTRI" (ex.: PRATIQUE NUTRI, FIT + NUTRI, PLUS + NUTRI)
 export const planoTemNutri = (nomePlano) => grupoDoPlano(nomePlano) === "NUTRI";
 
-export const classificarPlanoEmGrupo = (gruposPlanos, prodUpper, qtd) => {
+// ⚠️ ETAPA 2: será substituído por decomporPlano (Nutri como adicional). Não mudar antes disso.
+// Grupo de META de um lançamento. REGRA ÚNICA da aba "Metas da unidade" e do Placar do mês (Dashboard),
+// para os números baterem: plano com NUTRI → NUTRI; senão PERSONAL → PERSONAL; senão PLUS ou AFL → PLUS;
+// produto físico → PRODUTO. O resto (FIT, serviços, não classificados) não conta em meta → null.
+export const grupoDaMeta = (nomeProduto, planos, produtos) => {
+    const prodUpper = (nomeProduto || '').toUpperCase();
+    const cat = getCategoriaItem(prodUpper, planos, produtos);
+    if (cat === 'PLANO') {
+        if (prodUpper.includes("NUTRI")) return 'NUTRI';
+        if (prodUpper.includes("PERSONAL")) return 'PERSONAL';
+        if (prodUpper.includes("PLUS") || prodUpper.includes("AFL")) return 'PLUS';
+        return null;
+    }
+    if (cat === 'PRODUTO') return 'PRODUTO';
+    return null;
+};
+
+export const classificarPlanoEmGrupo =(gruposPlanos, prodUpper, qtd) => {
     const grupo = grupoDoPlano(prodUpper);
     gruposPlanos[grupo].total += qtd;
     gruposPlanos[grupo].detalhes[prodUpper] = (gruposPlanos[grupo].detalhes[prodUpper] || 0) + qtd;

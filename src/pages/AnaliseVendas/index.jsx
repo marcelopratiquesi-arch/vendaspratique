@@ -9,7 +9,7 @@ import RelatorioTab from './RelatorioTab.jsx';
 import RankingGlobalTab from './RankingGlobalTab.jsx';
 import SaudeUnidadeTab from './SaudeUnidadeTab.jsx';
 import { 
-    BarChart3, Target, FileText, Trophy, RefreshCw, HeartPulse,
+    BarChart3, Target, FileText, Trophy, RefreshCw, HeartPulse, ChartLine, SlidersHorizontal,
     Bookmark, Package, Briefcase, Users, X
 } from 'lucide-react';
 import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from '../HistoricoVendas/FiltrosCompactos.jsx';
@@ -25,11 +25,22 @@ const getLocalISODate = () => {
     return `${year}-${month}-${day}`;
 };
 
+// Nome de cada aba (título do cabeçalho e botões)
+const ROTULO_ABA = {
+    dashboard: 'Dashboard',
+    visaoGeral: 'Metas da unidade',
+    relatorio: 'Relatórios',
+    rankingGlobal: 'Ranking global',
+    saude: 'Saúde da unidade',
+};
+
 const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
     const { t } = useI18n(); 
     const mesesTraduzidos = getMeses(t); 
 
     const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
+    // Botão "Filtros" do cabeçalho: mostra/esconde Consultores, Planos, Produtos e Serviços
+    const [filtrosAbertos, setFiltrosAbertos] = useState(false);
     const [tipoFiltro, setTipoFiltro] = useState('mes');
     const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -442,40 +453,26 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             />
 
             {/* ========================================== */}
-            {/* 🚀 ABAS + FILTROS (versão compacta, mesmo padrão do Histórico) */}
+            {/* CABEÇALHO + ABAS (novo visual aprovado pelo dono, 30/10/2026) */}
+            {/* Período e filtros continuam os mesmos e valem para todas as abas; unidade = seletor do topo (regra 6) */}
             {/* ========================================== */}
-            <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-4 md:p-5 relative z-20 flex flex-col gap-4 dark:bg-slate-900 dark:border-slate-800">
-
-                {/* Abas | o que está sendo exibido + período */}
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 dark:bg-slate-800" role="tablist" aria-label={tx("Seções")}>
-                        {[
-                            ['dashboard', 'Dashboard', BarChart3],
-                            ['visaoGeral', 'Metas da unidade', Target],
-                            ['relatorio', 'Relatórios', FileText],
-                            ...(temVisaoGlobal ? [['rankingGlobal', 'Ranking global', Trophy]] : []),
-                            ['saude', 'Saúde da unidade', HeartPulse],
-                        ].map(([id, rotulo, Icone]) => {
-                            const ativa = abaPrincipal === id;
-                            return (
-                                <button
-                                    key={id}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={ativa}
-                                    onClick={() => setAbaPrincipal(id)}
-                                    className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}
-                                >
-                                    <Icone className={`w-4 h-4 ${id === 'rankingGlobal' ? 'text-amber-500' : ''}`} /> {tx(rotulo)}
-                                </button>
-                            );
-                        })}
+            <div className="bg-white rounded-[20px] border border-[#E4E8F0] shadow-sm relative z-20 dark:bg-slate-900 dark:border-slate-800">
+                <div className="px-4 md:px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-10 h-10 rounded-xl bg-[#0B1F4B] text-white flex items-center justify-center shrink-0 dark:bg-blue-600"><ChartLine className="w-5 h-5" /></span>
+                        <div className="min-w-0">
+                            <h2 className="text-[18px] font-extrabold text-[#0F172A] leading-tight truncate dark:text-white">{tx(ROTULO_ABA[abaPrincipal] || 'Dashboard')}</h2>
+                            <p className="text-[12px] font-medium text-[#5B6478] truncate dark:text-slate-400">
+                                {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? tx("Todas as unidades") : filtroUnidade) : (usuarioLogado?.unidade || '')} · {tx(descricaoPeriodo)}
+                            </p>
+                        </div>
                     </div>
-
                     <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                            {tx(descricaoPeriodo)} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? tx("Todas as unidades") : filtroUnidade) : (usuarioLogado?.unidade || '')}
-                        </span>
+                        {temFiltroAtivo && (
+                            <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-[#3B4458] hover:text-[#0F172A] hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800">
+                                <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
+                            </button>
+                        )}
                         <SeletorPeriodo
                             rotulo={rotuloPeriodo}
                             preset={presetPeriodo}
@@ -489,41 +486,82 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             anos={anosUnicos.filter(a => a !== 'TODOS')}
                             onAplicar={aplicarPeriodo}
                         />
+                        <button
+                            type="button"
+                            onClick={() => setFiltrosAbertos(a => !a)}
+                            aria-expanded={filtrosAbertos}
+                            className={`h-10 px-3.5 rounded-xl border text-[13px] font-bold flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${filtrosAbertos || filtrosAtivos.length > 0 ? 'bg-[#0B1F4B] border-[#0B1F4B] text-white dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-[#D6DCE8] text-[#0F172A] hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}
+                        >
+                            <SlidersHorizontal className="w-4 h-4" />{tx("Filtros")}
+                            {filtrosAtivos.length > 0 && <span className="min-w-5 h-5 px-1 rounded-full bg-white text-[#0B1F4B] text-[11px] font-black flex items-center justify-center">{filtrosAtivos.length}</span>}
+                        </button>
                     </div>
                 </div>
 
-                {/* Filtros lado a lado */}
-                <div className="flex flex-wrap gap-2.5">
-                    <FiltroMultiplo rotulo={tx("Consultores")} icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
-                    <FiltroMultiplo rotulo={tx("Planos")} icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
-                    <FiltroMultiplo rotulo={tx("Produtos")} icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
-                    <FiltroMultiplo rotulo={tx("Serviços")} icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
-                </div>
+                {/* Filtros (abrem pelo botão "Filtros") */}
+                {filtrosAbertos && (
+                    <div className="px-4 md:px-5 pb-4 flex flex-wrap gap-2.5 border-t border-[#EEF1F6] pt-4 dark:border-slate-800">
+                        <FiltroMultiplo rotulo={tx("Consultores")} icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
+                        <FiltroMultiplo rotulo={tx("Planos")} icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
+                        <FiltroMultiplo rotulo={tx("Produtos")} icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
+                        <FiltroMultiplo rotulo={tx("Serviços")} icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
+                    </div>
+                )}
 
-                {/* Filtros ativos */}
-                {(filtrosAtivos.length > 0 || temFiltroAtivo) && (
-                    <div className="flex flex-wrap items-center gap-2">
-                        {filtrosAtivos.length > 0 && <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx("Filtros ativos:")}</span>}
+                {/* Filtros ativos (sempre visíveis, com X para tirar) */}
+                {filtrosAtivos.length > 0 && (
+                    <div className="px-4 md:px-5 pb-4 flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] font-bold text-[#5B6478] dark:text-slate-400">{tx("Filtros ativos:")}</span>
                         {filtrosAtivos.map(f => (
-                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-[#EEF1F6] text-[12px] font-semibold text-[#3B4458] dark:bg-slate-800 dark:text-slate-200">
                                 {tx(f.texto)}
-                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
+                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-5 h-5 rounded-full bg-[#D6DCE8] hover:bg-slate-300 text-[#3B4458] flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
                                     <X className="w-3 h-3" strokeWidth={3} />
                                 </button>
                             </span>
                         ))}
-                        <button type="button" onClick={limparFiltros} className="h-7 px-2.5 rounded-lg text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
-                            <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
-                        </button>
                     </div>
                 )}
+            </div>
+
+            {/* Navegação: abas em pílula (ativa = azul-marinho) */}
+            <div className="bg-white rounded-2xl border border-[#E4E8F0] p-1.5 flex gap-1 overflow-x-auto custom-scrollbar w-full sm:w-max max-w-full dark:bg-slate-900 dark:border-slate-800" role="tablist" aria-label={tx("Seções")}>
+                {[
+                    ['dashboard', BarChart3],
+                    ['visaoGeral', Target],
+                    ['relatorio', FileText],
+                    ...(temVisaoGlobal ? [['rankingGlobal', Trophy]] : []),
+                    ['saude', HeartPulse],
+                ].map(([id, Icone]) => {
+                    const ativa = abaPrincipal === id;
+                    return (
+                        <button
+                            key={id}
+                            type="button"
+                            role="tab"
+                            aria-selected={ativa}
+                            onClick={() => setAbaPrincipal(id)}
+                            className={`h-10 px-4 rounded-full text-[13px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-[#0B1F4B] text-white font-bold dark:bg-blue-600' : 'text-[#3B4458] hover:text-[#0F172A] hover:bg-[#F3F5FA] font-semibold dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'}`}
+                        >
+                            <Icone className={`w-4 h-4 ${id === 'rankingGlobal' && !ativa ? 'text-amber-500' : ''}`} /> {tx(ROTULO_ABA[id])}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* ========================================== */}
             {/* RENDERIZAÇÃO DAS 4 ABAS */}
             {/* ========================================== */}
+            {/* Dashboard principal (o antigo, melhorado — decisão do dono 30/10/2026).
+                O "movimento da equipe" foi para o Histórico → aba Saúde da equipe. */}
             {abaPrincipal === 'dashboard' && (
                 <DashboardTab
+                    vendasTodas={vendas}
+                    faixa={faixaSaude}
+                    vendedoresOcultos={vendedoresOcultos}
+                    planosOcultos={planosOcultos}
+                    produtosOcultos={produtosOcultos}
+                    servicosOcultos={servicosOcultos}
                     vendasFiltradas={vendasFiltradas}
                     visitantesFiltrados={visitantesFiltrados}
                     avaliacoesFiltradas={avaliacoesFiltradas}
@@ -559,6 +597,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     ativosAtual={ativosAtual} setAtivosAtual={setAtivosAtual}
                     salvarMetasNuvem={salvarMetasNuvem}
                     isSalvandoMetas={isSalvandoMetas}
+                    tipoFiltro={tipoFiltro}
                     planos={planos}
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
@@ -593,6 +632,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     planosOcultos={planosOcultos}
                     produtosOcultos={produtosOcultos}
                     servicosOcultos={servicosOcultos}
+                    colaboradores={colaboradores}
                 />
             )}
 
