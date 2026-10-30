@@ -7,7 +7,7 @@
 // ==========================================
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { getCategoriaItem, criarGruposPlanosVazio, decomporPlano, safeIsoDate } from './utils.js';
+import { contarPlanosDoCard, safeIsoDate } from './utils.js';
 
 const TAMANHO_PAGINA = 1000;
 // O App carrega 90 dias de vendas; o que começa antes disso é buscado no banco (só leitura)
@@ -29,49 +29,8 @@ export const faixaMesAnterior = (faixa, hojeIso = paraIso(new Date())) => {
     return { inicio: mesmaDataMesAnterior(faixa.inicio), fim: mesmaDataMesAnterior(fim) };
 };
 
-// Planos vendidos com a regra do card: mesma matrícula + mesmo plano + mesmo dia conta 1 vez só.
-// NUTRI É ADICIONAL (decisão do dono, 30/10/2026): cada lançamento é decomposto por decomporPlano em
-// plano BASE (Plus/Fit/Personal/Outros, conta como entrada) e/ou ADICIONAL NUTRI (não conta como entrada).
-// Devolve:
-// - total / contados / grupos[PLUS|FIT|PERSONAL CLASS|OUTROS PLANOS]: só planos BASE (o número do card)
-// - nutri = { total, contados } e grupos.NUTRI: os adicionais Nutri (combos + PRATIQUE NUTRI)
-// Em grupos[...].detalhes fica a quantidade por nome de plano (o mesmo combo aparece no grupo base e no NUTRI).
-export const contarPlanosDoCard = (lista, planos, produtos) => {
-    const grupos = criarGruposPlanosVazio();
-    const contados = [];
-    const contadosNutri = [];
-    const vistos = new Set();
-    let total = 0;
-    let totalNutri = 0;
-    const somarNoGrupo = (grupo, prodUpper, qtd) => {
-        grupos[grupo].total += qtd;
-        grupos[grupo].detalhes[prodUpper] = (grupos[grupo].detalhes[prodUpper] || 0) + qtd;
-    };
-    lista.forEach(v => {
-        const prodUpper = (v.produto || '').toUpperCase();
-        if (getCategoriaItem(prodUpper, planos, produtos) !== 'PLANO') return;
-        let qtd = parseInt(v.quantidade) || 1;
-        const matricula = String(v.matricula ?? '').trim();
-        if (matricula) {
-            const chave = `${matricula}-${prodUpper}-${safeIsoDate(v.data || v.created_at)}`;
-            if (vistos.has(chave)) qtd = 0;
-            else vistos.add(chave);
-        }
-        if (qtd === 0) return;
-        const { base, nutri } = decomporPlano(prodUpper);
-        if (base) {
-            total += qtd;
-            somarNoGrupo(base, prodUpper, qtd);
-            contados.push({ venda: v, qtd, base, nutri });
-        }
-        if (nutri) {
-            totalNutri += qtd;
-            somarNoGrupo('NUTRI', prodUpper, qtd);
-            contadosNutri.push({ venda: v, qtd, base, nutri });
-        }
-    });
-    return { grupos, contados, total, nutri: { total: totalNutri, contados: contadosNutri } };
-};
+// A contagem de planos (regra do card + Nutri adicional) mora no utils.js e é usada por TODAS as telas.
+export { contarPlanosDoCard };
 
 // Vendas da faixa anterior: do que o App já carregou, ou do banco quando é mais antiga que isso
 export const useVendasDaFaixa = (faixa, vendasCarregadas, unidade) => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { grupoDaMeta } from './utils.js';
+import { contarPlanosDoCard, getCategoriaItem } from './utils.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, Info } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
@@ -338,16 +338,17 @@ const MetasTab = ({
 
     const dadosPorUnidade = listaUnidadesMetas.map(unidade => {
         const vendasDaUnidade = vendasFiltradas.filter(v => v.unidade === unidade);
-        let nutriRealizado = 0, produtosRealizado = 0, personalRealizado = 0, plusRealizado = 0;
-
+        // Planos: contagem única (decomporPlano, decisão do dono 30/10/2026, sem data de corte).
+        // Nutri = todo adicional Nutri (combos + PRATIQUE NUTRI) → mesmo conjunto de antes, valor da meta não muda.
+        // Plus = todo plano com base Plus, inclusive PLUS + NUTRI e AFILIADOS PLUS + NUTRI. Personal = base Personal.
+        const contagem = contarPlanosDoCard(vendasDaUnidade, planos, produtos);
+        const nutriRealizado = contagem.nutri.total;
+        const plusRealizado = contagem.grupos.PLUS.total;
+        const personalRealizado = contagem.grupos['PERSONAL CLASS'].total;
+        // Produto físico: igual a antes (cada item vendido)
+        let produtosRealizado = 0;
         vendasDaUnidade.forEach(v => {
-            const qtd = parseInt(v.quantidade) || 1;
-            const grupo = grupoDaMeta(v.produto, planos, produtos);
-
-            if (grupo === 'NUTRI') nutriRealizado += qtd;
-            else if (grupo === 'PERSONAL') personalRealizado += qtd;
-            else if (grupo === 'PLUS') plusRealizado += qtd;
-            else if (grupo === 'PRODUTO') produtosRealizado += qtd;
+            if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') produtosRealizado += parseInt(v.quantidade) || 1;
         });
 
         const metaUnidade = metasDoBanco[unidade.toUpperCase()] || {

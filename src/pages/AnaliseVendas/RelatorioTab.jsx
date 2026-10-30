@@ -344,6 +344,8 @@ const RelatorioTab = ({
                                                         </span>
                                                         <span className={`text-xs font-black uppercase tracking-wider ${info.cor}`}>
                                                             {tx(grupo)}
+                                                            {/* Nutri é adicional: não soma no total de planos */}
+                                                            {grupo === 'NUTRI' && <span className="ml-1.5 text-[10px] font-bold normal-case tracking-normal text-slate-500 dark:text-slate-400">· {tx('adicional, não soma nos planos')}</span>}
                                                         </span>
                                                     </div>
                                                     <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">

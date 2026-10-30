@@ -1955,4 +1955,15 @@ export default {
     "{pct}% de adesão": "{pct}% de adhesión",
     "Ver planos de {grupo}": "Ver planes de {grupo}",
     "descontinuado": "discontinuado",
+    // Edição de venda: item desativado do catálogo
+    "(desativado)": "(desactivado)",
+    // Nutri como adicional (etapa 2: Metas, Relatórios, Ranking, Saúde, Histórico)
+    "adicional, não soma nos planos": "adicional, no suma en los planes",
+    "A coluna Nutri (verde) é adicional: não entra no total de planos.": "La columna Nutri (verde) es adicional: no entra en el total de planes.",
+    "Só Nutri (adicional)": "Solo Nutri (adicional)",
+    "Adicionais Nutri (combos + PRATIQUE NUTRI). Não somam no total de planos.": "Adicionales Nutri (combos + PRATIQUE NUTRI). No suman en el total de planes.",
+    "Nutri (adicional)": "Nutri (adicional)",
+    "Nutri (adicional): {qtd} · {pct}% de adesão": "Nutri (adicional): {qtd} · {pct}% de adhesión",
+    "Grupos de plano: PLUS, FIT, Personal e Outros (combo com Nutri conta no grupo do plano). O Nutri é adicional e aparece embaixo, fora da rosca. A seta mostra a variação de cada grupo em relação ao período anterior.": "Grupos de plan: PLUS, FIT, Personal y Otros (el combo con Nutri cuenta en el grupo del plan). El Nutri es adicional y aparece abajo, fuera de la dona. La flecha muestra la variación de cada grupo frente al período anterior.",
+    "Camadas empilhadas: planos, produtos, serviços e Nutri sem plano (ex.: PRATIQUE NUTRI). A linha tracejada é o total do período anterior no mesmo ponto (ex.: 1º dia com 1º dia).": "Capas apiladas: planes, productos, servicios y Nutri sin plan (ej.: PRATIQUE NUTRI). La línea punteada es el total del período anterior en el mismo punto (ej.: día 1 con día 1).",
 };

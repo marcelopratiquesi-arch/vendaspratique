@@ -177,6 +177,20 @@ export const pedirMotivoExclusao = () => {
     return motivo;
 };
 
+// Itens do catálogo para escolher ao EDITAR uma venda (decisão do dono, 30/10/2026):
+// só os ATIVOS + o item que a venda já tem (mesmo desativado ou fora do catálogo), para editar a data ou o
+// aluno de uma venda antiga sem ser obrigado a trocar o plano. O item desativado aparece com "(desativado)".
+// Usado no Histórico (Registro e Duplicidades) e no Fechamento (janela de edição).
+export const itensCatalogoParaEdicao = (catalogo = [], produtoAtual = '') => {
+    const atual = String(produtoAtual || '').trim().toUpperCase();
+    const mesmoItem = (c) => String(c.nome || '').trim().toUpperCase() === atual;
+    const lista = catalogo
+        .filter(c => c.ativo !== false || (atual && mesmoItem(c)))
+        .map(c => ({ ...c, desativado: c.ativo === false }));
+    if (atual && !lista.some(mesmoItem)) lista.unshift({ id: `atual-${atual}`, nome: String(produtoAtual).trim(), desativado: true, foraDoCatalogo: true });
+    return lista;
+};
+
 // Manda a venda para a lixeira. Devolve o erro (ou null se deu certo).
 export const excluirVendaComMotivo = async (supabase, id, motivo) => {
     const { error } = await supabase.rpc('excluir_venda', { p_venda_id: Number(id), p_motivo: motivo });

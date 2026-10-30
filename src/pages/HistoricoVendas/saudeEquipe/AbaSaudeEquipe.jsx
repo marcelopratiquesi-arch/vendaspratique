@@ -2,7 +2,7 @@
 import React, { useMemo } from 'react';
 import { HelpCircle, TrendingUp, TrendingDown, Minus, UserCheck, UserX, Clock, Loader2 } from 'lucide-react';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
-import { getCategoriaItem, grupoDoPlano, safeIsoDate } from '../../AnaliseVendas/utils.js';
+import { getCategoriaItem, decomporPlano, safeIsoDate } from '../../AnaliseVendas/utils.js';
 import { contarPlanosDoCard, useVendasDaFaixa, paraIso } from '../../AnaliseVendas/comparativoMesAnterior.js';
 
 // ==========================================
@@ -145,7 +145,7 @@ const AbaSaudeEquipe = ({
         contagemPlanos.contados.forEach(({ venda, qtd }) => {
             const r = linha(nomeVendedor(venda) || tx('SEM CONSULTOR'));
             r.planos += qtd;
-            if (grupoDoPlano(venda.produto) === 'NUTRI') r.nutri += qtd;
+            if (decomporPlano(venda.produto).nutri) r.nutri += qtd;
         });
 
         // Última venda de cada consultor (90 dias carregados, unidade do filtro)

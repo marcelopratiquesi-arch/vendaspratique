@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../../supabaseClient.js';
 import { HelpCircle, TrendingUp, TrendingDown, Minus, ChevronRight, Clock, UserCheck, UserX, Zap } from 'lucide-react';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
-import { grupoDaMeta } from '../utils.js';
+import { decomporPlano, getCategoriaItem } from '../utils.js';
 import { diaDaVenda, infoDoMes, contarVendasDoMes, montarPlacar } from './calculosPainel.js';
 
 // ==========================================
@@ -205,7 +205,7 @@ const PainelVendasTab = ({
             const q = parseInt(v.quantidade) || 1;
             r.qtd += q;
             r.comissao += Number(v.comissao ?? v.valor) || 0;
-            if (grupoDaMeta(v.produto, planos, produtos) === 'NUTRI') r.nutri += q;
+            if (getCategoriaItem(v.produto, planos, produtos) === 'PLANO' && decomporPlano(v.produto).nutri) r.nutri += q;
             if (v.unidade) r.unidades.add(v.unidade);
         });
         const listaJa = Object.values(jaVenderam).sort((a, b) => b.qtd - a.qtd || a.nome.localeCompare(b.nome));

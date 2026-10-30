@@ -1,9 +1,9 @@
 // ==========================================
 // CONTAS DO PLACAR DO MÊS (Dashboard novo, decisão do dono 29/10/2026)
 // Metas em QUANTIDADE (tabela metas_unidades: uma linha por unidade + mês + ano).
-// A contagem usa grupoDaMeta (mesma regra da aba "Metas da unidade").
+// A contagem usa contarPlanosDoCard (mesma regra da aba "Metas da unidade").
 // ==========================================
-import { grupoDaMeta, safeIsoDate } from '../utils.js';
+import { contarPlanosDoCard, getCategoriaItem, safeIsoDate } from '../utils.js';
 
 // Cada meta do placar: campo em metas_unidades e grupo de venda que conta para ela
 export const METAS_START = [
@@ -49,11 +49,12 @@ export const infoDoMes = (ano, mes, hoje = new Date()) => {
 
 // Quantidade vendida por grupo de meta + comissão total
 export const contarVendasDoMes = (vendasDoMes, planos, produtos) => {
-    const qtd = { NUTRI: 0, PERSONAL: 0, PLUS: 0, PRODUTO: 0 };
+    // Mesma contagem das Metas: contarPlanosDoCard (Nutri = adicionais; Plus/Personal = planos base)
+    const contagem = contarPlanosDoCard(vendasDoMes, planos, produtos);
+    const qtd = { NUTRI: contagem.nutri.total, PERSONAL: contagem.grupos['PERSONAL CLASS'].total, PLUS: contagem.grupos.PLUS.total, PRODUTO: 0 };
     let comissao = 0;
     vendasDoMes.forEach(v => {
-        const grupo = grupoDaMeta(v.produto, planos, produtos);
-        if (grupo) qtd[grupo] += parseInt(v.quantidade) || 1;
+        if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') qtd.PRODUTO += parseInt(v.quantidade) || 1;
         comissao += Number(v.comissao ?? v.valor) || 0;
     });
     return { qtd, comissao };

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import TabelaHistorico from './TabelaHistorico.jsx';
 import { supabase } from '../../supabaseClient.js';
 import { safeIsoDate, safeNumber, formatMoney, meses, toTitleCase, buildCatalogoMap, normalizeString } from './utils.js';
+import { decomporPlano } from '../AnaliseVendas/utils.js';
 import { 
     Filter, Calendar, CalendarDays, Sun, UserCheck, Wallet, BarChart2, 
     Leaf, Star, Activity, Dumbbell, ShoppingBag, Receipt, Layers, 
@@ -76,7 +77,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
 
     useEffect(() => {
         const fetchCatalogo = async () => {
-            const { data, error } = await supabase.from('catalogo').select('id, nome, tipo, valor');
+            const { data, error } = await supabase.from('catalogo').select('id, nome, tipo, valor, ativo');
             if (data && !error) setCatalogoGeral(data);
         };
         fetchCatalogo();
@@ -318,33 +319,35 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             resumo.valorTotal += val;
             resumo.qtdTotal += qtdReal;
             
-            let grupoAlvo = 'OUTROS PLANOS';
+            // Grupos do lançamento. Plano: decomporPlano (Nutri é ADICIONAL, decisão do dono 30/10/2026):
+            // combo conta no grupo base E no NUTRI; PRATIQUE NUTRI só no NUTRI (fora dos planos).
+            // A comissão fica uma vez só: no grupo base (ou no NUTRI quando não há plano base).
+            const somar = (grupoAlvo, qtd, valor) => {
+                resumo.grupos[grupoAlvo].qtd += qtd;
+                resumo.grupos[grupoAlvo].valor += valor;
+                if (!resumo.grupos[grupoAlvo].itens[nomeExato]) {
+                    resumo.grupos[grupoAlvo].itens[nomeExato] = { qtd: 0, valor: 0 };
+                }
+                resumo.grupos[grupoAlvo].itens[nomeExato].qtd += qtd;
+                resumo.grupos[grupoAlvo].itens[nomeExato].valor += valor;
+            };
 
             if (!itemCat) {
-                grupoAlvo = 'NÃO CATALOGADO'; 
+                somar('NÃO CATALOGADO', qtdReal, val);
             } else {
                 const categoriaDB = itemCat.tipo.toLowerCase().trim();
                 if (categoriaDB === 'plano') {
-                    if (nomeExato.includes('NUTRI')) grupoAlvo = 'NUTRI';
-                    else if (nomeExato.includes('PLUS') || nomeExato.includes('AFL')) grupoAlvo = 'PLUS';
-                    else if (nomeExato.includes('FIT')) grupoAlvo = 'FIT';
-                    else if (nomeExato.includes('PERSONAL')) grupoAlvo = 'PERSONAL CLASS';
-                    else grupoAlvo = 'OUTROS PLANOS';
+                    const { base, nutri } = decomporPlano(nomeExato);
+                    if (base) somar(base, qtdReal, val);
+                    if (nutri) somar('NUTRI', qtdReal, base ? 0 : val);
                 } else if (categoriaDB === 'produto') {
-                    grupoAlvo = 'PRODUTOS';
+                    somar('PRODUTOS', qtdReal, val);
                 } else if (categoriaDB === 'servico' || categoriaDB === 'serviço') {
-                    grupoAlvo = 'SERVIÇOS';
+                    somar('SERVIÇOS', qtdReal, val);
+                } else {
+                    somar('OUTROS PLANOS', qtdReal, val);
                 }
             }
-
-            resumo.grupos[grupoAlvo].qtd += qtdReal;
-            resumo.grupos[grupoAlvo].valor += val;
-
-            if (!resumo.grupos[grupoAlvo].itens[nomeExato]) {
-                resumo.grupos[grupoAlvo].itens[nomeExato] = { qtd: 0, valor: 0 };
-            }
-            resumo.grupos[grupoAlvo].itens[nomeExato].qtd += qtdReal;
-            resumo.grupos[grupoAlvo].itens[nomeExato].valor += val;
         });
         
         return resumo;
@@ -565,7 +568,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                                                     </div>
                                                     <div>
                                                         <h3 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{String(info.qtd).padStart(2, '0')}</h3>
-                                                        <p className={`text-[10px] font-black uppercase tracking-widest ${info.cor}`}>{nomeGrupo}</p>
+                                                        <p className={`text-[10px] font-black uppercase tracking-widest ${info.cor}`}>{nomeGrupo}{nomeGrupo === 'NUTRI' && <span className="ml-1 normal-case tracking-normal font-bold text-slate-500 dark:text-slate-400">· {tx('adicional, não soma nos planos')}</span>}</p>
                                                     </div>
                                                 </div>
                                                 <div aria-hidden="true" className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isExpanded ? 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white' : 'bg-slate-50 text-slate-400 dark:bg-slate-800/60'}`}>

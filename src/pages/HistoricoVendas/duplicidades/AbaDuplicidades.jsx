@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { AlertTriangle, Check, Copy, Clock, User, Loader2, X, Edit3, Trash2, ShieldCheck, Undo2, Info, BadgeCheck, MessageSquare, Search } from 'lucide-react';
 import { supabase } from '../../../supabaseClient.js';
-import { formatMoney, formatarCPF, formatDataBR, extrairHoraCriacao, toTitleCase, normalizeString } from '../utils.js';
+import { formatMoney, formatarCPF, formatDataBR, extrairHoraCriacao, toTitleCase, normalizeString, itensCatalogoParaEdicao } from '../utils.js';
 import { comissaoDaVenda } from './motorDuplicidades.js';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
 
@@ -200,7 +200,7 @@ const CartaoGrupo = ({
                                             <input type="text" placeholder={tx("Nome do Aluno")} value={dadosEdicao.nome_aluno} onChange={e => onAlterarCampo('nome_aluno', e.target.value)} className={`${inputEdicao} uppercase sm:col-span-2`} />
                                             <select value={dadosEdicao.produto} onChange={e => onAlterarCampo('produto', e.target.value)} className={`${inputEdicao} uppercase cursor-pointer`}>
                                                 <option value="" disabled>{tx("Selecione...")}</option>
-                                                {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                                                {itensCatalogoParaEdicao(catalogoGeral, row.produto).map(c => <option key={c.id} value={c.nome}>{c.nome}{c.desativado ? ` ${tx('(desativado)')}` : ''}</option>)}
                                             </select>
                                             <select value={(dadosEdicao.vendedor || '').toUpperCase()} onChange={e => onAlterarCampo('vendedor', e.target.value)} className={`${inputEdicao} uppercase cursor-pointer`}>
                                                 <option value="" disabled>{tx("Selecione o Vendedor...")}</option>

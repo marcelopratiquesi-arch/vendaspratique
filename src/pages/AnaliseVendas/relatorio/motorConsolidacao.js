@@ -1,5 +1,5 @@
 // src/pages/AnaliseVendas/relatorio/motorConsolidacao.js
-import { safeIsoDate, normalizeString, getCategoriaItem } from '../utils.js';
+import { safeIsoDate, normalizeString, getCategoriaItem, decomporPlano } from '../utils.js';
 
 export const ORDEM_CLASSICA = [
     "NUTRI",
@@ -15,31 +15,55 @@ export const ORDEM_CLASSICA = [
 ];
 
 export const COLUNAS_MATRIZ = [
-    { key: 'NUTRI', escopo: 'PLANOS', label: 'NUTRI', icone: '🥗', grupos: ['NUTRI'], badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100', headerColor: 'text-emerald-600' },
     { key: 'PLUS', escopo: 'PLANOS', label: 'PLUS', icone: '⭐', grupos: ['PLUS'], badgeBg: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100', headerColor: 'text-blue-600' },
     { key: 'FIT', escopo: 'PLANOS', label: 'FIT', icone: '🏃', grupos: ['FIT'], badgeBg: 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100', headerColor: 'text-indigo-600' },
     { key: 'PERSONAL', escopo: 'PLANOS', label: 'PERSONAL', icone: '🏋️', grupos: ['PERSONAL CLASS'], badgeBg: 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100', headerColor: 'text-rose-600' },
     { key: 'OUTROS_PLANOS', escopo: 'PLANOS', label: 'OUTROS PL.', icone: '🧩', grupos: ['PROMOÇÕES', 'FÉRIAS', 'OUTROS PLANOS'], badgeBg: 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200', headerColor: 'text-slate-600' },
+    // Nutri: coluna de ADICIONAL (não entra no total de planos; aparece separada na tabela)
+    { key: 'NUTRI', escopo: 'PLANOS', label: 'NUTRI', adicional: true, icone: '🥗', grupos: ['NUTRI'], badgeBg: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100', headerColor: 'text-emerald-600' },
     { key: 'PRODUTOS', escopo: 'PRODUTOS', label: 'PRODUTOS', icone: '🛍️', grupos: ['PRODUTOS'], badgeBg: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100', headerColor: 'text-amber-600' },
     { key: 'SERVICOS', escopo: 'SERVICOS', label: 'SERVIÇOS', icone: '🧾', grupos: ['SERVIÇOS', 'NÃO CLASSIFICADOS'], badgeBg: 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100', headerColor: 'text-violet-600' }
 ];
 
-export const classificarParaAdmin = (nome, categoria) => {
-    const prodNorm = normalizeString(nome);
+// Nutri é ADICIONAL (decisão do dono, 30/10/2026): o grupo NUTRI aparece como adicional e não soma no total de planos
+export const ROTULO_NUTRI_ADICIONAL = 'NUTRI (ADICIONAL)';
 
-    if (categoria === 'PRODUTO') return { grupo: 'PRODUTOS', tipo: 'AGRUPADO', order: 100, icone: '🛍️', cor: 'text-amber-600' };
-    if (categoria === 'SERVICO') return { grupo: 'SERVIÇOS', tipo: 'AGRUPADO', order: 200, icone: '🧾', cor: 'text-violet-600' };
-    if (categoria === 'NAO_CLASSIFICADO') return { grupo: 'NÃO CLASSIFICADOS', tipo: 'AGRUPADO', order: 300, icone: '❓', cor: 'text-slate-400' };
-
-    if (prodNorm.includes('NUTRI')) return { grupo: 'NUTRI', tipo: 'AGRUPADO', order: 10, icone: '🥗', cor: 'text-emerald-600' };
-    if (prodNorm.includes('PLUS') || prodNorm.includes('AFL')) return { grupo: 'PLUS', tipo: 'AGRUPADO', order: 20, icone: '⭐', cor: 'text-blue-600' };
-    if (prodNorm.includes('FIT')) return { grupo: 'FIT', tipo: 'AGRUPADO', order: 30, icone: '🏃', cor: 'text-indigo-600' };
-    if (prodNorm.includes('PERSONAL')) return { grupo: 'PERSONAL CLASS', tipo: 'INDIVIDUAL', order: 40, icone: '🏋️', cor: 'text-rose-600' };
-    if (prodNorm.includes('1200') || prodNorm.includes('PROMO')) return { grupo: 'PROMOÇÕES', tipo: 'INDIVIDUAL', order: 50, icone: '🎯', cor: 'text-purple-600' };
-    if (prodNorm.includes('FÉRIAS') || prodNorm.includes('FERIAS')) return { grupo: 'FÉRIAS', tipo: 'AGRUPADO', order: 60, icone: '🏖️', cor: 'text-orange-500' };
-
-    return { grupo: 'OUTROS PLANOS', tipo: 'AGRUPADO', order: 90, icone: '🧩', cor: 'text-slate-600' };
+// "Outros planos" dos relatórios é dividido em Promoções, Férias e Outros (como antes)
+const subgrupoDeOutros = (nomeNorm) => {
+    if (nomeNorm.includes('1200') || nomeNorm.includes('PROMO')) return 'PROMOÇÕES';
+    if (nomeNorm.includes('FÉRIAS') || nomeNorm.includes('FERIAS')) return 'FÉRIAS';
+    return 'OUTROS PLANOS';
 };
+
+// Grupos dos relatórios em que um lançamento entra. Plano: decomporPlano → grupo BASE e/ou NUTRI (adicional).
+// O mesmo combo (ex.: PLUS + NUTRI) entra no PLUS e no NUTRI; o total de vendas conta o lançamento 1 vez só.
+export const gruposDoLancamento = (nome, categoria) => {
+    if (categoria === 'PRODUTO') return ['PRODUTOS'];
+    if (categoria === 'SERVICO') return ['SERVIÇOS'];
+    if (categoria !== 'PLANO') return ['NÃO CLASSIFICADOS'];
+    const nomeNorm = normalizeString(nome);
+    const { base, nutri } = decomporPlano(nome);
+    const lista = [];
+    if (base) lista.push(base === 'OUTROS PLANOS' ? subgrupoDeOutros(nomeNorm) : base);
+    if (nutri) lista.push('NUTRI');
+    return lista;
+};
+
+const INFO_ADMIN = {
+    'NUTRI': { grupo: ROTULO_NUTRI_ADICIONAL, tipo: 'AGRUPADO', order: 10, icone: '🥗', cor: 'text-emerald-600' },
+    'PLUS': { grupo: 'PLUS', tipo: 'AGRUPADO', order: 20, icone: '⭐', cor: 'text-blue-600' },
+    'FIT': { grupo: 'FIT', tipo: 'AGRUPADO', order: 30, icone: '🏃', cor: 'text-indigo-600' },
+    'PERSONAL CLASS': { grupo: 'PERSONAL CLASS', tipo: 'INDIVIDUAL', order: 40, icone: '🏋️', cor: 'text-rose-600' },
+    'PROMOÇÕES': { grupo: 'PROMOÇÕES', tipo: 'INDIVIDUAL', order: 50, icone: '🎯', cor: 'text-purple-600' },
+    'FÉRIAS': { grupo: 'FÉRIAS', tipo: 'AGRUPADO', order: 60, icone: '🏖️', cor: 'text-orange-500' },
+    'OUTROS PLANOS': { grupo: 'OUTROS PLANOS', tipo: 'AGRUPADO', order: 90, icone: '🧩', cor: 'text-slate-600' },
+    'PRODUTOS': { grupo: 'PRODUTOS', tipo: 'AGRUPADO', order: 100, icone: '🛍️', cor: 'text-amber-600' },
+    'SERVIÇOS': { grupo: 'SERVIÇOS', tipo: 'AGRUPADO', order: 200, icone: '🧾', cor: 'text-violet-600' },
+    'NÃO CLASSIFICADOS': { grupo: 'NÃO CLASSIFICADOS', tipo: 'AGRUPADO', order: 300, icone: '❓', cor: 'text-slate-400' },
+};
+
+// Resumo executivo: lista de grupos (com ícone/ordem) em que o lançamento entra
+export const classificarParaAdmin = (nome, categoria) => gruposDoLancamento(nome, categoria).map(g => INFO_ADMIN[g]);
 
 export const processarConsolidadas = ({
     vendasFiltradas = [],
@@ -106,25 +130,8 @@ export const processarConsolidadas = ({
         vendasGlobal += qtd;
         registro.vendedoresTotal[vendPrimeiroNome] = (registro.vendedoresTotal[vendPrimeiroNome] || 0) + qtd;
 
-        let grupoAlvo = '';
-        if (categoriaMestre === 'PLANO') {
-            const nomeNorm = normalizeString(prodUpper);
-            if (nomeNorm.includes("NUTRI")) grupoAlvo = "NUTRI";
-            else if (nomeNorm.includes("PLUS") || nomeNorm.includes("AFL")) grupoAlvo = "PLUS";
-            else if (nomeNorm.includes("FIT")) grupoAlvo = "FIT";
-            else if (nomeNorm.includes("PERSONAL")) grupoAlvo = "PERSONAL CLASS";
-            else if (nomeNorm.includes("1200") || nomeNorm.includes("PROMO")) grupoAlvo = "PROMOÇÕES";
-            else if (nomeNorm.includes("FÉRIAS") || nomeNorm.includes("FERIAS")) grupoAlvo = "FÉRIAS";
-            else grupoAlvo = "OUTROS PLANOS";
-        } else if (categoriaMestre === 'PRODUTO') {
-            grupoAlvo = "PRODUTOS";
-        } else if (categoriaMestre === 'SERVICO') {
-            grupoAlvo = "SERVIÇOS";
-        } else {
-            grupoAlvo = "NÃO CLASSIFICADOS";
-        }
-
-        if (grupoAlvo) {
+        // Plano: grupo base e/ou NUTRI (adicional). Produto, serviço e não classificado: como antes.
+        gruposDoLancamento(prodUpper, categoriaMestre).forEach(grupoAlvo => {
             registro.grupos[grupoAlvo].total += qtd;
             if (!registro.grupos[grupoAlvo].itens[prodUpper]) {
                 registro.grupos[grupoAlvo].itens[prodUpper] = { total: 0, vendedores: {}, vendasAuditaveis: [] };
@@ -136,27 +143,27 @@ export const processarConsolidadas = ({
             if (qtd > 0) {
                 registro.grupos[grupoAlvo].itens[prodUpper].vendasAuditaveis.push({ ...v, qtdConsolidada: qtd });
             }
-        }
+        });
 
-        const clAdmin = classificarParaAdmin(prodOriginal, categoriaMestre);
+        classificarParaAdmin(prodOriginal, categoriaMestre).forEach(clAdmin => {
+            if (!registro.gruposAdmin[clAdmin.grupo]) {
+                registro.gruposAdmin[clAdmin.grupo] = {
+                    grupo: clAdmin.grupo,
+                    total: 0,
+                    itens: {},
+                    tipo: clAdmin.tipo,
+                    order: clAdmin.order,
+                    icone: clAdmin.icone,
+                    cor: clAdmin.cor
+                };
+            }
+            registro.gruposAdmin[clAdmin.grupo].total += qtd;
 
-        if (!registro.gruposAdmin[clAdmin.grupo]) {
-            registro.gruposAdmin[clAdmin.grupo] = {
-                grupo: clAdmin.grupo,
-                total: 0,
-                itens: {},
-                tipo: clAdmin.tipo,
-                order: clAdmin.order,
-                icone: clAdmin.icone,
-                cor: clAdmin.cor
-            };
-        }
-        registro.gruposAdmin[clAdmin.grupo].total += qtd;
-
-        if (!registro.gruposAdmin[clAdmin.grupo].itens[prodUpper]) {
-            registro.gruposAdmin[clAdmin.grupo].itens[prodUpper] = { total: 0 };
-        }
-        registro.gruposAdmin[clAdmin.grupo].itens[prodUpper].total += qtd;
+            if (!registro.gruposAdmin[clAdmin.grupo].itens[prodUpper]) {
+                registro.gruposAdmin[clAdmin.grupo].itens[prodUpper] = { total: 0 };
+            }
+            registro.gruposAdmin[clAdmin.grupo].itens[prodUpper].total += qtd;
+        });
     });
 
     visitantesFiltrados.forEach(v => {
@@ -184,6 +191,7 @@ export const processarConsolidadas = ({
             const registrosPlanosUnidade = [];
             const registrosProdutosUnidade = [];
             const registrosServicosUnidade = [];
+            const vistos = new Set();
 
             COLUNAS_MATRIZ.forEach(col => {
                 let soma = 0;
@@ -201,14 +209,17 @@ export const processarConsolidadas = ({
                 });
                 colunas[col.key] = soma;
                 registrosPorColuna[col.key] = regs;
-                todosRegistrosUnidade.push(...regs);
+                // O mesmo combo está no grupo base e no Nutri: guarda cada lançamento uma vez só
+                regs.forEach(r => { const chave = r.id ?? r; if (!vistos.has(chave)) { vistos.add(chave); todosRegistrosUnidade.push(r); } });
 
+                if (col.adicional) return; // Nutri não entra na lista de planos
                 if (col.escopo === 'PLANOS') registrosPlanosUnidade.push(...regs);
                 else if (col.escopo === 'PRODUTOS') registrosProdutosUnidade.push(...regs);
                 else if (col.escopo === 'SERVICOS') registrosServicosUnidade.push(...regs);
             });
 
-            const totalPlanos = (colunas.NUTRI || 0) + (colunas.PLUS || 0) + (colunas.FIT || 0) + (colunas.PERSONAL || 0) + (colunas.OUTROS_PLANOS || 0);
+            // Total de planos = só planos base (o Nutri é adicional e não soma)
+            const totalPlanos = (colunas.PLUS || 0) + (colunas.FIT || 0) + (colunas.PERSONAL || 0) + (colunas.OUTROS_PLANOS || 0);
             const totalProdutos = colunas.PRODUTOS || 0;
             const totalServicos = colunas.SERVICOS || 0;
 

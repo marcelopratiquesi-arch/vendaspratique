@@ -1955,4 +1955,15 @@ export default {
     "{pct}% de adesão": "{pct}% uptake",
     "Ver planos de {grupo}": "See {grupo} plans",
     "descontinuado": "discontinued",
+    // Edição de venda: item desativado do catálogo
+    "(desativado)": "(inactive)",
+    // Nutri como adicional (etapa 2: Metas, Relatórios, Ranking, Saúde, Histórico)
+    "adicional, não soma nos planos": "add-on, not added to plans",
+    "A coluna Nutri (verde) é adicional: não entra no total de planos.": "The Nutri column (green) is an add-on: it is not part of the plan total.",
+    "Só Nutri (adicional)": "Nutri only (add-on)",
+    "Adicionais Nutri (combos + PRATIQUE NUTRI). Não somam no total de planos.": "Nutri add-ons (combos + PRATIQUE NUTRI). Not added to the plan total.",
+    "Nutri (adicional)": "Nutri (add-on)",
+    "Nutri (adicional): {qtd} · {pct}% de adesão": "Nutri (add-on): {qtd} · {pct}% uptake",
+    "Grupos de plano: PLUS, FIT, Personal e Outros (combo com Nutri conta no grupo do plano). O Nutri é adicional e aparece embaixo, fora da rosca. A seta mostra a variação de cada grupo em relação ao período anterior.": "Plan groups: PLUS, FIT, Personal and Others (a combo with Nutri counts in the plan group). Nutri is an add-on and appears below, outside the donut. The arrow shows each group change versus the previous period.",
+    "Camadas empilhadas: planos, produtos, serviços e Nutri sem plano (ex.: PRATIQUE NUTRI). A linha tracejada é o total do período anterior no mesmo ponto (ex.: 1º dia com 1º dia).": "Stacked layers: plans, products, services and Nutri without a plan (e.g. PRATIQUE NUTRI). The dashed line is the previous period total at the same point (e.g. day 1 with day 1).",
 };

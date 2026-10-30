@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, Star, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2 } from 'lucide-react';
-import { planoTemNutri } from '../AnaliseVendas/utils.js';
+import { decomporPlano } from '../AnaliseVendas/utils.js';
 import { preencherMensagem, MENSAGENS_PADRAO, linkWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
 import {
     carregarUltimoPlanoAlunos, carregarAndamentoMigracao, salvarAndamentoMigracao, puxarParaFilaMigracao,
@@ -14,7 +14,7 @@ import { tx } from '../../i18n/traduzir.js';
 // ==========================================
 // ABA MIGRAÇÃO
 // Alunos da unidade cujo ÚLTIMO PLANO comprado no sistema NÃO tem nutricionista.
-// Regra do NUTRI: planoTemNutri (a mesma função do painel de vendas, em AnaliseVendas/utils.js).
+// Regra do NUTRI: decomporPlano(nome).nutri (função única de AnaliseVendas/utils.js; Nutri é adicional, decisão do dono 30/10/2026).
 // REAVALIAÇÃO e FÉRIAS não contam como "último plano" (a consulta do banco já ignora).
 //
 // FILA DE TRABALHO (igual à Base): a recepcionista PUXA alunos (plano + quantidade, os que compraram mais
@@ -100,7 +100,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             .map(a => {
                 const registro = andamento.get(a.aluno_id);
                 let situacao;
-                if (planoTemNutri(a.ultimo_plano)) {
+                if (decomporPlano(a.ultimo_plano).nutri) {
                     // Só aparece como "Migrou" quem entrou no andamento e depois comprou plano com NUTRI
                     if (!registro || !a.data_compra || String(a.data_compra) < dataLocalISO(registro.criado_em || registro.atualizado_em)) return null;
                     situacao = 'MIGROU';

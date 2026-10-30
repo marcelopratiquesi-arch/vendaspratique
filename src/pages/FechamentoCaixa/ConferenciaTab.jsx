@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { formatMoney, formatDataBR, formatarDataHora } from './utils.js';
+import { itensCatalogoParaEdicao } from '../HistoricoVendas/utils.js';
 import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle, User } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -464,9 +465,11 @@ const ConferenciaTab = ({
                                     >
                                         <option value="" disabled>{tx("Selecione no catálogo...")}</option>
                                         {catalogoCompleto && catalogoCompleto.length > 0 ? (
-                                            catalogoCompleto.slice().sort((a, b) => a.nome.localeCompare(b.nome)).map(c => (
+                                            // Só itens ativos + o item que a venda já tinha (mesmo desativado), regra única do Histórico
+                                            itensCatalogoParaEdicao(catalogoCompleto, (vendasParaConferencia.find(x => x.id === vendaEmEdicao.id) || vendaEmEdicao).produto)
+                                                .sort((a, b) => a.nome.localeCompare(b.nome)).map(c => (
                                                 <option key={c.id} value={c.nome.toUpperCase()}>
-                                                    {c.nome.toUpperCase()} - {formatMoney(c.valor)}
+                                                    {c.nome.toUpperCase()}{c.foraDoCatalogo ? '' : ` - ${formatMoney(c.valor)}`}{c.desativado ? ` ${tx('(desativado)')}` : ''}
                                                 </option>
                                             ))
                                         ) : (

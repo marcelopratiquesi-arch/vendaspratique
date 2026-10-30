@@ -134,7 +134,8 @@ export const criarGruposPlanosVazio = () => ({
 });
 
 // ==========================================
-// NUTRI É ADICIONAL, NÃO PLANO (decisão do dono, 30/10/2026 — ETAPA 1: só o Dashboard usa esta função)
+// NUTRI É ADICIONAL, NÃO PLANO (decisão do dono, 30/10/2026). FUNÇÃO ÚNICA de todas as telas (Dashboard, Metas,
+// Relatórios, Ranking global, Saúde da unidade, resumo do Histórico e CRM/Migração). O Fechamento não usa grupos.
 // decomporPlano(nome) → { base, nutri }
 // - base: 'PLUS' | 'FIT' | 'PERSONAL CLASS' | 'OUTROS PLANOS' | null → o plano que conta como ENTRADA/ATIVO
 // - nutri: true/false → conta como ADICIONAL NUTRI
@@ -156,42 +157,49 @@ export const decomporPlano = (nomePlano) => {
     return { base, nutri };
 };
 
-// Grupo de um plano pelo nome. ⚠️ ETAPA 2: será substituído por decomporPlano (Nutri como adicional) nas outras telas.
-// REGRA ÚNICA ATUAL (Metas, Relatórios, Saúde da unidade e aba Migração do CRM usam esta mesma função):
-// NUTRI é conferido ANTES de PLUS, então "PLUS + NUTRI" é NUTRI e o "PLUS" sozinho é PLUS (sem nutricionista).
-export const grupoDoPlano = (nomePlano) => {
-    const nomeNorm = normalizeString(nomePlano);
-    if (nomeNorm.includes("NUTRI")) return "NUTRI";
-    if (nomeNorm.includes("PLUS")) return "PLUS";
-    if (nomeNorm.includes("FIT")) return "FIT";
-    if (nomeNorm.includes("PERSONAL")) return "PERSONAL CLASS";
-    return "OUTROS PLANOS";
-};
-
-// Plano com nutricionista = o nome tem "NUTRI" (ex.: PRATIQUE NUTRI, FIT + NUTRI, PLUS + NUTRI)
-export const planoTemNutri = (nomePlano) => grupoDoPlano(nomePlano) === "NUTRI";
-
-// ⚠️ ETAPA 2: será substituído por decomporPlano (Nutri como adicional). Não mudar antes disso.
-// Grupo de META de um lançamento. REGRA ÚNICA da aba "Metas da unidade" e do Placar do mês (Dashboard),
-// para os números baterem: plano com NUTRI → NUTRI; senão PERSONAL → PERSONAL; senão PLUS ou AFL → PLUS;
-// produto físico → PRODUTO. O resto (FIT, serviços, não classificados) não conta em meta → null.
-export const grupoDaMeta = (nomeProduto, planos, produtos) => {
-    const prodUpper = (nomeProduto || '').toUpperCase();
-    const cat = getCategoriaItem(prodUpper, planos, produtos);
-    if (cat === 'PLANO') {
-        if (prodUpper.includes("NUTRI")) return 'NUTRI';
-        if (prodUpper.includes("PERSONAL")) return 'PERSONAL';
-        if (prodUpper.includes("PLUS") || prodUpper.includes("AFL")) return 'PLUS';
-        return null;
-    }
-    if (cat === 'PRODUTO') return 'PRODUTO';
-    return null;
-};
-
-export const classificarPlanoEmGrupo =(gruposPlanos, prodUpper, qtd) => {
-    const grupo = grupoDoPlano(prodUpper);
-    gruposPlanos[grupo].total += qtd;
-    gruposPlanos[grupo].detalhes[prodUpper] = (gruposPlanos[grupo].detalhes[prodUpper] || 0) + qtd;
+// CONTAGEM ÚNICA DE PLANOS (Dashboard, Metas, Relatórios, Ranking global, Saúde da unidade e resumo do Histórico)
+// Planos vendidos com a regra do card: mesma matrícula + mesmo plano + mesmo dia conta 1 vez só.
+// NUTRI É ADICIONAL (decisão do dono, 30/10/2026): cada lançamento é decomposto por decomporPlano em
+// plano BASE (Plus/Fit/Personal/Outros, conta como entrada) e/ou ADICIONAL NUTRI (não conta como entrada).
+// Devolve:
+// - total / contados / grupos[PLUS|FIT|PERSONAL CLASS|OUTROS PLANOS]: só planos BASE (o número do card)
+// - nutri = { total, contados } e grupos.NUTRI: os adicionais Nutri (combos + PRATIQUE NUTRI)
+// Em grupos[...].detalhes fica a quantidade por nome de plano (o mesmo combo aparece no grupo base e no NUTRI).
+export const contarPlanosDoCard = (lista, planos, produtos) => {
+    const grupos = criarGruposPlanosVazio();
+    const contados = [];
+    const contadosNutri = [];
+    const vistos = new Set();
+    let total = 0;
+    let totalNutri = 0;
+    const somarNoGrupo = (grupo, prodUpper, qtd) => {
+        grupos[grupo].total += qtd;
+        grupos[grupo].detalhes[prodUpper] = (grupos[grupo].detalhes[prodUpper] || 0) + qtd;
+    };
+    lista.forEach(v => {
+        const prodUpper = (v.produto || '').toUpperCase();
+        if (getCategoriaItem(prodUpper, planos, produtos) !== 'PLANO') return;
+        let qtd = parseInt(v.quantidade) || 1;
+        const matricula = String(v.matricula ?? '').trim();
+        if (matricula) {
+            const chave = `${matricula}-${prodUpper}-${safeIsoDate(v.data || v.created_at)}`;
+            if (vistos.has(chave)) qtd = 0;
+            else vistos.add(chave);
+        }
+        if (qtd === 0) return;
+        const { base, nutri } = decomporPlano(prodUpper);
+        if (base) {
+            total += qtd;
+            somarNoGrupo(base, prodUpper, qtd);
+            contados.push({ venda: v, qtd, base, nutri });
+        }
+        if (nutri) {
+            totalNutri += qtd;
+            somarNoGrupo('NUTRI', prodUpper, qtd);
+            contadosNutri.push({ venda: v, qtd, base, nutri });
+        }
+    });
+    return { grupos, contados, total, nutri: { total: totalNutri, contados: contadosNutri } };
 };
 
 export const formatDataBR = (dInput) => {

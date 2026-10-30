@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { safeNumber, safeIsoDate, formatMoney, formatDataBR, formatarCPF, extrairHoraCriacao, toTitleCase, buildCatalogoMap, normalizeString, pedirMotivoExclusao, excluirVendaComMotivo } from './utils.js';
+import { safeNumber, safeIsoDate, formatMoney, formatDataBR, formatarCPF, extrairHoraCriacao, toTitleCase, buildCatalogoMap, normalizeString, pedirMotivoExclusao, excluirVendaComMotivo, itensCatalogoParaEdicao } from './utils.js';
 import { anexarUnidades } from '../Alunos/utils.js';
 import { agruparDuplicidades } from './duplicidades/motorDuplicidades.js';
 import AbaDuplicidades from './duplicidades/AbaDuplicidades.jsx';
@@ -580,7 +580,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                             <input type="number" min="1" value={dadosEdicao.quantidade} onChange={e => handleEdicaoChange('quantidade', e.target.value)} className="w-16 text-center bg-white border border-blue-300 text-blue-800 rounded-lg px-2 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300" />
                                                             <select value={dadosEdicao.produto} onChange={e => handleEdicaoChange('produto', e.target.value)} className="w-full min-w-[180px] bg-white border border-blue-300 text-blue-800 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 font-bold uppercase cursor-pointer text-sm shadow-sm dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300">
                                                                 <option value="" disabled>{tx("Selecione...")}</option>
-                                                                {catalogoGeral.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                                                                {itensCatalogoParaEdicao(catalogoGeral, row.produto).map(c => <option key={c.id} value={c.nome}>{c.nome}{c.desativado ? ` ${tx('(desativado)')}` : ''}</option>)}
                                                             </select>
                                                         </div>
                                                     </div>

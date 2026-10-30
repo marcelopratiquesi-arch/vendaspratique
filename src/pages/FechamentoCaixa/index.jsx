@@ -19,7 +19,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     const [catalogoGeral, setCatalogoGeral] = useState([]);
     useEffect(() => {
         const fetchCatalogo = async () => {
-            const { data, error } = await supabase.from('catalogo').select('id, nome, tipo, valor');
+            const { data, error } = await supabase.from('catalogo').select('id, nome, tipo, valor, ativo');
             if (data && !error) setCatalogoGeral(data);
         };
         fetchCatalogo();

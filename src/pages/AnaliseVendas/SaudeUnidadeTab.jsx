@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { supabase } from '../../supabaseClient.js';
-import { grupoDoPlano, normalizeString } from './utils.js';
+import { decomporPlano, normalizeString, safeIsoDate } from './utils.js';
 import {
     TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, HelpCircle, ArrowUpDown, ArrowDown, ArrowUp,
     HeartPulse, Info, CircleSlash, Sparkles, Users, ChevronDown
@@ -39,6 +39,8 @@ const CATEGORIAS = [
     ['PRODUTO', 'Produtos'],
     ['SERVICO', 'Serviços'],
 ];
+// Gráfico de evolução: as 3 categorias + o Nutri que não tem plano base (ex.: PRATIQUE NUTRI)
+const SERIES_EVOLUCAO = [...CATEGORIAS, ['NUTRI', 'Só Nutri (adicional)']];
 
 // ---------- datas (sempre no horário local, AAAA-MM-DD) ----------
 const paraData = (iso) => { const [a, m, d] = iso.split('-').map(Number); return new Date(a, m - 1, d); };
@@ -239,7 +241,7 @@ const SaudeUnidadeTab = ({
             setCarregando(true); setErro(false);
             let todas = [];
             for (let inicio = 0; ; inicio += TAMANHO_PAGINA) {
-                let q = supabase.from('vendas').select('id, unidade, data, produto, quantidade, valor, vendedor')
+                let q = supabase.from('vendas').select('id, unidade, data, created_at, produto, quantidade, valor, vendedor, matricula')
                     .gte('data', periodos.inicioAnt).lte('data', periodos.fim)
                     .order('id', { ascending: true }).range(inicio, inicio + TAMANHO_PAGINA - 1);
                 if (unidadeFixa) q = q.eq('unidade', unidadeFixa);
@@ -255,19 +257,20 @@ const SaudeUnidadeTab = ({
 
     const mapaCatalogo = useMemo(() => {
         const m = new Map();
-        catalogoGeral.forEach(c => m.set(String(c.nome || '').toUpperCase(), String(c.tipo || '').toLowerCase()));
+        catalogoGeral.forEach(c => m.set(normalizeString(String(c.nome || '')), String(c.tipo || '').toLowerCase()));
         return m;
     }, [catalogoGeral]);
 
-    // Mesma classificação dos filtros do topo: catálogo manda; fora dele, serviço óbvio ou plano
+    // Catálogo manda (mesma regra do Dashboard e dos Relatórios). Fora do catálogo = não classificado,
+    // que fica junto de Serviços (como na coluna SERVIÇOS dos Relatórios/Ranking) e nunca conta como plano.
     const categoriaDe = (produtoUpper) => {
-        const tipo = mapaCatalogo.get(produtoUpper);
+        const tipo = mapaCatalogo.get(normalizeString(produtoUpper));
         if (tipo === 'produto') return 'PRODUTO';
         if (tipo === 'servico' || tipo === 'serviço') return 'SERVICO';
         if (tipo === 'plano') return 'PLANO';
         const n = normalizeString(produtoUpper);
         if (['DIARIA', 'AVALIACAO', 'TAXA', 'MULTA', 'DAY USE'].some(p => n.includes(p))) return 'SERVICO';
-        return 'PLANO';
+        return 'SERVICO';
     };
 
     const dados = useMemo(() => {
@@ -283,7 +286,10 @@ const SaudeUnidadeTab = ({
         const tipoGrupo = tipoDeAgrupamento(periodos);
 
         const itens = new Map();
-        const tot = { atual: { PLANO: 0, PRODUTO: 0, SERVICO: 0, comissao: 0 }, antes: { PLANO: 0, PRODUTO: 0, SERVICO: 0, comissao: 0 } };
+        // PLANO = só planos base (Nutri é adicional, decomporPlano); NUTRI = adicionais; itens = total de vendas
+        const tot = { atual: { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, itens: 0, comissao: 0 }, antes: { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, itens: 0, comissao: 0 } };
+        // Mesma regra do card de planos: mesmo plano + mesma matrícula + mesmo dia conta 1 vez
+        const planosVistos = new Set();
         const grupos = {};
         const serie = new Map();
 
@@ -298,43 +304,61 @@ const SaudeUnidadeTab = ({
             const antes = data >= periodos.inicioAnt && data <= periodos.fimAnt;
             if (!atual && !antes) return;
 
-            const qtd = parseInt(v.quantidade, 10) || 1;
+            let qtd = parseInt(v.quantidade, 10) || 1;
             const comissao = Number(v.valor) || 0;
             const cat = categoriaDe(produto);
             const lado = atual ? 'atual' : 'antes';
-            tot[lado][cat] += qtd;
+            let decomposto = null;
+            if (cat === 'PLANO') {
+                const matricula = String(v.matricula ?? '').trim();
+                if (matricula) {
+                    const chave = `${matricula}-${produto}-${safeIsoDate(v.data || v.created_at)}`;
+                    if (planosVistos.has(chave)) qtd = 0;
+                    else planosVistos.add(chave);
+                }
+                decomposto = decomporPlano(produto);
+                if (decomposto.base) tot[lado].PLANO += qtd;
+                if (decomposto.nutri) tot[lado].NUTRI += qtd;
+            } else {
+                tot[lado][cat] += qtd;
+            }
+            tot[lado].itens += qtd;
             tot[lado].comissao += comissao;
 
             const item = itens.get(produto) || { nome: produto, cat, qtd: 0, qtdAnt: 0, comissao: 0, comissaoAnt: 0 };
             if (atual) { item.qtd += qtd; item.comissao += comissao; } else { item.qtdAnt += qtd; item.comissaoAnt += comissao; }
             itens.set(produto, item);
 
-            if (cat === 'PLANO') {
-                const g = grupoDoPlano(produto);
+            // Rosca "Planos por grupo": só o grupo BASE (combo com Nutri conta no grupo base)
+            if (decomposto?.base) {
+                const g = decomposto.base;
                 grupos[g] = grupos[g] || { nome: g, qtd: 0, qtdAnt: 0 };
                 if (atual) grupos[g].qtd += qtd; else grupos[g].qtdAnt += qtd;
             }
 
             const i = indiceNoPeriodo(data, atual ? periodos.inicio : periodos.inicioAnt, tipoGrupo);
-            const ponto = serie.get(i) || { i, PLANO: 0, PRODUTO: 0, SERVICO: 0, anterior: 0 };
-            if (atual) ponto[cat] += qtd; else ponto.anterior += qtd;
+            const ponto = serie.get(i) || { i, PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, anterior: 0 };
+            // Camada do gráfico: plano base em "Planos"; Nutri sem plano base (ex.: PRATIQUE NUTRI) em "Só Nutri"
+            const camada = cat !== 'PLANO' ? cat : (decomposto.base ? 'PLANO' : 'NUTRI');
+            if (atual) ponto[camada] += qtd; else ponto.anterior += qtd;
             serie.set(i, ponto);
         });
 
         // Eixo do gráfico: todos os pontos do período atual, mesmo os sem venda (zero de verdade)
         const ultimo = indiceNoPeriodo(periodos.fim, periodos.inicio, tipoGrupo);
         const evolucao = Array.from({ length: ultimo + 1 }, (_, i) => {
-            const p = serie.get(i) || { PLANO: 0, PRODUTO: 0, SERVICO: 0, anterior: 0 };
+            const p = serie.get(i) || { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, anterior: 0 };
             let rotulo;
             if (tipoGrupo === 'dia') rotulo = dataCurta(somarDias(periodos.inicio, i));
             else if (tipoGrupo === 'semana') rotulo = dataCurta(somarDias(periodos.inicio, i * 7));
             else { const d = paraData(periodos.inicio); rotulo = new Date(d.getFullYear(), d.getMonth() + i, 1).toLocaleDateString(localeAtual(), { month: 'short', year: '2-digit' }); }
-            return { rotulo, PLANO: p.PLANO, PRODUTO: p.PRODUTO, SERVICO: p.SERVICO, anterior: p.anterior };
+            return { rotulo, PLANO: p.PLANO, PRODUTO: p.PRODUTO, SERVICO: p.SERVICO, NUTRI: p.NUTRI, anterior: p.anterior };
         });
 
         const listaItens = [...itens.values()].map(it => ({ ...it, variacao: variacao(it.qtd, it.qtdAnt) }));
-        const totalAtual = tot.atual.PLANO + tot.atual.PRODUTO + tot.atual.SERVICO;
-        const totalAntes = tot.antes.PLANO + tot.antes.PRODUTO + tot.antes.SERVICO;
+        // Total de vendas: cada item 1 vez (combo = 1 venda; PRATIQUE NUTRI também é 1 venda)
+        const totalAtual = tot.atual.itens;
+        const totalAntes = tot.antes.itens;
 
         // O que olhar agora: pararam, caíram, subiram (no máximo 4, pelo tamanho da diferença)
         const alertas = [];
@@ -377,7 +401,7 @@ const SaudeUnidadeTab = ({
     const d = dados;
     const nomeUnidade = `${unidadeFixa || tx('Todas as unidades')}${equipe !== 'TODAS' ? ` · ${tx('Equipe')} ${equipe}` : ''}`;
     const textoAnterior = `${dataCurta(periodos.inicioAnt)} – ${dataCurta(periodos.fimAnt)}`;
-    const nomesSerie = { PLANO: tx('Planos'), PRODUTO: tx('Produtos'), SERVICO: tx('Serviços'), anterior: tx('Período anterior (total)') };
+    const nomesSerie = { PLANO: tx('Planos'), PRODUTO: tx('Produtos'), SERVICO: tx('Serviços'), NUTRI: tx('Só Nutri (adicional)'), anterior: tx('Período anterior (total)') };
 
     // Roscas
     const fatiasGrupos = [...d.grupos].sort((a, b) => b.qtd - a.qtd).filter(g => g.qtd > 0)
@@ -393,7 +417,7 @@ const SaudeUnidadeTab = ({
 
     // Tabela
     const itensCategoria = d.listaItens.filter(it => it.cat === categoria && (it.qtd > 0 || it.qtdAnt > 0));
-    const totalCategoria = d.tot.atual[categoria];
+    const totalCategoria = itensCategoria.reduce((soma, it) => soma + it.qtd, 0);
     const vendidos = itensCategoria.filter(it => it.qtd > 0).sort((a, b) => b.qtd - a.qtd);
     const maisVendido = vendidos[0]?.nome;
     const menosVendido = vendidos.length > 1 ? vendidos[vendidos.length - 1].nome : null;
@@ -458,6 +482,12 @@ const SaudeUnidadeTab = ({
                         <Variacao valor={variacao(d.tot.atual[cat], d.tot.antes[cat])} />
                     </div>
                 ))}
+                {/* Nutri é adicional: aparece à parte, não soma nos planos */}
+                <div className="flex items-baseline gap-1.5 whitespace-nowrap" title={tx('Adicionais Nutri (combos + PRATIQUE NUTRI). Não somam no total de planos.')}>
+                    <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">{tx('Nutri (adicional)')}</span>
+                    <span className="text-base font-black text-slate-700 tabular-nums dark:text-slate-200">{d.tot.atual.NUTRI}</span>
+                    <Variacao valor={variacao(d.tot.atual.NUTRI, d.tot.antes.NUTRI)} />
+                </div>
                 <div className="flex items-baseline gap-1.5 whitespace-nowrap">
                     <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx('Comissão')}</span>
                     <span className="text-base font-black text-emerald-700 tabular-nums dark:text-emerald-400">{formatarComissao(d.tot.atual.comissao)}</span>
@@ -509,8 +539,13 @@ const SaudeUnidadeTab = ({
             {/* PIZZAS */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <Bloco titulo={tx('Planos por grupo')} subtitulo={tx('Quantos planos de cada grupo saíram no período')}
-                    dica={tx('Grupos: NUTRI (com nutricionista), PLUS, FIT, Personal e Outros. A seta mostra a variação de cada grupo em relação ao período anterior.')}>
+                    dica={tx('Grupos de plano: PLUS, FIT, Personal e Outros (combo com Nutri conta no grupo do plano). O Nutri é adicional e aparece embaixo, fora da rosca. A seta mostra a variação de cada grupo em relação ao período anterior.')}>
                     <Rosca fatias={fatiasGrupos} total={d.tot.atual.PLANO} vazio={tx('Nenhum plano vendido no período.')} />
+                    <p className="mt-3 pt-3 border-t border-slate-100 text-[12px] font-semibold text-slate-600 flex flex-wrap items-center gap-2 dark:border-slate-800 dark:text-slate-300">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />
+                        {tx('Nutri (adicional): {qtd} · {pct}% de adesão', { qtd: d.tot.atual.NUTRI, pct: d.tot.atual.PLANO > 0 ? Math.round((d.tot.atual.NUTRI / d.tot.atual.PLANO) * 100) : 0 })}
+                        <Variacao valor={variacao(d.tot.atual.NUTRI, d.tot.antes.NUTRI)} />
+                    </p>
                 </Bloco>
                 <Bloco titulo={tx('Produtos mais vendidos')} subtitulo={tx('Os 4 que mais saíram; o resto fica em "Outros"')}
                     dica={tx('Quantidade de cada produto vendido no período. A seta mostra a variação em relação ao período anterior.')}>
@@ -521,10 +556,10 @@ const SaudeUnidadeTab = ({
             {/* MONTANHA (EVOLUÇÃO) */}
             <Bloco titulo={tx('Evolução das vendas')}
                 subtitulo={d.tipoGrupo === 'dia' ? tx('Por dia, no período escolhido') : d.tipoGrupo === 'semana' ? tx('Por semana, no período escolhido') : tx('Por mês, no período escolhido')}
-                dica={tx('Camadas empilhadas: planos, produtos e serviços. A linha tracejada é o total do período anterior no mesmo ponto (ex.: 1º dia com 1º dia).')}
+                dica={tx('Camadas empilhadas: planos, produtos, serviços e Nutri sem plano (ex.: PRATIQUE NUTRI). A linha tracejada é o total do período anterior no mesmo ponto (ex.: 1º dia com 1º dia).')}
                 direita={mostrarEvolucao && (
                     <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                        {CATEGORIAS.map(([cat, nome], i) => <span key={cat} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: paleta[i] }} />{tx(nome)}</span>)}
+                        {SERIES_EVOLUCAO.map(([cat, nome], i) => <span key={cat} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: paleta[i] }} />{tx(nome)}</span>)}
                         <span className="inline-flex items-center gap-1.5"><span className="w-4 border-t-2 border-dashed" style={{ borderColor: escuro ? COR_ANTERIOR.escuro : COR_ANTERIOR.claro }} />{tx('Período anterior')}</span>
                     </div>
                 )}>
@@ -536,7 +571,7 @@ const SaudeUnidadeTab = ({
                                 <XAxis dataKey="rotulo" tickLine={false} axisLine={false} tick={{ fill: corEixo, fontSize: 11, fontWeight: 700 }} minTickGap={16} />
                                 <YAxis tickLine={false} axisLine={false} allowDecimals={false} tick={{ fill: corEixo, fontSize: 11, fontWeight: 700 }} width={40} />
                                 <Tooltip content={<DicaGrafico nomes={nomesSerie} />} cursor={{ stroke: corEixo, strokeDasharray: '3 3' }} />
-                                {CATEGORIAS.map(([cat], i) => (
+                                {SERIES_EVOLUCAO.map(([cat], i) => (
                                     <Area key={cat} type="monotone" dataKey={cat} stackId="1" stroke={paleta[i]} strokeWidth={2} fill={paleta[i]} fillOpacity={0.25} isAnimationActive={false}
                                         activeDot={{ r: 4, stroke: corFundo, strokeWidth: 2 }} />
                                 ))}

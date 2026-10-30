@@ -1,6 +1,6 @@
 // src/pages/AnaliseVendas/relatorio/exportadorSeguro.js
 import { safeIsoDate, formatDataBR } from '../utils.js';
-import { ORDEM_CLASSICA } from './motorConsolidacao.js';
+import { ORDEM_CLASSICA, ROTULO_NUTRI_ADICIONAL } from './motorConsolidacao.js';
 import { avisar } from '../../../components/avisar.js';
 import { tx } from '../../../i18n/traduzir.js';
 
@@ -268,7 +268,7 @@ export const montarTextoFechamentoUnidade = ({
     gruposClassicosOrdenados.forEach(([nomeGrupo, grupoInfo]) => {
         const icone = grupoInfo.icone || "🔹";
 
-        txt += `${icone} *${nomeGrupo} — ${String(grupoInfo.total).padStart(2, '0')} ${grupoInfo.total > 1 ? tr('analytics.report.wppSalesLow', 'vendas') : tr('analytics.report.wppSaleLow', 'venda')}*\n`;
+        txt += `${icone} *${nomeGrupo === 'NUTRI' ? ROTULO_NUTRI_ADICIONAL : nomeGrupo} — ${String(grupoInfo.total).padStart(2, '0')} ${grupoInfo.total > 1 ? tr('analytics.report.wppSalesLow', 'vendas') : tr('analytics.report.wppSaleLow', 'venda')}*\n`;
 
         const itensOrdenados = Object.entries(grupoInfo.itens).sort((a, b) => b[1].total - a[1].total);
         itensOrdenados.forEach(([nomeItem, itemData]) => {

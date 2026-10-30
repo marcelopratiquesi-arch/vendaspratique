@@ -97,6 +97,9 @@ const RankingGlobalTab = ({
         return filtrarEOrdenarRanking(baseRankingUnidades, criterioRanking, colunaOrdemMatriz);
     }, [baseRankingUnidades, criterioRanking, colunaOrdemMatriz]);
 
+    // Nutri é ADICIONAL (decisão do dono, 30/10/2026): coluna separada (borda tracejada e fundo verde-claro), fora do total de planos
+    const CLASSE_ADICIONAL = 'border-l-2 border-dashed border-emerald-300 bg-emerald-50/50 dark:border-emerald-500/40 dark:bg-emerald-500/5';
+
     const colunasMatrizVisiveis = useMemo(() => {
         return COLUNAS_MATRIZ.filter(col => {
             if (criterioRanking === 'PLANOS') return col.escopo === 'PLANOS';
@@ -375,11 +378,12 @@ const RankingGlobalTab = ({
                                         const isOrdenada = colunaOrdemMatriz === col.key;
                                         return (
                                             <th key={col.key} onClick={() => handleOrdenarPorColunaMatriz(col.key)} title={tx("Clique para ordenar por {label}", { label: col.label })}
-                                                className={`py-3 px-2.5 text-[10px] font-black uppercase tracking-wider text-center w-24 cursor-pointer select-none transition-colors ${isOrdenada ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                                className={`py-3 px-2.5 text-[10px] font-black uppercase tracking-wider text-center w-24 cursor-pointer select-none transition-colors ${col.adicional ? CLASSE_ADICIONAL : ''} ${isOrdenada ? 'text-blue-600 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                                 <span className="inline-flex items-center gap-1">
                                                     {tx(col.label)}
                                                     <ArrowUpDown className={`w-3 h-3 ${isOrdenada ? 'opacity-100' : 'opacity-30'}`} />
                                                 </span>
+                                                {col.adicional && <span className="block text-[10px] font-bold normal-case tracking-normal text-emerald-700 dark:text-emerald-400">{tx('adicional')}</span>}
                                             </th>
                                         );
                                     })}
@@ -449,7 +453,7 @@ const RankingGlobalTab = ({
                                                     const valorCel = uni.colunas[col.key] || 0;
                                                     const regsCel = uni.registrosPorColuna[col.key] || [];
                                                     return (
-                                                        <td key={col.key} className="py-3 px-2.5 text-center">
+                                                        <td key={col.key} className={`py-3 px-2.5 text-center ${col.adicional ? CLASSE_ADICIONAL : ''}`}>
                                                             {valorCel > 0 ? (
                                                                 <button type="button"
                                                                     onClick={() => abrirModalAuditoria(`${col.label} — ${uni.nome}`, uni.nome, 'VENDA', regsCel, valorCel)}
@@ -500,7 +504,7 @@ const RankingGlobalTab = ({
                                             <td className="py-3 px-3 text-center text-[13px] text-slate-800 tabular-nums border-r border-slate-200 dark:text-white dark:border-slate-800">{doisDigitos(totaisRedeMatriz.totalPlanos)}</td>
                                         )}
                                         {colunasMatrizVisiveis.map(col => (
-                                            <td key={col.key} className="py-3 px-2.5 text-center text-[13px] text-slate-700 tabular-nums dark:text-slate-200">
+                                            <td key={col.key} className={`py-3 px-2.5 text-center text-[13px] text-slate-700 tabular-nums dark:text-slate-200 ${col.adicional ? CLASSE_ADICIONAL : ''}`}>
                                                 {totaisRedeMatriz[col.key] > 0 ? doisDigitos(totaisRedeMatriz[col.key]) : '—'}
                                             </td>
                                         ))}
@@ -515,7 +519,7 @@ const RankingGlobalTab = ({
                         </table>
                     </div>
                     <p className="px-5 py-2.5 border-t border-slate-100 text-[11px] font-semibold text-slate-400 dark:border-slate-800">
-                        {tx("Quanto mais azul a célula, maior o número naquela coluna. O mais forte é o maior da rede.")}
+                        {tx("Quanto mais azul a célula, maior o número naquela coluna. O mais forte é o maior da rede.")}{' '}{tx('A coluna Nutri (verde) é adicional: não entra no total de planos.')}
                     </p>
                 </div>
             )}
