@@ -2092,4 +2092,5 @@ export default {
     "Alunos ativos hoje": "Socios activos hoy",
     "Últimos 15 dias": "Últimos 15 días",
     "Digite os números do dia 1º do mês até a data. \"Este mês\" = até hoje; \"Ontem\" = até ontem (para quem esqueceu de lançar); \"Escolher dia\" = até o dia escolhido. Pode gravar de novo: o número é trocado. O \"+\" na frente mostra quanto somou desde o lançamento anterior.": "Ingresá los números desde el día 1 del mes hasta la fecha. \"Este mes\" = hasta hoy; \"Ayer\" = hasta ayer (si te olvidaste de cargarlo); \"Elegir día\" = hasta el día elegido. Podés guardar de nuevo: el número se reemplaza. El \"+\" adelante muestra cuánto sumó desde el registro anterior.",
+    "nas mesmas datas": "en las mismas fechas",
 };

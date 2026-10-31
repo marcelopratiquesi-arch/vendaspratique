@@ -2092,4 +2092,5 @@ export default {
     "Alunos ativos hoje": "Active members today",
     "Últimos 15 dias": "Last 15 days",
     "Digite os números do dia 1º do mês até a data. \"Este mês\" = até hoje; \"Ontem\" = até ontem (para quem esqueceu de lançar); \"Escolher dia\" = até o dia escolhido. Pode gravar de novo: o número é trocado. O \"+\" na frente mostra quanto somou desde o lançamento anterior.": "Enter the numbers from the 1st of the month up to the date. \"This month\" = up to today; \"Yesterday\" = up to yesterday (if you forgot to enter it); \"Pick a day\" = up to the chosen day. You can save again: the number is replaced. The \"+\" in front shows how much was added since the previous entry.",
+    "nas mesmas datas": "on the same dates",
 };

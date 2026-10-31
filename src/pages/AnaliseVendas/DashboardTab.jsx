@@ -43,7 +43,11 @@ const GRUPOS = [
 ];
 const ROTULO_CURTO = { NUTRI: 'Nutri', PLUS: 'Plus', FIT: 'Fit', 'PERSONAL CLASS': 'Personal', 'OUTROS PLANOS': 'Outros' };
 const AZUL_DESTAQUE = '#1D4FD8';
-const COR_MES_ANTERIOR = '#94A3B8';
+// Ritmo trimestral: cores bem diferentes do azul do mês atual (decisão do dono, 31/10/2026)
+const COR_MES_ANTERIOR = '#F59E0B'; // mês passado: laranja, tracejado
+const COR_MES_RETRASADO = '#64748B'; // mês retrasado: cinza escuro, pontilhado
+// Ordem fixa no quadradinho do mouse: mês atual, mês passado, mês retrasado
+const ORDEM_RITMO = { atual: 0, atualDia: 0, anterior: 1, anteriorDia: 1, retrasado: 2, retrasadoDia: 2 };
 
 // ---------- datas ----------
 const paraData = (iso) => { const [a, m, d] = iso.split('-').map(Number); return new Date(a, m - 1, d); };
@@ -544,12 +548,26 @@ const DashboardTab = ({
         return contarPlanosDoCard(lista, planos, produtos);
     }, [vendasAnteriorBrutas, unidadeAtual, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, planos, produtos]);
     const gruposAnteriores = contagemAnterior.grupos;
+    // Ritmo trimestral (decisão do dono, 31/10/2026): mês retrasado nas mesmas datas, só leitura
+    const faixaRetrasada = useMemo(() => (faixaAnterior ? faixaMesAnterior(faixaAnterior) : null), [faixaAnterior]);
+    const { vendas: vendasRetrasadasBrutas, carregando: carregandoRetrasado, erro: erroRetrasado } = useVendasDaFaixa(faixaRetrasada, vendasTodas, unidadeAtual);
+    const contagemRetrasada = useMemo(() => {
+        const lista = vendasRetrasadasBrutas.filter(v => {
+            if (unidadeAtual && unidadeAtual !== 'TODOS' && v.unidade !== unidadeAtual) return false;
+            const prod = (v.produto || '').toUpperCase();
+            if (vendedoresOcultos.includes((v.vendedor || '').toUpperCase())) return false;
+            return !(planosOcultos.includes(prod) || produtosOcultos.includes(prod) || servicosOcultos.includes(prod));
+        });
+        return contarPlanosDoCard(lista, planos, produtos);
+    }, [vendasRetrasadasBrutas, unidadeAtual, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, planos, produtos]);
+    const temRetrasado = !!faixaRetrasada && !carregandoRetrasado && !erroRetrasado;
     const temComparativo = !!faixaAnterior && !carregandoAnterior && !erroAnterior;
     const hojeIso = paraIso(new Date());
     const fimEfetivo = faixa ? (faixa.fim > hojeIso ? hojeIso : faixa.fim) : null;
     const textoPeriodo = faixa && faixa.inicio <= hojeIso ? `${ddmm(faixa.inicio)} ${tx('a')} ${ddmm(fimEfetivo)}` : '';
     const textoFaixaAnterior = faixaAnterior ? `${ddmm(faixaAnterior.inicio)} ${tx('a')} ${ddmm(faixaAnterior.fim)}` : '';
     const nomeMesAnterior = faixaAnterior ? paraData(faixaAnterior.inicio).toLocaleDateString(localeAtual(), { month: 'long' }) : '';
+    const nomeMesRetrasado = faixaRetrasada ? paraData(faixaRetrasada.inicio).toLocaleDateString(localeAtual(), { month: 'long' }) : '';
     const nomeMesAtual = faixa ? paraData(faixa.inicio).toLocaleDateString(localeAtual(), { month: 'long' }) : '';
 
     // Produtividade = 100% − (Fit ÷ total de entradas). Entradas = planos BASE (sem Nutri);
@@ -590,8 +608,11 @@ const DashboardTab = ({
         const diaAtual = contarPorDia(fonte(contagemPlanos), faixa.inicio, ultimoAtual + 1);
         const nAnt = temComparativo ? diasEntre(faixaAnterior.inicio, faixaAnterior.fim) + 1 : 0;
         const diaAnterior = temComparativo ? contarPorDia(fonte(contagemAnterior), faixaAnterior.inicio, nAnt) : [];
+        const nRet = temRetrasado ? diasEntre(faixaRetrasada.inicio, faixaRetrasada.fim) + 1 : 0;
+        const diaRetrasado = temRetrasado ? contarPorDia(fonte(contagemRetrasada), faixaRetrasada.inicio, nRet) : [];
         const atual = acumular(diaAtual);
         const anterior = acumular(diaAnterior);
+        const retrasado = acumular(diaRetrasado);
         const linhas = Array.from({ length: n }, (_, i) => ({
             i,
             dia: somarDias(faixa.inicio, i),
@@ -599,6 +620,8 @@ const DashboardTab = ({
             anterior: i < anterior.length ? anterior[i] : null,
             atualDia: i < diaAtual.length ? diaAtual[i] : null,
             anteriorDia: i < diaAnterior.length ? diaAnterior[i] : null,
+            retrasado: i < retrasado.length ? retrasado[i] : null,
+            retrasadoDia: i < diaRetrasado.length ? diaRetrasado[i] : null,
         }));
         // Destaques do modo "Por dia": melhor e pior dia (até hoje) e média por dia
         let melhor = null, pior = null;
@@ -613,11 +636,12 @@ const DashboardTab = ({
             linhas, ticks,
             ultimoAtual: atual.length - 1, ultimoAnterior: anterior.length - 1,
             totalAtual: atual[atual.length - 1] || 0, totalAnterior: anterior.length ? anterior[anterior.length - 1] : 0,
+            totalRetrasado: retrasado.length ? retrasado[retrasado.length - 1] : 0,
             melhor: melhor && { ...melhor, dia: somarDias(faixa.inicio, melhor.i) },
             pior: pior && { ...pior, dia: somarDias(faixa.inicio, pior.i) },
             media,
         };
-    }, [faixa, faixaAnterior, hojeIso, grupoRitmo, contagemPlanos, contagemAnterior, temComparativo]);
+    }, [faixa, faixaAnterior, faixaRetrasada, hojeIso, grupoRitmo, contagemPlanos, contagemAnterior, contagemRetrasada, temComparativo, temRetrasado]);
 
     const dispararModalMetas = () => {
         const mesAtual = new Date().toLocaleString(locale || 'pt-BR', { month: 'long' }).toUpperCase();
@@ -1061,7 +1085,9 @@ const DashboardTab = ({
                             <p className="mt-1 text-[14px] text-[#3B4458] flex flex-wrap items-center gap-2 dark:text-slate-300">
                                 <span>
                                     <strong className="font-extrabold text-[#0F172A] dark:text-white">{ritmo.totalAtual}</strong> {tx('em {mes}', { mes: nomeMesAtual })}
-                                    {temComparativo && <> {tx('vs')} <strong className="font-extrabold text-[#0F172A] dark:text-white">{ritmo.totalAnterior}</strong> {tx('em {mes}, nas mesmas datas', { mes: nomeMesAnterior })}</>}
+                                    {temComparativo && <> {tx('vs')} <strong className="font-extrabold text-[#0F172A] dark:text-white">{ritmo.totalAnterior}</strong> {tx('em {mes}', { mes: nomeMesAnterior })}</>}
+                                    {temRetrasado && <> · <strong className="font-extrabold text-[#0F172A] dark:text-white">{ritmo.totalRetrasado}</strong> {tx('em {mes}', { mes: nomeMesRetrasado })}</>}
+                                    {temComparativo && <> {tx('nas mesmas datas')}</>}
                                 </span>
                                 {temComparativo && <SeloVariacao atual={ritmo.totalAtual} antes={ritmo.totalAnterior} />}
                             </p>
@@ -1082,6 +1108,7 @@ const DashboardTab = ({
                             </div>
                             <span className="inline-flex items-center gap-2"><span className="w-6 h-1 rounded-full" style={{ background: corRitmo }} />{nomeMesAtual}</span>
                             {temComparativo && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dashed" style={{ borderColor: COR_MES_ANTERIOR }} />{nomeMesAnterior}</span>}
+                            {temRetrasado && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dotted" style={{ borderColor: COR_MES_RETRASADO }} />{nomeMesRetrasado}</span>}
                         </div>
                     )}
                 </div>
@@ -1121,12 +1148,15 @@ const DashboardTab = ({
                                     <XAxis dataKey="i" type="number" domain={[0, ritmo.linhas.length - 1]} ticks={ritmo.ticks}
                                         tickFormatter={(i) => ritmo.linhas[i]?.dia.slice(8) || ''} tick={{ fill: corEixo, fontSize: 12 }} axisLine={{ stroke: corGrade }} tickLine={false} />
                                     <YAxis allowDecimals={false} tickCount={5} domain={[0, 'auto']} tick={{ fill: corEixo, fontSize: 12 }} axisLine={false} tickLine={false} width={36} />
-                                    <Tooltip
+                                    <Tooltip itemSorter={(item) => ORDEM_RITMO[item.dataKey] ?? 9}
                                         labelFormatter={(i) => (ritmo.linhas[i] ? formatDataBR(ritmo.linhas[i].dia) : '')}
-                                        formatter={(valor, nome) => [tx('{qtd} plano(s)', { qtd: valor }), nome === 'atualDia' ? nomeMesAtual : nomeMesAnterior]}
+                                        formatter={(valor, nome) => [tx('{qtd} plano(s)', { qtd: valor }), nome === 'atualDia' ? nomeMesAtual : nome === 'retrasadoDia' ? nomeMesRetrasado : nomeMesAnterior]}
                                         contentStyle={{ borderRadius: 12, border: `1px solid ${escuro ? '#334155' : '#E4E8F0'}`, background: escuro ? '#0F172A' : '#FFFFFF', fontSize: 12 }}
                                     />
                                     {ritmo.media > 0 && <ReferenceLine y={ritmo.media} stroke={corEixo} strokeDasharray="2 4" />}
+                                    {temRetrasado && (
+                                        <Line type="monotone" dataKey="retrasadoDia" stroke={COR_MES_RETRASADO} strokeWidth={2} strokeDasharray="2 4" strokeLinecap="round" dot={false} connectNulls={false} isAnimationActive={false} />
+                                    )}
                                     {temComparativo && (
                                         <Line type="monotone" dataKey="anteriorDia" stroke={COR_MES_ANTERIOR} strokeWidth={2} strokeDasharray="7 6" dot={false} connectNulls={false} isAnimationActive={false} />
                                     )}
@@ -1145,11 +1175,14 @@ const DashboardTab = ({
                                 <XAxis dataKey="i" type="number" domain={[0, ritmo.linhas.length - 1]} ticks={ritmo.ticks}
                                     tickFormatter={(i) => ritmo.linhas[i]?.dia.slice(8) || ''} tick={{ fill: corEixo, fontSize: 12 }} axisLine={{ stroke: corGrade }} tickLine={false} />
                                 <YAxis allowDecimals={false} tickCount={5} domain={[0, 'auto']} tick={{ fill: corEixo, fontSize: 12 }} axisLine={false} tickLine={false} width={36} />
-                                <Tooltip
+                                <Tooltip itemSorter={(item) => ORDEM_RITMO[item.dataKey] ?? 9}
                                     labelFormatter={(i) => (ritmo.linhas[i] ? formatDataBR(ritmo.linhas[i].dia) : '')}
-                                    formatter={(valor, nome) => [valor, nome === 'atual' ? nomeMesAtual : nomeMesAnterior]}
+                                    formatter={(valor, nome) => [valor, nome === 'atual' ? nomeMesAtual : nome === 'retrasado' ? nomeMesRetrasado : nomeMesAnterior]}
                                     contentStyle={{ borderRadius: 12, border: `1px solid ${escuro ? '#334155' : '#E4E8F0'}`, background: escuro ? '#0F172A' : '#FFFFFF', fontSize: 12 }}
                                 />
+                                {temRetrasado && (
+                                    <Line type="monotone" dataKey="retrasado" stroke={COR_MES_RETRASADO} strokeWidth={3} strokeDasharray="2 5" strokeLinecap="round" dot={false} connectNulls={false} isAnimationActive={false} />
+                                )}
                                 {temComparativo && (
                                     <Line type="monotone" dataKey="anterior" stroke={COR_MES_ANTERIOR} strokeWidth={3} strokeDasharray="7 6" connectNulls={false} isAnimationActive={false}
                                         dot={pontoFinal(ritmo.ultimoAnterior, COR_MES_ANTERIOR, pertos && ritmo.totalAnterior < ritmo.totalAtual ? 16 : pertos ? -8 : 4)} activeDot={{ r: 4 }} />
