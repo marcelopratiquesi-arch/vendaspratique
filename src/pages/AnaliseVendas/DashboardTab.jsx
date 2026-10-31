@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ComposedChart, Area, ReferenceLine } from 'recharts';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { supabase } from '../../supabaseClient.js';
 import {
@@ -13,9 +13,10 @@ import { contarPlanosDoCard, faixaMesAnterior, useVendasDaFaixa, paraIso } from 
 import { agruparProdutos } from './familiasProdutos.js';
 import { qtdValidaProduto } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
+import { useMovimentoDiario, somarMovimentoNoPeriodo } from './movimentoDiario.js';
 import {
     TrendingUp, X, Users, Loader2, CheckCircle2, Layers, Calculator, Box, Briefcase,
-    ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send
+    ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send, UserPlus, UserMinus, Wallet, HelpCircle
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
@@ -185,19 +186,30 @@ const SeloVariacao = ({ atual, antes }) => {
     return <span className={`inline-flex items-center h-7 px-2.5 rounded-full text-[12px] font-bold tabular-nums whitespace-nowrap ${estilo}`}>{texto}</span>;
 };
 
-const CardMenor = ({ rotulo, valor, icone: Icone, fundoIcone, corIcone, iconeBotao: IconeBotao, rotuloBotao, onClick, carregando }) => (
+// "?" com explicação (mesmo modelo das outras telas)
+const DicaCard = ({ texto }) => (
+    <span className="group/dica relative inline-flex align-middle normal-case tracking-normal">
+        <button type="button" aria-label={texto} className="text-slate-400 hover:text-blue-600 focus:text-blue-600 outline-none dark:hover:text-blue-400"><HelpCircle className="w-3.5 h-3.5" /></button>
+        <span role="tooltip" className="pointer-events-none absolute top-full mt-2 left-0 z-40 w-[min(260px,70vw)] hidden group-hover/dica:block group-focus-within/dica:block bg-slate-800 text-white text-[11px] font-semibold text-left leading-snug px-3 py-2 rounded-lg shadow-lg dark:bg-slate-700">{texto}</span>
+    </span>
+);
+
+const CardMenor = ({ rotulo, valor, icone: Icone, fundoIcone, corIcone, iconeBotao: IconeBotao, rotuloBotao, onClick, carregando, sub, dica }) => (
     <div className="bg-white border border-[#E4E8F0] rounded-[18px] p-5 flex items-center gap-4 min-w-0 dark:bg-slate-900 dark:border-slate-800">
         <span className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${fundoIcone}`}><Icone className={`w-6 h-6 ${corIcone}`} strokeWidth={1.75} /></span>
         <div className="flex-1 min-w-0">
-            <Rotulo className="truncate">{rotulo}</Rotulo>
+            <Rotulo className="flex items-center gap-1.5"><span className="truncate">{rotulo}</span>{dica && <DicaCard texto={dica} />}</Rotulo>
             <p className="text-lg font-extrabold text-[#0F172A] tabular-nums mt-0.5 dark:text-white">
                 {carregando ? <Loader2 className="w-4 h-4 animate-spin text-slate-400" /> : valor}
             </p>
+            {sub && <p className="text-[12px] font-semibold text-[#5B6478] truncate dark:text-slate-400">{sub}</p>}
         </div>
-        <button type="button" onClick={onClick} aria-label={rotuloBotao} title={rotuloBotao}
-            className="w-11 h-11 rounded-xl border border-[#D6DCE8] text-[#0F172A] flex items-center justify-center shrink-0 hover:bg-[#F3F5FA] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800">
-            <IconeBotao className="w-4 h-4" />
-        </button>
+        {IconeBotao && (
+            <button type="button" onClick={onClick} aria-label={rotuloBotao} title={rotuloBotao}
+                className="w-11 h-11 rounded-xl border border-[#D6DCE8] text-[#0F172A] flex items-center justify-center shrink-0 hover:bg-[#F3F5FA] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800">
+                <IconeBotao className="w-4 h-4" />
+            </button>
+        )}
     </div>
 );
 
@@ -319,6 +331,8 @@ const DashboardTab = ({
     const [grupoAberto, setGrupoAberto] = useState(null);
     const [produtoAberto, setProdutoAberto] = useState(null);
     const [grupoRitmo, setGrupoRitmo] = useState('TODOS');
+    // Ritmo: 'dia' = quantos planos em cada dia (montanha); 'acumulado' = a linha que só cresce (modo antigo)
+    const [modoRitmo, setModoRitmo] = useState('dia');
     const painelRef = useRef(null);
 
     // ==========================================
@@ -457,6 +471,10 @@ const DashboardTab = ({
     const rankingProdutosFisicos = {};
     const rankingServicos = {};
 
+    // Movimento do dia (aba Metas): cancelamentos e faturamento digitados, somados no período
+    const movimento = useMovimentoDiario({ unidade: unidadeAtual, faixa });
+    const totaisMovimento = somarMovimentoNoPeriodo(movimento.derivados, faixa);
+
     // Doses únicas: até 10 por unidade/mês contam para meta e ranking (com TODAS as vendas da unidade, sem filtro)
     const dosesValidas = useDosesValidas({ vendasCarregadas: vendasTodas, vendasDaTela: vendasFiltradas, unidade: unidadeAtual, planos, produtos });
 
@@ -558,7 +576,7 @@ const DashboardTab = ({
         // Todos = planos base · Plus/Fit/Personal/Outros = base daquele grupo · Nutri = adicionais Nutri
         const fonte = (contagem) => (grupoRitmo === 'NUTRI' ? contagem.nutri.contados : contagem.contados);
         const doGrupo = (item) => grupoRitmo === 'TODOS' || grupoRitmo === 'NUTRI' || item.base === grupoRitmo;
-        const acumular = (contados, inicio, tamanho) => {
+        const contarPorDia = (contados, inicio, tamanho) => {
             const porDia = new Array(tamanho).fill(0);
             contados.forEach((item) => {
                 const { venda, qtd } = item;
@@ -566,24 +584,38 @@ const DashboardTab = ({
                 const i = diasEntre(inicio, diaDaVenda(venda));
                 if (i >= 0 && i < tamanho) porDia[i] += qtd;
             });
-            let soma = 0;
-            return porDia.map(q => (soma += q));
+            return porDia;
         };
-        const atual = acumular(fonte(contagemPlanos), faixa.inicio, ultimoAtual + 1);
+        const acumular = (porDia) => { let soma = 0; return porDia.map(q => (soma += q)); };
+        const diaAtual = contarPorDia(fonte(contagemPlanos), faixa.inicio, ultimoAtual + 1);
         const nAnt = temComparativo ? diasEntre(faixaAnterior.inicio, faixaAnterior.fim) + 1 : 0;
-        const anterior = temComparativo ? acumular(fonte(contagemAnterior), faixaAnterior.inicio, nAnt) : [];
+        const diaAnterior = temComparativo ? contarPorDia(fonte(contagemAnterior), faixaAnterior.inicio, nAnt) : [];
+        const atual = acumular(diaAtual);
+        const anterior = acumular(diaAnterior);
         const linhas = Array.from({ length: n }, (_, i) => ({
             i,
             dia: somarDias(faixa.inicio, i),
             atual: i < atual.length ? atual[i] : null,
             anterior: i < anterior.length ? anterior[i] : null,
+            atualDia: i < diaAtual.length ? diaAtual[i] : null,
+            anteriorDia: i < diaAnterior.length ? diaAnterior[i] : null,
         }));
+        // Destaques do modo "Por dia": melhor e pior dia (até hoje) e média por dia
+        let melhor = null, pior = null;
+        diaAtual.forEach((q, i) => {
+            if (!melhor || q > melhor.qtd) melhor = { i, qtd: q };
+            if (!pior || q < pior.qtd) pior = { i, qtd: q };
+        });
+        const media = diaAtual.length ? diaAtual.reduce((a, b) => a + b, 0) / diaAtual.length : 0;
         const ticks = n <= 12 ? linhas.map(l => l.i)
             : linhas.filter(l => ['01', '10', '20'].includes(l.dia.slice(8)) || l.i === n - 1).map(l => l.i);
         return {
             linhas, ticks,
             ultimoAtual: atual.length - 1, ultimoAnterior: anterior.length - 1,
             totalAtual: atual[atual.length - 1] || 0, totalAnterior: anterior.length ? anterior[anterior.length - 1] : 0,
+            melhor: melhor && { ...melhor, dia: somarDias(faixa.inicio, melhor.i) },
+            pior: pior && { ...pior, dia: somarDias(faixa.inicio, pior.i) },
+            media,
         };
     }, [faixa, faixaAnterior, hojeIso, grupoRitmo, contagemPlanos, contagemAnterior, temComparativo]);
 
@@ -971,7 +1003,7 @@ const DashboardTab = ({
             </div>
 
             {/* ===== 4. INDICADORES MENORES ===== */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <CardMenor
                     rotulo={tx("Ativos da Unidade")}
                     valor={ativosAtualBanco !== null ? Number(ativosAtualBanco).toLocaleString(localeAtual()) : <span className="text-base">{tx("Não Informado")}</span>}
@@ -979,6 +1011,30 @@ const DashboardTab = ({
                     icone={Users} fundoIcone="bg-[#E8EEFF] dark:bg-blue-500/15" corIcone="text-[#1D4FD8] dark:text-blue-300"
                     iconeBotao={Pencil} rotuloBotao={tx("Clique para atualizar a quantidade de alunos ativos")}
                     onClick={handleAbrirModalAtivos}
+                />
+                {/* Entradas = planos base do período (automático) · Saídas = cancelamentos digitados · Faturamento = digitado */}
+                <CardMenor
+                    rotulo={tx('Entradas')}
+                    valor={dois(totalPlanos)}
+                    sub={movimento.semTabela ? '' : tx('Saldo no período: {saldo}', { saldo: `${totalPlanos - totaisMovimento.cancelamentos > 0 ? '+' : ''}${totalPlanos - totaisMovimento.cancelamentos}` })}
+                    dica={tx('Planos vendidos no período (os mesmos do card de planos). Saldo = entradas − saídas.')}
+                    icone={UserPlus} fundoIcone="bg-[#E7F7EF] dark:bg-emerald-500/15" corIcone="text-[#0B7A52] dark:text-emerald-300"
+                />
+                <CardMenor
+                    rotulo={tx('Saídas')}
+                    valor={movimento.semTabela ? '—' : dois(totaisMovimento.cancelamentos)}
+                    carregando={movimento.carregando}
+                    sub={tx('Cancelamentos lançados na aba Metas')}
+                    dica={tx('Soma dos cancelamentos digitados na aba Metas → Movimento do dia, no período escolhido.')}
+                    icone={UserMinus} fundoIcone="bg-[#FDECEA] dark:bg-rose-500/15" corIcone="text-[#B42318] dark:text-rose-300"
+                />
+                <CardMenor
+                    rotulo={tx('Faturamento')}
+                    valor={movimento.semTabela ? '—' : new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(totaisMovimento.faturamento)}
+                    carregando={movimento.carregando}
+                    sub={movimento.semTabela ? tx('Falta criar a tabela no banco') : tx('{qtd} lançamento(s) no período', { qtd: totaisMovimento.lancamentos })}
+                    dica={tx('Dinheiro que entrou, digitado dia a dia na aba Metas → Movimento do dia. Não é a comissão (a comissão fica no Fechamento).')}
+                    icone={Wallet} fundoIcone="bg-[#E7F7EF] dark:bg-emerald-500/15" corIcone="text-[#0E9F6E] dark:text-emerald-300"
                 />
                 <CardMenor
                     rotulo={t('analytics.dashboard.kpiProducts', { defaultValue: 'Produtos Físicos' })}
@@ -1015,7 +1071,15 @@ const DashboardTab = ({
                         )}
                     </div>
                     {ritmo && (
-                        <div className="flex items-center gap-4 text-[13px] font-semibold text-[#3B4458] dark:text-slate-300">
+                        <div className="flex flex-wrap items-center gap-4 text-[13px] font-semibold text-[#3B4458] dark:text-slate-300">
+                            <div className="inline-flex p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('Como mostrar o ritmo')}>
+                                {[['dia', 'Por dia'], ['acumulado', 'Acumulado']].map(([id, nome]) => (
+                                    <button key={id} type="button" aria-pressed={modoRitmo === id} onClick={() => setModoRitmo(id)}
+                                        className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${modoRitmo === id ? 'bg-white text-[#0B1F4B] shadow-sm dark:bg-slate-900 dark:text-white' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
+                                        {tx(nome)}
+                                    </button>
+                                ))}
+                            </div>
                             <span className="inline-flex items-center gap-2"><span className="w-6 h-1 rounded-full" style={{ background: corRitmo }} />{nomeMesAtual}</span>
                             {temComparativo && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dashed" style={{ borderColor: COR_MES_ANTERIOR }} />{nomeMesAnterior}</span>}
                         </div>
@@ -1036,6 +1100,43 @@ const DashboardTab = ({
 
                 {!ritmo ? (
                     <p className="text-center text-[13px] font-semibold text-[#5B6478] py-10 dark:text-slate-400">{tx('Escolha um período de mais de um dia (ex.: "Este mês") para ver o ritmo.')}</p>
+                ) : modoRitmo === 'dia' ? (
+                    <>
+                        {/* Destaques: melhor dia, pior dia e média */}
+                        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-1 text-[13px] text-[#3B4458] dark:text-slate-300">
+                            {ritmo.melhor && <span>{tx('Melhor dia')}: <strong className="font-extrabold text-[#0B7A52] dark:text-emerald-400">{formatDataBR(ritmo.melhor.dia).slice(0, 5)} · {ritmo.melhor.qtd}</strong></span>}
+                            {ritmo.pior && <span>{tx('Pior dia')}: <strong className="font-extrabold text-[#B42318] dark:text-rose-300">{formatDataBR(ritmo.pior.dia).slice(0, 5)} · {ritmo.pior.qtd}</strong></span>}
+                            <span>{tx('Média por dia')}: <strong className="font-extrabold text-[#0F172A] dark:text-white">{ritmo.media.toLocaleString(localeAtual(), { maximumFractionDigits: 1 })}</strong></span>
+                        </div>
+                        <div className="mt-3 h-[260px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <ComposedChart data={ritmo.linhas} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
+                                    <defs>
+                                        <linearGradient id="montanhaRitmo" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={corRitmo} stopOpacity={0.35} />
+                                            <stop offset="100%" stopColor={corRitmo} stopOpacity={0.03} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid vertical={false} stroke={corGrade} />
+                                    <XAxis dataKey="i" type="number" domain={[0, ritmo.linhas.length - 1]} ticks={ritmo.ticks}
+                                        tickFormatter={(i) => ritmo.linhas[i]?.dia.slice(8) || ''} tick={{ fill: corEixo, fontSize: 12 }} axisLine={{ stroke: corGrade }} tickLine={false} />
+                                    <YAxis allowDecimals={false} tickCount={5} domain={[0, 'auto']} tick={{ fill: corEixo, fontSize: 12 }} axisLine={false} tickLine={false} width={36} />
+                                    <Tooltip
+                                        labelFormatter={(i) => (ritmo.linhas[i] ? formatDataBR(ritmo.linhas[i].dia) : '')}
+                                        formatter={(valor, nome) => [tx('{qtd} plano(s)', { qtd: valor }), nome === 'atualDia' ? nomeMesAtual : nomeMesAnterior]}
+                                        contentStyle={{ borderRadius: 12, border: `1px solid ${escuro ? '#334155' : '#E4E8F0'}`, background: escuro ? '#0F172A' : '#FFFFFF', fontSize: 12 }}
+                                    />
+                                    {ritmo.media > 0 && <ReferenceLine y={ritmo.media} stroke={corEixo} strokeDasharray="2 4" />}
+                                    {temComparativo && (
+                                        <Line type="monotone" dataKey="anteriorDia" stroke={COR_MES_ANTERIOR} strokeWidth={2} strokeDasharray="7 6" dot={false} connectNulls={false} isAnimationActive={false} />
+                                    )}
+                                    <Area type="monotone" dataKey="atualDia" stroke={corRitmo} strokeWidth={3} fill="url(#montanhaRitmo)" connectNulls={false} isAnimationActive={false}
+                                        dot={{ r: 2.5, fill: corRitmo, strokeWidth: 0 }} activeDot={{ r: 5 }} />
+                                </ComposedChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <p className="mt-1 text-[11px] text-[#5B6478] dark:text-slate-400">{tx('A linha pontilhada é a média por dia. Passe o mouse num dia para ver quantos planos saíram.')}</p>
+                    </>
                 ) : (
                     <div className="mt-4 h-[260px]">
                         <ResponsiveContainer width="100%" height="100%">

@@ -22,6 +22,7 @@ export const calcularPreset = (preset) => {
         case 'ontem': return { preset, tipo: 'dia', dia: diasAtras(1) };
         case '3d': return { preset, tipo: 'periodo', inicio: diasAtras(2), fim: isoLocal(hoje) };
         case '7d': return { preset, tipo: 'periodo', inicio: diasAtras(6), fim: isoLocal(hoje) };
+        case '15d': return { preset, tipo: 'periodo', inicio: diasAtras(14), fim: isoLocal(hoje) };
         case '30d': return { preset, tipo: 'periodo', inicio: diasAtras(29), fim: isoLocal(hoje) };
         case 'este_mes': return { preset, tipo: 'periodo', inicio: isoLocal(new Date(hoje.getFullYear(), hoje.getMonth(), 1)), fim: isoLocal(hoje) };
         case 'mes_passado': return {
@@ -40,6 +41,7 @@ const ATALHOS = [
     ['ontem', 'Ontem'],
     ['3d', 'Últimos 3 dias'],
     ['7d', 'Últimos 7 dias'],
+    ['15d', 'Últimos 15 dias'],
     ['30d', 'Últimos 30 dias'],
     ['este_mes', 'Este mês'],
     ['mes_passado', 'Mês passado'],
@@ -69,7 +71,8 @@ const botaoAplicar = 'w-full h-9 rounded-lg bg-blue-600 hover:bg-blue-700 disabl
 // ==========================================
 // MENU DE PERÍODO
 // ==========================================
-export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, ano, meses = [], anos = [], onAplicar }) => {
+// ocultar: atalhos que não fazem sentido na tela (ex.: ['todo']); larguraTotal: botão na largura toda (menu abre para a direita)
+export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, ano, meses = [], anos = [], onAplicar, ocultar = [], larguraTotal = false }) => {
     const [aberto, setAberto] = useState(false);
     const [painel, setPainel] = useState(null); // 'mes' | 'dia' | 'personalizado'
     const [rascunho, setRascunho] = useState({ dia, inicio, fim, mes, ano });
@@ -101,7 +104,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                 onClick={abrir}
                 aria-haspopup="menu"
                 aria-expanded={aberto}
-                className="h-10 min-w-[200px] px-3.5 bg-blue-50 border border-blue-200 hover:border-blue-300 rounded-xl text-[13px] font-bold text-blue-700 flex items-center justify-between gap-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:border-blue-500/30 dark:text-blue-400"
+                className={`h-10 ${larguraTotal ? 'w-full' : 'min-w-[200px]'} px-3.5 bg-blue-50 border border-blue-200 hover:border-blue-300 rounded-xl text-[13px] font-bold text-blue-700 flex items-center justify-between gap-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:border-blue-500/30 dark:text-blue-400`}
             >
                 <span className="flex items-center gap-2 min-w-0">
                     <CalendarDays className="w-4 h-4 shrink-0" />
@@ -111,9 +114,9 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
             </button>
 
             {aberto && (
-                <div role="menu" className="absolute right-0 top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.12s_ease-out] dark:bg-slate-900 dark:border-slate-800">
+                <div role="menu" className={`absolute ${larguraTotal ? 'left-0' : 'right-0'} top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.12s_ease-out] dark:bg-slate-900 dark:border-slate-800`}>
                     <div className="p-1.5">
-                        {ATALHOS.map(([id, texto]) => (
+                        {ATALHOS.filter(([id]) => !ocultar.includes(id)).map(([id, texto]) => (
                             <button key={id} type="button" role="menuitem" onClick={() => escolherAtalho(id)} className={classeItem(preset === id)}>
                                 {tx(texto)}
                                 {preset === id && <Check className="w-4 h-4" strokeWidth={2.5} />}
@@ -122,7 +125,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                     </div>
                     <div className="h-px bg-slate-100 dark:bg-slate-800" />
                     <div className="p-1.5">
-                        {[['mes', 'Escolher um mês…'], ['dia', 'Escolher um dia…'], ['personalizado', 'Personalizado']].map(([id, texto]) => {
+                        {[['mes', 'Escolher um mês…'], ['dia', 'Escolher um dia…'], ['personalizado', 'Personalizado']].filter(([id]) => !ocultar.includes(id)).map(([id, texto]) => {
                             const ativo = painel === id || (!painel && preset === id);
                             return (
                                 <button key={id} type="button" role="menuitem" aria-expanded={painel === id} onClick={() => setPainel(painel === id ? null : id)} className={classeItem(ativo)}>

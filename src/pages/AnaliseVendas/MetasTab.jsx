@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { contarPlanosDoCard, getCategoriaItem } from './utils.js';
 import { qtdValidaProduto } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
+import MovimentoDiarioPainel, { MovimentacaoForm } from './MovimentoDiarioPainel.jsx';
+import { useMovimentoDiario, entradasPorDia, podeGravarMovimento } from './movimentoDiario.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
-import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, Info } from 'lucide-react';
+import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { infoDoMes, avaliarMeta } from './painel/calculosPainel.js';
@@ -248,13 +250,22 @@ const MetasTab = ({
     temVisaoGlobal, filtroUnidade, filtroMes, filtroAno, vendasFiltradas, unidadesUnicas, usuarioLogado,
     metaNutri, setMetaNutri, metaProdutos, setMetaProdutos, metaPersonal, setMetaPersonal,
     metaAtivosMensal, setMetaAtivosMensal, metaNutriMensal, setMetaNutriMensal, metaPlusMensal, setMetaPlusMensal, metaPersMensal, setMetaPersMensal,
-    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro, vendasTodas = []
+    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro, vendasTodas = [], faixa = null
 }) => {
     const { locale } = useI18n();
     const [metasDoBanco, setMetasDoBanco] = useState({});
 
     const unidadeAtivaEdicao = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
     const podeEditarCampos = unidadeAtivaEdicao && unidadeAtivaEdicao !== 'TODOS';
+
+    // Movimentação (card verde + tabela por dia): o dono digita o acumulado do mês; regras em movimentoDiario.js
+    const [diaPedido, setDiaPedido] = useState(null); // lápis da tabela: abre o card naquele dia
+    const movimento = useMovimentoDiario({ unidade: unidadeAtivaEdicao, faixa });
+    const entradasMovimento = useMemo(() => {
+        const un = podeEditarCampos ? String(unidadeAtivaEdicao).toUpperCase() : null;
+        return entradasPorDia(un ? vendasTodas.filter(v => String(v.unidade || '').toUpperCase() === un) : vendasTodas, planos, produtos);
+    }, [vendasTodas, planos, produtos, podeEditarCampos, unidadeAtivaEdicao]);
+    const editarDiaMovimento = (d) => { setDiaPedido({ dia: d, vez: Date.now() }); document.getElementById('movimentacao-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
 
     useEffect(() => {
         const buscarMetas = async () => {
@@ -443,32 +454,23 @@ const MetasTab = ({
             {podeEditarCampos ? (
                 <div className="mb-8 animate-[slideDown_0.3s_ease-out]">
                     
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center bg-white rounded-[24px] border border-slate-200 shadow-sm p-5 mb-6 gap-4 dark:bg-slate-900 dark:border-slate-800">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-md">
-                                <Target className="w-6 h-6" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase dark:text-white">{tx("Configuração das Metas")}</h2>
-                                <p className="text-xs font-medium text-slate-500 mt-0.5 dark:text-slate-400">
-                                    <strong className="text-slate-800 uppercase dark:text-white">{unidadeAtivaEdicao}</strong>{' '}{tx("• Defina os objetivos da sua unidade")}
-                                </p>
-                            </div>
-                        </div>
-                        
-                        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 px-4 py-3 rounded-xl w-full lg:w-auto dark:bg-slate-800/60 dark:border-slate-800">
-                            <div className="text-blue-600 shrink-0 dark:text-blue-400"><Zap className="w-5 h-5" /></div>
-                            <div className="flex flex-col">
-                                <span className="text-[11px] font-black text-blue-700 uppercase tracking-widest dark:text-blue-400">{tx("Modo de Edição Rápida Ativo")}</span>
-                                <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{tx("Faça alterações e salve individualmente")}</span>
-                            </div>
-                            <div className="ml-auto lg:ml-2 w-10 h-6 bg-emerald-400 rounded-full flex items-center justify-end px-1 shadow-inner shrink-0">
-                                <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
-                            </div>
-                        </div>
-                    </div>
-
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Movimentação primeiro (decisão do dono, 31/10/2026), depois Meta Start e Meta Mensal */}
+                        <div className="flex flex-col bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-100 rounded-[24px] p-6 shadow-sm h-full dark:border-emerald-500/30">
+                            <div className="flex items-center gap-3 mb-2">
+                                <Activity className="w-6 h-6 text-emerald-600 shrink-0 dark:text-emerald-400" />
+                                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight dark:text-emerald-300">{tx("Movimentação")}</h3>
+                            </div>
+                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
+                                {tx("Ativos atuais, entradas, cancelamentos e faturamento da unidade. Atualize diariamente.")}
+                            </p>
+
+                            <div className="space-y-3 flex-1">
+                                <InputFieldWithSave label={tx("Qtd. Ativos Atual")} description={tx("Alunos ativos hoje")} icon={Users} value={ativosAtual} dbValue={metaCache?.ativos_atual} onChange={setAtivosAtual} onSave={(val) => salvarCampo('ativos_atual', val)} theme="emerald" />
+                                <MovimentacaoForm unidade={unidadeAtivaEdicao} diaPedido={diaPedido} entradas={entradasMovimento} usuarioLogado={usuarioLogado} aoGravar={movimento.recarregar} />
+                            </div>
+                        </div>
+
                         
                         <div className="flex flex-col bg-gradient-to-b from-blue-50/50 to-white border border-blue-100 rounded-[24px] p-6 shadow-sm h-full dark:border-blue-500/30">
                             <div className="flex items-center gap-3 mb-2">
@@ -522,37 +524,6 @@ const MetasTab = ({
                             </div>
                         </div>
 
-                        <div className="flex flex-col bg-gradient-to-b from-emerald-50/50 to-white border border-emerald-100 rounded-[24px] p-6 shadow-sm h-full dark:border-emerald-500/30">
-                            <div className="flex items-center gap-3 mb-2">
-                                <Activity className="w-6 h-6 text-emerald-600 shrink-0 dark:text-emerald-400" />
-                                <h3 className="text-lg font-black text-emerald-900 uppercase tracking-tight dark:text-emerald-300">{tx("Qtd. Ativos Atual")}</h3>
-                            </div>
-                            <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
-                                {tx("Atualize diariamente a quantidade de alunos ativos da unidade.")}
-                            </p>
-                            
-                            <div className="flex-1 flex flex-col items-center justify-center">
-                                <InputFieldWithSave large={true} value={ativosAtual} dbValue={metaCache?.ativos_atual} onChange={setAtivosAtual} onSave={(val) => salvarCampo('ativos_atual', val)} theme="emerald" />
-                                
-                                <div className="mt-8 w-full space-y-3">
-                                    <div className="bg-emerald-50/80 border border-emerald-100 rounded-2xl p-4 flex gap-3 shadow-sm dark:bg-emerald-500/10 dark:border-emerald-500/30">
-                                        <Activity className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 dark:text-emerald-400" />
-                                        <div className="flex flex-col">
-                                            <p className="text-[10px] font-black text-emerald-800 uppercase tracking-widest dark:text-emerald-300">{tx("Controle Diário")}</p>
-                                            <p className="text-[10px] font-medium text-emerald-700 mt-1 leading-snug dark:text-emerald-400">{tx("Mantenha este valor atualizado para um acompanhamento preciso.")}</p>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex items-start gap-2.5 px-2">
-                                        <Info className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
-                                        <div className="flex flex-col">
-                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Dica")}</p>
-                                            <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-snug">{tx("Atualize sempre que houver mudanças significativas na base.")}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
 
                     </div>
                 </div>
@@ -565,6 +536,9 @@ const MetasTab = ({
                     <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto dark:text-slate-400">{tx("Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.")}</p>
                 </div>
             )}
+
+            {/* Movimentação por dia: valor do dia (diferença dos acumulados) e acumulado do mês */}
+            <MovimentoDiarioPainel unidade={unidadeAtivaEdicao} faixa={faixa} movimento={movimento} entradas={entradasMovimento} podeEditar={podeEditarCampos && podeGravarMovimento(usuarioLogado)} aoEditarDia={editarDiaMovimento} />
 
             {dadosPorUnidade.map((item, index) => (
                 <div key={index} className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden flex flex-col mb-8 animate-[slideDown_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
