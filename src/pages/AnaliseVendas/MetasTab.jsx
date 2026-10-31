@@ -4,6 +4,7 @@ import { contarPlanosDoCard, getCategoriaItem } from './utils.js';
 import { qtdValidaProduto } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
 import MovimentoDiarioPainel, { MovimentacaoForm } from './MovimentoDiarioPainel.jsx';
+import MonitorMovimentacao from './MonitorMovimentacao.jsx';
 import { useMovimentoDiario, entradasPorDia, podeGravarMovimento } from './movimentoDiario.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp } from 'lucide-react';
@@ -527,6 +528,9 @@ const MetasTab = ({
 
                     </div>
                 </div>
+            ) : ['ADMIN', 'MENTOR'].includes(String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase()) ? (
+                // Admin/Mentor em "Todas": monitoramento de quem lançou a movimentação (decisão do dono, 31/10/2026)
+                <MonitorMovimentacao unidades={unidadesUnicas.filter(u => u && u !== 'TODOS')} faixa={faixa} vendasFiltradas={vendasFiltradas} planos={planos} produtos={produtos} abrirModalWhatsapp={abrirModalWhatsapp} />
             ) : (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center mb-8 dark:bg-slate-900 dark:border-slate-800">
                     <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[20px] flex items-center justify-center mb-6 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">
