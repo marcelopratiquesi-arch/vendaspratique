@@ -6,19 +6,6 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { tx } from '../../i18n/traduzir.js';
 
 // ---------- Textos (com português de reserva: nunca aparece chave crua na tela) ----------
-const TITULOS = {
-    lancamento: ['navigation.newSale', 'Nova Venda', 'Lançamento e atribuição'],
-    assinaturas: ['navigation.history', 'Histórico', 'Vendas realizadas'],
-    analise: ['navigation.dashboard', 'Dashboard', 'Métricas e resultados'],
-    fechamento: ['navigation.closing', 'Fechamento', 'Conferência de caixa'],
-    crm: ['navigation.crm', 'CRM', 'Gestão de visitantes e contatos'],
-    alunos: ['navigation.students', 'Alunos', 'Gerencie sua base de alunos'],
-    avaliacao: ['navigation.assessment', 'Avaliação', 'Módulo de bioimpedância'],
-    cadastros: ['navigation.management', 'Cadastros', 'Gestão de planos e produtos'],
-    comunicados: ['navigation.communications', 'Comunicados', 'Comunicação corporativa'],
-    config: ['navigation.settings', 'Configurações', 'Ajustes do sistema'],
-};
-
 const TEMAS = [
     { id: 'light', icone: Sun, chave: 'sidebar.lightMode', padrao: 'Claro' },
     { id: 'dark', icone: Moon, chave: 'sidebar.darkMode', padrao: 'Escuro' },
@@ -80,16 +67,16 @@ function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr, rot
     const itemNormal = 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-white/5';
 
     return (
-        <div className="relative mt-0.5" ref={ref}>
+        <div className="relative" ref={ref}>
             <button
                 type="button"
                 onClick={() => setAberto((a) => !a)}
                 aria-haspopup="listbox"
                 aria-expanded={aberto}
                 title={tr('topbar.changeUnit', 'Trocar unidade')}
-                className="inline-flex items-center gap-1 max-w-[220px] px-1.5 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="inline-flex items-center gap-1.5 max-w-[260px] px-3 h-9 rounded-lg text-[13px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
             >
-                <IconeAtual className="w-3 h-3 shrink-0" aria-hidden="true" />
+                <IconeAtual className="w-4 h-4 shrink-0" aria-hidden="true" />
                 <span className="truncate">{rotuloAtual}</span>
                 <ChevronDown className={`w-3 h-3 shrink-0 transition-transform ${aberto ? 'rotate-180' : ''}`} aria-hidden="true" />
             </button>
@@ -141,7 +128,6 @@ function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr, rot
 
 // ---------- TopBar ----------
 export default function TopBar({
-    activeTab,
     usuarioLogado,
     theme,
     setTheme,
@@ -188,9 +174,6 @@ export default function TopBar({
         return () => window.removeEventListener('keydown', aoTeclar);
     }, []);
 
-    const info = TITULOS[activeTab];
-    const titulo = info ? tr(info[0], info[1]) : tr('topbar.defaultTitle', 'Pratique Vendas');
-    const subtitulo = info ? tr(`topbar.subtitle.${activeTab}`, info[2]) : tr('topbar.defaultSubtitle', 'Sistema operacional');
 
     // Quem pode trocar de unidade vem do App (cargo real). Reserva: calcula pelo cargo recebido.
     const roleRecebida = String(usuarioLogado?.role || '').toUpperCase().trim();
@@ -222,8 +205,8 @@ export default function TopBar({
                     >
                         <Menu className="w-5 h-5" />
                     </button>
-                    <div className="hidden sm:flex flex-col min-w-0">
-                        <h2 className="text-[16px] font-black text-slate-800 dark:text-white leading-none tracking-tight truncate">{tx(titulo)}</h2>
+                    {/* Topo: só a unidade (o nome da página saiu, decisão do dono 30/10/2026) */}
+                    <div className="hidden sm:flex items-center min-w-0">
                         {mostrarSeletor ? (
                             <SeletorUnidadeTopo
                                 unidadeGlobal={unidadeGlobal}
@@ -233,7 +216,9 @@ export default function TopBar({
                                 rotuloTodas={rotuloTodas}
                             />
                         ) : (
-                            <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{tx(subtitulo)}</span>
+                            <span className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-slate-100 text-[13px] font-bold text-slate-700 truncate dark:bg-slate-800 dark:text-slate-200">
+                                <Building2 className="w-4 h-4 shrink-0" aria-hidden="true" />{usuarioLogado?.unidade || ''}
+                            </span>
                         )}
                     </div>
                 </div>

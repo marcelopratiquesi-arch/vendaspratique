@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { contarPlanosDoCard, getCategoriaItem } from './utils.js';
+import { qtdValidaProduto } from './limiteDoses.js';
+import { useDosesValidas } from './useDosesValidas.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, Info } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
@@ -246,7 +248,7 @@ const MetasTab = ({
     temVisaoGlobal, filtroUnidade, filtroMes, filtroAno, vendasFiltradas, unidadesUnicas, usuarioLogado,
     metaNutri, setMetaNutri, metaProdutos, setMetaProdutos, metaPersonal, setMetaPersonal,
     metaAtivosMensal, setMetaAtivosMensal, metaNutriMensal, setMetaNutriMensal, metaPlusMensal, setMetaPlusMensal, metaPersMensal, setMetaPersMensal,
-    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro
+    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro, vendasTodas = []
 }) => {
     const { locale } = useI18n();
     const [metasDoBanco, setMetasDoBanco] = useState({});
@@ -334,6 +336,9 @@ const MetasTab = ({
         ? infoDoMes(filtroAno, filtroMes) : null;
     const ritmoDe = (dados) => (mesRitmo ? avaliarMeta({ meta: dados.meta, vendido: dados.realizado, mes: mesRitmo }) : null);
 
+    // Doses únicas: até 10 por unidade/mês contam na meta de produtos (com TODAS as vendas da unidade, sem filtro)
+    const dosesValidas = useDosesValidas({ vendasCarregadas: vendasTodas, vendasDaTela: vendasFiltradas, unidade: temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade, planos, produtos });
+
     const listaUnidadesMetas = unidadesUnicas.filter(u => u !== 'TODOS' && (temVisaoGlobal ? true : u === usuarioLogado?.unidade));
 
     const dadosPorUnidade = listaUnidadesMetas.map(unidade => {
@@ -345,10 +350,10 @@ const MetasTab = ({
         const nutriRealizado = contagem.nutri.total;
         const plusRealizado = contagem.grupos.PLUS.total;
         const personalRealizado = contagem.grupos['PERSONAL CLASS'].total;
-        // Produto físico: igual a antes (cada item vendido)
+        // Produto físico: cada item vendido, com o limite de doses únicas da unidade (limiteDoses.js)
         let produtosRealizado = 0;
         vendasDaUnidade.forEach(v => {
-            if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') produtosRealizado += parseInt(v.quantidade) || 1;
+            if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') produtosRealizado += qtdValidaProduto(v, dosesValidas);
         });
 
         const metaUnidade = metasDoBanco[unidade.toUpperCase()] || {

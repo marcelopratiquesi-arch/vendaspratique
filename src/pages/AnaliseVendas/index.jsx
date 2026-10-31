@@ -598,6 +598,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     salvarMetasNuvem={salvarMetasNuvem}
                     isSalvandoMetas={isSalvandoMetas}
                     tipoFiltro={tipoFiltro}
+                    vendasTodas={vendas}
                     planos={planos}
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import FormVenda from './FormVenda.jsx';
 import FormVisitante from './FormVisitante.jsx';
 import { ShoppingCart, UserPlus } from 'lucide-react';
+import IndicadorEtapas from './IndicadorEtapas.jsx';
 import { tx } from '../../i18n/traduzir.js';
 
 const LancamentoVendas = ({ 
@@ -14,9 +15,12 @@ const LancamentoVendas = ({
     colaboradores,
     alunoPreSelecionado,
     limparPreSelecao,
-    onIrParaAluno // 🔥 Propriedade que recebe o comando do App.jsx para redirecionar
+    onIrParaAluno, // 🔥 Propriedade que recebe o comando do App.jsx para redirecionar
+    vendas = [] // vendas já carregadas (só leitura), para o aviso do limite de doses únicas
 }) => {
     const [abaAtiva, setAbaAtiva] = useState('venda'); 
+    // Etapas da venda (Cliente → Itens → Finalizar), informadas pelo FormVenda
+    const [etapasVenda, setEtapasVenda] = useState({ cliente: false, itens: false, finalizado: false });
 
     useEffect(() => {
         if (alunoPreSelecionado) {
@@ -31,33 +35,27 @@ const LancamentoVendas = ({
         setAbaAtiva(novaAba);
     };
 
+    // Lançar venda um pouco mais larga para os itens caberem numa linha só; o visitante fica como estava
     return (
-        <div className="space-y-4 max-w-5xl mx-auto animate-[fadeIn_0.2s_ease-out]">
+        <div className={`space-y-4 ${abaAtiva === 'venda' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto animate-[fadeIn_0.2s_ease-out]`}>
             
-            <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl w-fit border border-slate-200 dark:border-slate-700/50 mb-6">
-                <button
-                    onClick={() => handleTrocarAba('venda')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                        abaAtiva === 'venda' 
-                        ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-sm' 
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                    }`}
-                >
-                    <ShoppingCart className="w-4 h-4" />
-                    {tx("Lançar Venda")}
-                </button>
-                
-                <button
-                    onClick={() => handleTrocarAba('visitante')}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[13px] font-bold transition-all outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
-                        abaAtiva === 'visitante' 
-                        ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-sm' 
-                        : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
-                    }`}
-                >
-                    <UserPlus className="w-4 h-4" />
-                    {tx("Cadastrar Visitante")}
-                </button>
+            {/* Topo: abas à esquerda e etapas da venda à direita (desenho aprovado, 30/10/2026) */}
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-1 p-1.5 bg-white rounded-2xl border border-[#E4E8F0] w-fit dark:bg-slate-900 dark:border-slate-800" role="tablist">
+                    {[
+                        ['venda', 'Lançar Venda', ShoppingCart],
+                        ['visitante', 'Cadastrar Visitante', UserPlus],
+                    ].map(([id, rotulo, Icone]) => {
+                        const ativa = abaAtiva === id;
+                        return (
+                            <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => handleTrocarAba(id)}
+                                className={`h-11 px-4 rounded-xl text-[14px] font-semibold flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] ${ativa ? 'bg-[#0B1F4B] text-white dark:bg-blue-600' : 'text-[#3B4458] hover:bg-[#F3F5FA] hover:text-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`}>
+                                <Icone className="w-4 h-4" />{tx(rotulo)}
+                            </button>
+                        );
+                    })}
+                </div>
+                {abaAtiva === 'venda' && <IndicadorEtapas {...etapasVenda} />}
             </div>
 
             {abaAtiva === 'venda' && (
@@ -73,6 +71,8 @@ const LancamentoVendas = ({
                         alunoPreSelecionado={alunoPreSelecionado} 
                         limparPreSelecao={limparPreSelecao}
                         onIrParaAluno={onIrParaAluno} // 🔥 Repassando o comando para o FormVenda disparar no final
+                        onEtapas={setEtapasVenda}
+                        vendas={vendas}
                         voltarHub={() => {
                             if (limparPreSelecao) limparPreSelecao();
                             window.scrollTo({ top: 0, behavior: 'smooth' });

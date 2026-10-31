@@ -26,7 +26,7 @@ import CentralComunicados from './pages/Comunicados/index.jsx';
 import { tx } from './i18n/traduzir.js';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
-const ESCALA_INTERFACE = 0.9;
+const ESCALA_INTERFACE = 0.8; // 20% menor (decisão do dono, 30/10/2026; antes 0.9)
 
 // 🔥 FUNÇÃO BLINDADA: Remove acentos e espaços duplos
 const normalizarNomeBusca = (nome) => {
@@ -185,7 +185,7 @@ export default function App() {
     useEffect(() => { localStorage.setItem('pratique_sidebar', isCollapsed); }, [isCollapsed]);
 
     // 📐 Escala da interface: deixa o sistema inteiro um pouco menor, como um "zoom" fixo.
-    // 1 = tamanho original | 0.9 = 10% menor | 0.85 = 15% menor
+    // 1 = tamanho original | 0.9 = 10% menor | 0.85 = 15% menor | 0.8 = 20% menor
     // Só vale com alguém logado: a tela de login fica no tamanho normal e ocupa a tela inteira
     // (com a escala ligada, telas de altura "100% da tela" deixavam uma faixa branca embaixo).
     useEffect(() => {
@@ -621,6 +621,7 @@ export default function App() {
                             alunoPreSelecionado={alunoPreSelecionado} 
                             limparPreSelecao={() => setAlunoPreSelecionado(null)}
                             onIrParaAluno={handleSelecionarAlunoGlobal}
+                            vendas={dadosAssinaturas} // só leitura: aviso do limite de doses únicas
                         />
                     )}
                     {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} onAbrirAluno={(aluno) => abrirAlunoVindoDe(aluno, 'assinaturas')} />}

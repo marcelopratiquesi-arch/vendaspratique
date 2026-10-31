@@ -11,6 +11,8 @@ import {
 } from './utils.js';
 import { contarPlanosDoCard, faixaMesAnterior, useVendasDaFaixa, paraIso } from './comparativoMesAnterior.js';
 import { agruparProdutos } from './familiasProdutos.js';
+import { qtdValidaProduto } from './limiteDoses.js';
+import { useDosesValidas } from './useDosesValidas.js';
 import {
     TrendingUp, X, Users, Loader2, CheckCircle2, Layers, Calculator, Box, Briefcase,
     ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send
@@ -449,9 +451,14 @@ const DashboardTab = ({
     });
 
     let totalVendasProdutos = 0;
+    // Produtos que contam para meta/ranking (doses únicas até o limite da unidade + outros produtos)
+    let totalProdutosValidos = 0;
     let totalServicos = 0;
     const rankingProdutosFisicos = {};
     const rankingServicos = {};
+
+    // Doses únicas: até 10 por unidade/mês contam para meta e ranking (com TODAS as vendas da unidade, sem filtro)
+    const dosesValidas = useDosesValidas({ vendasCarregadas: vendasTodas, vendasDaTela: vendasFiltradas, unidade: unidadeAtual, planos, produtos });
 
     // Planos: regra do card (repetido no mesmo dia não conta), a mesma da lista, do ritmo e do comparativo
     const contagemPlanos = contarPlanosDoCard(vendasFiltradas, planos, produtos);
@@ -465,14 +472,19 @@ const DashboardTab = ({
         const categoriaFinal = getCategoriaItem(prodUpper, planos, produtos);
 
         if (categoriaFinal === 'PRODUTO') {
+            // Total REAL: card "Produtos físicos" e lista "Produtos / Complementos" (sem limite)
             totalVendasProdutos += qtd;
             rankingProdutosFisicos[prodUpper] = (rankingProdutosFisicos[prodUpper] || 0) + qtd;
 
+            // Meta e ranking: limite de doses únicas por unidade (limiteDoses.js)
+            const qtdValida = qtdValidaProduto(v, dosesValidas);
+            totalProdutosValidos += qtdValida;
+
             // Se quem vendeu não estava no ranking (ex: Líder, Bem-estar), ele é inserido aqui dinamicamente
             if (rankingConsultoresFisicos[vendUpper] !== undefined) {
-                rankingConsultoresFisicos[vendUpper] += qtd;
+                rankingConsultoresFisicos[vendUpper] += qtdValida;
             } else {
-                rankingConsultoresFisicos[vendUpper] = qtd;
+                rankingConsultoresFisicos[vendUpper] = qtdValida;
             }
         } else if (categoriaFinal === 'SERVICO') {
             totalServicos += qtd;
@@ -580,7 +592,7 @@ const DashboardTab = ({
 
         const nutriRealizado = gruposPlanos["NUTRI"]?.total || 0;
         const personalRealizado = gruposPlanos["PERSONAL CLASS"]?.total || 0;
-        const produtosRealizado = totalVendasProdutos || 0;
+        const produtosRealizado = totalProdutosValidos || 0; // meta de produtos: com o limite de doses únicas
 
         const mNutri = metaNutri || 0;
         const mProd = metaProdutos || 0;
@@ -624,7 +636,7 @@ const DashboardTab = ({
 
     const dispararModalCompartilhar = () => {
         let txt = `${t('analytics.dashboard.wppRankingTitle', { defaultValue: '*🏆 Ranking de Vendas de Produtos 🏆*' })}\n`;
-        txt += `${t('analytics.dashboard.wppTotalSales', { defaultValue: '*Total de Vendas:*' })} ${String(totalVendasProdutos).padStart(2, '0')} / ${String(metaProdutos || 0).padStart(2, '0')}\n\n`;
+        txt += `${t('analytics.dashboard.wppTotalSales', { defaultValue: '*Total de Vendas:*' })} ${String(totalProdutosValidos).padStart(2, '0')} / ${String(metaProdutos || 0).padStart(2, '0')}\n\n`;
 
         const vendidos = rankingOrdenado.filter(item => item[1] > 0);
         const zerados = rankingOrdenado.filter(item => item[1] === 0);
