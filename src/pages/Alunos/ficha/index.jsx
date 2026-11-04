@@ -12,6 +12,7 @@ import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
 import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/contatosFeitos.js';
 import { excluirAvaliacaoComMotivo } from '../../AvaliacaoFisica/lixeira.js';
+import { consultaSeguraOuDireta } from '../../../components/consultaSegura.js';
 import { tx } from '../../../i18n/traduzir.js';
 
 const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), onEditar, onVender, onAvaliar, usuarioLogado }) => {
@@ -64,8 +65,16 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
 
                 const queries = [];
                 queries.push(supabase.from('catalogo').select('nome, tipo'));
-                queries.push(cpfLimpo ? supabase.from('vendas').select('*').or(`cpf.eq.${cpfLimpo},cpf.eq.${aluno.cpf}`).order('data', { ascending: false }).order('created_at', { ascending: false }) : { data: [] });
-                queries.push(aluno.id ? supabase.from('avaliacoes_realizadas').select('*').eq('aluno_id', aluno.id).order('created_at', { ascending: false }) : { data: [] });
+                // Compras e avaliações do aluno em TODAS as unidades, pelas consultas seguras "vendas_do_aluno" e
+                // "avaliacoes_do_aluno" (as tabelas são protegidas por unidade). Sem elas, cai na busca direta.
+                queries.push(cpfLimpo ? consultaSeguraOuDireta(
+                    'vendas_do_aluno', { p_cpf: cpfLimpo, p_cpf_formatado: aluno.cpf || null },
+                    () => supabase.from('vendas').select('*').or(`cpf.eq.${cpfLimpo},cpf.eq.${aluno.cpf}`).order('data', { ascending: false }).order('created_at', { ascending: false })
+                ) : { data: [] });
+                queries.push(aluno.id ? consultaSeguraOuDireta(
+                    'avaliacoes_do_aluno', { p_aluno_id: String(aluno.id) },
+                    () => supabase.from('avaliacoes_realizadas').select('*').eq('aluno_id', aluno.id).order('created_at', { ascending: false })
+                ) : { data: [] });
                 
                 let queryOrCrm = [];
                 const tel8 = telLimpo ? (telLimpo.length > 8 ? telLimpo.slice(-8) : telLimpo) : '';

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
+import { consultaSeguraOuDireta } from '../../components/consultaSegura.js';
 import { X, TrendingUp, TrendingDown, Minus, Calendar, Dumbbell, Percent, Scale, Clock, Activity, AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { tx } from '../../i18n/traduzir.js';
@@ -103,14 +104,15 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
         const fetchHistorico = async () => {
             setLoading(true);
             try {
-                const { data, error } = await supabase
-                    .from('avaliacoes_realizadas')
-                    .select('*')
-                    .eq('aluno_id', aluno.id)
-                    .order('created_at', { ascending: true }); // Cronológico: Antigo -> Recente
+                // Avaliações do aluno em TODAS as unidades (consulta segura "avaliacoes_do_aluno"; sem ela, busca direta)
+                const { data, error } = await consultaSeguraOuDireta(
+                    'avaliacoes_do_aluno', { p_aluno_id: String(aluno.id) },
+                    () => supabase.from('avaliacoes_realizadas').select('*').eq('aluno_id', aluno.id)
+                );
 
                 if (error) throw error;
-                setHistoricoTotal(data || []);
+                // Cronológico: Antigo -> Recente
+                setHistoricoTotal([...(data || [])].sort((a, b) => new Date(a.created_at) - new Date(b.created_at)));
             } catch (err) {
                 console.error("Erro ao buscar histórico:", err);
             } finally {
