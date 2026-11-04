@@ -49,6 +49,8 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], a
             // 1. Status: Se vier vazio do banco, assumimos 'ATIVO'. Só excluímos se for explicitamente inativo/desligado.
             const statusStr = String(c.status || c.situacao || c.situacao_cadastral || 'ATIVO').toUpperCase();
             const isInativo = statusStr.includes('INATIVO') || statusStr.includes('DESLIGADO') || statusStr === 'FALSE';
+            // Desligado no Cadastro Geral (ativo = false) também sai da lista (correção de 04/11/2026)
+            if (c.ativo === false) return false;
             
             // 2. Setor/Cargo: No ModalColaborador, o setor é salvo na coluna 'role'
             const cargoStr = String(c.role || c.setor || c.cargo || '').toUpperCase();

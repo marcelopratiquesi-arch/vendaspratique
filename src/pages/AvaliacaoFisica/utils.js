@@ -158,3 +158,16 @@ export const classificarPressao = (sistolica, diastolica, t) => {
     
     return { value: valueStr, valor: valueStr, valid: true, severity: 'success', status: t('assessment.status.optimal', { defaultValue: 'Ótima' }), cor: 'text-blue-700', bg: 'bg-blue-100' };
 };
+
+// Avaliação incompleta (decisão do dono, 04/11/2026): sem bioimpedância (massa muscular e % de gordura vazios)
+// ou sem anamnese (nenhuma resposta do questionário). Devolve a lista do que falta (vazia = completa).
+const temValor = (v) => v !== null && v !== undefined && v !== '' && Number(v) !== 0;
+const temResposta = (v) => (Array.isArray(v) ? v.length > 0 : String(v ?? '').trim() !== '');
+export const pendenciasAvaliacao = (av) => {
+    if (!av) return [];
+    const faltas = [];
+    if (!temValor(av.mme) && !temValor(av.pgc)) faltas.push('Bioimpedância');
+    const respostas = av.respostas_dinamicas && typeof av.respostas_dinamicas === 'object' ? Object.values(av.respostas_dinamicas) : [];
+    if (!respostas.some(temResposta)) faltas.push('Anamnese');
+    return faltas;
+};

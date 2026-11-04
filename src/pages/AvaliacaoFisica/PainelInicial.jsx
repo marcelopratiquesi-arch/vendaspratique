@@ -8,6 +8,7 @@ import {
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js'; 
 import { SeletorPeriodo, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
+import { pendenciasAvaliacao } from './utils.js';
 import { MESES_FILTRO, faixaDoFiltro, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 
 const colorThemes = [
@@ -424,6 +425,8 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     
     // Paginação
     const [paginaAtual, setPaginaAtual] = useState(1);
+    // Busca nas Últimas Avaliações: aluno, CPF ou avaliador (decisão do dono, 04/11/2026)
+    const [buscaTabela, setBuscaTabela] = useState('');
     const ITENS_POR_PAGINA = 10;
 
     useEffect(() => {
@@ -441,7 +444,9 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     useEffect(() => {
         const fetchMetricasCards = async () => {
             try {
-                const { data, error } = await supabase.from('avaliacoes_realizadas').select('professor, created_at, data').eq('unidade', usuarioLogado?.unidade);
+                // Mais leve (04/11/2026): só os últimos 90 dias (bastam para "este mês" e para a última avaliação de cada avaliador)
+                const desde90 = new Date(); desde90.setDate(desde90.getDate() - 90);
+                const { data, error } = await supabase.from('avaliacoes_realizadas').select('professor, created_at, data').eq('unidade', usuarioLogado?.unidade).gte('created_at', desde90.toISOString());
                 if (error) throw error;
                 const now = new Date();
                 const currentMonth = now.getMonth();
@@ -505,8 +510,11 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
         if (idx >= 0) { setCurrentIndex(idx); setModalOpen(true); }
     };
 
-    const totalPaginas = Math.ceil(avaliacoesRecentes.length / ITENS_POR_PAGINA);
-    const dadosPaginados = avaliacoesRecentes.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
+    const termoBusca = buscaTabela.trim().toLowerCase();
+    const numerosBusca = buscaTabela.replace(/\D/g, '');
+    const listaTabela = termoBusca ? avaliacoesRecentes.filter(a => String(a.aluno || '').toLowerCase().includes(termoBusca) || String(a.professor || '').toLowerCase().includes(termoBusca) || (numerosBusca.length >= 3 && String(a.cpf || '').replace(/\D/g, '').includes(numerosBusca))) : avaliacoesRecentes;
+    const totalPaginas = Math.ceil(listaTabela.length / ITENS_POR_PAGINA);
+    const dadosPaginados = listaTabela.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
 
     return (
         <div className="w-full relative pb-20 animate-[fadeIn_0.5s_ease-out]">
@@ -583,7 +591,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                 {profsDaUnidade.length === 0 ? (
                     <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white/50 dark:border-slate-800 p-6 rounded-[24px] text-center w-full max-w-sm mx-auto shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
                         <Users className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{tx("Nenhum avaliador cadastrado nesta unidade.")}</p>
+                        <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{!usuarioLogado?.unidade || usuarioLogado.unidade === 'TODAS' ? tx("Escolha uma unidade no seletor do topo para ver os avaliadores.") : tx("Nenhum avaliador cadastrado nesta unidade.")}</p>
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 w-full">
@@ -648,8 +656,13 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                         <div>
                             <h2 className="text-lg font-black text-slate-800 dark:text-white tracking-tight leading-none">{tx("Últimas Avaliações")}</h2>
                             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5">
-                                {avaliacoesRecentes.length}{' '}{tx("registros encontrados")}
+                                {listaTabela.length}{' '}{tx("registros encontrados")}
                             </p>
+                        </div>
+                        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                        <div className="relative w-full sm:w-64">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            <input type="text" value={buscaTabela} onChange={(e) => { setBuscaTabela(e.target.value); setPaginaAtual(1); }} placeholder={tx("Buscar aluno, CPF ou avaliador")} className="w-full h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 text-[12px] font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
                         </div>
                         <SeletorPeriodo
                             rotulo={rotuloDoFiltro(filtroAtual)}
@@ -664,6 +677,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                             anos={anosFiltro}
                             onAplicar={aplicarPeriodo}
                         />
+                        </div>
                     </div>
 
                     <div className="overflow-x-auto custom-scrollbar max-h-[500px]">
@@ -672,7 +686,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                 <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
                                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Buscando avaliações...")}</p>
                             </div>
-                        ) : avaliacoesRecentes.length === 0 ? (
+                        ) : listaTabela.length === 0 ? (
                             <div className="py-20 flex flex-col items-center justify-center text-center">
                                 <Search className="w-10 h-10 text-slate-300 dark:text-slate-600 mb-4" />
                                 <h4 className="text-sm font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">{tx("Nenhuma avaliação encontrada")}</h4>
@@ -712,6 +726,11 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                                         <div className="flex flex-col">
                                                             <span className="text-sm font-black text-slate-800 dark:text-slate-100 uppercase tracking-tight">{av.aluno || 'N/I'}</span>
                                                             {av.cpf && <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 font-mono tracking-widest mt-0.5">{mascararCPF(av.cpf)}</span>}
+                                                            {pendenciasAvaliacao(av).length > 0 && (
+                                                                <span title={tx('Avaliação incompleta: complete pelo botão Editar')} className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-black uppercase tracking-wider dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30">
+                                                                    ⚠️ {tx('Sem')} {pendenciasAvaliacao(av).map(p => tx(p)).join(' · ')}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </td>
@@ -753,7 +772,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                     {totalPaginas > 1 && (
                         <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
-                                {tx("Exibindo")}{' '}{(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, avaliacoesRecentes.length)}{' '}{tx("de")}{' '}{avaliacoesRecentes.length}
+                                {tx("Exibindo")}{' '}{(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, listaTabela.length)}{' '}{tx("de")}{' '}{listaTabela.length}
                             </span>
                             <div className="flex items-center gap-2">
                                 <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronLeft className="w-4 h-4"/></button>

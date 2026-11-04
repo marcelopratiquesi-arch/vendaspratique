@@ -12,6 +12,7 @@ import FormAvaliacao from './FormAvaliacao';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
+import { pendenciasAvaliacao } from './utils.js';
 import { MESES_FILTRO, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 
 const getLocalISODate = () => {
@@ -197,16 +198,50 @@ const PainelAvaliador = ({
         }
     };
 
+    // Última avaliação de cada unidade/avaliador (últimos 30 dias, independente do filtro) — para o ranking
+    const [ultimasAvaliacoes, setUltimasAvaliacoes] = useState({});
+    useEffect(() => {
+        if (professorAtivo?.id !== 'GLOBAL' && professorAtivo?.id !== 'GERAL') return;
+        const desde = new Date(); desde.setDate(desde.getDate() - 30);
+        supabase.from('avaliacoes_realizadas').select('unidade, professor, created_at').gte('created_at', desde.toISOString()).order('created_at', { ascending: false }).limit(5000)
+            .then(({ data, error }) => {
+                if (error) { console.error('Ranking: erro ao ler a última avaliação', error); return; }
+                const mapa = {};
+                (data || []).forEach(a => {
+                    const chave = String(professorAtivo.id === 'GLOBAL' ? a.unidade : a.professor || '').toUpperCase();
+                    if (chave && !mapa[chave]) mapa[chave] = a.created_at;
+                });
+                setUltimasAvaliacoes(mapa);
+            });
+    }, [professorAtivo?.id]);
+
     const metricas = useMemo(() => {
         const ranking = {}; let total = 0;
+        const global = professorAtivo?.id === 'GLOBAL';
+        // Quem fez ZERO também aparece (decisão do dono, 04/11/2026): todas as unidades / todos os avaliadores da unidade
+        if (global) {
+            (colaboradores || []).forEach(c => { const u = String(c.unidade || '').toUpperCase(); if (u && u !== 'TODAS') ranking[u] = ranking[u] || 0; });
+        } else if (professorAtivo?.id === 'GERAL') {
+            const unidade = String(professorAtivo.unidade || usuarioLogado?.unidade || '').toUpperCase();
+            (colaboradores || []).filter(c => String(c.unidade || '').toUpperCase() === unidade).forEach(c => { ranking[String(c.nome).toUpperCase()] = ranking[String(c.nome).toUpperCase()] || 0; });
+        }
         dadosFiltrados.forEach(aval => {
-            const chave = professorAtivo?.id === 'GLOBAL' ? (aval.unidade || 'DESCONHECIDA') : (aval.professor || 'SISTEMA');
+            const chave = String(global ? (aval.unidade || 'DESCONHECIDA') : (aval.professor || 'SISTEMA')).toUpperCase();
             ranking[chave] = (ranking[chave] || 0) + 1;
             total++;
         });
-        const rankingOrdenado = Object.entries(ranking).sort((a, b) => b[1] - a[1]).map(([nome, qtd]) => ({ nome, qtd, percentual: total > 0 ? ((qtd / total) * 100).toFixed(1) : 0 }));
-        return { total, ranking: rankingOrdenado, totalEntidades: rankingOrdenado.length };
-    }, [dadosFiltrados, professorAtivo]);
+        const rankingOrdenado = Object.entries(ranking).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR'))
+            .map(([nome, qtd]) => ({ nome, qtd, percentual: total > 0 ? ((qtd / total) * 100).toFixed(1) : 0, ultima: ultimasAvaliacoes[nome] || null }));
+        return { total, ranking: rankingOrdenado, totalEntidades: rankingOrdenado.filter(r => r.qtd > 0).length, zerados: rankingOrdenado.filter(r => r.qtd === 0) };
+    }, [dadosFiltrados, professorAtivo, colaboradores, usuarioLogado, ultimasAvaliacoes]);
+    const haQuanto = (data) => {
+        if (!data) return tx('nada em 30 dias');
+        const min = Math.floor((Date.now() - new Date(data).getTime()) / 60000);
+        if (min < 60) return tx('há {qtd} min', { qtd: Math.max(1, min) });
+        if (min < 1440) return tx('há {qtd} h', { qtd: Math.floor(min / 60) });
+        const dias = Math.floor(min / 1440);
+        return dias === 1 ? tx('ontem') : tx('há {dias} dias', { dias });
+    };
 
     const textoRelatorioFormatado = useMemo(() => {
         const hoje = new Date();
@@ -227,12 +262,18 @@ const PainelAvaliador = ({
         texto += `📅 *Filtro Ativo:* ${filtroDesc}\n`;
         texto += `🕒 *Gerado em:* ${dataHojeStr} às ${horaStr}\n\n`;
 
-        if (metricas.ranking.length > 0) {
-            metricas.ranking.forEach(item => {
-                texto += `🏢 *${item.nome.toUpperCase()}:* ${item.qtd} avaliações\n`;
+        const fizeram = metricas.ranking.filter(item => item.qtd > 0);
+        if (fizeram.length > 0) {
+            fizeram.forEach(item => {
+                texto += `✅ *${item.nome.toUpperCase()}:* ${item.qtd} avaliações\n`;
             });
         } else {
             texto += `Nenhuma avaliação registrada no período.\n`;
+        }
+        // Quem não fez nenhuma avaliação no período (para cobrar)
+        if (metricas.zerados.length > 0) {
+            texto += `\n❌ *SEM AVALIAÇÃO NO PERÍODO (${metricas.zerados.length}):*\n`;
+            metricas.zerados.forEach(item => { texto += `• ${item.nome.toUpperCase()}${item.ultima ? ` (última: ${haQuanto(item.ultima)})` : ''}\n`; });
         }
 
         texto += `\n📈 *TOTAL GERAL:* ${metricas.total} avaliações`;
@@ -250,8 +291,12 @@ const PainelAvaliador = ({
         window.open(url, '_blank');
     };
 
+    // "Só incompletas": avaliações sem bioimpedância ou sem anamnese (para o avaliador completar)
+    const [soIncompletas, setSoIncompletas] = useState(false);
+    const totalIncompletas = useMemo(() => dadosFiltrados.filter(a => pendenciasAvaliacao(a).length > 0).length, [dadosFiltrados]);
     const tabelaFiltrada = useMemo(() => {
         let filtrados = dadosFiltrados;
+        if (soIncompletas) filtrados = filtrados.filter(a => pendenciasAvaliacao(a).length > 0);
         if (filtroUnidadeTabela !== 'TODOS') filtrados = filtrados.filter(a => a.unidade === filtroUnidadeTabela);
         if (filtroProfTabela !== 'TODOS') filtrados = filtrados.filter(a => a.professor === filtroProfTabela);
 
@@ -284,7 +329,7 @@ const PainelAvaliador = ({
             }
         }
         return filtrados;
-    }, [dadosFiltrados, busca, modoExibicao, filtroUnidadeTabela, filtroProfTabela, filtroSexo, filtroAltura, filtroPeso, filtroSmi, buscaAnamnese, perguntasBase]);
+    }, [dadosFiltrados, busca, modoExibicao, filtroUnidadeTabela, filtroProfTabela, filtroSexo, filtroAltura, filtroPeso, filtroSmi, buscaAnamnese, perguntasBase, soIncompletas]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -443,8 +488,8 @@ const PainelAvaliador = ({
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {/* BARRA DE FILTROS */}
-                    <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
+                    {/* BARRA DE FILTROS (relative z-30: o menu de período abre na frente dos cartões) */}
+                    <div className="relative z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3 shrink-0">
                             <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400">
                                 <Filter className="w-4 h-4" />
@@ -557,26 +602,44 @@ const PainelAvaliador = ({
                                     <button onClick={() => setModalRelatorioAberto(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
                                         <Send className="w-3 h-3" />{' '}{tx("Relatório WPP")}
                                     </button>
-                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades}{' '}{tx("Ativos")}</span>
+                                    <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades}{' '}{tx("Ativos")}{metricas.zerados.length > 0 && <span className="text-rose-600 dark:text-rose-400"> · {tx("{qtd} sem avaliação", { qtd: metricas.zerados.length })}</span>}</span>
                                 </div>
                             </div>
-                            <div className="p-4 flex gap-4 overflow-x-auto custom-scrollbar">
-                                {metricas.ranking.map((item, index) => (
-                                    <div key={item.nome} onClick={() => { if(professorAtivo.id === 'GLOBAL') { setFiltroUnidadeTabela(item.nome); setPaginaAtual(1); document.getElementById('tabela-historico')?.scrollIntoView({ behavior: 'smooth' }); } }}
-                                         className={`min-w-[180px] flex items-center justify-between p-3 rounded-xl border transition-all ${professorAtivo.id === 'GLOBAL' ? 'cursor-pointer hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50/50 dark:hover:bg-blue-900/20 border-slate-200 dark:border-slate-700' : 'bg-slate-50 dark:bg-slate-800 border-slate-100 dark:border-slate-700'}`}>
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-black border ${index === 0 ? 'bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 border-orange-100 dark:border-orange-800' : index === 1 ? 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600' : index === 2 ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-100 dark:border-amber-800' : 'bg-white dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'}`}>
-                                                {index + 1}º
-                                            </span>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs font-extrabold text-slate-800 dark:text-slate-200 tracking-tight line-clamp-1 max-w-[90px]">{item.nome}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col text-right">
-                                            <span className="text-lg font-black text-slate-800 dark:text-white leading-none">{item.qtd}</span>
-                                        </div>
-                                    </div>
-                                ))}
+                            {/* Tabela enxuta: posição, quantidade com barrinha, última avaliação; quem fez zero embaixo, em vermelho */}
+                            <div className="overflow-x-auto custom-scrollbar">
+                                <table className="w-full min-w-[560px] border-collapse text-left">
+                                    <thead>
+                                        <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                            <th className="px-4 py-2 w-12">#</th>
+                                            <th className="px-4 py-2">{professorAtivo.id === 'GLOBAL' ? tx("Unidade") : tx("Avaliador")}</th>
+                                            <th className="px-4 py-2">{tx("Avaliações no período")}</th>
+                                            <th className="px-4 py-2">{tx("Última avaliação")}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {metricas.ranking.map((item, index) => {
+                                            const zero = item.qtd === 0;
+                                            const maior = metricas.ranking[0]?.qtd || 1;
+                                            return (
+                                                <tr key={item.nome} onClick={() => { if (professorAtivo.id === 'GLOBAL') { setFiltroUnidadeTabela(item.nome); setPaginaAtual(1); document.getElementById('tabela-historico')?.scrollIntoView({ behavior: 'smooth' }); } }}
+                                                    className={`border-t border-slate-100 dark:border-slate-800 ${professorAtivo.id === 'GLOBAL' ? 'cursor-pointer hover:bg-blue-50/50 dark:hover:bg-blue-900/20' : ''} ${zero ? 'bg-rose-50/40 dark:bg-rose-500/5' : ''}`}>
+                                                    <td className="px-4 py-2 text-[12px] font-black text-slate-500 dark:text-slate-400">{zero ? '—' : `${index + 1}º`}</td>
+                                                    <td className={`px-4 py-2 text-[12px] font-black uppercase ${zero ? 'text-rose-700 dark:text-rose-400' : 'text-slate-800 dark:text-white'}`}>{item.nome}</td>
+                                                    <td className="px-4 py-2">
+                                                        {zero ? <span className="text-[11px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{tx("Nenhuma")}</span> : (
+                                                            <div className="flex items-center gap-3">
+                                                                <span className="text-[14px] font-black text-slate-800 tabular-nums w-8 dark:text-white">{item.qtd}</span>
+                                                                <span className="flex-1 max-w-[220px] h-1.5 rounded-full bg-slate-100 overflow-hidden dark:bg-slate-800"><span className="block h-full rounded-full bg-blue-600" style={{ width: `${(item.qtd / maior) * 100}%` }} /></span>
+                                                                <span className="text-[10px] font-bold text-slate-400">{item.percentual}%</span>
+                                                            </div>
+                                                        )}
+                                                    </td>
+                                                    <td className={`px-4 py-2 text-[12px] font-bold whitespace-nowrap ${item.ultima ? 'text-slate-600 dark:text-slate-300' : 'text-rose-600 dark:text-rose-400'}`}>{haQuanto(item.ultima)}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     )}
@@ -604,6 +667,12 @@ const PainelAvaliador = ({
                                     <Search className="w-4 h-4 text-blue-500 absolute left-4 top-1/2 -translate-y-1/2" />
                                     <input type="text" value={busca} onChange={(e) => {setBusca(e.target.value); setPaginaAtual(1);}} placeholder={tx("Buscar: Nome, CPF...")} className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500" />
                                 </div>
+                                {totalIncompletas > 0 && (
+                                    <button type="button" onClick={() => { setSoIncompletas(v => !v); setPaginaAtual(1); }} title={tx('Avaliações sem bioimpedância ou sem anamnese')}
+                                        className={`shrink-0 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${soIncompletas ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
+                                        ⚠️ {tx('{qtd} incompletas', { qtd: totalIncompletas })}
+                                    </button>
+                                )}
                                 <div className="flex gap-2 w-full lg:w-auto">
                                     <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><Filter className="w-3.5 h-3.5" />{' '}{tx("Filtros")}</button>
                                     <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}</button>
@@ -673,6 +742,11 @@ const PainelAvaliador = ({
                                                                 </div>
                                                                 <div className="flex flex-col items-start gap-1">
                                                                     <span className="text-[13px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight">{a.aluno || tx("NÃO INFORMADO")}</span>
+                                                                    {pendenciasAvaliacao(a).length > 0 && (
+                                                                <span title={tx('Avaliação incompleta: complete pelo botão Editar')} className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-black uppercase tracking-wider dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30">
+                                                                    ⚠️ {tx('Sem')} {pendenciasAvaliacao(a).map(p => tx(p)).join(' · ')}
+                                                                </span>
+                                                            )}
                                                                     <button onClick={() => setAlunoEvolucaoModal({ id: a.aluno_id, nome: a.aluno, cpf: a.cpf })} className="flex items-center gap-1 text-[10px] font-black text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded border border-blue-100 dark:border-blue-800 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 transition-colors uppercase tracking-widest">
                                                                         <LineChart className="w-3 h-3" />{' '}{tx("Evolução")}
                                                                     </button>

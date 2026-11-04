@@ -164,7 +164,7 @@ Todo filtro de data do sistema usa o **mesmo seletor** (`SeletorPeriodo` de [Fil
   - `FechamentoCaixa` — Conferência, comissões a pagar e auditoria.
   - `CrmVisitantes` — Funil de visitantes (kanban, lista, métricas).
   - `Alunos` — Ficha completa do aluno (dados, planos, produtos, avaliações, contatos, linha do tempo).
-  - `AvaliacaoFisica` — Avaliações físicas, inclusive leitura de PDF de bioimpedância (InBody/Superbio).
+  - `AvaliacaoFisica` — Avaliações físicas, inclusive leitura de PDF de bioimpedância (InBody/Superbio). **Revisão 04/11/2026:** Dashboard Global/da unidade com o menu de período na frente dos cartões; **ranking em tabela** (posição, avaliações no período com barrinha, "última avaliação" dos últimos 30 dias) incluindo **quem fez zero** (unidades dos avaliadores / avaliadores da unidade), em vermelho embaixo; Relatório WPP com o bloco "❌ SEM AVALIAÇÃO NO PERÍODO". Busca (aluno, CPF, avaliador) nas Últimas Avaliações da tela inicial. Avaliador desligado (`ativo = false`) sai da lista. **Avaliação incompleta** (`pendenciasAvaliacao` em utils.js da Avaliação): sem bioimpedância (massa muscular e % de gordura vazios) ou sem anamnese (nenhuma resposta) ganha a etiqueta amarela "⚠️ Sem Bioimpedância · Anamnese" nas duas tabelas; no painel há o botão "⚠️ X incompletas" (filtra só elas). Os cartões dos avaliadores da tela inicial leem só os últimos 90 dias. Pendências sugeridas: excluir com motivo + lixeira; reavaliação vencida (90 dias); meta de avaliações;.
   - `CadastroGeral` — Equipe, catálogo (planos/produtos/serviços), setores e alunos.
   - `Comunicados` — Central de comunicados (alguns podem bloquear o uso até serem lidos).
   - `Configuracoes.jsx` — Unidades (só ADMIN). `Login.jsx` — tela de entrada.
