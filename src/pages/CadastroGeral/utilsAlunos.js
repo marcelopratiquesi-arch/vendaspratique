@@ -136,7 +136,8 @@ export const parseSmartPaste = (rawText) => {
 
     let startIndex = 0;
     // Mapa padrão TECACE caso não tenha cabeçalho na cópia 
-    let colMap = { matricula: 0, nome: 1, email: 2, telefone: 3, status: 4, cpf: 5, nascimento: -1 }; 
+    // Sem cabeçalho: ordem da exportação do TECACE (Matrícula, Nome, Email, Telefone, Status, Documento, Data de Cadastro, Unidade, Sexo)
+    let colMap = { matricula: 0, nome: 1, email: 2, telefone: 3, status: 4, cpf: 5, nascimento: -1, dataCadastro: 6, unidade: 7, sexo: 8 }; 
 
     const firstLine = lines[0].toUpperCase();
     
@@ -151,7 +152,11 @@ export const parseSmartPaste = (rawText) => {
             telefone: headers.findIndex(h => h.includes('TELEFONE') || h.includes('CELULAR')),
             email: headers.findIndex(h => h.includes('EMAIL') || h.includes('E-MAIL')),
             status: headers.findIndex(h => h.trim() === 'STATUS' || h.trim() === 'SITUAÇÃO' || h.trim() === 'SITUACAO'),
-            nascimento: headers.findIndex(h => h === 'NASCIMENTO' || h === 'DATA DE NASCIMENTO')
+            nascimento: headers.findIndex(h => h === 'NASCIMENTO' || h === 'DATA DE NASCIMENTO'),
+            // Exportação do TECACE: Sexo e Data de Cadastro (usados pelo Smart Paste do CRM; Data de Cadastro NÃO é nascimento)
+            sexo: headers.findIndex(h => h.trim() === 'SEXO' || h.trim() === 'GÊNERO' || h.trim() === 'GENERO'),
+            dataCadastro: headers.findIndex(h => h.trim() === 'DATA DE CADASTRO'),
+            unidade: headers.findIndex(h => h.trim() === 'UNIDADE')
         };
     }
 
@@ -224,7 +229,10 @@ export const parseSmartPaste = (rawText) => {
             data_nascimento: dataNascimento,
             idade: calcularIdade(dataNascimento),
             // Status do TECACE como veio na lista (ATIVO, INATIVO, FINALIZADO...); usado pelo Smart Paste do CRM
-            status_tecace: String((colMap.status >= 0 ? cols[colMap.status] : cols[4]) || '').trim().toUpperCase()
+            status_tecace: String((colMap.status >= 0 ? cols[colMap.status] : cols[4]) || '').trim().toUpperCase(),
+            sexo: colMap.sexo >= 0 ? String(cols[colMap.sexo] || '').trim().toUpperCase() : '',
+            data_cadastro: colMap.dataCadastro >= 0 ? parseDataBrParaIso(cols[colMap.dataCadastro] || '') : null,
+            unidade_tecace: colMap.unidade >= 0 ? String(cols[colMap.unidade] || '').trim().toUpperCase() : ''
         });
     }
     

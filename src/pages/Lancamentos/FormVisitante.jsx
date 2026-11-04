@@ -1,11 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { getLocalDateISO } from './utils.js';
-import { mascaraCPF, validarCPF } from '../CadastroGeral/utilsAlunos.js';
+import { mascaraCPF, validarCPF, telefoneSem55 } from '../CadastroGeral/utilsAlunos.js';
 import { buscarAlunosNaRede, buscarUnidadesDoAluno } from '../Alunos/utils.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
-import { UserPlus, Target, Send, Loader2, CheckCircle2, Briefcase, AlertTriangle, UserRoundPen, Search, RefreshCw, PhoneOff } from 'lucide-react';
+import { UserPlus, Target, Send, Loader2, CheckCircle2, Briefcase, AlertTriangle, UserRoundPen, Search, RefreshCw, PhoneOff, User, Phone, ChevronDown } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -53,6 +53,15 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
     const listaAbortRef = useRef(null);
     const inputClienteRef = useRef(null);
     const campoClienteRef = useRef(null);
+
+    // CADASTRO RÁPIDO (decisão do dono, 04/11/2026): visitante novo = só NOME e TELEFONE. CPF opcional, escondido em "mais opções".
+    // Não cria aluno: vai direto para o funil do CRM. Quem já é aluno continua sendo buscado no modo "Já é aluno".
+    const [modo, setModo] = useState('rapido'); // 'rapido' | 'aluno'
+    const [rapido, setRapido] = useState({ nome: '', telefone: '', cpf: '' });
+    const [maisOpcoes, setMaisOpcoes] = useState(false);
+    const telRapido = telefoneSem55(apenasDigitos(rapido.telefone));
+    const cpfRapido = apenasDigitos(rapido.cpf);
+    const cpfRapidoErro = cpfRapido.length > 0 && (cpfRapido.length !== 11 || !validarCPF(mascaraCPF(cpfRapido)));
 
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -103,6 +112,8 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         && apenasDigitos(alunoEncontrado.cpf) === apenasDigitos(cpfBusca);
 
     const semTelefone = cpfConfere && apenasDigitos(alunoEncontrado.telefone).length < 10;
+    const rapidoPronto = rapido.nome.trim().length >= 2 && telRapido.length >= 10 && !cpfRapidoErro;
+    const pronto = modo === 'rapido' ? rapidoPronto : cpfConfere;
 
     // ==========================================
     // BUSCA POR CPF (dois formatos + detecção de cadastro duplicado)
@@ -302,6 +313,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         e.preventDefault();
         if (envioTravadoRef.current || isSubmitting || sucesso) return;
 
+        if (modo === 'rapido') return enviarRapido();
         if (!alunoEncontrado) return avisar(tx("Busque o visitante pelo nome, CPF ou matrícula primeiro."));
         if (!cpfConfere) return avisar(tx("O visitante precisa ter um CPF válido no cadastro. Complete o cadastro antes de continuar."));
         if (temVisaoGlobal && !leadForm.unidade) return avisar(tx("Selecione a Unidade do visitante."));
@@ -357,6 +369,64 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         }
     };
 
+    // Envio do cadastro rápido (nome + telefone; CPF só se digitado)
+    const enviarRapido = async () => {
+        if (rapido.nome.trim().length < 2) return avisar(tx("Digite o nome do visitante."));
+        if (telRapido.length < 10) return avisar(tx("Digite o telefone com DDD."));
+        if (cpfRapidoErro) return avisar(tx("CPF inválido. Corrija ou deixe em branco."));
+        if (temVisaoGlobal && !leadForm.unidade) return avisar(tx("Selecione a Unidade do visitante."));
+        if (!leadForm.vendedor) return avisar(tx("Selecione o consultor que atendeu o visitante."));
+        envioTravadoRef.current = true;
+        setIsSubmitting(true);
+        try {
+            // Mesmo telefone já no funil? Pergunta antes, para não duplicar
+            const { data: iguais } = await supabase.from('leads').select('nome, vendedor, status')
+                .or(`telefone.eq.${telRapido},telefone.eq.55${telRapido}`).not('status', 'in', '("Fechado","Arquivado")').limit(1);
+            if (iguais && iguais.length > 0) {
+                const l = iguais[0];
+                if (!window.confirm(tx('Este telefone já está no funil do CRM ({nome}, consultor {vendedor}). Cadastrar mesmo assim?', { nome: l.nome || '—', vendedor: l.vendedor || '—' }))) {
+                    envioTravadoRef.current = false;
+                    return;
+                }
+            }
+            const agora = new Date().toISOString();
+            const vendedorSelecionado = leadForm.vendedor.toUpperCase();
+            const { error } = await supabase.from('leads').insert([{
+                unidade: leadForm.unidade.toUpperCase(),
+                data: getLocalDateISO(),
+                nome: rapido.nome.trim().toUpperCase(),
+                cpf: cpfRapido.length === 11 ? cpfRapido : null,
+                telefone: telRapido,
+                interesse: leadForm.interesse.trim().toUpperCase(),
+                vendedor: vendedorSelecionado,
+                observacao: leadForm.observacao,
+                origem: 'RECEPCAO',
+                status: 'Novo',
+                data_criacao: agora,
+                criado_por: usuarioLogado?.nome || 'SISTEMA',
+                puxado_em: agora,
+                puxado_por: vendedorSelecionado
+            }]);
+            if (error) {
+                envioTravadoRef.current = false;
+                if (error.code === '23505') return avisar(tx("🚨 BLOQUEADO: este CPF já está no funil do CRM.\n\nSe for um retorno, peça ao consultor responsável para procurá-lo na aba \"Base\" ou \"Geladeira\" do CRM."));
+                throw error;
+            }
+            setSucesso(true);
+            setTimeout(() => {
+                setSucesso(false);
+                if (voltarHub) voltarHub();
+                else envioTravadoRef.current = false;
+            }, 1200);
+        } catch (error) {
+            envioTravadoRef.current = false;
+            console.error("Erro:", error);
+            avisar(tx("Não foi possível salvar o visitante. Tente novamente."));
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
     const labelClass = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400";
     const inputClassBase = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all shadow-sm placeholder:text-slate-400 dark:bg-slate-800/60 dark:border-slate-800 dark:text-white dark:focus:bg-slate-900";
     const sectionClass = "bg-white p-6 md:p-8 rounded-[24px] border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800";
@@ -397,7 +467,58 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                         <span className="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-blue-200 shadow-sm dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">{tx("Vai para CRM")}</span>
                     </div>
 
+                    {modo === 'rapido' && (
+                        <div className="flex flex-col gap-5">
+                            <div className="flex flex-col md:flex-row md:items-start gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full md:flex-1">
+                                    <div>
+                                        <label className={labelClass}>{tx("Nome *")}</label>
+                                        <div className="relative">
+                                            <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                            <input ref={inputClienteRef} type="text" value={rapido.nome} onChange={(e) => setRapido(r => ({ ...r, nome: e.target.value }))} maxLength="80" autoComplete="off" placeholder={tx("Nome do visitante")} className={`${inputClassBase} pl-10 uppercase`} />
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className={labelClass}>{tx("Telefone *")}</label>
+                                        <div className="relative">
+                                            <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                            <input type="tel" inputMode="tel" value={rapido.telefone} onChange={(e) => setRapido(r => ({ ...r, telefone: e.target.value }))} maxLength="20" autoComplete="off" placeholder={tx("(31) 99999-9999")} className={`${inputClassBase} pl-10`} />
+                                        </div>
+                                    </div>
+                                </div>
+                                {temVisaoGlobal && (
+                                    <div className="w-full md:w-64">
+                                        <label className={labelClass}>{tx("Unidade da Visita *")}</label>
+                                        <select name="unidade" value={leadForm.unidade} onChange={handleLeadChange} required className={inputClassBase}>
+                                            <option value="">{tx("Selecione...")}</option>
+                                            {unidades.map(u => <option key={u.id || u.nome} value={u.nome}>{u.nome}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <button type="button" onClick={() => setMaisOpcoes(v => !v)} className="text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 dark:hover:text-slate-300">
+                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${maisOpcoes ? 'rotate-180' : ''}`} />{tx("mais opções")}
+                                </button>
+                                <button type="button" onClick={() => { setModo('aluno'); requestAnimationFrame(() => inputClienteRef.current?.focus()); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 flex items-center gap-1 dark:text-blue-400">
+                                    <Search className="w-3.5 h-3.5" />{tx("Já é aluno? Buscar no cadastro")}
+                                </button>
+                            </div>
+                            {maisOpcoes && (
+                                <div className="w-full sm:w-64">
+                                    <label className={labelClass}>{tx("CPF (opcional)")}</label>
+                                    <input type="text" inputMode="numeric" value={rapido.cpf} onChange={(e) => setRapido(r => ({ ...r, cpf: apenasDigitos(e.target.value).length === 11 ? mascaraCPF(apenasDigitos(e.target.value)) : e.target.value }))} maxLength="14" autoComplete="off" placeholder="000.000.000-00" className={`${inputClassBase} ${cpfRapidoErro ? 'border-rose-300 bg-rose-50 dark:border-rose-500/30 dark:bg-rose-500/10' : ''}`} />
+                                    {cpfRapidoErro && <span className="text-rose-500 text-[10px] font-bold uppercase mt-1 ml-1">{tx("CPF Inválido")}</span>}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {modo === 'aluno' && (
                     <div className="flex flex-col gap-6">
+                        <button type="button" onClick={() => { trocarPessoa(); setModo('rapido'); }} className="self-start -mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 flex items-center gap-1 dark:text-blue-400">
+                            <UserPlus className="w-3.5 h-3.5" />{tx("Visitante novo (só nome e telefone)")}
+                        </button>
                         <div className="flex flex-col md:flex-row md:items-start gap-6">
                             <div className="relative w-full md:flex-1" ref={campoClienteRef}>
                                 <label className={labelClass}>{tx("Visitante *")}{' '}<span className="normal-case tracking-normal font-bold text-slate-400">{tx("(nome, CPF ou matrícula)")}</span></label>
@@ -552,10 +673,11 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                             </div>
                         )}
                     </div>
+                    )}
                 </div>
 
                 {/* 2. DADOS DA VISITA */}
-                <div className={`transition-all duration-500 ${!cpfConfere ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
+                <div className={`transition-all duration-500 ${!pronto ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     <div className={sectionClass}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="md:col-span-2">
@@ -568,7 +690,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                                 key={op}
                                                 type="button"
                                                 onClick={() => escolherInteresse(op)}
-                                                disabled={!cpfConfere}
+                                                disabled={!pronto}
                                                 aria-pressed={ativo}
                                                 className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${ativo ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:border-blue-500/30 dark:hover:text-blue-400'}`}
                                             >
@@ -581,7 +703,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                         <Target className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                                     </div>
-                                    <input type="text" name="interesse" value={leadForm.interesse} onChange={handleLeadChange} placeholder={tx("Ou escreva: Ex. Musculação com foco em pernas...")} className={`${inputClassBase} pl-10 pr-4 uppercase disabled:opacity-50`} disabled={!cpfConfere} />
+                                    <input type="text" name="interesse" value={leadForm.interesse} onChange={handleLeadChange} placeholder={tx("Ou escreva: Ex. Musculação com foco em pernas...")} className={`${inputClassBase} pl-10 pr-4 uppercase disabled:opacity-50`} disabled={!pronto} />
                                 </div>
                             </div>
 
@@ -591,7 +713,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                     <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
                                         <Briefcase className="w-4 h-4 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
                                     </div>
-                                    <select name="vendedor" value={leadForm.vendedor} onChange={handleLeadChange} required disabled={!cpfConfere || (temVisaoGlobal && !leadForm.unidade)} className={`${inputClassBase} pl-10 pr-4 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed uppercase dark:disabled:bg-slate-800`}>
+                                    <select name="vendedor" value={leadForm.vendedor} onChange={handleLeadChange} required disabled={!pronto || (temVisaoGlobal && !leadForm.unidade)} className={`${inputClassBase} pl-10 pr-4 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed uppercase dark:disabled:bg-slate-800`}>
                                         <option value="">{(temVisaoGlobal && !leadForm.unidade) ? tx("Escolha a unidade...") : tx("Quem atendeu?")}</option>
                                         {vendedoresDaUnidade.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                     </select>
@@ -600,12 +722,12 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
                             <div className="md:col-span-2">
                                 <label className={labelClass}>{tx("Detalhes da Conversa / Observação")}</label>
-                                <textarea name="observacao" value={leadForm.observacao} onChange={handleLeadChange} disabled={!cpfConfere} rows="3" placeholder={tx("Anotações importantes sobre o que o cliente procura...")} className={`${inputClassBase} px-4 resize-none`}></textarea>
+                                <textarea name="observacao" value={leadForm.observacao} onChange={handleLeadChange} disabled={!pronto} rows="3" placeholder={tx("Anotações importantes sobre o que o cliente procura...")} className={`${inputClassBase} px-4 resize-none`}></textarea>
                             </div>
                         </div>
 
                         <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end dark:border-slate-800">
-                            <button type="submit" disabled={isSubmitting || sucesso || !cpfConfere} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 px-10 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 text-xs active:scale-[0.98]">
+                            <button type="submit" disabled={isSubmitting || sucesso || !pronto} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 px-10 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 text-xs active:scale-[0.98]">
                                 {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Inserindo no CRM...")}</> : <><Send className="w-5 h-5" />{' '}{tx("Enviar para o Funil CRM")}</>}
                             </button>
                         </div>

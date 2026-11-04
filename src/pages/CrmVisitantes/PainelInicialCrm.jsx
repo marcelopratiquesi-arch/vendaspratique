@@ -56,7 +56,7 @@ const Kpi = ({ icone: Icone, titulo, valor, cor, destaque = false }) => (
     </div>
 );
 
-const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas = [], leads: leadsTodos = [], colaboradores = [], versao = 0, onAtualizar, onEscolher }) => {
+const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas = [], leads: leadsTodos = [], colaboradores = [], versao = 0, onAtualizar, onEscolher, conteudoBase = null }) => {
     // Filtro de período padrão do sistema (vale para a página inteira)
     const periodo = usePeriodoPadrao('hoje');
     const faixa = periodo.faixa;
@@ -479,6 +479,8 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                         </div>
                     ) : gradeCartoes(recepcionistas)}
                     {avisoDesligadas}
+                    {/* Base da unidade embaixo da equipe: Smart Paste, distribuir/mover e Banco Bruto (decisão do dono, 04/11/2026) */}
+                    {conteudoBase && <div className="pt-4">{conteudoBase}</div>}
                 </div>
             )}
 

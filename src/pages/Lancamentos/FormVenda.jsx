@@ -356,8 +356,19 @@ const FormVenda = ({
             <h3 className="text-[13px] font-bold uppercase tracking-[0.08em] text-[#0F172A] dark:text-white">{texto}</h3>
         </div>
     );
-    const abrirCadastro = (mensagem) => {
+    // Aluno novo que veio da lista do TECACE no CRM: preenche o cadastro com o que o contato já tem (decisão do dono, 04/11/2026)
+    const [dadosDoCrm, setDadosDoCrm] = useState(null);
+    const abrirCadastro = async (mensagem) => {
         if (!formData.unidade) return avisar(mensagem);
+        const cpfDig = String(cpfBusca || '').replace(/D/g, '');
+        setDadosDoCrm(null);
+        if (!alunoEncontrado && cpfDig.length === 11) {
+            try {
+                const { data } = await supabase.from('leads').select('*').eq('cpf', cpfDig).limit(1);
+                const l = data?.[0];
+                if (l) setDadosDoCrm({ nome: l.nome || '', telefone: l.telefone || '', email: l.email || '', matricula: l.matricula || '' });
+            } catch (e) { console.warn('Nova Venda: não foi possível ler o contato do CRM', e); }
+        }
         setModalAlunoAberto(true);
     };
 
@@ -366,7 +377,7 @@ const FormVenda = ({
             <ModalAluno
                 isOpen={modalAlunoAberto}
                 onClose={() => setModalAlunoAberto(false)}
-                alunoInicial={alunoEncontrado || { cpf: cpfBusca }}
+                alunoInicial={alunoEncontrado || { cpf: cpfBusca, ...(dadosDoCrm || {}) }}
                 onSaveSuccess={handleSaveAlunoSuccess}
                 usuarioLogado={usuarioLogado}
                 unidadeDestino={formData.unidade}
