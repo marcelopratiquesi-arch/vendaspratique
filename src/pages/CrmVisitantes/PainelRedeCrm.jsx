@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { Globe, Loader2, AlertTriangle, Send, X, Copy } from 'lucide-react';
-import { formatarDataHora, normalizarNome, ehRecepcao } from './utils';
+import { formatarDataHora, normalizarNome, ehRecepcao, abrirNoWhatsApp } from './utils';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
 
@@ -108,7 +108,7 @@ const PainelRedeCrm = ({ colaboradores = [], faixa = { inicio: null, fim: null }
                 const desde = inicioIso ? new Date(Math.min(new Date(inicioIso).getTime(), limiteUltima.getTime())) : limiteUltima;
 
                 const [resUnidades, resHist] = await Promise.all([
-                    supabase.from('unidades').select('nome').order('nome', { ascending: true }),
+                    supabase.from('unidades').select('*').order('nome', { ascending: true }),
                     buscarPaginado(() => supabase.from('historico_leads').select('id, lead_id, consultor, tipo_acao, observacao, data_registro')
                         .in('tipo_acao', ACOES_DE_CONTATO).gte('data_registro', desde.toISOString()).order('data_registro', { ascending: false }))
                 ]);
@@ -122,7 +122,8 @@ const PainelRedeCrm = ({ colaboradores = [], faixa = { inicio: null, fim: null }
                 }
                 if (cancelado) return;
                 if (resUnidades.error) console.error('Erro ao buscar unidades:', resUnidades.error);
-                setUnidades(resUnidades.data || []);
+                // Unidade desativada (Configurações) não aparece no painel
+                setUnidades((resUnidades.data || []).filter(u => u.ativa !== false));
                 setHistorico(resHist.dados);
                 setContatosFeitos(feitos);
                 setCortado(resHist.cortado);
@@ -325,7 +326,7 @@ const PainelRedeCrm = ({ colaboradores = [], faixa = { inicio: null, fim: null }
                         <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={14} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-[12px] font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
                         <div className="flex justify-end gap-2">
                             <button type="button" onClick={copiar} className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Copy className="w-4 h-4" />{tx('Copiar')}</button>
-                            <a href={`https://wa.me/?text=${encodeURIComponent(mensagem)}`} target="_blank" rel="noopener noreferrer" className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Send className="w-4 h-4" />{tx('Enviar no WhatsApp')}</a>
+                            <button type="button" onClick={() => abrirNoWhatsApp('', mensagem)} className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Send className="w-4 h-4" />{tx('Enviar no WhatsApp')}</button>
                         </div>
                     </div>
                 </div>

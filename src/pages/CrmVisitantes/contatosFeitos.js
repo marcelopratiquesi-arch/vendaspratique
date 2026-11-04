@@ -1,5 +1,6 @@
 import { supabase } from '../../supabaseClient.js';
 import { MENSAGENS_PADRAO, apenasDigitos, diaISO } from './utils';
+import { textoDoBanco, definirMensagensEmUso } from './embaralhador.js';
 
 // ==========================================
 // TABELAS DO CRM CRIADAS NA ETAPA B (rodadas pelo dono no Supabase)
@@ -21,11 +22,13 @@ export const TIPOS_CONTATO = {
 // Chave que identifica um contato feito (o mesmo contato não é marcado duas vezes)
 export const chaveContatoFeito = (tipo, pessoaId, referencia) => `${tipo}|${pessoaId}|${referencia}`;
 
+// Lê as mensagens (cada situação com várias versões) e deixa em uso para os botões de WhatsApp do CRM
 export const carregarMensagensProntas = async () => {
     const mensagens = { ...MENSAGENS_PADRAO };
     const { data, error } = await supabase.from('crm_mensagens_prontas').select('chave, texto');
     if (error) { console.warn('Tabela crm_mensagens_prontas indisponível; usando os textos padrão:', error.message || error); return mensagens; }
-    (data || []).forEach(r => { if (r.texto && r.chave in mensagens) mensagens[r.chave] = r.texto; });
+    (data || []).forEach(r => { if (r.texto && r.chave in mensagens) mensagens[r.chave] = textoDoBanco(r.chave, r.texto); });
+    definirMensagensEmUso(mensagens);
     return mensagens;
 };
 

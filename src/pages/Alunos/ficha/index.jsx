@@ -11,7 +11,7 @@ import TabContatosCrm from './TabContatosCrm.jsx';
 import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
 import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/contatosFeitos.js';
-import { avisar } from '../../../components/avisar.js';
+import { excluirAvaliacaoComMotivo } from '../../AvaliacaoFisica/lixeira.js';
 import { tx } from '../../../i18n/traduzir.js';
 
 const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), onEditar, onVender, onAvaliar, usuarioLogado }) => {
@@ -202,13 +202,8 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
     }, [aluno.id, aluno.cpf, aluno.telefone, aluno.created_at, aluno.unidade, versaoDados]);
 
     const excluirAvaliacao = async (id) => {
-        if (!window.confirm(tx("Tem certeza que deseja excluir esta avaliação? Essa ação não pode ser desfeita."))) return;
-        const { error } = await supabase.from('avaliacoes_realizadas').delete().eq('id', id);
-        if (error) {
-            console.error('Erro ao excluir avaliação:', error);
-            avisar(tx("Não foi possível excluir a avaliação. Tente novamente."));
-            return;
-        }
+        // Pede o motivo e manda para a lixeira (Avaliação Física → Lixeira; Admin/Mentor restauram)
+        if (!(await excluirAvaliacaoComMotivo(id))) return;
         // Remove da aba Avaliações e também do Histórico, sem precisar recarregar
         setDadosFicha(prev => ({
             ...prev,

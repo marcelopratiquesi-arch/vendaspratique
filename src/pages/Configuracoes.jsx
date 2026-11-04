@@ -74,11 +74,54 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
         }
     };
 
-    const handleDeleteUnidade = async (id) => {
-        if(window.confirm(tx("Atenção! Tem certeza que deseja excluir esta unidade permanentemente?"))) {
-            await supabase.from('unidades').delete().eq('id', id);
-            setUnidades(unidades.filter(u => u.id !== id));
+    // Desativar / reativar (decisão do dono, 04/11/2026): a unidade desativada some do seletor e das listas,
+    // mas vendas, alunos, metas e contatos dela continuam guardados. Função segura unidade_definir_ativa (só Admin).
+    const handleAtivarUnidade = async (unidade, ativa) => {
+        const pergunta = ativa
+            ? tx("Reativar a unidade {nome}? Ela volta a aparecer no seletor e nas listas.", { nome: unidade.nome })
+            : tx("Desativar a unidade {nome}?\n\nEla some do seletor do topo e das listas de escolha. As vendas, alunos, metas e contatos dela continuam guardados e é possível reativar depois.", { nome: unidade.nome });
+        if (!window.confirm(pergunta)) return;
+        const { error } = await supabase.rpc('unidade_definir_ativa', { p_id: String(unidade.id), p_ativa: ativa });
+        if (error) {
+            console.error('Erro ao desativar/reativar unidade:', error);
+            avisar(tx("Não foi possível alterar a unidade (o SQL de unidades foi rodado?): {v1}", { v1: error.message }), 'erro');
+            return;
         }
+        setUnidades(unidades.map(u => (u.id === unidade.id ? { ...u, ativa } : u)));
+        avisar(ativa ? tx("Unidade reativada.") : tx("Unidade desativada."), 'sucesso');
+    };
+
+    // Excluir de verdade só unidade SEM nenhum dado ligado (o banco também trava)
+    const handleDeleteUnidade = async (unidade) => {
+        const { data: uso, error: erroUso } = await supabase.rpc('unidade_uso', { p_nome: unidade.nome });
+        if (erroUso) {
+            console.error('Erro ao conferir o uso da unidade:', erroUso);
+            avisar(tx("Não foi possível conferir se a unidade tem dados (o SQL de unidades foi rodado?). Nada foi excluído."), 'erro');
+            return;
+        }
+        const ROTULOS = { vendas: 'vendas', alunos: 'alunos', contatos: 'contatos do CRM', equipe: 'pessoas na equipe', logins: 'logins', avaliacoes: 'avaliações', metas: 'metas', movimentacao: 'lançamentos de movimentação' };
+        const usados = Object.entries(uso || {}).filter(([, qtd]) => Number(qtd) > 0);
+        if (usados.length > 0) {
+            const lista = usados.map(([chave, qtd]) => `• ${qtd} ${tx(ROTULOS[chave] || chave)}`).join('\n');
+            if (unidade.ativa !== false && window.confirm(tx("A unidade {nome} não pode ser excluída porque tem:\n\n{lista}\n\nDeseja DESATIVAR a unidade? (os dados continuam guardados)", { nome: unidade.nome, lista }))) {
+                const { error } = await supabase.rpc('unidade_definir_ativa', { p_id: String(unidade.id), p_ativa: false });
+                if (error) { avisar(tx("Não foi possível desativar: {v1}", { v1: error.message }), 'erro'); return; }
+                setUnidades(unidades.map(u => (u.id === unidade.id ? { ...u, ativa: false } : u)));
+                avisar(tx("Unidade desativada."), 'sucesso');
+            } else if (unidade.ativa === false) {
+                avisar(tx("A unidade {nome} tem dados ligados a ela e não pode ser excluída. Ela continua desativada.", { nome: unidade.nome }), 'atencao');
+            }
+            return;
+        }
+        if (!window.confirm(tx("A unidade {nome} não tem nenhum dado ligado a ela. Excluir permanentemente?", { nome: unidade.nome }))) return;
+        const { error } = await supabase.from('unidades').delete().eq('id', unidade.id);
+        if (error) {
+            console.error('Erro ao excluir unidade:', error);
+            avisar(tx("Não foi possível excluir a unidade: {v1}", { v1: error.message }), 'erro');
+            return;
+        }
+        setUnidades(unidades.filter(u => u.id !== unidade.id));
+        avisar(tx("Unidade excluída."), 'sucesso');
     };
 
     const handleSalvarAcesso = async (e) => {
@@ -251,7 +294,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                                 <select value={acessoUnidade} onChange={(e) => setAcessoUnidade(e.target.value)} required className={`${inputCSS} cursor-pointer uppercase appearance-none`}>
                                     <option value="" disabled>{tx("Selecione a Unidade...")}</option>
                                     <option value="TODAS">{tx("Todas as Unidades (Global)")}</option>
-                                    {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                                    {unidades.filter(u => u.ativa !== false).map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
                                 </select>
                             </div>
 
@@ -357,16 +400,23 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
 
                             {/* LISTA UNIDADES */}
                             {abaAtiva === 'unidades' && (
-                                unidades.map(u => (
-                                    <div key={u.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 hover:shadow-md transition-all group dark:bg-slate-900 dark:border-slate-800">
+                                // Ativas primeiro; desativadas embaixo, apagadas, com "Reativar"
+                                [...unidades].sort((a, b) => (a.ativa === false) - (b.ativa === false)).map(u => (
+                                    <div key={u.id} className={`bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between gap-4 hover:shadow-md transition-all group dark:bg-slate-900 dark:border-slate-800 ${u.ativa === false ? 'opacity-60' : ''}`}>
                                         <div className="flex items-center gap-4">
-                                            <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><Building className="w-5 h-5" /></div>
+                                            <div className={`p-3 border rounded-xl shadow-inner ${u.ativa === false ? 'bg-slate-50 border-slate-200 text-slate-400 dark:bg-slate-800/60 dark:border-slate-700' : 'bg-emerald-50 border-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400'}`}><Building className="w-5 h-5" /></div>
                                             {/* 🔥 O PROBLEMA ESTAVA AQUI: text-white removido. Adicionado text-slate-800 forte */}
                                             <span className="text-sm font-black text-slate-800 uppercase tracking-wider dark:text-white">{u.nome}</span>
+                                            {u.ativa === false && <span className="px-2 py-0.5 rounded-md border bg-slate-100 border-slate-200 text-slate-500 text-[10px] font-black uppercase tracking-widest dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">{tx("Desativada")}</span>}
                                         </div>
-                                        <button onClick={() => handleDeleteUnidade(u.id)} className="text-slate-400 hover:text-rose-600 transition-colors p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title={tx("Excluir Unidade")}>
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleAtivarUnidade(u, u.ativa === false)} className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-colors ${u.ativa === false ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300' : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-amber-500/10'}`}>
+                                                {u.ativa === false ? tx("Reativar") : tx("Desativar")}
+                                            </button>
+                                            <button onClick={() => handleDeleteUnidade(u)} className="text-slate-400 hover:text-rose-600 transition-colors p-2 bg-slate-50 hover:bg-rose-50 border border-slate-200 hover:border-rose-200 rounded-xl shadow-sm dark:hover:text-rose-400 dark:bg-slate-800/60 dark:hover:bg-rose-500/10 dark:border-slate-800 dark:hover:border-rose-500/30" title={tx("Excluir (só unidade sem nenhum dado)")}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))
                             )}

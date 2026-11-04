@@ -13,6 +13,8 @@ import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { pendenciasAvaliacao } from './utils.js';
+import { excluirAvaliacaoComMotivo } from './lixeira.js';
+import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { MESES_FILTRO, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 
 const getLocalISODate = () => {
@@ -160,13 +162,8 @@ const PainelAvaliador = ({
 
     const removerAvaliacao = async (id) => {
         if (!podeEditar) return avisar(tx("Você não tem permissão."));
-        if (window.confirm(tx("🚨 ATENÇÃO: Tem certeza que deseja excluir esta avaliação?"))) {
-            try {
-                const { error } = await supabase.from('avaliacoes_realizadas').delete().eq('id', id);
-                if (error) throw error;
-                setDadosFiltrados(prev => prev.filter(item => item.id !== id));
-            } catch (err) { console.error(err); avisar(tx("Erro ao excluir avaliação.")); }
-        }
+        // Pede o motivo e manda para a lixeira (Admin/Mentor restauram pela Lixeira da tela inicial)
+        if (await excluirAvaliacaoComMotivo(id)) setDadosFiltrados(prev => prev.filter(item => item.id !== id));
     };
 
     const handleEditar = (avaliacao) => { setAvaliacaoEditando(avaliacao); setAbaAtiva('nova'); };
@@ -287,8 +284,8 @@ const PainelAvaliador = ({
     };
 
     const handleEnviarWhatsApp = () => {
-        const url = `https://wa.me/?text=${encodeURIComponent(textoRelatorioFormatado)}`;
-        window.open(url, '_blank');
+        // WhatsApp Web/aplicativo direto (a página de passagem do WhatsApp estragava os emojis)
+        abrirNoWhatsApp('', textoRelatorioFormatado);
     };
 
     // "Só incompletas": avaliações sem bioimpedância ou sem anamnese (para o avaliador completar)

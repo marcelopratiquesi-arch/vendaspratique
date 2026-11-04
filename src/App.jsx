@@ -472,12 +472,21 @@ export default function App() {
         return () => { ativo = false; clearTimeout(timer); supabase.removeChannel(canal); setUnidadesMentor(null); };
     }, [ehMentor, fetchUnidades, fetchVendas, fetchLeads, fetchAvaliacoes, fetchColaboradores]);
 
-    // Lista de unidades que as telas mostram (seletor, filtros, cadastros): para o Mentor, só as dele
+    // Lista de unidades que as telas mostram (seletor, filtros, cadastros): para o Mentor, só as dele.
+    // Unidade DESATIVADA (Configurações, 04/11/2026) não aparece; os dados dela continuam no banco.
     const unidadesVisiveis = useMemo(() => {
-        if (!ehMentor) return unidades;
+        const ativas = unidades.filter(u => u.ativa !== false);
+        if (!ehMentor) return ativas;
         const minhas = new Set(unidadesMentor || []);
-        return unidades.filter(u => minhas.has(normalizarNomeBusca(u.nome)));
+        return ativas.filter(u => minhas.has(normalizarNomeBusca(u.nome)));
     }, [ehMentor, unidades, unidadesMentor]);
+
+    // Se a unidade escolhida no topo foi desativada, volta para a visão de todas
+    useEffect(() => {
+        if (unidadeGlobal === 'TODAS') return;
+        const escolhida = unidades.find(u => normalizarNomeBusca(u.nome) === normalizarNomeBusca(unidadeGlobal));
+        if (escolhida && escolhida.ativa === false) setUnidadeGlobal('TODAS');
+    }, [unidades, unidadeGlobal]);
 
     // Se o Admin tirou a unidade que o Mentor estava vendo, volta para "Todas as minhas unidades"
     useEffect(() => {

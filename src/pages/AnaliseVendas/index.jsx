@@ -15,6 +15,7 @@ import {
 import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { avisar } from '../../components/avisar.js';
+import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { tx } from '../../i18n/traduzir.js';
 
 const getLocalISODate = () => {
@@ -430,8 +431,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     };
 
     const enviarWhatsApp = () => {
-        const url = `https://api.whatsapp.com/send?text=${encodeURIComponent(textoEditavel)}`;
-        window.open(url, '_blank');
+        // WhatsApp Web/aplicativo direto (a página de passagem do WhatsApp estragava os emojis)
+        abrirNoWhatsApp('', textoEditavel);
     };
 
     useEffect(() => {

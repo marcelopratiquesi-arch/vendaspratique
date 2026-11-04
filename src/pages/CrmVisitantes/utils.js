@@ -1,4 +1,5 @@
 import { localeAtual, tx } from '../../i18n/traduzir.js';
+import { MENSAGENS_PADRAO, montarMensagem, chaveDaFase } from './embaralhador.js';
 // ==========================================
 // UTILS: Funções de Apoio do CRM
 // ==========================================
@@ -41,13 +42,8 @@ export const somarDiasISO = (iso, dias) => {
     return dataLocalISO(new Date(a, m - 1, d + dias));
 };
 
-// Textos padrão (Admin/Líder podem editar no CRM; ficam na tabela crm_mensagens_prontas)
-export const MENSAGENS_PADRAO = {
-    VISITANTE_24H: 'Olá, {nome}! Aqui é da equipe da Pratique {unidade}. Muito obrigado pela sua visita ontem! 😊 O que você achou da academia e do atendimento? Ficou com alguma dúvida que a gente possa te ajudar?',
-    VISITANTE_48H: 'Oi, {nome}! Tudo bem? Aqui é da equipe da Pratique {unidade}. Passando para dizer que as portas estão abertas para você voltar e começar a treinar com a gente. 💪 Quer ajuda para escolher o plano ideal e já deixar sua matrícula pronta?',
-    ANIVERSARIO: 'Feliz aniversário, {nome}! 🎉 Toda a equipe da Pratique {unidade} deseja a você um novo ano de vida cheio de saúde, alegria e conquistas. Um grande abraço!',
-    MIGRACAO: 'Oi, {nome}! Tudo bem? Aqui é da equipe da Pratique {unidade}. 😊 Temos uma novidade para você: com o plano com nutricionista, você treina com acompanhamento da alimentação e chega mais rápido no seu objetivo. 🥗💪 Quer que eu te explique como funciona a troca do seu plano?'
-};
+// Textos padrão com 10 versões por situação (Admin/Líder/Mentor editam no CRM; ficam na tabela crm_mensagens_prontas)
+export { MENSAGENS_PADRAO };
 
 // ==========================================
 // TIPO DO CONTATO NA BASE: VISITANTE, CANCELADO e INATIVO
@@ -215,12 +211,8 @@ export const normalizarStatus = (status) => {
     return FASES_VALIDAS.includes(status) ? status : 'Novo';
 };
 
-// Link do WhatsApp sem repetir o 55 quando o telefone já vem com o código do Brasil
-export const linkWhatsApp = (telefone, texto) => {
-    let numero = apenasDigitos(telefone);
-    if (!(numero.length >= 12 && numero.startsWith('55'))) numero = '55' + numero;
-    return `https://wa.me/${numero}?text=${encodeURIComponent(texto || '')}`;
-};
+// Abrir o WhatsApp sem estragar os emojis (WhatsApp Web direto ou aplicativo): components/whatsapp.js
+export { linkWhatsApp, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp } from '../../components/whatsapp.js';
 
 export const formatarDataHora = (isoString) => {
     if (!isoString) return '';
@@ -242,34 +234,10 @@ export const getSaudacao = () => {
 // ==========================================
 // GERADOR DE MENSAGENS INTELIGENTE
 // ==========================================
-export const gerarTextoWhatsApp = (lead) => {
-    const nomeAluno = lead.nome ? lead.nome.trim().split(' ')[0] : 'Aluno';
-    const nomeFormatado = nomeAluno.charAt(0).toUpperCase() + nomeAluno.slice(1).toLowerCase();
-    
-    const saudacao = getSaudacao();
-    const isInativo = ehCanceladoOuInativo(lead.tipo_lead);
-
-    if (lead.status === 'Novo') {
-        return isInativo 
-            ? `${saudacao} ${nomeFormatado}, sentimos sua falta aqui na Pratique! Tudo bem com você?`
-            : `${saudacao} ${nomeFormatado}, tudo bem? Vi que você tem interesse em treinar com a gente!`;
-    } 
-    else if (lead.status === 'Em Contato') {
-        return isInativo
-            ? `${nomeFormatado}, a Pratique mudou e melhorou muito o atendimento! Queremos que você volte para conhecer nossa nova estrutura. 🚀\n\nE agora o nosso plano está super simples e fácil de voltar:\n✅ ZERO taxa de matrícula\n✅ SEM fidelidade\n✅ NÃO ocupa o limite do seu cartão\n\nBora treinar hoje?`
-            : `${nomeFormatado}, vem conhecer a PRATIQUE! 💪\n\nAgende sua visita e monte seu treino com a gente.\n\n✅ Sem taxa de matrícula\n✅ Sem fidelidade\n\nQual o melhor horário para você vir?`;
-    }
-    else if (lead.status === 'Fechado') {
-        return isInativo
-            ? `Que bom ter você de volta, ${nomeFormatado}! A família Pratique estava com saudades de ver você quebrando tudo nos treinos!`
-            : `Parabéns ${nomeFormatado}, seja muito bem-vindo(a) à família Pratique! Que bom ter você com a gente!`;
-    } 
-    else if (lead.status === 'Perdido') {
-        return `Poxa ${nomeFormatado}, que pena! Mas nossas portas estão sempre abertas para quando você quiser focar na sua saúde. Um abraço de toda a equipe!`;
-    }
-    
-    return `${saudacao} ${nomeFormatado}, tudo bem?`;
-};
+// Cada clique monta uma mensagem NOVA (10 versões por situação, embaralhador.js), pela fase e pelo tipo do contato.
+// Os textos vêm de "Mensagens" (Admin/Líder/Mentor editam); sem nada no banco, valem as versões padrão.
+export const chaveMensagemDoLead = (lead) => chaveDaFase(normalizarStatus(lead?.status), ehCanceladoOuInativo(lead?.tipo_lead));
+export const gerarTextoWhatsApp = (lead) => montarMensagem(chaveMensagemDoLead(lead), { nome: lead?.nome, unidade: lead?.unidade });
 
 // Configurações Globais do Funil
 export const COLUNAS = ['Novo', 'Em Contato', 'Fechado', 'Perdido'];

@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, linkWhatsApp as montarLinkWhatsApp, situacaoProximoContato, formatarDiaCurto } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, papelReal } from './utils';
 import { carregarResumoDoDia } from './contatosFeitos';
+import MensagensProntas from './MensagensProntas';
 import { 
     MessageCircle, X, Copy, Send, Phone, IdCard, Info, 
     PenTool, History, Loader2, Trophy, Target, UserPlus, MoveRight, 
-    CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban, CalendarClock, Snowflake
+    CheckCircle2, PhoneCall, Save, Calendar, User, AlignLeft, CreditCard, Ban, CalendarClock, Snowflake, RefreshCw
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -22,6 +23,10 @@ const Modais = ({
 }) => {
     const [novaNota, setNovaNota] = useState('');
     const [textoRelatorio, setTextoRelatorio] = useState('');
+    // Editor das mensagens prontas (versões do embaralhador), aberto pela Revisão de Mensagem
+    const [editandoMensagens, setEditandoMensagens] = useState(false);
+    const [destinoWpp, setDestinoWpp] = useState(() => destinoWhatsApp());
+    const podeEditarMensagens = ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuarioLogado));
 
     // ==========================================
     // DRAG & DROP (JANELAS FLUTUANTES)
@@ -86,8 +91,7 @@ const Modais = ({
     const enviarWppDireto = async () => {
         if (!modalWpp.lead) return;
         await registrarHistorico(modalWpp.lead.id, 'WhatsApp', `Mensagem enviada: "${modalWpp.texto}"`);
-        const linkWhatsApp = montarLinkWhatsApp(modalWpp.lead.telefone, modalWpp.texto);
-        window.open(linkWhatsApp, '_blank');
+        abrirNoWhatsApp(modalWpp.lead.telefone, modalWpp.texto);
         const leadContatado = modalWpp.lead;
         setModalWpp({ show: false, lead: null, texto: '' });
         // Contato marcado para hoje (ou atrasado): o CRM já pergunta quando é o próximo
@@ -218,9 +222,18 @@ const Modais = ({
             {/* ==========================================
                 1. MODAL: WHATSAPP (ENVIO RÁPIDO)
                 ========================================== */}
+            {editandoMensagens && modalWpp.lead && (
+                <MensagensProntas
+                    usuarioLogado={usuarioLogado}
+                    chaveInicial={chaveMensagemDoLead(modalWpp.lead)}
+                    onFechar={() => setEditandoMensagens(false)}
+                    onSalvo={() => setModalWpp(atual => ({ ...atual, texto: atual.lead ? gerarTextoWhatsApp(atual.lead) : atual.texto }))}
+                />
+            )}
+
             {modalWpp.show && modalWpp.lead && (
                 <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center p-4">
-                    <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(400px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                    <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(500px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         <div onMouseDown={handleMouseDownWpp} className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
                             <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest flex items-center gap-2 pointer-events-none">
                                 <MessageCircle className="w-5 h-5 text-emerald-500" />{' '}{tx("Revisão de Mensagem")}
@@ -233,6 +246,28 @@ const Modais = ({
                             <div className="flex items-center gap-3 mb-4 shrink-0">
                                 <span className={`inline-block px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase border shadow-sm ${STATUS_TOKENS[modalWpp.lead.status]?.bg} ${STATUS_TOKENS[modalWpp.lead.status]?.text} ${STATUS_TOKENS[modalWpp.lead.status]?.border}`}>{tx("Fase:")}{' '}{tx(modalWpp.lead.status)}</span>
                                 <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{tx("Enviando para:")}{' '}<strong className="text-slate-800 dark:text-white">{modalWpp.lead.nome}</strong></span>
+                            </div>
+                            {/* Embaralhador: outra versão da mensagem; Admin/Líder/Mentor editam as versões */}
+                            <div className="flex flex-wrap items-center justify-end gap-2 mb-2 shrink-0">
+                                {/* Onde abrir (fica guardado neste computador). Os dois vão direto, sem estragar os emojis */}
+                                {podeEscolherDestinoWhatsApp() && (
+                                    <div className="mr-auto flex items-center rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" title={tx("Onde a conversa abre neste computador")}>
+                                        {[['web', tx("WhatsApp Web")], ['app', tx("Aplicativo")]].map(([valor, rotulo]) => (
+                                            <button key={valor} type="button" onClick={() => { definirDestinoWhatsApp(valor); setDestinoWpp(valor); }}
+                                                className={`h-8 px-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${destinoWpp === valor ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
+                                                {rotulo}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                                {podeEditarMensagens && (
+                                    <button type="button" onClick={() => setEditandoMensagens(true)} className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                        <PenTool className="w-3.5 h-3.5" />{tx("Mensagens")}
+                                    </button>
+                                )}
+                                <button type="button" onClick={() => setModalWpp({ ...modalWpp, texto: gerarTextoWhatsApp(modalWpp.lead) })} className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                    <RefreshCw className="w-3.5 h-3.5" />{tx("Gerar outra")}
+                                </button>
                             </div>
                             <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
                         </div>

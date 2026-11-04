@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CalendarCheck, AlarmClock, MessageCircle, Check, Info, Ban, CalendarClock, Loader2 } from 'lucide-react';
 import { JanelaJustificativa } from './JanelasContato';
 import { EtiquetaParado } from './EtiquetasCrm';
-import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, linkWhatsApp, classeTipoLead } from './utils';
+import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, abrirNoWhatsApp, classeTipoLead } from './utils';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -37,7 +37,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
     const abrirWhatsApp = async (lead) => {
         if (!lead.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
         const texto = gerarTextoWhatsApp(lead);
-        window.open(linkWhatsApp(lead.telefone, texto), '_blank');
+        abrirNoWhatsApp(lead.telefone, texto);
         setRegistrando(lead.id);
         await registrarHistorico(lead.id, 'WhatsApp', `Mensagem enviada: "${texto}"`);
         setRegistrando(null);

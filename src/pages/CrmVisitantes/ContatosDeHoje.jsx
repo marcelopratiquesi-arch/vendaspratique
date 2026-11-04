@@ -2,14 +2,15 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { CalendarCheck, X, MessageCircle, Check, Loader2, Cake, UserCheck, Repeat, PenSquare, Ban, AlarmClock } from 'lucide-react';
 import { JanelaNaoContatar, JanelaJustificativa } from './JanelasContato';
 import {
-    ehVisitanteRecepcao, dataDaVisita, diaISO, preencherMensagem, MENSAGENS_PADRAO,
-    linkWhatsApp, papelReal, marcaFeitoPor
+    ehVisitanteRecepcao, dataDaVisita, diaISO, MENSAGENS_PADRAO,
+    abrirNoWhatsApp, papelReal, marcaFeitoPor
 } from './utils';
 import {
     carregarMensagensProntas, carregarContatosFeitos, registrarContatoFeito,
     carregarNaoContatar, carregarAniversariantes, chaveContatoFeito, estaNaoContatar, incluirNaoContatar
 } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
+import { montarMensagem, previaMensagem } from './embaralhador.js';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
@@ -103,13 +104,15 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
     const totalPendentes = GRUPOS.reduce((soma, g) => soma + pendentes[g.tipo].length, 0);
     useEffect(() => { if (onPendentes) onPendentes(totalPendentes, carregando); }, [totalPendentes, carregando, onPendentes]);
 
-    const textoDe = (pessoa) => preencherMensagem(mensagens[pessoa.tipo], { nome: pessoa.nome, unidade: unidadeChave });
+    // Cada clique monta uma versão nova da mensagem (embaralhador); a dica do botão mostra uma prévia fixa
+    const textoDe = (pessoa) => montarMensagem(pessoa.tipo, { nome: pessoa.nome, unidade: unidadeChave }, mensagens);
+    const previaDe = (pessoa) => previaMensagem(pessoa.tipo, { nome: pessoa.nome, unidade: unidadeChave }, mensagens);
 
     // Anti-golpe: abrir o WhatsApp JÁ conta como feito (canal WHATSAPP) e tira a pessoa da lista
     const abrirWhatsApp = async (pessoa) => {
         if (!pessoa.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
         const texto = textoDe(pessoa);
-        window.open(linkWhatsApp(pessoa.telefone, texto), '_blank');
+        abrirNoWhatsApp(pessoa.telefone, texto);
         if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'WhatsApp', `Mensagem enviada: "${texto}"`);
         await marcarFeito(pessoa, { canal: 'WHATSAPP' });
     };
@@ -192,7 +195,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                                     <p className="text-[10px] font-bold text-slate-400 truncate">{p.telefone || tx("Sem telefone")} · {p.detalhe}</p>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: textoDe(p) })}>
+                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: previaDe(p) })}>
                                                         {marcando === p.chave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>
                                                     <button type="button" onClick={() => setJustificando(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>

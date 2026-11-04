@@ -5,6 +5,7 @@ import ModalEvolucaoAluno from './ModalEvolucaoAluno.jsx';
 import { FundoGlobalComFotos } from './FundoGlobal.jsx';
 import PainelInicial from './PainelInicial.jsx';
 import PainelAvaliador from './PainelAvaliador.jsx';
+import LixeiraAvaliacoes from './LixeiraAvaliacoes.jsx';
 import { tx } from '../../i18n/traduzir.js';
 
 const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], alunoPreSelecionado = null, limparPreSelecao, onVoltarParaAluno }) => {
@@ -60,6 +61,16 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], a
             return !isInativo && isSaverOuLider;
         });
     }, [colaboradores]);
+
+    // Lixeira das avaliações excluídas (botão "Lixeira" da tela inicial)
+    if (abaAtiva === 'lixeira') {
+        return (
+            <div className="min-h-screen relative pb-12 font-sans animate-[fadeIn_0.3s_ease-out]">
+                <FundoGlobalComFotos />
+                <LixeiraAvaliacoes usuarioLogado={usuarioLogado} onVoltar={() => setAbaAtiva('relatorio')} />
+            </div>
+        );
+    }
 
     if (abaAtiva === 'construtor') {
         return (

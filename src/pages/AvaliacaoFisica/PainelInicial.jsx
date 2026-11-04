@@ -3,8 +3,9 @@ import { supabase } from '../../supabaseClient.js';
 import { 
     Dumbbell, Building2, ChevronRight, BarChart3, ListChecks, Users, BarChart2, 
     CalendarDays, Activity, Scale, Percent, FileText, Search, Loader2,
-    Eye, X, ChevronLeft, TrendingUp, TrendingDown, Minus, HeartPulse, Droplet, CheckSquare, AlertCircle, User
+    Eye, X, ChevronLeft, TrendingUp, TrendingDown, Minus, HeartPulse, Droplet, CheckSquare, AlertCircle, User, Trash2
 } from 'lucide-react';
+import { useTotalLixeiraAvaliacoes } from './lixeira.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js'; 
 import { SeletorPeriodo, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
@@ -408,6 +409,8 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
     const profsDaUnidade = colaboradores.filter(c => c.unidade === usuarioLogado?.unidade);
+    // Lixeira das avaliações (04/11/2026): contador vermelho no botão, da unidade do topo (TODAS = as que a pessoa vê)
+    const totalLixeira = useTotalLixeiraAvaliacoes(usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : null);
 
     const [metricasCards, setMetricasCards] = useState({});
     const [avaliacoesRecentes, setAvaliacoesRecentes] = useState([]);
@@ -572,11 +575,17 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                     )}
                 </div>
 
-                {isAdmin && (
-                    <button onClick={() => setAbaAtiva('construtor')} className="mt-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-800">
-                        <ListChecks className="w-3.5 h-3.5" />{' '}{tx("Configurar Formulário")}
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                    {isAdmin && (
+                        <button onClick={() => setAbaAtiva('construtor')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-800">
+                            <ListChecks className="w-3.5 h-3.5" />{' '}{tx("Configurar Formulário")}
+                        </button>
+                    )}
+                    <button onClick={() => setAbaAtiva('lixeira')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-rose-200 dark:hover:border-rose-800">
+                        <Trash2 className="w-3.5 h-3.5" />{' '}{tx("Lixeira")}
+                        {totalLixeira > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalLixeira}</span>}
                     </button>
-                )}
+                </div>
             </div>
 
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6 relative z-20 mb-8">

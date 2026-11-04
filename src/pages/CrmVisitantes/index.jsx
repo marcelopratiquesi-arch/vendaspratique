@@ -13,7 +13,7 @@ import AbaMigracao from './AbaMigracao';
 import AbaNaoContatar from './AbaNaoContatar';
 import AbaHoje from './AbaHoje';
 import { JanelaNaoContatar, JanelaMotivoPerda, JanelaProximoContato } from './JanelasContato';
-import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar } from './contatosFeitos';
+import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas } from './contatosFeitos';
 import { diaISO, contarPessoasDaMeta } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
 import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send } from 'lucide-react';
@@ -56,6 +56,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         return () => clearTimeout(timer);
     }, [visitantesRecentes]);
     const atualizarAgora = useCallback(() => { ultimaAtualizacao.current = Date.now(); setVersaoDados(v => v + 1); }, []);
+
+    // Mensagens prontas do WhatsApp (versões do embaralhador): carrega ao abrir o CRM para o Kanban/Lista/Hoje usarem
+    useEffect(() => { carregarMensagensProntas(); }, [versaoDados]);
 
     useEffect(() => {
         let cancelado = false;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, Star, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2 } from 'lucide-react';
 import { decomporPlano } from '../AnaliseVendas/utils.js';
-import { preencherMensagem, MENSAGENS_PADRAO, linkWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
+import { MENSAGENS_PADRAO, abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
+import { montarMensagem } from './embaralhador.js';
 import {
     carregarUltimoPlanoAlunos, carregarAndamentoMigracao, salvarAndamentoMigracao, puxarParaFilaMigracao,
     devolverDaFilaMigracao, carregarMensagensProntas, registrarContatoFeito, carregarMigracaoContatadosHoje, estaNaoContatar
@@ -203,7 +204,8 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
 
     const abrirWhatsApp = async (linha) => {
         if (!linha.telefone) return avisar(tx("Este aluno está sem telefone cadastrado."));
-        window.open(linkWhatsApp(linha.telefone, preencherMensagem(mensagem, { nome: linha.nome, unidade: unidadeChave })), '_blank');
+        // Cada clique monta uma versão nova da mensagem de migração (embaralhador)
+        abrirNoWhatsApp(linha.telefone, montarMensagem('MIGRACAO', { nome: linha.nome, unidade: unidadeChave }, { MIGRACAO: mensagem }));
         await registrarContato(linha, { canal: 'WHATSAPP' });
     };
 
