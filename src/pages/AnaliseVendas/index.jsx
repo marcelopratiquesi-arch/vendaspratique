@@ -190,7 +190,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     useEffect(() => {
         const hoje = new Date();
-        if (abaPrincipal === 'relatorio' || abaPrincipal === 'rankingGlobal') {
+        // Ranking global abre em "Este mês" (decisão do dono, 04/11/2026); Relatórios continuam em "Hoje"
+        if (abaPrincipal === 'relatorio') {
             setPresetPeriodo('hoje');
             setTipoFiltro('dia');
             setDiaEspecifico(getLocalISODate());
@@ -412,7 +413,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             filtrosAtivos.push({ id, texto: `${nome}: ${visiveis.length} de ${opcoes.length}`, remover: () => setOcultos([]) });
         }
     });
-    const presetPadrao = (abaPrincipal === 'relatorio' || abaPrincipal === 'rankingGlobal') ? 'hoje' : 'este_mes';
+    const presetPadrao = abaPrincipal === 'relatorio' ? 'hoje' : 'este_mes';
     const temFiltroAtivo = filtrosAtivos.length > 0 || presetPeriodo !== presetPadrao;
 
     const abrirModalWhatsapp = (texto, config = {}) => {
@@ -641,6 +642,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             {abaPrincipal === 'rankingGlobal' && temVisaoGlobal && (
                 <RankingGlobalTab
                     vendasFiltradas={vendasFiltradas}
+                    vendasTodas={vendas}
                     visitantesFiltrados={visitantesFiltrados}
                     avaliacoesFiltradas={avaliacoesFiltradas}
                     temVisaoGlobal={temVisaoGlobal}

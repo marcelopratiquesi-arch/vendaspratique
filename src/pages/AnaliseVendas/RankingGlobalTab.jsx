@@ -1,5 +1,7 @@
 // src/pages/AnaliseVendas/RankingGlobalTab.jsx
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { supabase } from '../../supabaseClient.js';
+import { montarMensagemMetasRede } from './relatorio/mensagemMetasRede.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import {
     COLUNAS_MATRIZ,
@@ -38,6 +40,7 @@ const doisDigitos = (n) => String(n || 0).padStart(2, '0');
 
 const RankingGlobalTab = ({
     vendasFiltradas = [],
+    vendasTodas = [],
     visitantesFiltrados = [],
     avaliacoesFiltradas = [],
     planos = [],
@@ -50,6 +53,20 @@ const RankingGlobalTab = ({
     const langAtual = locale || language || 'pt-BR';
 
     const [visaoDetalhada, setVisaoDetalhada] = useState(false);
+
+    // Meta Start de cada unidade no mês atual (para o WhatsApp "Resumo" de metas; decisão do dono, 04/11/2026)
+    const [metasMes, setMetasMes] = useState({});
+    useEffect(() => {
+        const hoje = new Date();
+        supabase.from('metas_unidades').select('unidade, meta_nutri, meta_produtos')
+            .eq('mes', String(hoje.getMonth() + 1).padStart(2, '0')).eq('ano', String(hoje.getFullYear()))
+            .then(({ data, error }) => {
+                if (error) { console.error('Ranking: erro ao ler as metas', error); return; }
+                const mapa = {};
+                (data || []).forEach(m => { mapa[String(m.unidade || '').toUpperCase()] = m; });
+                setMetasMes(mapa);
+            });
+    }, []);
     const [criterioRanking, setCriterioRanking] = useState('TOTAL');
     const [colunaOrdemMatriz, setColunaOrdemMatriz] = useState(null);
 
@@ -171,6 +188,11 @@ const RankingGlobalTab = ({
     };
 
     const handleGerarWhatsappGlobal = () => {
+        // Resumo = metas do mês (Nutri e Produtos x Meta Start), sempre do mês atual até hoje
+        if (!visaoDetalhada) {
+            abrirModalWhatsapp(montarMensagemMetasRede({ vendas: vendasTodas, metas: metasMes, planos, produtos }), { titulo: tx('Metas da rede (Nutri e Produtos)'), icone: 'share-2', cor: 'blue' });
+            return;
+        }
         if (unidadesOrdenadas.length === 0) {
             avisar(t('analytics.report.noDataWpp', { defaultValue: "Não há dados para gerar relatório com os filtros atuais." }));
             return;

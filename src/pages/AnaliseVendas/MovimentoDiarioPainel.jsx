@@ -2,10 +2,10 @@
 // MovimentacaoForm = parte de baixo do card verde "Movimentação" (acumulado do mês digitado);
 // MovimentoDiarioPainel (padrão) = tabela por dia, com o valor do dia e o acumulado do mês.
 import React, { useEffect, useMemo, useState } from 'react';
-import { Save, Loader2, Check, Pencil, HelpCircle, AlertTriangle, ArrowDownRight, ArrowUpRight, Wallet, UserPlus, UserMinus } from 'lucide-react';
+import { Save, Loader2, Check, Pencil, HelpCircle, AlertTriangle, ArrowDownRight, ArrowUpRight, Wallet, UserPlus, UserMinus, Users } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
-import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, hojeIso } from './movimentoDiario.js';
+import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, hojeIso, ativosAntesDe } from './movimentoDiario.js';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const diaCurto = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
@@ -59,7 +59,8 @@ const centavos = (v) => Math.round(v * 100) / 100;
 const Mais = ({ valor, cor, formatar = (v) => v }) => (valor === null || valor === undefined || Number.isNaN(valor) ? null
     : <span className={`text-sm font-black tabular-nums whitespace-nowrap ${cor}`}>{valor >= 0 ? '+' : ''}{formatar(valor)}</span>);
 
-export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, aoGravar }) => {
+// ativosMes = "Qtd. Ativos Atual" do mês (metas_unidades); aoGravarAtivos = continua atualizando esse número (meta de Ativos e card do Dashboard)
+export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, aoGravar, ativosMes = null, aoGravarAtivos }) => {
     const podeGravar = podeGravarMovimento(usuarioLogado);
     const hoje = hojeIso();
     const ontem = somarDiasIso(hoje, -1);
@@ -72,26 +73,35 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
 
     // Lê o mês até a data (para o já gravado e o lançamento anterior)
     const faixaMes = useMemo(() => ({ inicio: inicioMes, fim: ate }), [inicioMes, ate]);
-    const { derivados, carregando, semTabela, recarregar } = useMovimentoDiario({ unidade, faixa: faixaMes });
+    const { derivados, carregando, semTabela, semAtivos, recarregar } = useMovimentoDiario({ unidade, faixa: faixaMes });
     const doMes = derivados.filter(l => l.data >= inicioMes && l.data <= ate);
     const gravado = doMes.find(l => l.data === ate);
     const anterior = [...doMes].reverse().find(l => l.data < ate);
 
     const gravadoCanc = gravado && gravado.cancelamentosAcum !== null ? gravado.cancelamentosAcum : null;
     const gravadoFat = gravado && gravado.faturamentoAcum !== null ? centavos(gravado.faturamentoAcum) : null;
+    // Ativos = TOTAL do dia (foto, não acumula); "+X" = diferença para o último ativos lançado (decisão do dono, 04/11/2026)
+    const valorMes = ativosMes === null || ativosMes === undefined || ativosMes === '' ? null : Number(ativosMes);
+    const gravadoAtivos = semAtivos ? valorMes : (gravado && gravado.ativos !== null ? gravado.ativos : null);
+    const ativosAnterior = semAtivos ? null : ativosAntesDe(derivados, unidade, ate);
+    const [ativos, setAtivos] = useState('');
     const [cancelamentos, setCancelamentos] = useState('');
     const [faturamento, setFaturamento] = useState('');
     const [salvando, setSalvando] = useState(false);
     const [salvo, setSalvo] = useState(false);
     useEffect(() => {
+        setAtivos(gravadoAtivos ?? '');
         setCancelamentos(gravadoCanc ?? '');
         setFaturamento(numeroParaCampo(gravadoFat));
-    }, [ate, gravadoCanc, gravadoFat]);
+    }, [ate, gravadoAtivos, gravadoCanc, gravadoFat]);
 
     const cancNum = lerNumeroBR(cancelamentos);
     const fatNum = lerNumeroBR(faturamento);
-    const mudou = (cancNum ?? null) !== gravadoCanc || (fatNum ?? null) !== gravadoFat;
-    const invalido = Number.isNaN(cancNum) || Number.isNaN(fatNum) || cancNum < 0 || fatNum < 0 || (cancNum !== null && !Number.isInteger(cancNum));
+    const ativosNum = lerNumeroBR(ativos);
+    const mudou = (cancNum ?? null) !== gravadoCanc || (fatNum ?? null) !== gravadoFat || (ativosNum ?? null) !== gravadoAtivos;
+    const invalido = Number.isNaN(cancNum) || Number.isNaN(fatNum) || Number.isNaN(ativosNum) || cancNum < 0 || fatNum < 0 || ativosNum < 0
+        || (cancNum !== null && !Number.isInteger(cancNum)) || (ativosNum !== null && !Number.isInteger(ativosNum));
+    const maisAtivos = ativosNum === null || Number.isNaN(ativosNum) || ativosAnterior === null ? null : ativosNum - ativosAnterior;
 
     const entradasMes = entradasAcumuladasAte(entradas, ate);
     const maisEntradas = entradas.get(ate) || 0;
@@ -103,12 +113,16 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
         if (!podeGravar || salvando || !mudou) return;
         if (invalido) return avisar(tx('Digite um número válido.'), 'erro');
         setSalvando(true);
-        const erro = await salvarMovimentoDia({ unidade, data: ate, faturamento: fatNum, cancelamentos: cancNum, usuario: usuarioLogado });
+        const erro = await salvarMovimentoDia({ unidade, data: ate, faturamento: fatNum, cancelamentos: cancNum, ativos: semAtivos ? undefined : ativosNum, usuario: usuarioLogado });
         setSalvando(false);
         if (erro) {
             console.error('Movimentação: erro ao gravar', erro);
             avisar(tx('Não foi possível gravar a movimentação: {erro}', { erro: erro.message || erro.code || '' }), 'erro');
             return;
+        }
+        // Lançamento de hoje (ou sem o campo no banco) também atualiza o "Qtd. Ativos Atual" do mês
+        if (ativosNum !== null && ativosNum !== valorMes && (ate === hoje || semAtivos)) {
+            try { await aoGravarAtivos?.(ativosNum); } catch (e2) { console.error('Movimentação: erro ao atualizar os ativos do mês', e2); }
         }
         setSalvo(true); setTimeout(() => setSalvo(false), 1800);
         recarregar();
@@ -138,6 +152,14 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
                 </div>
             </div>
 
+            <LinhaMov icone={Users} corIcone="text-emerald-600 dark:text-emerald-400" rotulo={tx('Ativos')}
+                dica={tx('Total de alunos ativos no dia (não é acumulado). O "+" mostra quantos ganhou ou perdeu desde o último lançamento.')}>
+                <div className="flex items-center gap-2">
+                    <Mais valor={maisAtivos} cor={maisAtivos < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'} />
+                    <input type="text" inputMode="numeric" aria-label={tx('Ativos')} value={ativos} onChange={(e) => setAtivos(e.target.value)} disabled={!podeGravar} placeholder={ativosAnterior !== null ? String(ativosAnterior) : '0'} className={`${caixaNumero} w-[72px] text-center`} />
+                </div>
+            </LinhaMov>
+            {semAtivos && <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">{tx('Para guardar os ativos de cada dia, rode o arquivo sql/2026-10-31-movimento-diario/3_campo_ativos.sql no Supabase. Até lá, o número vale para o mês.')}</p>}
             <LinhaMov icone={UserPlus} corIcone="text-emerald-600 dark:text-emerald-400" rotulo={tx('Entradas')} etiqueta={tx('automático')}
                 dica={tx('Planos vendidos (igual ao Dashboard; o PRATIQUE NUTRI é adicional e não entra).')}>
                 <div className="flex items-center gap-2">
@@ -185,7 +207,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
     const porDia = useMemo(() => {
         const dentro = (d) => (!faixa?.inicio || d >= faixa.inicio) && (!faixa?.fim || d <= faixa.fim);
         const mapa = new Map();
-        const linhaDe = (d) => mapa.get(d) || mapa.set(d, { dia: d, entradas: 0, cancDia: null, cancAcum: null, fatDia: null, fatAcum: null, diasCobertos: 1 }).get(d);
+        const linhaDe = (d) => mapa.get(d) || mapa.set(d, { dia: d, ativos: null, ativosVar: null, entradas: 0, cancDia: null, cancAcum: null, fatDia: null, fatAcum: null, diasCobertos: 1 }).get(d);
         entradas.forEach((qtd, d) => { if (dentro(d)) linhaDe(d).entradas += qtd; });
         derivados.forEach(l => {
             if (!dentro(l.data)) return;
@@ -194,6 +216,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
             r.cancDia = somar(r.cancDia, l.cancelamentosDia); r.cancAcum = somar(r.cancAcum, l.cancelamentosAcum);
             r.fatDia = somar(r.fatDia, l.faturamentoDia); r.fatAcum = somar(r.fatAcum, l.faturamentoAcum);
             r.diasCobertos = Math.max(r.diasCobertos, l.diasCobertos || 1);
+            r.ativos = somar(r.ativos, l.ativos ?? null); r.ativosVar = somar(r.ativosVar, l.ativosVar ?? null);
         });
         return [...mapa.values()].map(r => ({ ...r, entradasAcum: entradasAcumuladasAte(entradas, r.dia) })).sort((a, b) => b.dia.localeCompare(a.dia));
     }, [entradas, derivados, faixa]);
@@ -215,10 +238,10 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                 {porDia.length === 0 ? (
                     <p className="text-center text-[13px] font-semibold text-slate-500 py-10 dark:text-slate-400">{tx('Nenhum movimento no período escolhido.')}</p>
                 ) : (
-                    <table className="w-full min-w-[560px] text-left border-collapse">
+                    <table className="w-full min-w-[640px] text-left border-collapse">
                         <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
                             <tr>
-                                {[['Dia', 'left'], ['Entradas', 'right'], ['Cancelamentos', 'right'], ['Saldo', 'right'], ['Faturamento', 'right'], ['', 'right']].map(([c, al], i) => (
+                                {[['Dia', 'left'], ['Ativos', 'right'], ['Entradas', 'right'], ['Cancelamentos', 'right'], ['Saldo', 'right'], ['Faturamento', 'right'], ['', 'right']].map(([c, al], i) => (
                                     <th key={i} className={`px-2 py-2.5 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:text-slate-400 text-${al}`}>
                                         {c ? tx(c) : <span className="sr-only">{tx('Editar')}</span>}
                                         {c === 'Saldo' && <Dica texto={tx('Saldo = entradas − cancelamentos do dia.')} />}
@@ -234,6 +257,10 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                                         <td className="px-2 py-2 whitespace-nowrap">
                                             <span className="block text-[13px] font-bold text-slate-800 capitalize dark:text-white">{diaCurto(r.dia)}</span>
                                             {r.diasCobertos > 1 && r.cancDia !== null && <span className="block text-[10px] font-semibold text-amber-600 dark:text-amber-400">{tx('soma de {qtd} dias', { qtd: r.diasCobertos })}</span>}
+                                        </td>
+                                        <td className="px-2 py-2 text-right tabular-nums whitespace-nowrap">
+                                            <span className="block text-[13px] font-bold text-slate-800 dark:text-white">{r.ativos === null ? <span className="text-slate-400">—</span> : r.ativos}</span>
+                                            {r.ativosVar !== null && <span className={`block text-[10px] font-black ${r.ativosVar < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{sinal(r.ativosVar)}</span>}
                                         </td>
                                         <Celula dia={r.entradas} acum={r.entradasAcum} cor="text-emerald-700 dark:text-emerald-400" />
                                         <Celula dia={r.cancDia} acum={r.cancAcum} cor="text-rose-700 dark:text-rose-300" />
@@ -254,6 +281,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                         <tfoot>
                             <tr className="sticky bottom-0 bg-slate-50 dark:bg-slate-800">
                                 <td className="px-2 py-2.5 text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Total do período')}</td>
+                                <td />
                                 <td className="px-2 py-2.5 text-[13px] font-black text-emerald-700 text-right tabular-nums dark:text-emerald-400"><ArrowUpRight className="w-3.5 h-3.5 inline mr-0.5" />{total.entradas}</td>
                                 <td className="px-2 py-2.5 text-[13px] font-black text-rose-700 text-right tabular-nums dark:text-rose-300"><ArrowDownRight className="w-3.5 h-3.5 inline mr-0.5" />{total.cancelamentos}</td>
                                 <td className="px-2 py-2.5 text-[13px] font-black text-slate-800 text-right tabular-nums dark:text-white">{sinal(total.entradas - total.cancelamentos)}</td>

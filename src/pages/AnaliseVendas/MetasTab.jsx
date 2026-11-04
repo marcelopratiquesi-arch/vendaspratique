@@ -5,9 +5,10 @@ import { qtdValidaProduto } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
 import MovimentoDiarioPainel, { MovimentacaoForm } from './MovimentoDiarioPainel.jsx';
 import MonitorMovimentacao from './MonitorMovimentacao.jsx';
+import HistoricoMetas from './HistoricoMetas.jsx';
 import { useMovimentoDiario, entradasPorDia, podeGravarMovimento } from './movimentoDiario.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
-import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp } from 'lucide-react';
+import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, History, XCircle, RotateCcw } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { infoDoMes, avaliarMeta } from './painel/calculosPainel.js';
@@ -257,7 +258,29 @@ const MetasTab = ({
     const [metasDoBanco, setMetasDoBanco] = useState({});
 
     const unidadeAtivaEdicao = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
+
+    // "Não tem Personal Class" por unidade, vale para sempre até desmarcar (decisão do dono, 04/11/2026)
+    const [semPersonalMapa, setSemPersonalMapa] = useState({});
+    const [historicoAberto, setHistoricoAberto] = useState(null); // 'start' | 'mensal' | null
+    useEffect(() => {
+        supabase.from('unidades_sem_personal').select('unidade, sem_personal').then(({ data, error }) => {
+            if (error) { console.warn('Metas: falta rodar sql/2026-11-04-metas-personal/1_unidades_sem_personal.sql', error.message); return; }
+            const mapa = {};
+            (data || []).forEach(l => { if (l.sem_personal) mapa[String(l.unidade).toUpperCase()] = true; });
+            setSemPersonalMapa(mapa);
+        });
+    }, []);
     const podeEditarCampos = unidadeAtivaEdicao && unidadeAtivaEdicao !== 'TODOS';
+    const semPersonal = !!semPersonalMapa[String(unidadeAtivaEdicao || '').toUpperCase()];
+    const indicadoresMensal = semPersonal ? 3 : 4;
+    const marcarSemPersonal = async (valor) => {
+        const u = String(unidadeAtivaEdicao).toUpperCase();
+        if (valor && !window.confirm(tx('Marcar que a unidade {unidade} NÃO TEM Personal Class? O Personal some das metas (Start e Mensal) e a gratificação mensal fica com 3 indicadores.', { unidade: u }))) return;
+        const { error } = await supabase.from('unidades_sem_personal').upsert({ unidade: u, sem_personal: valor, atualizado_por: usuarioLogado?.nome || null, atualizado_em: new Date().toISOString() }, { onConflict: 'unidade' });
+        if (error) { console.error('Metas: erro ao gravar Personal', error); avisar(tx('Não foi possível gravar: {erro}', { erro: error.message }), 'erro'); return; }
+        setSemPersonalMapa(m => { const n = { ...m }; if (valor) n[u] = true; else delete n[u]; return n; });
+        avisar(valor ? tx('Unidade marcada sem Personal Class.') : tx('Personal Class voltou para as metas.'), 'sucesso');
+    };
 
     // Movimentação (card verde + tabela por dia): o dono digita o acumulado do mês; regras em movimentoDiario.js
     const [diaPedido, setDiaPedido] = useState(null); // lápis da tabela: abre o card naquele dia
@@ -368,11 +391,12 @@ const MetasTab = ({
             if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') produtosRealizado += qtdValidaProduto(v, dosesValidas);
         });
 
-        const metaUnidade = metasDoBanco[unidade.toUpperCase()] || {
+        let metaUnidade = metasDoBanco[unidade.toUpperCase()] || {
             meta_nutri: 0, meta_produtos: 0, meta_personal: 0,
             meta_ativos_mensal: 0, meta_nutri_mensal: 0, meta_plus_mensal: 0, meta_pers_mensal: 0,
             ativos_atual: 0
         };
+        if (semPersonalMapa[unidade.toUpperCase()]) metaUnidade = { ...metaUnidade, meta_personal: 0, meta_pers_mensal: 0 };
 
         return {
             unidade,
@@ -443,7 +467,7 @@ const MetasTab = ({
         if (faltam.length > 0) {
             txt += faltam.join('\n');
         } else {
-            txt += `🎉 PARABÉNS! Vocês bateram todas as metas e garantiram os R$ 200,00 de gratificação extra! 🚀`;
+            txt += `🎉 PARABÉNS! Vocês bateram todas as metas e garantiram os R$ ${personal.meta > 0 ? 200 : 150},00 de gratificação extra! 🚀`;
         }
 
         abrirModalWhatsapp(txt, { titulo: `Alerta: Meta Mensal ${dados.unidade}`, icone: 'award', cor: 'emerald' });
@@ -467,8 +491,9 @@ const MetasTab = ({
                             </p>
 
                             <div className="space-y-3 flex-1">
-                                <InputFieldWithSave label={tx("Qtd. Ativos Atual")} description={tx("Alunos ativos hoje")} icon={Users} value={ativosAtual} dbValue={metaCache?.ativos_atual} onChange={setAtivosAtual} onSave={(val) => salvarCampo('ativos_atual', val)} theme="emerald" />
-                                <MovimentacaoForm unidade={unidadeAtivaEdicao} diaPedido={diaPedido} entradas={entradasMovimento} usuarioLogado={usuarioLogado} aoGravar={movimento.recarregar} />
+                                {/* Ativos agora são lançados por dia, junto com a movimentação (um botão só; decisão do dono, 04/11/2026) */}
+                                <MovimentacaoForm unidade={unidadeAtivaEdicao} diaPedido={diaPedido} entradas={entradasMovimento} usuarioLogado={usuarioLogado} aoGravar={movimento.recarregar}
+                                    ativosMes={metaCache?.ativos_atual ?? (ativosAtual === "" ? null : ativosAtual)} aoGravarAtivos={async (val) => { setAtivosAtual(val); await salvarCampo('ativos_atual', val); }} />
                             </div>
                         </div>
 
@@ -487,10 +512,22 @@ const MetasTab = ({
                             <div className="space-y-3 flex-1">
                                 <InputFieldWithSave label={tx("Nutri")} description="Meta de planos Nutri" icon={Leaf} value={metaNutri} dbValue={metaCache?.meta_nutri} onChange={setMetaNutri} onSave={(val) => salvarCampo('meta_nutri', val)} theme="blue" />
                                 <InputFieldWithSave label={tx("Produto")} description="Meta de produtos físicos" icon={Package} value={metaProdutos} dbValue={metaCache?.meta_produtos} onChange={setMetaProdutos} onSave={(val) => salvarCampo('meta_produtos', val)} theme="blue" />
-                                <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" />
+                                {semPersonal ? <div className="flex items-center justify-between p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl gap-3 dark:bg-slate-800/60 dark:border-slate-700">
+                                        <div className="flex items-center gap-3 min-w-0"><div className="p-2 rounded-xl bg-white border border-slate-100 shrink-0 text-slate-400 dark:bg-slate-900 dark:border-slate-800"><Dumbbell className="w-5 h-5" /></div>
+                                            <div className="min-w-0"><div className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Personal Class")}</div><div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx("Esta unidade não tem Personal Class")}</div></div></div>
+                                        <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>
+                                    </div> : (
+                                    <div>
+                                        <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" />
+                                        <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="mt-5 bg-blue-50/80 border border-blue-100 rounded-xl p-4 flex items-center gap-3 shadow-sm dark:bg-blue-500/10 dark:border-blue-500/30">
+                            <button type="button" onClick={() => setHistoricoAberto('start')} className="mt-5 w-full h-10 rounded-xl border border-blue-200 bg-white text-blue-700 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10">
+                                <History className="w-4 h-4" />{tx("Ver metas anteriores")}
+                            </button>
+                            <div className="mt-3 bg-blue-50/80 border border-blue-100 rounded-xl p-4 flex items-center gap-3 shadow-sm dark:bg-blue-500/10 dark:border-blue-500/30">
                                 <div className="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center shrink-0">
                                     <Trophy className="w-4 h-4" />
                                 </div>
@@ -505,7 +542,7 @@ const MetasTab = ({
                             <div className="flex items-center gap-3 mb-2">
                                 <Award className="w-6 h-6 text-amber-500 shrink-0" />
                                 <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight dark:text-amber-300">{tx("META MENSAL")}</h3>
-                                <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ 200</span>
+                                <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ {indicadoresMensal * 50}</span>
                             </div>
                             <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
                                 {tx("Defina as metas mensais da sua unidade.")}<br/>
@@ -516,12 +553,24 @@ const MetasTab = ({
                                 <InputFieldWithSave label={tx("Ativos Alvo")} description="Objetivo de alunos ativos" icon={Users} value={metaAtivosMensal} dbValue={metaCache?.meta_ativos_mensal} onChange={setMetaAtivosMensal} onSave={(val) => salvarCampo('meta_ativos_mensal', val)} theme="amber" />
                                 <InputFieldWithSave label={tx("Nutri")} description="Meta mensal Nutri" icon={Leaf} value={metaNutriMensal} dbValue={metaCache?.meta_nutri_mensal} onChange={setMetaNutriMensal} onSave={(val) => salvarCampo('meta_nutri_mensal', val)} theme="amber" />
                                 <InputFieldWithSave label={tx("Plus")} description="Meta mensal Plus" icon={Star} value={metaPlusMensal} dbValue={metaCache?.meta_plus_mensal} onChange={setMetaPlusMensal} onSave={(val) => salvarCampo('meta_plus_mensal', val)} theme="amber" />
-                                <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" />
+                                {semPersonal ? <div className="flex items-center justify-between p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl gap-3 dark:bg-slate-800/60 dark:border-slate-700">
+                                        <div className="flex items-center gap-3 min-w-0"><div className="p-2 rounded-xl bg-white border border-slate-100 shrink-0 text-slate-400 dark:bg-slate-900 dark:border-slate-800"><Dumbbell className="w-5 h-5" /></div>
+                                            <div className="min-w-0"><div className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Personal Class")}</div><div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx("Esta unidade não tem Personal Class")}</div></div></div>
+                                        <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>
+                                    </div> : (
+                                    <div>
+                                        <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" />
+                                        <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="mt-5 pt-5 border-t border-slate-200/80 flex flex-col items-center justify-center text-center dark:border-slate-800">
-                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest dark:text-amber-400">{tx("R$ 200 de Gratificação")}</p>
-                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{tx("4 indicadores • R$ 50 cada meta concluída")}</p>
+                            <button type="button" onClick={() => setHistoricoAberto('mensal')} className="mt-5 w-full h-10 rounded-xl border border-amber-200 bg-white text-amber-700 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-50 dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10">
+                                <History className="w-4 h-4" />{tx("Ver metas anteriores")}
+                            </button>
+                            <div className="mt-3 pt-4 border-t border-slate-200/80 flex flex-col items-center justify-center text-center dark:border-slate-800">
+                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest dark:text-amber-400">{tx("R$ {valor} de Gratificação", { valor: indicadoresMensal * 50 })}</p>
+                                <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{tx("{n} indicadores • R$ 50 cada meta concluída", { n: indicadoresMensal })}</p>
                             </div>
                         </div>
 
@@ -539,6 +588,10 @@ const MetasTab = ({
                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight dark:text-white">{tx("Painel de Configuração Oculto")}</h3>
                     <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto dark:text-slate-400">{tx("Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.")}</p>
                 </div>
+            )}
+
+            {historicoAberto && podeEditarCampos && (
+                <HistoricoMetas unidade={unidadeAtivaEdicao} tipo={historicoAberto} planos={planos} produtos={produtos} fechar={() => setHistoricoAberto(null)} />
             )}
 
             {/* Movimentação por dia: valor do dia (diferença dos acumulados) e acumulado do mês */}
@@ -603,7 +656,7 @@ const MetasTab = ({
                                     <Award className="w-5 h-5 text-amber-500"/>{' '}{tx("META MENSAL")}
                                 </h5>
                                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                                    <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest dark:bg-amber-500/20 dark:text-amber-400">{tx("R$ 200 de gratificação")}</span>
+                                    <span className="text-[10px] font-black bg-amber-100 text-amber-700 px-2 py-0.5 rounded uppercase tracking-widest dark:bg-amber-500/20 dark:text-amber-400">{tx("R$ {valor} de gratificação", { valor: item.mensal.personal.meta > 0 ? 200 : 150 })}</span>
                                     <span className="text-slate-300">•</span>
                                     <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{tx("R$ 50 por indicador concluído.")}</span>
                                 </div>

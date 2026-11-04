@@ -78,7 +78,24 @@ export const derivarMovimento = (linhas = []) => {
             anterior = { data: l.data, cancelamentosAcum: cancAcum ?? (anterior ? anterior.cancelamentosAcum : null), faturamentoAcum: fatAcum ?? (anterior ? anterior.faturamentoAcum : null) };
         });
     });
-    return saida.sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    saida.sort((a, b) => String(a.data).localeCompare(String(b.data)));
+    // ATIVOS (04/11/2026): foto do dia, não é acumulado. ativosVar = diferença para o último ativos lançado da unidade
+    const ultimoAtivos = new Map();
+    saida.forEach(l => {
+        const u = String(l.unidade).toUpperCase();
+        const valor = l.ativos === null || l.ativos === undefined ? null : Number(l.ativos);
+        const antes = ultimoAtivos.has(u) ? ultimoAtivos.get(u) : null;
+        l.ativos = valor;
+        l.ativosVar = valor !== null && antes !== null ? valor - antes : null;
+        if (valor !== null) ultimoAtivos.set(u, valor);
+    });
+    return saida;
+};
+// Último ativos lançado de uma unidade antes de um dia (para o "+X" do card)
+export const ativosAntesDe = (derivados = [], unidade, dia) => {
+    const u = String(unidade || '').toUpperCase();
+    const l = [...derivados].reverse().find(x => x.data < dia && x.ativos !== null && (!unidade || String(x.unidade).toUpperCase() === u));
+    return l ? l.ativos : null;
 };
 
 // Soma dos valores DO DIA dentro do período (faixa com fim incluído; sem faixa = tudo)
@@ -98,18 +115,29 @@ export const useMovimentoDiario = ({ unidade, faixa }) => {
     const [versao, setVersao] = useState(0);
     const recarregar = useCallback(() => setVersao(v => v + 1), []);
     const unidadeFixa = unidade && unidade !== 'TODOS' ? String(unidade).toUpperCase() : null;
-    const inicio = faixa?.inicio ? `${faixa.inicio.slice(0, 8)}01` : null;
+    // Desde o dia 1º do MÊS ANTERIOR ao início: diferença do 1º dia do período e "+X" dos ativos no dia 1º
+    const inicio = faixa?.inicio ? (() => { const d = new Date(`${faixa.inicio.slice(0, 8)}01T12:00:00`); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; })() : null;
+    const [semAtivos, setSemAtivos] = useState(false);
     const fim = faixa?.fim || null;
 
     useEffect(() => {
         let ativo = true;
         setCarregando(true);
         (async () => {
-            let q = supabase.from('movimento_diario').select('unidade, data, faturamento, cancelamentos, atualizado_por, atualizado_em').order('data', { ascending: true });
-            if (unidadeFixa) q = q.eq('unidade', unidadeFixa);
-            if (inicio) q = q.gte('data', inicio);
-            if (fim) q = q.lte('data', fim);
-            const { data, error } = await q;
+            const consultar = (campos) => {
+                let q = supabase.from('movimento_diario').select(campos).order('data', { ascending: true });
+                if (unidadeFixa) q = q.eq('unidade', unidadeFixa);
+                if (inicio) q = q.gte('data', inicio);
+                if (fim) q = q.lte('data', fim);
+                return q;
+            };
+            let { data, error } = await consultar('unidade, data, faturamento, cancelamentos, ativos, atualizado_por, atualizado_em');
+            // Campo "ativos" ainda não criado (falta rodar 3_campo_ativos.sql): lê sem ele
+            if (error && /ativos/i.test(error.message || '')) {
+                console.warn('Movimentação: falta rodar sql/2026-10-31-movimento-diario/3_campo_ativos.sql');
+                if (ativo) setSemAtivos(true);
+                ({ data, error } = await consultar('unidade, data, faturamento, cancelamentos, atualizado_por, atualizado_em'));
+            } else if (!error && ativo) setSemAtivos(false);
             if (!ativo) return;
             if (error) {
                 if (tabelaNaoExiste(error)) setSemTabela(true);
@@ -133,16 +161,18 @@ export const useMovimentoDiario = ({ unidade, faixa }) => {
     }, [unidadeFixa, recarregar]);
 
     const derivados = useMemo(() => derivarMovimento(linhas), [linhas]);
-    return { linhas, derivados, carregando, semTabela, recarregar };
+    return { linhas, derivados, carregando, semTabela, semAtivos, recarregar };
 };
 
 // Grava (cria ou atualiza) o acumulado do mês até um dia. Devolve o erro (ou null).
-export const salvarMovimentoDia = async ({ unidade, data, faturamento, cancelamentos, usuario }) => {
+export const salvarMovimentoDia = async ({ unidade, data, faturamento, cancelamentos, ativos, usuario }) => {
     const payload = {
         unidade: String(unidade || '').toUpperCase(),
         data,
         faturamento: faturamento === null || Number.isNaN(faturamento) ? null : faturamento,
         cancelamentos: cancelamentos === null || Number.isNaN(cancelamentos) ? null : cancelamentos,
+        // ativos só vai quando o campo existe no banco (undefined = não mexe)
+        ...(ativos !== undefined ? { ativos: ativos === null || Number.isNaN(ativos) ? null : ativos } : {}),
         atualizado_por: usuario?.nome || null,
         atualizado_em: new Date().toISOString(),
     };
