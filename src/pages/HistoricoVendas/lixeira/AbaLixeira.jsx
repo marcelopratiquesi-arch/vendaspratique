@@ -4,6 +4,7 @@ import { supabase } from '../../../supabaseClient.js';
 import { formatMoney, formatarCPF, formatDataBR, toTitleCase } from '../utils.js';
 import { avisar } from '../../../components/avisar.js';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
+import CopyButton from '../CopyButton.jsx';
 
 // ==========================================
 // ABA "LIXEIRA" DO HISTÓRICO
@@ -106,8 +107,14 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                                 <tr key={`${l.venda_id}-${l.excluido_em}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 align-top">
                                     <td className="px-4 py-3 text-xs font-black text-slate-500 dark:text-slate-400 font-mono">{l.venda_id}</td>
                                     <td className="px-4 py-3">
-                                        <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase max-w-[220px] truncate" title={l.aluno}>{toTitleCase(l.aluno || '—')}</p>
-                                        <p className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">{formatarCPF(l.cpf)}{l.matricula ? " " + tx("· MAT {matricula}", { matricula: l.matricula }) + "" : ''}</p>
+                                        <div className="flex items-center gap-1">
+                                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase max-w-[220px] truncate" title={l.aluno}>{toTitleCase(l.aluno || '—')}</p>
+                                            {l.aluno && <CopyButton textToCopy={toTitleCase(l.aluno)} label={tx("Copiar nome do aluno")} />}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <p className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">{formatarCPF(l.cpf)}{l.matricula ? " " + tx("· MAT {matricula}", { matricula: l.matricula }) + "" : ''}</p>
+                                            {l.cpf && <CopyButton textToCopy={formatarCPF(l.cpf)} label={tx("Copiar CPF do aluno")} />}
+                                        </div>
                                         {temVisaoGlobal && !unidadeFiltro && <p className="text-[10px] font-black text-rose-500 uppercase mt-1">{l.unidade}</p>}
                                     </td>
                                     <td className="px-4 py-3">

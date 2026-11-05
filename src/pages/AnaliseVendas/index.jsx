@@ -577,6 +577,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     planos={planos}
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
+                    onIrParaMetas={() => setAbaPrincipal('visaoGeral')}
                 />
             )}
 

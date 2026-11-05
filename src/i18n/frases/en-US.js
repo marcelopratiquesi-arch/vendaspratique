@@ -242,6 +242,7 @@ export default {
     "Salvando...": "Saving...",
     "Salvar atualização": "Save update",
     "Clique para atualizar a quantidade de alunos ativos": "Click to update the number of active students",
+    "Atualizar os ativos na aba Metas (Movimentação)": "Update active members in the Goals tab (Movement)",
     "Sincronizando": "Syncing",
     "Não Informado": "Not Provided",
     "Clique para ver a Memória de Cálculo": "Click to see the Calculation Breakdown",

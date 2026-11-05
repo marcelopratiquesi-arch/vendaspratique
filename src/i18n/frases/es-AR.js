@@ -242,6 +242,7 @@ export default {
     "Salvando...": "Guardando...",
     "Salvar atualização": "Guardar actualización",
     "Clique para atualizar a quantidade de alunos ativos": "Hacé clic para actualizar la cantidad de socios activos",
+    "Atualizar os ativos na aba Metas (Movimentação)": "Actualizá los activos en la pestaña Metas (Movimiento)",
     "Sincronizando": "Sincronizando",
     "Não Informado": "Sin informar",
     "Clique para ver a Memória de Cálculo": "Hacé clic para ver la memoria de cálculo",

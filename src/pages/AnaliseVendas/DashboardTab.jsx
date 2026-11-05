@@ -16,10 +16,9 @@ import { qtdValidaProduto, dosesValidasNoMes, LIMITE_DOSES_POR_UNIDADE_MES, INIC
 import { useDosesValidas } from './useDosesValidas.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo } from './movimentoDiario.js';
 import {
-    TrendingUp, X, Users, Loader2, CheckCircle2, Layers, Calculator, Box, Briefcase,
+    TrendingUp, X, Users, Loader2, Layers, Calculator, Box, Briefcase,
     ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send, UserPlus, UserMinus, Wallet, HelpCircle
 } from 'lucide-react';
-import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ==========================================
@@ -320,7 +319,7 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
 const DashboardTab = ({
     vendasFiltradas, colaboradores, unidadeAtual,
     filtroMes, filtroAno,
-    metaProdutos, metaNutri, metaPersonal, planos, produtos, abrirModalWhatsapp,
+    metaProdutos, metaNutri, metaPersonal, planos, produtos, abrirModalWhatsapp, onIrParaMetas,
     vendasTodas = [], faixa = null,
     vendedoresOcultos = [], planosOcultos = [], produtosOcultos = [], servicosOcultos = []
 }) => {
@@ -343,13 +342,8 @@ const DashboardTab = ({
     // ==========================================
     // 🔥 ESTADOS FLUXO ATIVOS DA UNIDADE
     // ==========================================
-    const [modalAtivosOpen, setModalAtivosOpen] = useState(false);
     const [ativosAtualBanco, setAtivosAtualBanco] = useState(null);
-    const [ativosInput, setAtivosInput] = useState('');
     const [isCarregandoAtivos, setIsCarregandoAtivos] = useState(false);
-    const [isSalvandoAtivos, setIsSalvandoAtivos] = useState(false);
-    const [sucessoAtivos, setSucessoAtivos] = useState(false);
-    const [erroAtivos, setErroAtivos] = useState(null);
 
     // BUSCA OS ATIVOS DO BANCO
     useEffect(() => {
@@ -383,63 +377,6 @@ const DashboardTab = ({
 
         buscarAtivos();
     }, [unidadeAtual, filtroMes, filtroAno]);
-
-    // ABERTURA DO PAINEL FLUTUANTE
-    const handleAbrirModalAtivos = () => {
-        if (unidadeAtual === 'TODOS') {
-            avisar(tx("Selecione uma unidade específica no filtro acima para editar os ativos."));
-            return;
-        }
-        setAtivosInput(ativosAtualBanco !== null ? String(ativosAtualBanco) : '0');
-        setErroAtivos(null);
-        setSucessoAtivos(false);
-        setModalAtivosOpen(true);
-    };
-
-    // SALVAMENTO SEGURO
-    const handleSalvarAtivos = async () => {
-        if (!unidadeAtual || unidadeAtual === 'TODOS') return;
-
-        const valorFinal = Number(ativosInput);
-        if (ativosInput === '' || isNaN(valorFinal) || valorFinal < 0) {
-            setErroAtivos("Digite um número válido.");
-            return;
-        }
-
-        setIsSalvandoAtivos(true);
-        setErroAtivos(null);
-
-        try {
-            const payload = {
-                unidade: String(unidadeAtual).toUpperCase(),
-                mes: String(filtroMes),
-                ano: String(filtroAno),
-                ativos_atual: valorFinal
-            };
-
-            const { error } = await supabase
-                .from('metas_unidades')
-                .upsert(payload, { onConflict: 'unidade,mes,ano' });
-
-            if (error) throw error;
-
-            setAtivosAtualBanco(valorFinal);
-            setSucessoAtivos(true);
-
-            setTimeout(() => {
-                setSucessoAtivos(false);
-                setModalAtivosOpen(false);
-            }, 1500);
-
-        } catch (err) {
-            console.error("Erro ao atualizar ativos:", err);
-            setErroAtivos("Falha ao salvar. Tente novamente.");
-        } finally {
-            setIsSalvandoAtivos(false);
-        }
-    };
-
-    const hasChangesAtivos = ativosInput !== '' && Number(ativosInput) !== ativosAtualBanco;
 
     // ==========================================
     // CÁLCULOS DO DASHBOARD E TRATATIVA DE METAS
@@ -927,63 +864,6 @@ const DashboardTab = ({
                 </div>
             </DraggableWindow>
 
-            {/* 🔥 NOVO PADRÃO: JANELAS FLUTUANTES (ATIVOS DA UNIDADE) */}
-            <DraggableWindow
-                isOpen={modalAtivosOpen}
-                onClose={() => { if (!isSalvandoAtivos && !sucessoAtivos) setModalAtivosOpen(false) }}
-                title={tx("Ativos da Unidade")}
-                subtitle={`${unidadeAtual} • ${String(filtroMes).padStart(2, '0')}/${filtroAno}`}
-                icon={Users}
-                iconColor="text-emerald-500"
-                minWidth={350}
-                minHeight={350}
-            >
-                <div className="p-6 md:p-8 flex flex-col gap-6 h-full justify-center">
-                    {sucessoAtivos ? (
-                        <div className="flex flex-col items-center justify-center py-6 animate-[zoomIn_0.2s_ease-out]">
-                            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mb-4 shadow-inner border border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30">
-                                <CheckCircle2 className="w-8 h-8" />
-                            </div>
-                            <h4 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">{tx("Ativos Atualizados!")}</h4>
-                            <p className="text-xs font-bold text-slate-500 mt-1 text-center dark:text-slate-400">{tx("O Dashboard já foi sincronizado.")}</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div>
-                                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-2 block text-center dark:text-slate-400">
-                                    {tx("Quantidade de alunos ativos")}
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    value={ativosInput}
-                                    onChange={(e) => setAtivosInput(e.target.value)}
-                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSalvarAtivos(); }}
-                                    className="w-full bg-white border-2 border-emerald-300 rounded-2xl p-4 text-3xl font-black text-emerald-700 outline-none focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/20 text-center shadow-sm dark:bg-slate-900 dark:border-emerald-500/30 dark:text-emerald-400"
-                                    autoFocus
-                                />
-                                {erroAtivos && <p className="text-xs font-bold text-rose-500 mt-2 text-center animate-pulse">{erroAtivos}</p>}
-                            </div>
-
-                            <button
-                                onClick={handleSalvarAtivos}
-                                disabled={!hasChangesAtivos || isSalvandoAtivos}
-                                className={`w-full py-4 rounded-xl text-xs font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center gap-2
-                                    ${!hasChangesAtivos ? 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none dark:bg-slate-700' : 'bg-emerald-600 hover:bg-emerald-700 text-white'}
-                                    ${isSalvandoAtivos ? 'opacity-70 cursor-wait' : ''}
-                                `}
-                            >
-                                {isSalvandoAtivos ? (
-                                    <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Salvando...")}</>
-                                ) : (
-                                    <><Users className="w-5 h-5" />{' '}{tx("Salvar atualização")}</>
-                                )}
-                            </button>
-                        </>
-                    )}
-                </div>
-            </DraggableWindow>
-
             {/* ===== 3. LINHA DE DESTAQUES ===== */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                 {/* 3.1 PLANOS VENDIDOS (card escuro) */}
@@ -1078,8 +958,9 @@ const DashboardTab = ({
                     valor={ativosAtualBanco !== null ? Number(ativosAtualBanco).toLocaleString(localeAtual()) : <span className="text-base">{tx("Não Informado")}</span>}
                     carregando={isCarregandoAtivos}
                     icone={Users} fundoIcone="bg-[#E8EEFF] dark:bg-blue-500/15" corIcone="text-[#1D4FD8] dark:text-blue-300"
-                    iconeBotao={Pencil} rotuloBotao={tx("Clique para atualizar a quantidade de alunos ativos")}
-                    onClick={handleAbrirModalAtivos}
+                    // Ativos são lançados só na aba Metas (card Movimentação): o botão leva para lá
+                    iconeBotao={Pencil} rotuloBotao={tx("Atualizar os ativos na aba Metas (Movimentação)")}
+                    onClick={onIrParaMetas}
                 />
                 {/* Entradas = planos base do período (automático) · Saídas = cancelamentos digitados · Faturamento = digitado */}
                 <CardMenor

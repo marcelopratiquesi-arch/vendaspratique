@@ -4,6 +4,7 @@ import { supabase } from '../../../supabaseClient.js';
 import { formatMoney, formatarCPF, formatDataBR, extrairHoraCriacao, toTitleCase, normalizeString, itensCatalogoParaEdicao } from '../utils.js';
 import { comissaoDaVenda } from './motorDuplicidades.js';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
+import CopyButton from '../CopyButton.jsx';
 
 // ==========================================
 // ABA "DUPLICIDADES" DO HISTÓRICO (arquivo próprio, para evoluir a auditoria separada da tabela)
@@ -115,9 +116,12 @@ const CartaoGrupo = ({
                         <AlertIcon className="w-6 h-6" />
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight truncate" title={nomeAluno}>
-                            {toTitleCase(nomeAluno)}
-                        </h4>
+                        <div className="flex items-center gap-1 min-w-0">
+                            <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight truncate" title={nomeAluno}>
+                                {toTitleCase(nomeAluno)}
+                            </h4>
+                            {nomeAluno && <CopyButton textToCopy={toTitleCase(nomeAluno)} label={tx("Copiar nome do aluno")} />}
+                        </div>
                         <div className="flex flex-wrap items-center gap-2 mt-1.5">
                             {grupo.regraAntiga ? (
                                 <>
@@ -129,8 +133,9 @@ const CartaoGrupo = ({
                                     </span>
                                 </>
                             ) : (
-                                <span className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-0.5 rounded text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest font-mono">
+                                <span className="inline-flex items-center gap-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 pl-2 pr-0.5 py-0.5 rounded text-[10px] font-black text-slate-500 dark:text-slate-300 uppercase tracking-widest font-mono">
                                     {tx("CPF:")}{' '}{formatarCPF(amostra.cpf || amostra.cpf_aluno)}
+                                    <CopyButton textToCopy={formatarCPF(amostra.cpf || amostra.cpf_aluno)} label={tx("Copiar CPF do aluno")} />
                                 </span>
                             )}
                             <span className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/30 px-2 py-0.5 rounded text-[10px] font-black text-blue-600 dark:text-blue-300 uppercase tracking-widest truncate max-w-[180px]" title={amostra.produto}>
