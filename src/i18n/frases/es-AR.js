@@ -2439,4 +2439,7 @@ export default {
     "Marque o turno de cada recepcionista da sua unidade. Ele é usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.": "Marcá el turno de cada recepcionista de tu sede. Se usa para reclamar el informe de cierre por el nombre de quien estaba en el turno.",
     "{prontos} de {total} com turno. Dá para mudar depois em Cadastros → Equipe.": "{prontos} de {total} con turno. Se puede cambiar después en Registros → Equipo.",
     "Salvar turnos": "Guardar turnos",
+    "Sistema atualizado": "Sistema actualizado",
+    "Saiu uma versão nova. Recarregue para usar as novidades.": "Salió una versión nueva. Recargá para usar las novedades.",
+    "Recarregar": "Recargar",
 };

@@ -173,6 +173,7 @@ Todo filtro de data do sistema usa o **mesmo seletor** (`SeletorPeriodo` de [Fil
 
 - **Tecnologia:** React 19 + Vite, estilo com Tailwind 4, gráficos com Recharts, banco de dados e login no **Supabase** ([src/supabaseClient.js](src/supabaseClient.js)).
 - **Escala da interface:** `ESCALA_INTERFACE = 0.8` no App.jsx (sistema 20% menor; decisão do dono 30/10/2026). **Barra do topo:** sem o nome da página, só o seletor de unidade (ou o nome da unidade para quem não troca).
+- **Aviso de versão nova** ([AvisoVersaoNova.jsx](src/components/AvisoVersaoNova.jsx), montado no main.jsx; decisão do dono 05/11/2026): a cada 5 min e ao voltar para a aba, compara o arquivo principal publicado (`/assets/index-XXXX.js` do `/index.html`) com o que está rodando; se mudou, aparece no topo "Sistema atualizado — Recarregar" (não recarrega sozinho). Só funciona nas telas abertas depois desta versão.
 - **[src/App.jsx](src/App.jsx)** — o "cérebro": faz login, carrega os dados (vendas, visitantes, avaliações dos últimos 90 dias, catálogo, equipe, unidades), mantém tudo atualizado em tempo real, controla o seletor de unidade, o tema claro/escuro, os comunicados obrigatórios e decide qual tela mostrar conforme o perfil do usuário.
 - **Perfis de acesso:** ADMIN, MENTOR (visão de todas as unidades), LIDER e RECEPCAO (só a própria unidade).
 - **src/components/layout/** — menu lateral (Sidebar), barra do topo (TopBar, com busca global e seletor de unidade), paleta de comandos e cortina de inatividade.

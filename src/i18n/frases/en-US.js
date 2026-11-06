@@ -2439,4 +2439,7 @@ export default {
     "Marque o turno de cada recepcionista da sua unidade. Ele é usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.": "Mark the shift of each front desk employee in your unit. It is used to follow up on the closing report by the name of whoever was on shift.",
     "{prontos} de {total} com turno. Dá para mudar depois em Cadastros → Equipe.": "{prontos} of {total} with a shift. You can change it later in Records → Team.",
     "Salvar turnos": "Save shifts",
+    "Sistema atualizado": "System updated",
+    "Saiu uma versão nova. Recarregue para usar as novidades.": "A new version is out. Reload to use the new features.",
+    "Recarregar": "Reload",
 };
