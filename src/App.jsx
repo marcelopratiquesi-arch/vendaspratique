@@ -30,6 +30,7 @@ import JanelaPendencias from './pages/Pendencias/JanelaPendencias.jsx';
 import CartaoPendencias from './pages/Pendencias/CartaoPendencias.jsx';
 import { usePendencias } from './pages/Pendencias/pendencias.js';
 import CobrancaRelatorioRecepcao from './pages/Pendencias/CobrancaRelatorioRecepcao.jsx';
+import PopupTurnoRecepcao from './pages/Pendencias/PopupTurnoRecepcao.jsx';
 import { tx } from './i18n/traduzir.js';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
@@ -611,6 +612,9 @@ export default function App() {
             )}
 
             {/* Recepção: cobrança do relatório de fechamento do turno (14h00 manhã, 22h30 noite, 12h30 sáb/dom; 05/11/2026) */}
+            {/* Líder: marcar o turno das recepcionistas da unidade (enquanto faltar alguém; 05/11/2026) */}
+            <PopupTurnoRecepcao key={usuarioLogado?.email || "sem-login"} usuario={usuarioLogado} colaboradores={colaboradores} setColaboradores={setColaboradores} />
+
             <CobrancaRelatorioRecepcao usuario={usuarioLogado} colaboradores={colaboradores}
                 aoIrRelatorio={() => { pedirAbaAnalise('relatorio'); handleNavigation('analise'); }} />
 

@@ -2432,4 +2432,11 @@ export default {
     "noite": "night",
     "fim de semana/feriado": "weekend/holiday",
     "Sábado, domingo e feriado (até 13h)": "Saturday, Sunday and holiday (by 1 p.m.)",
+    "Escolha o turno de pelo menos uma recepcionista.": "Choose the shift for at least one front desk employee.",
+    "Não foi possível salvar o turno: {message}": "Could not save the shift: {message}",
+    "Turno salvo para {qtd} recepcionista(s).": "Shift saved for {qtd} front desk employee(s).",
+    "Turno das recepcionistas": "Front desk shifts",
+    "Marque o turno de cada recepcionista da sua unidade. Ele é usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.": "Mark the shift of each front desk employee in your unit. It is used to follow up on the closing report by the name of whoever was on shift.",
+    "{prontos} de {total} com turno. Dá para mudar depois em Cadastros → Equipe.": "{prontos} of {total} with a shift. You can change it later in Records → Team.",
+    "Salvar turnos": "Save shifts",
 };

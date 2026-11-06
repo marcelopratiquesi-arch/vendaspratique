@@ -2432,4 +2432,11 @@ export default {
     "noite": "noche",
     "fim de semana/feriado": "fin de semana/feriado",
     "Sábado, domingo e feriado (até 13h)": "Sábado, domingo y feriado (hasta las 13)",
+    "Escolha o turno de pelo menos uma recepcionista.": "Elegí el turno de al menos una recepcionista.",
+    "Não foi possível salvar o turno: {message}": "No se pudo guardar el turno: {message}",
+    "Turno salvo para {qtd} recepcionista(s).": "Turno guardado para {qtd} recepcionista(s).",
+    "Turno das recepcionistas": "Turno de las recepcionistas",
+    "Marque o turno de cada recepcionista da sua unidade. Ele é usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.": "Marcá el turno de cada recepcionista de tu sede. Se usa para reclamar el informe de cierre por el nombre de quien estaba en el turno.",
+    "{prontos} de {total} com turno. Dá para mudar depois em Cadastros → Equipe.": "{prontos} de {total} con turno. Se puede cambiar después en Registros → Equipo.",
+    "Salvar turnos": "Guardar turnos",
 };
