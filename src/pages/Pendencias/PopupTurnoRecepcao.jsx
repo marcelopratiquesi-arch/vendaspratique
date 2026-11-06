@@ -11,11 +11,13 @@ import { supabase } from '../../supabaseClient.js';
 import { tx } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 const ehRecepcao = (c) => normalizeString(String(c?.role || c?.setor || '')).includes('RECEP');
 
 const PopupTurnoRecepcao = ({ usuario, colaboradores = [], setColaboradores }) => {
-    const ehLider = String(usuario?.role || '').toUpperCase() === 'LIDER';
+    // Só o Líder, e só se a permissão 904 estiver ligada (Configurações → Permissões)
+    const ehLider = String(usuario?.role || '').toUpperCase() === 'LIDER' && podeFazer(usuario, '904');
     const unidade = normalizeString(String(usuario?.unidade || ''));
     const recepcionistas = useMemo(() => colaboradores
         .filter(c => c && c.ativo !== false && ehRecepcao(c) && normalizeString(String(c.unidade || '')) === unidade)

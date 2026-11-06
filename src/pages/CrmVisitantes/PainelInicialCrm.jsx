@@ -9,6 +9,7 @@ import RelatorioConsultor from './RelatorioConsultor';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao, dentroDaFaixa } from '../../components/periodoPadrao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // ==========================================
 // TELA DE ENTRADA DO CRM (redesenho de 29/10/2026, decisão do dono)
@@ -319,13 +320,15 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const th = 'px-3 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
     const td = 'px-3 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 text-center';
 
+    // Abas pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era). Equipe é a principal (sempre).
     const ABAS = [
         { id: 'equipe', rotulo: 'Equipe', icone: Users },
-        { id: 'desempenho', rotulo: 'Desempenho', icone: BarChart3 },
-        ...(mostrarPainelRede ? [{ id: 'rede', rotulo: 'Rede', icone: Globe }] : []),
-        { id: 'relatorio', rotulo: 'Relatório', icone: FileText },
-        { id: 'historico', rotulo: 'Histórico', icone: Clock }
-    ];
+        { id: 'desempenho', rotulo: 'Desempenho', icone: BarChart3, codigo: '502' },
+        ...(mostrarPainelRede ? [{ id: 'rede', rotulo: 'Rede', icone: Globe, codigo: '503' }] : []),
+        { id: 'relatorio', rotulo: 'Relatório', icone: FileText, codigo: '504' },
+        { id: 'historico', rotulo: 'Histórico', icone: Clock, codigo: '505' }
+    ].filter(a => !a.codigo || podeVer(usuarioLogado, a.codigo));
+    const abaMostrada = ABAS.some(a => a.id === aba) ? aba : 'equipe';
 
     // Cartão pequeno de uma recepcionista (clique = abrir o CRM dela)
     const cartaoRecepcionista = (c) => {
@@ -420,7 +423,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto custom-scrollbar">
                     {ABAS.map(a => {
                         const Icone = a.icone;
-                        const ativa = aba === a.id;
+                        const ativa = abaMostrada === a.id;
                         return (
                             <button key={a.id} type="button" onClick={() => setAba(a.id)}
                                 className={`flex-1 min-w-[110px] px-3 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap flex items-center justify-center gap-2 transition-all ${ativa ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
@@ -443,7 +446,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             )}
 
             {/* ABA EQUIPE: cartões da recepção (clique = abrir o CRM da pessoa) */}
-            {aba === 'equipe' && (
+            {abaMostrada === 'equipe' && (
                 <div className="space-y-3">
                     <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                         {ehRecepcaoLogada ? tx("Selecione seu nome para iniciar o turno. Embaixo está o andamento da recepção.") : tx("Clique num cartão da recepção para ver o Kanban e a Lista daquela pessoa.")}
@@ -485,7 +488,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             )}
 
             {/* ABA DESEMPENHO: números grandes e planilha enxuta */}
-            {aba === 'desempenho' && (
+            {abaMostrada === 'desempenho' && (
                 <div className="space-y-4">
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                         <Kpi icone={Activity} titulo="Ações no período" valor={kpis.acoes} cor="bg-blue-600 text-white" destaque />
@@ -591,8 +594,9 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             )}
 
             {/* ABA REDE: uso do CRM por unidade (Admin/Mentor na Visão Global) */}
-            {aba === 'rede' && mostrarPainelRede && (
+            {abaMostrada === 'rede' && mostrarPainelRede && (
                 <PainelRedeCrm
+                    podeCobrar={podeFazer(usuarioLogado, '518')}
                     colaboradores={colaboradores}
                     faixa={faixa}
                     rotuloPeriodo={periodo.rotulo}
@@ -603,7 +607,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             )}
 
             {/* ABA RELATÓRIO POR RECEPCIONISTA */}
-            {aba === 'relatorio' && (
+            {abaMostrada === 'relatorio' && (
                 <RelatorioConsultor
                     recepcionistas={recepcionistas}
                     leads={leads}
@@ -618,7 +622,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             )}
 
             {/* ABA HISTÓRICO: o que aconteceu */}
-            {aba === 'historico' && (
+            {abaMostrada === 'historico' && (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                         <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2">

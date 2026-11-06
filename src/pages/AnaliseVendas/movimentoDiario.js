@@ -11,9 +11,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { contarPlanosDoCard, safeIsoDate } from './utils.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 export const PAPEIS_QUE_GRAVAM_MOVIMENTO = ['ADMIN', 'MENTOR', 'LIDER'];
-export const podeGravarMovimento = (usuario) => PAPEIS_QUE_GRAVAM_MOVIMENTO.includes(String(usuario?.roleReal || usuario?.role || '').toUpperCase());
+// Permissão 308 (Configurações → Permissões); o padrão é PAPEIS_QUE_GRAVAM_MOVIMENTO. O banco também confere.
+export const podeGravarMovimento = (usuario) => podeFazer(usuario, '308');
 
 const tabelaNaoExiste = (erro) => /movimento_diario.*(does not exist|not find)|PGRST205|42P01/i.test(`${erro?.code || ''} ${erro?.message || ''}`);
 const paraIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

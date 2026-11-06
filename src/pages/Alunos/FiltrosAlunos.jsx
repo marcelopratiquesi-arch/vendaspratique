@@ -69,9 +69,9 @@ const FiltrosAlunos = ({
                             <RefreshCw className="w-3 h-3" />{' '}{tx("Limpar")}
                         </button>
                     )}
-                    <button onClick={onNovoAluno} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2 transition-all">
+                    {onNovoAluno && <button onClick={onNovoAluno} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest shadow-sm flex items-center gap-2 transition-all">
                         <UserPlus className="w-4 h-4" />{' '}{tx("Novo Aluno")}
-                    </button>
+                    </button>}
                 </div>
             </div>
 

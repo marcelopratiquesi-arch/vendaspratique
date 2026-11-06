@@ -14,6 +14,10 @@ import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/cont
 import { excluirAvaliacaoComMotivo } from '../../AvaliacaoFisica/lixeira.js';
 import { consultaSeguraOuDireta } from '../../../components/consultaSegura.js';
 import { tx } from '../../../i18n/traduzir.js';
+import { podeVer, podeFazer } from '../../../permissoes/catalogoPermissoes.js';
+
+// Abas da ficha pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era). Dados é a principal.
+const CODIGO_ABA_FICHA = { planos: '602', produtos: '603', avaliacoes: '604', crm: '605', timeline: '606' };
 
 const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), onEditar, onVender, onAvaliar, usuarioLogado }) => {
     const [abaAtiva, setAbaAtiva] = useState('dados');
@@ -26,8 +30,8 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
     
     const roleReal = String(usuarioLogado?.role || '').toUpperCase().trim();
     const temVisaoGlobal = roleReal === 'ADMIN' || roleReal === 'MENTOR';
-    // Recepção só visualiza; excluir é para gestão
-    const podeGerenciarAvaliacoes = ['ADMIN', 'MENTOR', 'LIDER'].includes(roleReal);
+    // Excluir avaliação pela ficha: permissão 610 (padrão: gestão; a Recepção só visualiza)
+    const podeGerenciarAvaliacoes = podeFazer(usuarioLogado, '610');
 
     // Sobe quando chega venda/avaliação nova deste aluno ou quando a aba do navegador volta ao foco:
     // a ficha busca tudo de novo, sem precisar sair e entrar
@@ -228,7 +232,9 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
         { id: 'avaliacoes', label: tx("Avaliações"), icon: Dumbbell },
         { id: 'crm', label: tx("Contatos"), icon: MessageCircle },
         { id: 'timeline', label: tx("Histórico"), icon: Clock }
-    ];
+    ].filter(aba => !CODIGO_ABA_FICHA[aba.id] || podeVer(usuarioLogado, CODIGO_ABA_FICHA[aba.id]));
+    // Aba desligada pelo Admin: volta para Dados (a principal, sempre)
+    const abaMostrada = abasMenu.some(a => a.id === abaAtiva) ? abaAtiva : 'dados';
 
     return (
         <div className="bg-[#F8FAFC] dark:bg-slate-900 rounded-[20px] p-5 md:p-6 flex flex-col min-h-[70vh] animate-[slideDown_0.2s_ease-out]">
@@ -250,7 +256,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
             <div className="flex bg-white p-1.5 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar mb-6 shadow-sm dark:bg-slate-900 dark:border-slate-800">
                 {abasMenu.map(aba => {
                     const Icone = aba.icon;
-                    const ativo = abaAtiva === aba.id;
+                    const ativo = abaMostrada === aba.id;
                     return (
                         <button 
                             key={aba.id} 
@@ -275,10 +281,10 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
                     </div>
                 ) : (
                     <>
-                        {abaAtiva === 'dados' && <TabDados aluno={aluno} onEditar={onEditar} temVisaoGlobal={temVisaoGlobal} />}
-                        {abaAtiva === 'planos' && <TabPlanos planos={dadosFicha.planos} temVisaoGlobal={temVisaoGlobal} />}
-                        {abaAtiva === 'produtos' && <TabProdutos produtos={dadosFicha.produtos} temVisaoGlobal={temVisaoGlobal} />}
-                        {abaAtiva === 'avaliacoes' && (
+                        {abaMostrada === 'dados' && <TabDados aluno={aluno} onEditar={onEditar} temVisaoGlobal={temVisaoGlobal} />}
+                        {abaMostrada === 'planos' && <TabPlanos planos={dadosFicha.planos} temVisaoGlobal={temVisaoGlobal} />}
+                        {abaMostrada === 'produtos' && <TabProdutos produtos={dadosFicha.produtos} temVisaoGlobal={temVisaoGlobal} />}
+                        {abaMostrada === 'avaliacoes' && (
                             <TabAvaliacoes 
                                 avaliacoes={dadosFicha.avaliacoes}
                                 alunoNome={aluno.nome}
@@ -287,8 +293,8 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
                                 onExcluir={excluirAvaliacao}
                             />
                         )}
-                        {abaAtiva === 'crm' && <TabContatosCrm historico={dadosFicha.crm} />}
-                        {abaAtiva === 'timeline' && <TabLinhaTempo eventos={dadosFicha.timeline} alunoNome={aluno.nome} />}
+                        {abaMostrada === 'crm' && <TabContatosCrm historico={dadosFicha.crm} />}
+                        {abaMostrada === 'timeline' && <TabLinhaTempo eventos={dadosFicha.timeline} alunoNome={aluno.nome} />}
                     </>
                 )}
             </div>

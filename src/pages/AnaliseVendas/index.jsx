@@ -19,6 +19,7 @@ import { avisar } from '../../components/avisar.js';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { registrarEnvioRelatorio, ROTULO_TURNO } from '../Pendencias/relatorioFechamento.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -37,7 +38,8 @@ const ROTULO_ABA = {
     saude: 'Saúde da unidade',
 };
 
-const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [] }) => {
+// unidades / setUnidadeGlobal: Visão da Rede do Dashboard (quadro "Planos por unidade"; clicar na unidade troca o seletor do topo)
+const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliacoes = [], planos = [], produtos = [], colaboradores = [], unidades = [], setUnidadeGlobal }) => {
     const { t } = useI18n(); 
     const mesesTraduzidos = getMeses(t); 
 
@@ -250,12 +252,15 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         }
     }, [abaPrincipal]);
 
-    // Segurança extra: se o utilizador perder visão global e estiver na aba rankingGlobal, volta ao dashboard
+    // Abas pelas permissões (Configurações → Permissões, 06/11/2026). A aba Dashboard é a principal (sempre).
+    // Ranking global também precisa da visão de várias unidades (Admin/Mentor com o topo em "Todas").
+    const CODIGO_ABA = { visaoGeral: '302', relatorio: '303', rankingGlobal: '304', saude: '305' };
+    const abaPermitida = (id) => id === 'dashboard' || (podeVer(usuarioLogado, CODIGO_ABA[id]) && (id !== 'rankingGlobal' || temVisaoGlobal));
+    const abaMostrada = abaPermitida(abaPrincipal) ? abaPrincipal : 'dashboard';
+    // Segurança extra: aba que deixou de ser permitida (perdeu a visão global ou o Admin desligou) volta ao Dashboard
     useEffect(() => {
-        if (!temVisaoGlobal && abaPrincipal === 'rankingGlobal') {
-            setAbaPrincipal('dashboard');
-        }
-    }, [temVisaoGlobal, abaPrincipal]);
+        if (abaPrincipal !== abaMostrada) setAbaPrincipal(abaMostrada);
+    }, [abaPrincipal, abaMostrada]);
 
     const unidadeDoUsuario = usuarioLogado?.unidade;
     useEffect(() => {
@@ -592,9 +597,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     ['dashboard', BarChart3],
                     ['visaoGeral', Target],
                     ['relatorio', FileText],
-                    ...(temVisaoGlobal ? [['rankingGlobal', Trophy]] : []),
+                    ['rankingGlobal', Trophy],
                     ['saude', HeartPulse],
-                ].map(([id, Icone]) => {
+                ].filter(([id]) => abaPermitida(id)).map(([id, Icone]) => {
                     const ativa = abaPrincipal === id;
                     return (
                         <button
@@ -616,7 +621,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             {/* ========================================== */}
             {/* Dashboard principal (o antigo, melhorado — decisão do dono 30/10/2026).
                 O "movimento da equipe" foi para o Histórico → aba Saúde da equipe. */}
-            {abaPrincipal === 'dashboard' && (
+            {abaMostrada === 'dashboard' && (
                 <DashboardTab
                     vendasTodas={vendas}
                     faixa={faixaSaude}
@@ -638,10 +643,12 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
                     onIrParaMetas={() => setAbaPrincipal('visaoGeral')}
+                    unidades={unidades}
+                    onAbrirUnidade={setUnidadeGlobal}
                 />
             )}
 
-            {abaPrincipal === 'visaoGeral' && (
+            {abaMostrada === 'visaoGeral' && (
                 <MetasTab
                     temVisaoGlobal={temVisaoGlobal}
                     filtroUnidade={filtroUnidade}
@@ -669,7 +676,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 />
             )}
 
-            {abaPrincipal === 'relatorio' && (
+            {abaMostrada === 'relatorio' && (
                 <RelatorioTab
                     vendasFiltradas={vendasFiltradas}
                     visitantesFiltrados={visitantesFiltrados} 
@@ -688,7 +695,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 />
             )}
 
-            {abaPrincipal === 'saude' && (
+            {abaMostrada === 'saude' && (
                 <SaudeUnidadeTab
                     vendas={vendas}
                     faixa={faixaSaude}
@@ -708,7 +715,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 />
             )}
 
-            {abaPrincipal === 'rankingGlobal' && temVisaoGlobal && (
+            {abaMostrada === 'rankingGlobal' && (
                 <RankingGlobalTab
                     vendasFiltradas={vendasFiltradas}
                     vendasTodas={vendas}

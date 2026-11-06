@@ -7,6 +7,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
+import { pedirConferirRelatorio } from './relatorioFechamento.js';
 
 const UMA_HORA = 60 * 60 * 1000;
 const MAX_UNIDADES_MENTOR = 4;
@@ -18,7 +19,7 @@ const Link = ({ onClick, children }) => (
 );
 
 // Linhas curtas de uma unidade
-const Linhas = ({ u, aoIr }) => {
+const Linhas = ({ u, aoIr, podeConferirRelatorio }) => {
     const itens = [];
     const c = u.conferencia;
     if (c) itens.push({
@@ -42,24 +43,25 @@ const Linhas = ({ u, aoIr }) => {
         const partes = [u.metas.start && tx('Meta Start'), u.metas.mensal && tx('Meta Mensal')].filter(Boolean).join(' · ');
         itens.push({ k: 'g', atrasado: u.metas.atrasado, texto: tx('Metas de {mes}: {cards}', { mes: tx(u.metas.mes), cards: partes }), botao: tx('Preencher'), tipo: 'metas' });
     }
-    // Relatório da recepção: sem botão (quem envia é o login da Recepção); o Líder/Mentor cobra
+    // Relatório da recepção: quem envia é o login da Recepção; o Líder/Mentor confere no grupo (botão Conferir, permissão 313)
     (u.relatorio || []).forEach(r => itens.push({
         k: `r-${r.data}-${r.turno}`, atrasado: r.situacao !== 'cobrando',
         texto: tx('Relatório {dia} ({turno}): não enviado{nomes}', { dia: r.hoje ? tx('de hoje') : ddmm(r.data), turno: tx(r.rotulo), nomes: r.nomes?.length ? ` — ${r.nomes.join(' / ')}` : '' }),
+        ...(podeConferirRelatorio ? { botao: tx('Conferir'), acao: () => pedirConferirRelatorio({ unidade: u.unidade, data: r.data, turno: r.turno, rotulo: r.rotulo, nomes: r.nomes }) } : {}),
     }));
     return (
         <ul className="space-y-1.5">
             {itens.map(i => (
                 <li key={i.k} className="flex items-start justify-between gap-2">
                     <span className={`text-[12px] font-semibold leading-snug ${i.atrasado ? 'text-rose-700 dark:text-rose-300' : 'text-amber-900 dark:text-amber-200'}`}>{i.texto}</span>
-                    {i.tipo && <Link onClick={() => aoIr(i.tipo, u)}>{i.botao}</Link>}
+                    {(i.tipo || i.acao) && <Link onClick={() => (i.acao ? i.acao() : aoIr(i.tipo, u))}>{i.botao}</Link>}
                 </li>
             ))}
         </ul>
     );
 };
 
-const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas }) => {
+const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas, podeConferirRelatorio = false }) => {
     const [escondidoAte, setEscondidoAte] = useState(0);
     // O relógio de 1 minuto faz o cartão voltar depois de 1 hora
     const [, setTique] = useState(0);
@@ -84,7 +86,7 @@ const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas })
                         {visiveis.map(u => (
                             <div key={u.unidade}>
                                 {ehMentor && <p className="text-[11px] font-black uppercase tracking-widest text-slate-700 mb-1 dark:text-slate-200">{u.unidade}</p>}
-                                <Linhas u={u} aoIr={aoIr} />
+                                <Linhas u={u} aoIr={aoIr} podeConferirRelatorio={podeConferirRelatorio} />
                             </div>
                         ))}
                     </div>

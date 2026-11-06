@@ -3,7 +3,7 @@ import { CalendarCheck, X, MessageCircle, Check, Loader2, Cake, UserCheck, Repea
 import { JanelaNaoContatar, JanelaJustificativa } from './JanelasContato';
 import {
     ehVisitanteRecepcao, dataDaVisita, diaISO, MENSAGENS_PADRAO,
-    abrirNoWhatsApp, papelReal, marcaFeitoPor
+    abrirNoWhatsApp, marcaFeitoPor, podeEditarMensagensProntas
 } from './utils';
 import {
     carregarMensagensProntas, carregarContatosFeitos, registrarContatoFeito,
@@ -48,7 +48,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
     const DIAS_ATRASADOS = 7;
     const inicioAtrasados = diaISO(-DIAS_ATRASADOS);
     const unidadeChave = String(unidade || '').toUpperCase().trim();
-    const podeEditarMensagens = ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuarioLogado));
+    const podeEditarMensagens = podeEditarMensagensProntas(usuarioLogado);
 
     const carregar = useCallback(async () => {
         if (!unidadeChave) return;

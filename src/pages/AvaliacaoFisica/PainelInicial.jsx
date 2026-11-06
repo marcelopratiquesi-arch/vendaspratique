@@ -10,6 +10,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js'; 
 import { SeletorPeriodo, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { pendenciasAvaliacao } from './utils.js';
+import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 import { MESES_FILTRO, faixaDoFiltro, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 
 const colorThemes = [
@@ -405,9 +406,14 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     const { locale, language } = useI18n(); 
     const langAtual = locale || language || 'pt-BR';
     
-    const isAdmin = usuarioLogado?.role === 'ADMIN';
+    // Admin de verdade (mesmo com uma unidade escolhida no topo): Configurar Formulário (corrigido em 06/11/2026)
+    const isAdmin = (usuarioLogado?.roleReal || usuarioLogado?.role) === 'ADMIN';
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
-    const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
+    // Cartões e botão da Lixeira pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era).
+    // O Dashboard Global também precisa da visão de várias unidades (topo em "Todas").
+    const verDashGlobal = temVisaoGlobal && podeVer(usuarioLogado, '702');
+    const verDashUnidade = podeVer(usuarioLogado, '703');
+    const verLixeira = podeVer(usuarioLogado, '707');
     const profsDaUnidade = colaboradores.filter(c => c.unidade === usuarioLogado?.unidade);
     // Lixeira das avaliações (04/11/2026): contador vermelho no botão, da unidade do topo (TODAS = as que a pessoa vê)
     const totalLixeira = useTotalLixeiraAvaliacoes(usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : null);
@@ -533,7 +539,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                 </p>
                 
                 <div className="w-full flex flex-col md:flex-row justify-center gap-4 max-w-3xl mx-auto">
-                    {temVisaoGlobal && (
+                    {verDashGlobal && (
                         <button onClick={() => setProfessorAtivo({ id: 'GLOBAL', nome: 'VISÃO GLOBAL DA REDE' })} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 p-5 rounded-[20px] shadow-[0_8px_30px_rgba(59,130,246,0.25)] flex items-center justify-between transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(59,130,246,0.35)] border border-blue-400 dark:border-blue-500/30 group relative overflow-hidden">
                             <svg className="absolute bottom-0 right-10 w-24 h-12 opacity-30 group-hover:opacity-60 transition-opacity" viewBox="0 0 100 30" fill="none">
                                 <path d="M0 30L20 15L40 20L60 5L80 15L100 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -553,7 +559,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                         </button>
                     )}
 
-                    {podeEditar && (
+                    {verDashUnidade && (
                         <button onClick={() => setProfessorAtivo({ id: 'GERAL', nome: `DASHBOARD - ${usuarioLogado?.unidade}`, unidade: usuarioLogado?.unidade })} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 p-5 rounded-[20px] shadow-[0_8px_30px_rgba(15,23,42,0.25)] flex items-center justify-between transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.35)] border border-slate-700 dark:border-slate-700/50 group relative overflow-hidden">
                             <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-orange-500/20 to-transparent pointer-events-none"></div>
                             <svg className="absolute bottom-0 right-10 w-24 h-12 opacity-30 group-hover:opacity-60 transition-opacity" viewBox="0 0 100 30" fill="none">
@@ -581,10 +587,10 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                             <ListChecks className="w-3.5 h-3.5" />{' '}{tx("Configurar Formulário")}
                         </button>
                     )}
-                    <button onClick={() => setAbaAtiva('lixeira')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-rose-200 dark:hover:border-rose-800">
+                    {verLixeira && <button onClick={() => setAbaAtiva('lixeira')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-rose-200 dark:hover:border-rose-800">
                         <Trash2 className="w-3.5 h-3.5" />{' '}{tx("Lixeira")}
                         {totalLixeira > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalLixeira}</span>}
-                    </button>
+                    </button>}
                 </div>
             </div>
 

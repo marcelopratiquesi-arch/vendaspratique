@@ -20,6 +20,7 @@ import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send 
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // O App só carrega leads dos últimos 90 dias. O CRM busca à parte os leads mais antigos que ainda estão em aberto
 // (Base, Kanban e Geladeira) para nenhum contato sumir. Fechados antigos não precisam ser trabalhados.
@@ -104,7 +105,20 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
     const podeApagar = podeApagarLeads(usuarioLogado);
 
-    const [visaoAtiva, setVisaoAtiva] = useState('kanban'); // a Base foi para a aba Equipe da entrada (04/11/2026) 
+    const [visaoAtiva, setVisaoAtiva] = useState('kanban'); // a Base foi para a aba Equipe da entrada (04/11/2026)
+    // Abas do CRM da recepcionista pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era).
+    // O Kanban é a visão principal (sempre).
+    const visaoLiberada = {
+        kanban: true,
+        lista: podeVer(usuarioLogado, '507'),
+        hoje: podeVer(usuarioLogado, '508'),
+        geladeira: podeVer(usuarioLogado, '509'),
+        migracao: podeVer(usuarioLogado, '510'),
+        naocontatar: podeVer(usuarioLogado, '511'),
+        dashboard: podeVer(usuarioLogado, '512'),
+        relatorio: podeVer(usuarioLogado, '513'),
+    };
+    const visaoMostrada = visaoLiberada[visaoAtiva] ? visaoAtiva : 'kanban';
 
     // ==========================================
     // ESTADOS: SMART PASTE & SELEÇÃO NA BASE
@@ -1136,7 +1150,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 versao={versaoDados}
                 onAtualizar={atualizarAgora}
                 onEscolher={setConsultorAtivo}
-                conteudoBase={unidadeOperacao ? blocoBase() : null}
+                conteudoBase={unidadeOperacao && podeFazer(usuarioLogado, '517') ? blocoBase() : null}
             />
         );
     }
@@ -1185,36 +1199,36 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             {/* BARRA DE NAVEGAÇÃO / ABAS */}
             <div className="flex bg-slate-200 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-300/60 dark:border-slate-700 shadow-inner w-full max-w-6xl mx-auto overflow-x-auto custom-scrollbar">
-                <button onClick={() => setVisaoAtiva('kanban')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'kanban' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                <button onClick={() => setVisaoAtiva('kanban')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'kanban' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <KanbanIcon className="w-4 h-4" />{' '}{tx("Kanban")}
                 </button>
-                <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'lista' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                {visaoLiberada.lista && <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'lista' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <List className="w-4 h-4" />{' '}{tx("Lista")}
-                </button>
-                <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title={tx("Contatos com o próximo contato marcado para hoje ou atrasado")}>
+                </button>}
+                {visaoLiberada.hoje && <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title={tx("Contatos com o próximo contato marcado para hoje ou atrasado")}>
                     <CalendarClock className="w-4 h-4" />{' '}{tx("Hoje")}
-                    {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[10px] font-black ${visaoAtiva === 'hoje' ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
-                </button>
-                <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'geladeira' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                    {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[10px] font-black ${visaoMostrada === 'hoje' ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
+                </button>}
+                {visaoLiberada.geladeira && <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'geladeira' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Snowflake className="w-4 h-4" />{' '}{tx("Geladeira (")}{meusLeadsGeladeira.length})
-                </button>
-                <button onClick={() => setVisaoAtiva('migracao')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'migracao' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                </button>}
+                {visaoLiberada.migracao && <button onClick={() => setVisaoAtiva('migracao')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'migracao' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Repeat className="w-4 h-4" />{' '}{tx("Migração")}
-                </button>
-                <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'naocontatar' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                </button>}
+                {visaoLiberada.naocontatar && <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'naocontatar' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Ban className="w-4 h-4" />{' '}{tx("Não contatar")}
-                </button>
-                <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'dashboard' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                </button>}
+                {visaoLiberada.dashboard && <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'dashboard' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <PieChart className="w-4 h-4" />{' '}{tx("Métricas")}
-                </button>
+                </button>}
                 {/* ✅ ABA RELATÓRIO INSERIDA NA BARRA DE NAVEGAÇÃO */}
-                <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoAtiva === 'relatorio' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                {visaoLiberada.relatorio && <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'relatorio' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                     <Table className="w-4 h-4" />{' '}{tx("Relatório")}
-                </button>
+                </button>}
             </div>
 
             {/* ABA GELADEIRA (RECUPERAÇÃO) */}
-            {visaoAtiva === 'geladeira' && (
+            {visaoMostrada === 'geladeira' && (
                 <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-cyan-200 dark:border-cyan-500/30 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out]">
                     <div className="flex items-center gap-4 mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
                         <div className="w-14 h-14 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-500 rounded-2xl flex items-center justify-center shadow-inner">
@@ -1269,10 +1283,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             {/* ABA BASE DE LEADS */}
 
             {/* MÓDULOS EXTERNOS */}
-            {visaoAtiva === 'dashboard' && <Metricas visitantes={meusLeads} colaboradores={colaboradores} operador={consultorLogado} />}
+            {visaoMostrada === 'dashboard' && <Metricas visitantes={meusLeads} colaboradores={colaboradores} operador={consultorLogado} />}
             
             {/* ✅ ABA RELATÓRIO RENDERIZADA COM O COMPONENTE NOVO */}
-            {visaoAtiva === 'relatorio' && (
+            {visaoMostrada === 'relatorio' && (
                 <RelatorioCrm 
                     visitantes={visitantes} 
                     temVisaoGlobal={temVisaoGlobal} 
@@ -1280,7 +1294,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
             
-            {visaoAtiva === 'kanban' && (
+            {visaoMostrada === 'kanban' && (
                 <Kanban 
                     visitantes={meusLeadsAtivos} 
                     alterarStatus={alterarStatus} 
@@ -1295,7 +1309,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
             
-            {visaoAtiva === 'lista' && (
+            {visaoMostrada === 'lista' && (
                 <Lista 
                     visitantes={meusLeadsAtivos} 
                     alterarStatus={alterarStatus} 
@@ -1313,7 +1327,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
 
-            {visaoAtiva === 'hoje' && (
+            {visaoMostrada === 'hoje' && (
                 <AbaHoje
                     visitantes={meusLeadsAtivos}
                     registrarHistorico={registrarHistorico}
@@ -1324,7 +1338,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
 
-            {visaoAtiva === 'migracao' && (
+            {visaoMostrada === 'migracao' && (
                 <AbaMigracao
                     unidade={unidadeOperacao}
                     operador={consultorLogado}
@@ -1336,7 +1350,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
 
-            {visaoAtiva === 'naocontatar' && (
+            {visaoMostrada === 'naocontatar' && (
                 <AbaNaoContatar
                     unidade={unidadeOperacao}
                     operador={consultorLogado}

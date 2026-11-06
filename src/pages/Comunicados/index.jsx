@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
     const { locale, language } = useI18n(); 
@@ -240,7 +241,8 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
     const [visualizando, setVisualizando] = useState(null); 
     const [comunicadoParaRelatorio, setComunicadoParaRelatorio] = useState(null);
 
-    const isGestor = ['ADMIN', 'MENTOR'].includes(usuarioLogado?.role);
+    // Criar comunicado: permissão 901 (padrão: Admin e Mentor; Configurações → Permissões)
+    const isGestor = podeFazer(usuarioLogado, '901');
 
     const fetchDados = async () => {
         setLoading(true);
@@ -279,7 +281,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
             if (isGestor) {
                 // 🔥 CORREÇÃO FATAL DO ADMIN: Agora a ordenação é por inicio_em e o React nunca mais crasha!
                 let query = supabase.from('comunicados').select('*').is('deleted_at', null).order('inicio_em', { ascending: false });
-                if (usuarioLogado.role === 'MENTOR') query = query.eq('criado_por', emailReal);
+                if (String(usuarioLogado.role || '').toUpperCase() !== 'ADMIN') query = query.eq('criado_por', emailReal);
                 
                 const { data: authored } = await query;
                 

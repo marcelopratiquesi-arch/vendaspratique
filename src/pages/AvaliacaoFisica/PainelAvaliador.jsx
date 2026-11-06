@@ -16,6 +16,7 @@ import { pendenciasAvaliacao } from './utils.js';
 import { excluirAvaliacaoComMotivo } from './lixeira.js';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { MESES_FILTRO, rotuloDoFiltro } from '../../components/periodoPadrao.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -77,7 +78,8 @@ const PainelAvaliador = ({
     const [dadosFiltrados, setDadosFiltrados] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
+    // Editar e excluir avaliação: permissão 704 (Configurações → Permissões; o banco confere a exclusão)
+    const podeEditar = podeFazer(usuarioLogado, '704');
     const anosUnicos = ['TODOS', ...new Set(avaliacoes.map(v => (v.data || v.created_at || '').split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if (anosUnicos.length === 1) anosUnicos.push(new Date().getFullYear().toString());
 

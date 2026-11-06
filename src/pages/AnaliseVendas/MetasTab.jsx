@@ -7,6 +7,7 @@ import MovimentoDiarioPainel, { MovimentacaoForm, JanelaMovimento } from './Movi
 import MonitorMovimentacao from './MonitorMovimentacao.jsx';
 import HistoricoMetas from './HistoricoMetas.jsx';
 import { useMovimentoDiario, entradasPorDia, podeGravarMovimento } from './movimentoDiario.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, CheckCircle2, AlertCircle, Clock, Leaf, Package, Dumbbell, Users, Star, Trophy, TrendingUp, History, XCircle, RotateCcw } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
@@ -275,8 +276,9 @@ const MetasTab = ({
         });
     }, []);
     const podeEditarCampos = unidadeAtivaEdicao && unidadeAtivaEdicao !== 'TODOS';
-    // Metas: só Líder, Mentor e Admin definem; a Recepção só vê (decisão do dono, 05/11/2026)
-    const podeEditarMetas = podeGravarMovimento(usuarioLogado);
+    // Metas: permissão 307 (padrão: Líder, Mentor e Admin; a Recepção só vê — decisão do dono, 05/11/2026)
+    const podeEditarMetas = podeFazer(usuarioLogado, '307');
+    const podeMarcarSemPersonal = podeFazer(usuarioLogado, '309');
     // Mês em que as metas são lidas e gravadas (vem do index: mês do período ou o mês atual)
     const rotuloMesMetas = `${String(filtroMes).padStart(2, '0')}/${filtroAno}`;
     const semPersonal = !!semPersonalMapa[String(unidadeAtivaEdicao || '').toUpperCase()];
@@ -601,7 +603,7 @@ const MetasTab = ({
                                 {tx("Defina as metas iniciais da sua unidade.")}<br/>
                                 <strong className="text-blue-700 dark:text-blue-400">{tx("Conclua todos os indicadores")}</strong>{' '}{tx("para liberar a gratificação.")}
                             </p>
-                            {!podeEditarMetas && <p className="-mt-4 mb-4 text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx("Só Líder, Mentor e Admin definem as metas.")}</p>}
+                            {!podeEditarMetas && <p className="-mt-4 mb-4 text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx("Você não tem permissão para gravar as metas (permissão 307).")}</p>}
                             
                             <div className="space-y-3 flex-1">
                                 <InputFieldWithSave label={tx("Nutri")} description="Meta de planos Nutri" icon={Leaf} value={metaNutri} dbValue={metaCache?.meta_nutri} onChange={setMetaNutri} onSave={(val) => salvarCampo('meta_nutri', val)} theme="blue" somenteLeitura={!podeEditarMetas} semBotao />
@@ -609,11 +611,11 @@ const MetasTab = ({
                                 {semPersonal ? <div className="flex items-center justify-between p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl gap-3 dark:bg-slate-800/60 dark:border-slate-700">
                                         <div className="flex items-center gap-3 min-w-0"><div className="p-2 rounded-xl bg-white border border-slate-100 shrink-0 text-slate-400 dark:bg-slate-900 dark:border-slate-800"><Dumbbell className="w-5 h-5" /></div>
                                             <div className="min-w-0"><div className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Personal Class")}</div><div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx("Esta unidade não tem Personal Class")}</div></div></div>
-                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>}
+                                        {podeMarcarSemPersonal && <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>}
                                     </div> : (
                                     <div>
                                         <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" somenteLeitura={!podeEditarMetas} semBotao />
-                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>}
+                                        {podeMarcarSemPersonal && <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>}
                                     </div>
                                 )}
                             </div>
@@ -652,11 +654,11 @@ const MetasTab = ({
                                 {semPersonal ? <div className="flex items-center justify-between p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl gap-3 dark:bg-slate-800/60 dark:border-slate-700">
                                         <div className="flex items-center gap-3 min-w-0"><div className="p-2 rounded-xl bg-white border border-slate-100 shrink-0 text-slate-400 dark:bg-slate-900 dark:border-slate-800"><Dumbbell className="w-5 h-5" /></div>
                                             <div className="min-w-0"><div className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Personal Class")}</div><div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx("Esta unidade não tem Personal Class")}</div></div></div>
-                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>}
+                                        {podeMarcarSemPersonal && <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>}
                                     </div> : (
                                     <div>
                                         <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" somenteLeitura={!podeEditarMetas} semBotao />
-                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>}
+                                        {podeMarcarSemPersonal && <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>}
                                     </div>
                                 )}
                             </div>
@@ -674,7 +676,7 @@ const MetasTab = ({
 
                     </div>
                 </div>
-            ) : ['ADMIN', 'MENTOR'].includes(String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase()) ? (
+            ) : podeFazer(usuarioLogado, '310') ? (
                 // Admin/Mentor em "Todas": monitoramento de quem lançou a movimentação (decisão do dono, 31/10/2026)
                 <MonitorMovimentacao unidades={unidadesUnicas.filter(u => u && u !== 'TODOS')} faixa={faixa} vendasFiltradas={vendasFiltradas} planos={planos} produtos={produtos} abrirModalWhatsapp={abrirModalWhatsapp} />
             ) : (

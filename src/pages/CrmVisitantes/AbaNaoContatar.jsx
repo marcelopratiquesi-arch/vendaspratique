@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Ban, Search, X, Loader2, Undo2, AlertTriangle } from 'lucide-react';
-import { contatoCombinaComBusca, formatarDataHora, papelReal } from './utils';
+import { contatoCombinaComBusca, formatarDataHora, podeTirarNaoContatar } from './utils';
 import { carregarListaNaoContatar, tirarNaoContatar } from './contatosFeitos';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -20,7 +20,7 @@ const AbaNaoContatar = ({ unidade, operador, usuarioLogado, versao = 0, onMudou 
     const [tirando, setTirando] = useState(null);
 
     const unidadeChave = String(unidade || '').toUpperCase().trim();
-    const podeTirar = ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuarioLogado));
+    const podeTirar = podeTirarNaoContatar(usuarioLogado);
 
     const carregar = useCallback(async () => {
         setCarregando(true);

@@ -38,8 +38,13 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
     ]);
 
     // 4. PÚBLICO ALVO E AGENDAMENTO
-    // Mentor só manda comunicado para as unidades dele (a lista "unidades" já vem só com as dele)
-    const ehMentor = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase() === 'MENTOR';
+    // Mentor só manda comunicado para as unidades dele (a lista "unidades" já vem só com as dele).
+    // Líder/Recepção que ganhou a permissão 901 (Configurações → Permissões) manda só para a própria unidade.
+    const papelForm = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase();
+    const ehMentor = papelForm !== 'ADMIN'; // "restrito às minhas unidades" (Mentor, ou Líder/Recepção liberados)
+    const unidadesDoForm = ['ADMIN', 'MENTOR'].includes(papelForm)
+        ? unidades
+        : unidades.filter(u => String(u.nome || '').toUpperCase().trim() === String(usuarioLogado?.unidade || '').toUpperCase().trim());
     const [tipoAlvo, setTipoAlvo] = useState(ehMentor ? 'MINHAS' : 'GLOBAL');
     const [valorAlvo, setValorAlvo] = useState('TODOS');
     const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
@@ -203,8 +208,8 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             // Mentor só manda para as unidades dele: "Todas as minhas unidades" = uma entrega por unidade
             const entregas = ehMentor
                 ? (tipoAlvo === 'MINHAS'
-                    ? unidades.map(u => ({ tipo: 'UNIDADE', valor: u.nome }))
-                    : [{ tipo: 'UNIDADE', valor: unidades.some(u => u.nome === valorAlvo) ? valorAlvo : unidades[0]?.nome }])
+                    ? unidadesDoForm.map(u => ({ tipo: 'UNIDADE', valor: u.nome }))
+                    : [{ tipo: 'UNIDADE', valor: unidadesDoForm.some(u => u.nome === valorAlvo) ? valorAlvo : unidadesDoForm[0]?.nome }])
                 : [{ tipo: tipoAlvo, valor: tipoAlvo === 'GLOBAL' ? 'TODOS' : valorAlvo }];
             if (entregas.length === 0 || entregas.some(e => !e.valor)) throw new Error('Nenhuma unidade vinculada para receber o comunicado.');
 
@@ -400,7 +405,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             <div className="animate-[fadeIn_0.2s_ease-out]">
                                 <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest mb-2 ml-1">{tx("Selecione a Unidade:")}</label>
                                 <select value={valorAlvo} onChange={(e) => setValorAlvo(e.target.value)} className={`${inputClasses} cursor-pointer uppercase`}>
-                                    {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
+                                    {unidadesDoForm.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
                                 </select>
                             </div>
                         )}

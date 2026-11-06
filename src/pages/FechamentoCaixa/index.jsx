@@ -12,6 +12,7 @@ import { vendaAtrasada, consumirConferenciaPedida, EVENTO_PEDIR_CONFERENCIA } fr
 import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, ChevronDown } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
     const [subAba, setSubAba] = useState('conferencia');
@@ -49,8 +50,10 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     // Aba Auditoria: Admin e Mentor de verdade (roleReal), mesmo quando escolhem uma unidade no topo
     // (aí o App os trata como LIDER daquela unidade e a aba mostra só ela)
-    const papelReal = usuarioLogado?.roleReal || usuarioLogado?.role;
-    const podeVerAuditoria = papelReal === 'ADMIN' || papelReal === 'MENTOR';
+    // Abas pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era): Conferência é a principal (sempre)
+    const podeVerAuditoria = podeVer(usuarioLogado, '404');
+    const abaLiberada = { conferencia: true, comissoes: podeVer(usuarioLogado, '402'), geral: podeVer(usuarioLogado, '403'), auditoria: podeVerAuditoria };
+    const abaMostrada = abaLiberada[subAba] ? subAba : 'conferencia';
     let colunasVisiveis = 10;
     if (temVisaoGlobal) colunasVisiveis++;
 
@@ -277,9 +280,9 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                         ['conferencia', 'Conferência', ClipboardCheck],
                         ['comissoes', 'Comissões', Users],
                         ['geral', 'Visão Geral', PieChart],
-                        ...(podeVerAuditoria ? [['auditoria', 'Auditoria', ShieldAlert]] : []),
-                    ].map(([id, rotulo, Icone]) => {
-                        const ativa = subAba === id;
+                        ['auditoria', 'Auditoria', ShieldAlert],
+                    ].filter(([id]) => abaLiberada[id]).map(([id, rotulo, Icone]) => {
+                        const ativa = abaMostrada === id;
                         return (
                             <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => setSubAba(id)}
                                 className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
@@ -312,7 +315,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 </div>
             </div>
 
-            {subAba === 'comissoes' && (
+            {abaMostrada === 'comissoes' && (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-[fadeIn_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
                     <div>
                         <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2 dark:text-slate-400">{tx("Status do Repasse")}</h3>
@@ -328,7 +331,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 </div>
             )}
 
-            {subAba === 'conferencia' && (
+            {abaMostrada === 'conferencia' && (
                 <ConferenciaTab 
                     vendasParaConferencia={vendasParaConferencia} 
                     catalogoCompleto={catalogoGeral} // <- Aqui o Catálogo carrega no pop-up!
@@ -343,9 +346,9 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                     onExcluirVenda={handleExcluirVenda}
                 />
             )}
-            {subAba === 'comissoes' && <ComissoesTab dadosTabelaComissoes={dadosTabelaComissoes} />}
-            {subAba === 'auditoria' && podeVerAuditoria && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
-            {subAba === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} />}
+            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={dadosTabelaComissoes} />}
+            {abaMostrada === 'auditoria' && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
+            {abaMostrada === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} />}
         </div>
     );
 };

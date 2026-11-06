@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, papelReal } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas } from './utils';
 import { carregarResumoDoDia } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
 import { 
@@ -26,7 +26,7 @@ const Modais = ({
     // Editor das mensagens prontas (versões do embaralhador), aberto pela Revisão de Mensagem
     const [editandoMensagens, setEditandoMensagens] = useState(false);
     const [destinoWpp, setDestinoWpp] = useState(() => destinoWhatsApp());
-    const podeEditarMensagens = ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuarioLogado));
+    const podeEditarMensagens = podeEditarMensagensProntas(usuarioLogado);
 
     // ==========================================
     // DRAG & DROP (JANELAS FLUTUANTES)

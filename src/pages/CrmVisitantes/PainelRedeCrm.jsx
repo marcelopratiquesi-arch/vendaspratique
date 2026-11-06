@@ -68,7 +68,7 @@ const buscarPaginado = async (montarQuery) => {
 };
 
 // O período vem do filtro padrão do topo do CRM: faixa = { inicio, fim } (fim não entra)
-const PainelRedeCrm = ({ colaboradores = [], faixa = { inicio: null, fim: null }, rotuloPeriodo = '', versao, unidadeFoco, onFocarUnidade }) => {
+const PainelRedeCrm = ({ podeCobrar = true, colaboradores = [], faixa = { inicio: null, fim: null }, rotuloPeriodo = '', versao, unidadeFoco, onFocarUnidade }) => {
     const [unidades, setUnidades] = useState([]);
     const [historico, setHistorico] = useState([]);
     const [contatosFeitos, setContatosFeitos] = useState([]);
@@ -309,7 +309,7 @@ const PainelRedeCrm = ({ colaboradores = [], faixa = { inicio: null, fim: null }
                     {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={montarCobranca} disabled={carregando} className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Send className="w-3.5 h-3.5" />{tx('Cobrar no WhatsApp')}</button>
+                    {podeCobrar && <button type="button" onClick={montarCobranca} disabled={carregando} className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Send className="w-3.5 h-3.5" />{tx('Cobrar no WhatsApp')}</button>}
                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30">{resumo.usando}{' '}{tx("usando")}</span>
                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30">{resumo.parado}{' '}{tx("parado")}</span>
                     <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border bg-rose-50 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30">{resumo.semUso}{' '}{tx("sem uso")}</span>

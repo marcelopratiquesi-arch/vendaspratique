@@ -4,11 +4,17 @@
 // O sistema não vê o WhatsApp: conta como ENVIADO o clique em Copiar ou Enviar na janela desse relatório,
 // feito pelo login da RECEPÇÃO, com o período "Hoje", na própria unidade e DENTRO do horário do turno
 // (clique fora do horário é só consulta e não conta). Fechar não conta.
-// Turnos (seg a sex): MANHÃ vale de 13h00 a 17h59, cobrança 14h00, atrasado depois de 14h30;
-//                     NOITE vale de 22h00 a 23h59, cobrança 22h30, atrasado depois de 23h00.
-// Sábado, domingo e feriado nacional: um relatório só (FIM DE SEMANA), vale a partir de 12h00, cobrança 12h30, atrasado depois de 13h00.
+// Horário de envio (decisão do dono, 06/11/2026; antes era 13h–14h30 e 22h–23h):
+//   seg a sex  MANHÃ: envio das 13h30 às 15h00 (cobrança na tela da Recepção às 14h30)
+//              NOITE: envio das 21h30 às 23h00 (cobrança às 22h30; tem unidade que fecha às 22h)
+//   sábado, domingo e feriado nacional: um relatório só (FIM DE SEMANA), das 12h00 às 13h00 (cobrança 12h30).
+// Clique depois do prazo (até 17h59 de manhã, até 23h59 à noite e no fim de semana) ainda conta, como ATRASADO.
+// Clique antes do horário de abrir não conta (é consulta).
 // Vale a partir de 05/11/2026. Tabela relatorios_fechamento_envios (SQL em sql/2026-11-05-relatorio-fechamento/).
 // O nome de quem devia enviar vem do cadastro da Equipe: setor Recepção, ativa, campo Turno (Manhã/Noite).
+// CONFERÊNCIA NO GRUPO (06/11/2026): quando o sistema marca "não enviado", o Líder/Mentor/Admin (permissão 313) confere no
+// grupo de vendas da unidade e responde ENVIADO (conta como enviado) ou NAO_ENVIADO (confirmado). Nos dois casos o turno sai
+// da cobrança. Tabela relatorios_fechamento_conferencia (sql/2026-11-06-relatorio-conferencia/).
 // ==========================================
 import { supabase } from '../../supabaseClient.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
@@ -19,8 +25,8 @@ export const INICIO_COBRANCA_RELATORIO = '2026-11-05';
 // Horários em minutos do dia
 const h = (hora, min = 0) => hora * 60 + min;
 const TURNOS_SEMANA = [
-    { turno: 'MANHA', rotulo: 'manhã', abre: h(13), fecha: h(18), cobra: h(14), atrasa: h(14, 30) },
-    { turno: 'NOITE', rotulo: 'noite', abre: h(22), fecha: h(24), cobra: h(22, 30), atrasa: h(23) },
+    { turno: 'MANHA', rotulo: 'manhã', abre: h(13, 30), fecha: h(18), cobra: h(14, 30), atrasa: h(15) },
+    { turno: 'NOITE', rotulo: 'noite', abre: h(21, 30), fecha: h(24), cobra: h(22, 30), atrasa: h(23) },
 ];
 const TURNOS_FIM_DE_SEMANA = [
     { turno: 'FIM_DE_SEMANA', rotulo: 'fim de semana/feriado', abre: h(12), fecha: h(24), cobra: h(12, 30), atrasa: h(13) },
@@ -79,6 +85,38 @@ export const buscarEnviosRelatorio = async (inicioIso, fimIso) => {
     return data || [];
 };
 
+// ---------- CONFERÊNCIA NO GRUPO ----------
+// Lê as conferências de um período. Sem a tabela, devolve null (as telas funcionam sem os botões).
+export const buscarConferenciasRelatorio = async (inicioIso, fimIso) => {
+    let q = supabase.from('relatorios_fechamento_conferencia').select('unidade, data, turno, resultado, conferido_por, conferido_em')
+        .gte('data', inicioIso > INICIO_COBRANCA_RELATORIO ? inicioIso : INICIO_COBRANCA_RELATORIO);
+    if (fimIso) q = q.lte('data', fimIso);
+    const { data, error } = await q.limit(5000);
+    if (error) { console.warn('Relatório de fechamento: conferências indisponíveis (rodou o SQL 2026-11-06-relatorio-conferencia?)', error.message); return null; }
+    return data || [];
+};
+
+export const acharRegistroTurno = (lista, unidade, dataIso, turno) => {
+    const alvo = normalizeString(String(unidade || ''));
+    return (lista || []).find(e => normalizeString(String(e.unidade || '')) === alvo && String(e.data).slice(0, 10) === dataIso && e.turno === turno) || null;
+};
+
+// Grava (ou corrige) a resposta do Líder: resultado 'ENVIADO' | 'NAO_ENVIADO'. Devolve o erro (ou null).
+export const gravarConferenciaRelatorio = async ({ usuario, unidade, data, turno, resultado }) => {
+    const { error } = await supabase.from('relatorios_fechamento_conferencia').upsert({
+        unidade: String(unidade || '').toUpperCase().trim(),
+        data, turno, resultado,
+        conferido_por: usuario?.nome || usuario?.email || null,
+        conferido_email: usuario?.email || null,
+        conferido_em: new Date().toISOString(),
+    }, { onConflict: 'unidade,data,turno' });
+    if (!error) window.dispatchEvent(new CustomEvent('relatorio-fechamento-enviado'));
+    return error || null;
+};
+
+// Texto da regra de horário (para mostrar na tela)
+export const TEXTO_REGRA_RELATORIO = 'Conta sozinho como enviado quando o login da Recepção clica em Copiar ou Enviar no WhatsApp Fechamento (Relatórios, período Hoje, a própria unidade) no horário: manhã das 13h30 às 15h · noite das 21h30 às 23h · sábado, domingo e feriado das 12h às 13h. Depois do prazo ainda conta, como atrasado (até 17h59 de manhã e até 23h59 à noite). Se a recepção mandou de outro jeito, o Líder confere no grupo de vendas e confirma.';
+
 // Situação de um turno num dia: 'enviado' | 'enviado_atrasado' | 'aguardando' (antes da cobrança) |
 // 'cobrando' (passou da cobrança, ainda no prazo) | 'atrasado' (hoje, passou do prazo) | 'nao_enviado' (dia que já passou)
 export const situacaoDoTurno = (turnoInfo, dataIso, envio, agora = new Date()) => {
@@ -112,8 +150,29 @@ const primeiroNome = (nome) => {
 };
 export const nomesDoTurno = (colaboradores, unidade, turno) => recepcionistasDoTurno(colaboradores, unidade, turno).map(c => primeiroNome(c.nome)).filter(Boolean);
 
+// Situação de TODOS os turnos de ontem e hoje de uma unidade (para a tela mostrar o que foi feito em verde):
+// 'enviado' | 'enviado_atrasado' | 'conferido_enviado' (Líder conferiu no grupo) | 'confirmado_nao' (Líder confirmou que não)
+// | 'aguardando' | 'cobrando' | 'atrasado' | 'nao_enviado'
+export const situacaoRelatorioDias = (envios = [], conferencias = [], unidade, agora = new Date()) => {
+    const hojeIso = paraIso(agora);
+    const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
+    const lista = [];
+    [paraIso(ontem), hojeIso].forEach(dataIso => {
+        if (dataIso < INICIO_COBRANCA_RELATORIO) return;
+        turnosDoDia(dataIso).forEach(t => {
+            const envio = acharRegistroTurno(envios, unidade, dataIso, t.turno);
+            const conf = acharRegistroTurno(conferencias, unidade, dataIso, t.turno);
+            let situacao = situacaoDoTurno(t, dataIso, envio, agora);
+            if (!envio && conf) situacao = conf.resultado === 'ENVIADO' ? 'conferido_enviado' : 'confirmado_nao';
+            lista.push({ data: dataIso, turno: t.turno, rotulo: t.rotulo, situacao, hoje: dataIso === hojeIso, atrasaTexto: t.atrasaTexto, abreTexto: t.abreTexto, envio, conferencia: conf });
+        });
+    });
+    return lista;
+};
+
 // Pendências de relatório de uma unidade: hoje (turnos já em cobrança) e ontem (turnos não enviados)
-export const pendenciasRelatorio = (envios = [], unidade, agora = new Date()) => {
+// conferencias: respostas do Líder (turno conferido no grupo sai da cobrança, enviado ou não)
+export const pendenciasRelatorio = (envios = [], unidade, agora = new Date(), conferencias = []) => {
     const alvo = normalizeString(String(unidade || ''));
     const hojeIso = paraIso(agora);
     const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
@@ -124,6 +183,7 @@ export const pendenciasRelatorio = (envios = [], unidade, agora = new Date()) =>
         turnosDoDia(dataIso).forEach(t => {
             const envio = envios.find(e => normalizeString(String(e.unidade || '')) === alvo && String(e.data).slice(0, 10) === dataIso && e.turno === t.turno);
             const sit = situacaoDoTurno(t, dataIso, envio, agora);
+            if (acharRegistroTurno(conferencias, unidade, dataIso, t.turno)) return;
             if (sit === 'cobrando' || sit === 'atrasado' || sit === 'nao_enviado') {
                 lista.push({ data: dataIso, turno: t.turno, rotulo: t.rotulo, situacao: sit, hoje: dataIso === hojeIso, atrasaTexto: t.atrasaTexto });
             }
@@ -131,3 +191,7 @@ export const pendenciasRelatorio = (envios = [], unidade, agora = new Date()) =>
     });
     return lista;
 };
+
+// Abre a janela "Conferiu no grupo?" (JanelaConferirRelatorio, montada uma vez no App) de qualquer tela
+export const EVENTO_CONFERIR_RELATORIO = 'conferir-relatorio-fechamento';
+export const pedirConferirRelatorio = (dados) => window.dispatchEvent(new CustomEvent(EVENTO_CONFERIR_RELATORIO, { detail: dados }));

@@ -28,10 +28,12 @@ import { pedirConferencia } from './pages/FechamentoCaixa/cobrancaAuditoria.js';
 import PaginaPendencias from './pages/Pendencias/index.jsx';
 import JanelaPendencias from './pages/Pendencias/JanelaPendencias.jsx';
 import CartaoPendencias from './pages/Pendencias/CartaoPendencias.jsx';
+import JanelaConferirRelatorio from './pages/Pendencias/JanelaConferirRelatorio.jsx';
 import { usePendencias } from './pages/Pendencias/pendencias.js';
 import CobrancaRelatorioRecepcao from './pages/Pendencias/CobrancaRelatorioRecepcao.jsx';
 import PopupTurnoRecepcao from './pages/Pendencias/PopupTurnoRecepcao.jsx';
 import { tx } from './i18n/traduzir.js';
+import { usePermissoes } from './permissoes/usePermissoes.js';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
 const ESCALA_INTERFACE = 0.8; // 20% menor (decisão do dono, 30/10/2026; antes 0.9)
@@ -498,7 +500,12 @@ export default function App() {
         return [];
     }, [papelCobranca, usuarioLogado?.unidade, unidadesVisiveis]);
     const pendencias = usePendencias({ ativo: ['LIDER', 'MENTOR', 'ADMIN'].includes(papelCobranca), unidades: unidadesCobradas, colaboradores });
-    const cobradoNaTela = papelCobranca === 'LIDER' || papelCobranca === 'MENTOR';
+    // Permissões (Configurações → Permissões, 06/11/2026): pode('004') etc.; sem mudança do Admin vale o padrão de antes
+    const pode = usePermissoes(usuarioLogado);
+    // O usuário de verdade (sem a troca de unidade do topo), já com as permissões, para as telas que usam o login real
+    const usuarioComPode = useMemo(() => (usuarioLogado ? { ...usuarioLogado, pode } : usuarioLogado), [usuarioLogado, pode]);
+    // Janela e cartão de cobranças: permissão 902 (padrão: Líder e Mentor; o Admin acompanha pela aba Pendências)
+    const cobradoNaTela = (papelCobranca === 'LIDER' || papelCobranca === 'MENTOR') && pode('902');
     const [janelaPendenciasFechada, setJanelaPendenciasFechada] = useState(false);
     const aoFecharJanelaPendencias = useCallback(() => setJanelaPendenciasFechada(true), []);
     useEffect(() => { setJanelaPendenciasFechada(false); }, [usuarioLogado?.email]);
@@ -571,24 +578,28 @@ export default function App() {
         ...usuarioLogado,
         role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
         roleReal: usuarioLogado.role, // papel verdadeiro (o "role" acima vira LIDER quando ADMIN/MENTOR escolhe uma unidade)
-        unidade: ehChefe ? unidadeGlobal : usuarioLogado.unidade 
+        unidade: ehChefe ? unidadeGlobal : usuarioLogado.unidade,
+        pode, // permissões (catalogoPermissoes.js): as telas usam podeVer(usuario, 'codigo')
     };
 
+    // Cada item do menu tem o número da permissão (Configurações → Permissões; padrão = como era antes)
     const todasAbas = [
-        { id: 'lancamento', label: t('navigation.newSale'), icon: ShoppingCart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'assinaturas', label: t('navigation.history'), icon: History, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'analise', label: t('navigation.dashboard'), icon: PieChart, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'fechamento', label: t('navigation.closing'), icon: Wallet, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        { id: 'crm', label: t('navigation.crm'), icon: Users, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'alunos', label: t('navigation.students', { defaultValue: 'Alunos' }), icon: GraduationCap, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
-        { id: 'cadastros', label: t('navigation.management'), icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
-        { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'], badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
-        { id: 'pendencias', label: tx('Pendências'), icon: BellRing, permissoes: ['ADMIN', 'MENTOR'], badge: pendencias.total > 0 ? pendencias.total : null },
-        { id: 'config', label: t('navigation.settings'), icon: Settings, permissoes: ['ADMIN'] }
+        { id: 'lancamento', label: t('navigation.newSale'), icon: ShoppingCart, codigo: '001' },
+        { id: 'assinaturas', label: t('navigation.history'), icon: History, codigo: '002' },
+        { id: 'analise', label: t('navigation.dashboard'), icon: PieChart, codigo: '003' },
+        { id: 'fechamento', label: t('navigation.closing'), icon: Wallet, codigo: '004' },
+        { id: 'crm', label: t('navigation.crm'), icon: Users, codigo: '005' },
+        { id: 'alunos', label: t('navigation.students', { defaultValue: 'Alunos' }), icon: GraduationCap, codigo: '006' },
+        { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, codigo: '007' },
+        { id: 'cadastros', label: t('navigation.management'), icon: Database, codigo: '008' },
+        { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, codigo: '009', badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
+        { id: 'pendencias', label: tx('Pendências'), icon: BellRing, codigo: '010', badge: pendencias.total > 0 ? pendencias.total : null },
+        { id: 'config', label: t('navigation.settings'), icon: Settings, codigo: '011' }
     ];
 
-    const abasPermitidas = todasAbas.filter(aba => aba.permissoes.includes(usuarioLogado.role));
+    const abasPermitidas = todasAbas.filter(aba => pode(aba.codigo));
+    // A tela aberta foi desligada para este login (ex.: o Admin mudou agora): mostra a primeira permitida
+    const telaAtual = abasPermitidas.some(a => a.id === activeTab) ? activeTab : (abasPermitidas[0]?.id || null);
 
     // Mentor: "Todas as minhas unidades" no seletor; sem unidade marcada, as telas ficam bloqueadas
     const rotuloTodas = ehMentor ? 'Todas as minhas unidades' : undefined;
@@ -604,37 +615,40 @@ export default function App() {
                 do canto (Conferência, Movimentação e Metas). O Admin cobra pela aba Pendências. */}
             {cobradoNaTela && (
                 <>
-                    <JanelaPendencias lista={pendencias.lista} carregado={pendencias.carregado && unidadesCobradas.length > 0} ehMentor={ehMentor}
+                    <JanelaPendencias lista={pendencias.lista} carregado={pendencias.carregado && unidadesCobradas.length > 0} ehMentor={ehMentor} podeConferirRelatorio={pode('313')}
                         aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} onFechar={aoFecharJanelaPendencias} />
-                    <CartaoPendencias lista={pendencias.lista} ehMentor={ehMentor} escondido={!janelaPendenciasFechada}
+                    <CartaoPendencias lista={pendencias.lista} ehMentor={ehMentor} escondido={!janelaPendenciasFechada} podeConferirRelatorio={pode('313')}
                         aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} />
                 </>
             )}
 
-            {/* Recepção: cobrança do relatório de fechamento do turno (14h00 manhã, 22h30 noite, 12h30 sáb/dom; 05/11/2026) */}
+            {/* Recepção: cobrança do relatório de fechamento do turno (14h30 manhã, 22h30 noite, 12h30 sáb/dom/feriado; horários de 06/11/2026) */}
             {/* Líder: marcar o turno das recepcionistas da unidade (enquanto faltar alguém; 05/11/2026) */}
-            <PopupTurnoRecepcao key={usuarioLogado?.email || "sem-login"} usuario={usuarioLogado} colaboradores={colaboradores} setColaboradores={setColaboradores} />
+            <PopupTurnoRecepcao key={usuarioLogado?.email || "sem-login"} usuario={usuarioComPode} colaboradores={colaboradores} setColaboradores={setColaboradores} />
 
-            <CobrancaRelatorioRecepcao usuario={usuarioLogado} colaboradores={colaboradores}
+            {/* Líder/Mentor/Admin: "Conferiu no grupo?" do relatório de fechamento (permissão 313; 06/11/2026) */}
+            <JanelaConferirRelatorio usuario={usuarioComPode} />
+
+            <CobrancaRelatorioRecepcao usuario={usuarioComPode} colaboradores={colaboradores}
                 aoIrRelatorio={() => { pedirAbaAnalise('relatorio'); handleNavigation('analise'); }} />
 
             <SidebarDesktop 
                 isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
-                abasPermitidas={abasPermitidas} activeTab={activeTab} setActiveTab={handleNavigation}
+                abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation}
                 ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidadesVisiveis} rotuloTodas={rotuloTodas}
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
             <SidebarMobile 
                 isMobileMenuOpen={isMobileMenuOpen} fecharMobile={() => setIsMobileMenuOpen(false)}
-                abasPermitidas={abasPermitidas} activeTab={activeTab} setActiveTab={handleNavigation}
+                abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation}
                 ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidadesVisiveis} rotuloTodas={rotuloTodas}
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
             <div className="flex-1 flex flex-col h-full relative z-10 w-full min-w-0 overflow-hidden">
                 <TopBar 
-                    activeTab={activeTab}
+                    activeTab={telaAtual}
                     usuarioLogado={usuarioVirtual}
                     theme={theme}
                     setTheme={setTheme}
@@ -670,7 +684,7 @@ export default function App() {
                             )}
                         </div>
                     ) : (<>
-                    {activeTab === 'lancamento' && (
+                    {telaAtual === 'lancamento' && (
                         <LancamentoVendas 
                             usuarioLogado={usuarioVirtual} 
                             unidades={unidadesVisiveis} 
@@ -685,14 +699,14 @@ export default function App() {
                             vendas={dadosAssinaturas} // só leitura: aviso do limite de doses únicas
                         />
                     )}
-                    {activeTab === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} onAbrirAluno={(aluno) => abrirAlunoVindoDe(aluno, 'assinaturas')} />}
-                    {activeTab === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} />}
-                    {activeTab === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
-                    {activeTab === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
-                    {activeTab === 'alunos' && (
+                    {telaAtual === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} onAbrirAluno={(aluno) => abrirAlunoVindoDe(aluno, 'assinaturas')} />}
+                    {telaAtual === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} unidades={unidadesVisiveis} setUnidadeGlobal={ehChefe ? setUnidadeGlobal : undefined} />}
+                    {telaAtual === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
+                    {telaAtual === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
+                    {telaAtual === 'alunos' && (
                         <ModuloAlunos360
                             usuarioLogado={usuarioVirtual}
-                            usuarioReal={usuarioLogado}
+                            usuarioReal={usuarioComPode}
                             unidadeGlobal={unidadeGlobal}
                             setUnidadeGlobal={setUnidadeGlobal}
                             unidades={unidadesVisiveis}
@@ -714,7 +728,7 @@ export default function App() {
                             onVoltarParaOrigem={handleNavigation}
                         />
                     )}
-                    {activeTab === 'avaliacao' && (
+                    {telaAtual === 'avaliacao' && (
                         <AvaliacaoFisica 
                             usuarioLogado={usuarioVirtual} 
                             avaliacoes={avaliacoesEnriquecidas} 
@@ -725,10 +739,10 @@ export default function App() {
                             onVoltarParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
-                    {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} />}
-                    {activeTab === 'comunicados' && <CentralComunicados usuarioLogado={usuarioLogado} unidades={unidadesVisiveis} />}
-                    {activeTab === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} />}
-                    {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
+                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} />}
+                    {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
+                    {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} />}
+                    {telaAtual === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
                     </>)}
                 </main>
             </div>

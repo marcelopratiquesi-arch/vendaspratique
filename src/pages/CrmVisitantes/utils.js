@@ -1,5 +1,6 @@
 import { localeAtual, tx } from '../../i18n/traduzir.js';
 import { MENSAGENS_PADRAO, montarMensagem, chaveDaFase } from './embaralhador.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 // ==========================================
 // UTILS: Funções de Apoio do CRM
 // ==========================================
@@ -177,9 +178,12 @@ export const contarPessoasDaMeta = (progresso = []) =>
 // Papel verdadeiro de quem está logado (Admin/Mentor que escolhe uma unidade no topo vira "LIDER" no role)
 export const papelReal = (usuario) => String(usuario?.roleReal || usuario?.role || '').toUpperCase();
 
-// Admin, Líder e Mentor (nas unidades dele, mesma regra do Líder) apagam contato do banco (decisão do dono).
-// A Recepção nunca apaga. O banco confere (gatilho crm_conferir_quem_apaga).
-export const podeApagarLeads = (usuario) => ['ADMIN', 'LIDER', 'MENTOR'].includes(papelReal(usuario));
+// Apagar contato = permissão 514 (padrão: Admin, Líder e Mentor nas unidades dele; a Recepção não apaga — decisão
+// do dono). O banco confere (gatilho crm_conferir_quem_apaga, com seg_pode('514') desde a Etapa 2 das permissões).
+export const podeApagarLeads = (usuario) => podeFazer(usuario, '514');
+// Tirar do "Não contatar" (515) e editar as mensagens prontas (516): mesmas regras, pela aba Permissões
+export const podeTirarNaoContatar = (usuario) => podeFazer(usuario, '515');
+export const podeEditarMensagensProntas = (usuario) => podeFazer(usuario, '516');
 
 // Quando Líder/Admin/Mentor (ou uma colega) age no CRM de outra recepcionista, a ação conta para ela,
 // mas fica a marca de quem fez de verdade: "feito por NOME (Papel)". Vazio quando a própria pessoa fez.

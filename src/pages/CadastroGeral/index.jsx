@@ -12,6 +12,7 @@ import AlunosTab from './AlunosTab.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
 const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
@@ -33,8 +34,20 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
     // Contexto de Permissão Global
     const roleBaseApp = usuarioVirtual?.role || usuarioLogado?.role || '';
     const temVisaoGlobal = roleBaseApp === 'ADMIN' || roleBaseApp === 'MENTOR';
-    const podeEditarEquipe = temVisaoGlobal || roleBaseApp === 'LIDER';
-    const ehAdmin = roleBaseApp === 'ADMIN';
+    // Editar a equipe: permissão 807 (padrão: Admin, Mentor e Líder; o banco confere, só nas unidades da pessoa)
+    const podeEditarEquipe = podeFazer(usuarioVirtual || usuarioLogado, '807');
+    // Catálogo e setores: Admin de verdade, mesmo com uma unidade escolhida no topo (corrigido em 06/11/2026;
+    // antes o Admin virava "Líder" ao escolher a unidade e perdia o botão de alterar)
+    const ehAdmin = (usuarioLogado?.roleReal || roleBaseApp) === 'ADMIN';
+
+    // Abas pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era)
+    const abaLiberada = {
+        alunos: podeVer(usuarioLogado, '801'),
+        equipe: podeVer(usuarioLogado, '802'),
+        catalogo: podeVer(usuarioLogado, '803'),
+        setores: podeVer(usuarioLogado, '804'),
+    };
+    const abaMostrada = abaLiberada[abaAtiva] ? abaAtiva : (Object.keys(abaLiberada).find(id => abaLiberada[id]) || null);
 
     const catalogoCompleto = [...(planos || []), ...(produtos || []), ...(servicos || [])];
 
@@ -220,31 +233,31 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                 </div>
 
                 <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full xl:w-auto overflow-x-auto custom-scrollbar dark:bg-slate-800 dark:border-slate-800">
-                    <button onClick={() => setAbaAtiva('alunos')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'alunos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                    {abaLiberada.alunos && <button onClick={() => setAbaAtiva('alunos')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'alunos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                         <UserCircle className="w-4 h-4" /> {t('management.tabs.students', {defaultValue: 'Alunos'})}
-                    </button>
-                    <button onClick={() => setAbaAtiva('equipe')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                    </button>}
+                    {abaLiberada.equipe && <button onClick={() => setAbaAtiva('equipe')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                         <Users className="w-4 h-4" />{' '}{tx("Equipe")}
-                    </button>
-                    <button onClick={() => setAbaAtiva('catalogo')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'catalogo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                    </button>}
+                    {abaLiberada.catalogo && <button onClick={() => setAbaAtiva('catalogo')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'catalogo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                         <Layers className="w-4 h-4" />{' '}{tx("Catálogo Geral")}
-                    </button>
-                    <button onClick={() => setAbaAtiva('setores')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaAtiva === 'setores' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                    </button>}
+                    {abaLiberada.setores && <button onClick={() => setAbaAtiva('setores')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'setores' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                         <LayoutGrid className="w-4 h-4" />{' '}{tx("Setores")}
-                    </button>
+                    </button>}
                 </div>
             </div>
 
             <div className="w-full">
                 {/* 🔥 CORREÇÃO SINTÁTICA CIRÚRGICA (Parse Error Resolvido) */}
-                {abaAtiva === 'alunos' && (
+                {abaMostrada === 'alunos' && (
                     <AlunosTab 
                         usuarioLogado={usuarioLogado} 
                         usuarioVirtual={usuarioVirtual}
                     />
                 )}
 
-                {abaAtiva === 'equipe' && (
+                {abaMostrada === 'equipe' && (
                     <TabEquipe 
                         colaboradores={colaboradores} 
                         temVisaoGlobal={temVisaoGlobal} 
@@ -256,7 +269,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                     />
                 )}
 
-                {abaAtiva === 'catalogo' && (
+                {abaMostrada === 'catalogo' && (
                     <TabCatalogo 
                         catalogoCompleto={catalogoCompleto} ehAdmin={ehAdmin}
                         onEdit={(item) => { setCatEditando(item); setModalCatAberto(true); }}
@@ -265,7 +278,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                     />
                 )}
 
-                {abaAtiva === 'setores' && (
+                {abaMostrada === 'setores' && (
                     <TabSetores 
                         listaSetores={listaSetores} ehAdmin={ehAdmin}
                         onEdit={(setor) => { setSetorEditando(setor); setModalSetorAberto(true); }}

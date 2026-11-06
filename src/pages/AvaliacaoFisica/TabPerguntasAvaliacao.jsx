@@ -18,7 +18,8 @@ const TabPerguntasAvaliacao = ({ usuarioLogado }) => {
     const [previewRespostas, setPreviewRespostas] = useState({});
     const [previewOutros, setPreviewOutros] = useState({}); 
 
-    const ehAdmin = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    // Papel verdadeiro: Admin/Mentor continuam podendo com uma unidade escolhida no topo (corrigido em 06/11/2026)
+    const ehAdmin = ['ADMIN', 'MENTOR'].includes(usuarioLogado?.roleReal || usuarioLogado?.role);
 
     useEffect(() => {
         carregarPerguntas();

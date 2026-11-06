@@ -88,7 +88,7 @@ const CampoAlunoPorCpf = ({ dadosEdicao, onAplicarAluno }) => {
 };
 
 const CartaoGrupo = ({
-    grupo, mapCatalogo, temVisaoGlobal, podeEditar, colaboradores, catalogoGeral,
+    grupo, mapCatalogo, temVisaoGlobal, podeEditar, podeExcluir, podeMarcar, colaboradores, catalogoGeral,
     editandoId, dadosEdicao, isSubmitting, onEditar, onAlterarCampo, onAplicarAluno, onSalvar, onCancelar, onExcluir,
     onMarcarLegitima, onDesfazerLegitima, marcandoChave
 }) => {
@@ -162,7 +162,7 @@ const CartaoGrupo = ({
                     <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-widest">
                         {tx("Não é duplicidade · marcado por")}{' '}{grupo.marcacao.decidido_por || '—'}{' '}{tx("em")}{' '}{dataHoraBR(grupo.marcacao.decidido_em)}
                     </span>
-                    {podeEditar && (
+                    {podeMarcar && (
                         <button disabled={isSubmitting} onClick={() => onDesfazerLegitima(grupo.marcacao)} className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
                             <Undo2 className="w-3 h-3" />{' '}{tx("Desfazer")}
                         </button>
@@ -248,7 +248,7 @@ const CartaoGrupo = ({
                                 </div>
                             </div>
 
-                            {podeEditar && !legitimo && (
+                            {(podeEditar || podeExcluir) && !legitimo && (
                                 <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0 mt-3 sm:mt-0">
                                     {isEditing ? (
                                         <>
@@ -261,12 +261,12 @@ const CartaoGrupo = ({
                                         </>
                                     ) : (
                                         <>
-                                            <button disabled={isSubmitting} onClick={() => onEditar(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-300 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
+                                            {podeEditar && <button disabled={isSubmitting} onClick={() => onEditar(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-300 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
                                                 <Edit3 className="w-3 h-3" />{' '}{tx("Editar")}
-                                            </button>
-                                            <button disabled={isSubmitting} onClick={() => onExcluir(row.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                            </button>}
+                                            {podeExcluir && <button disabled={isSubmitting} onClick={() => onExcluir(row.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                                                 <Trash2 className="w-3 h-3" />{' '}{tx("Excluir")}
-                                            </button>
+                                            </button>}
                                         </>
                                     )}
                                 </div>
@@ -276,7 +276,7 @@ const CartaoGrupo = ({
                 })}
             </div>
 
-            {podeEditar && !legitimo && (
+            {podeMarcar && !legitimo && (
                 <div className="px-5 pb-5 -mt-1 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                         {tx("Sob suspeita:")}{' '}<span className="text-rose-600 dark:text-rose-300">{formatMoney(grupo.comissaoSuspeita)}</span>
@@ -291,7 +291,7 @@ const CartaoGrupo = ({
 };
 
 const AbaDuplicidades = ({
-    resultado, mapCatalogo, temVisaoGlobal, podeEditar, colaboradores = [], catalogoGeral = [],
+    resultado, mapCatalogo, temVisaoGlobal, podeEditar, podeExcluir, podeMarcar, colaboradores = [], catalogoGeral = [],
     editandoId, dadosEdicao, isSubmitting, onEditar, onAlterarCampo, onAplicarAluno, onSalvar, onCancelar, onExcluir,
     onMarcarLegitima, onDesfazerLegitima, marcandoChave
 }) => {
@@ -300,7 +300,7 @@ const AbaDuplicidades = ({
     const lista = verLegitimos ? gruposLegitimos : grupos;
 
     const propsCartao = {
-        mapCatalogo, temVisaoGlobal, podeEditar, colaboradores, catalogoGeral,
+        mapCatalogo, temVisaoGlobal, podeEditar, podeExcluir, podeMarcar, colaboradores, catalogoGeral,
         editandoId, dadosEdicao, isSubmitting, onEditar, onAlterarCampo, onAplicarAluno, onSalvar, onCancelar, onExcluir,
         onMarcarLegitima, onDesfazerLegitima, marcandoChave
     };

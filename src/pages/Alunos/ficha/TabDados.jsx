@@ -116,9 +116,9 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                         <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
                             <Phone className="w-4 h-4 text-slate-400" />{' '}{tx("Contatos")}
                         </h3>
-                        <button onClick={onEditar} type="button" className={pillButton}>
+                        {onEditar && <button onClick={onEditar} type="button" className={pillButton}>
                             <Edit2 className="w-3 h-3" />{' '}{tx("Editar")}
-                        </button>
+                        </button>}
                     </div>
                     
                     <div className={nestedContainer}>

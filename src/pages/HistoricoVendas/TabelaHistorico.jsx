@@ -9,6 +9,7 @@ import AbaLixeira from './lixeira/AbaLixeira.jsx';
 import { History, ChevronUp, ChevronDown, ChevronsUpDown, User, Edit3, Trash2, Check, X, FilterX, Loader2, Copy } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import CopyButton from './CopyButton.jsx';
 
 // ==========================================
@@ -80,6 +81,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     // Lixeira: Admin e Mentor (papel verdadeiro, mesmo escolhendo uma unidade no topo) restauram
     const papelReal = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase();
     const podeRestaurar = papelReal === 'ADMIN' || papelReal === 'MENTOR';
+    // Ações pelas permissões (Configurações → Permissões, Etapa 2); o banco também confere
+    const podeEditarVenda = podeFazer(usuarioLogado, '204');
+    const podeExcluirVenda = podeFazer(usuarioLogado, '205');
+    const podeMarcarDuplicidade = podeFazer(usuarioLogado, '206');
+    // Abas pelas permissões (Configurações → Permissões, 06/11/2026); Registros é a principal (sempre)
+    const verDuplicidades = podeVer(usuarioLogado, '202');
+    const verLixeira = podeVer(usuarioLogado, '203');
+    const visaoMostrada = (visaoAtual === 'duplicidades' && !verDuplicidades) || (visaoAtual === 'lixeira' && !verLixeira) ? 'registros' : visaoAtual;
     // A lista da Lixeira vem pronta do index.jsx (mesmos filtros do Histórico); aqui só recarrega
     const recarregarLixeira = () => { if (onLixeiraMudou) onLixeiraMudou(); };
 
@@ -120,7 +129,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     // AÇÕES DE DADOS (USADAS EM AMBAS AS ABAS)
     // ==========================================
     const removerLancamento = async (id) => {
-        if(!podeEditar || isSubmitting) return;
+        if(!podeExcluirVenda || isSubmitting) return;
         // Venda já conferida no Fechamento: confirmação a mais antes de pedir o motivo
         const venda = data.find(v => v.id === id);
         if (venda?.conferiu && !window.confirm(tx("ATENÇÃO: esta venda já foi CONFERIDA no Fechamento{v1}.\n\nExcluir mesmo assim? Ela sai das comissões e do Fechamento.", { v1: venda.conferido_por ? ` por ${venda.conferido_por}` : '' }))) return;
@@ -145,7 +154,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     };
 
     const iniciarEdicao = (venda) => {
-        if (isSubmitting) return;
+        if (isSubmitting || !podeEditarVenda) return;
         const valorNumericoBanco = safeNumber(venda.valor);
         const qtd = parseInt(venda.quantidade) || 1;
         let unitario = 0;
@@ -242,7 +251,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     };
 
     const marcarLegitima = async (grupo) => {
-        if (!podeEditar || marcandoChave) return;
+        if (!podeMarcarDuplicidade || marcandoChave) return;
         const ok = window.confirm(tx("Marcar como \"Não é duplicidade\"?\n\nOs {length} lançamentos deste grupo são vendas legítimas. O grupo sai da lista (volta se entrar um lançamento novo igual). Fica registrado quem decidiu e quando.", { length: grupo.linhas.length }));
         if (!ok) return;
         setMarcandoChave(grupo.chaveBase);
@@ -257,7 +266,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     };
 
     const desfazerMarcacao = async (marcacao) => {
-        if (!podeEditar || !marcacao) return;
+        if (!podeMarcarDuplicidade || !marcacao) return;
         if (!window.confirm(tx("Desfazer a marcação \"Não é duplicidade\"? O grupo volta para a lista de possíveis duplicidades."))) return;
         const error = await desfazerLegitima(supabase, marcacao.id);
         if (error) {
@@ -321,16 +330,16 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto custom-scrollbar">
                     <button
                         onClick={() => setVisaoAtual('registros')}
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
+                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
                         <History className="w-4 h-4" />{' '}{tx("Registros de Vendas")}
                     </button>
-                    <button
+                    {verDuplicidades && <button
                         onClick={() => setVisaoAtual('duplicidades')}
                         title={gruposDuplicados.length > 0
                             ? `${gruposDuplicados.length} ${gruposDuplicados.length === 1 ? 'grupo' : 'grupos'} · ${resultadoDuplicidades.excedentes} ${resultadoDuplicidades.excedentes === 1 ? 'lançamento excedente' : 'lançamentos excedentes'}`
                             : tx("Nenhuma possível duplicidade encontrada")}
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
+                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
                         <Copy className="w-4 h-4" />{' '}{tx("Duplicidades")}
 
@@ -339,13 +348,13 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 {gruposDuplicados.length}
                             </span>
                         )}
-                    </button>
-                    <button
+                    </button>}
+                    {verLixeira && <button
                         onClick={() => setVisaoAtual('lixeira')}
                         title={lixeira.length > 0
                             ? tx("{length} {v2} no período", { length: lixeira.length, v2: lixeira.length === 1 ? 'venda excluída' : 'vendas excluídas' })
                             : tx("Nenhuma venda excluída no período")}
-                        className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoAtual === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
+                        className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
                         <Trash2 className="w-4 h-4" />{' '}{tx("Lixeira")}
 
@@ -354,10 +363,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 {lixeira.length}
                             </span>
                         )}
-                    </button>
+                    </button>}
                 </div>
 
-                {visaoAtual === 'registros' && (
+                {visaoMostrada === 'registros' && (
                     <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner text-center sm:text-right w-full sm:w-auto dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
                         {vendasOrdenadas.length}{' '}{tx("de")}{' '}{data.length}{' '}{tx("Encontrados")}
                     </div>
@@ -365,7 +374,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             </div>
 
             {/* CONTEÚDO: ABA REGISTROS DE VENDAS */}
-            {visaoAtual === 'registros' && (
+            {visaoMostrada === 'registros' && (
                 <>
                     <div 
                         ref={scrollContainerRef}
@@ -588,20 +597,20 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                                         </div>
                                                     ) : (
                                                         <div className="flex flex-col gap-1.5">
-                                                            <button 
+                                                            {podeEditarVenda && <button 
                                                                 onClick={() => iniciarEdicao(row)} 
                                                                 title={tx("Editar Registro")}
                                                                 className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-blue-50 text-blue-600 rounded transition-all border border-blue-200 hover:border-blue-400 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-slate-900 dark:hover:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"
                                                             >
                                                                 <Edit3 className="w-3 h-3" />{' '}{tx("Editar")}
-                                                            </button>
-                                                            <button 
+                                                            </button>}
+                                                            {podeExcluirVenda && <button 
                                                                 onClick={() => removerLancamento(row.id)} 
                                                                 title={tx("Excluir Registro")}
                                                                 className="flex items-center justify-center gap-1 w-full py-1 bg-white hover:bg-rose-50 text-rose-500 rounded transition-all border border-rose-200 hover:border-rose-400 text-[10px] font-black uppercase tracking-widest shadow-sm dark:bg-slate-900 dark:hover:bg-rose-500/10 dark:border-rose-500/30"
                                                             >
                                                                 <Trash2 className="w-3 h-3" />{' '}{tx("Apagar")}
-                                                            </button>
+                                                            </button>}
                                                         </div>
                                                     )}
                                                 </td>
@@ -667,10 +676,10 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             )}
 
             {/* CONTEÚDO: ABA CENTRAL DE DUPLICIDADES (arquivo próprio: duplicidades/AbaDuplicidades.jsx) */}
-            {visaoAtual === 'duplicidades' && (
+            {visaoMostrada === 'duplicidades' && (
                 <AbaDuplicidades
                     resultado={resultadoDuplicidades} mapCatalogo={mapCatalogo} temVisaoGlobal={temVisaoGlobal}
-                    podeEditar={podeEditar} colaboradores={colaboradores} catalogoGeral={catalogoGeral}
+                    podeEditar={podeEditarVenda} podeExcluir={podeExcluirVenda} podeMarcar={podeMarcarDuplicidade} colaboradores={colaboradores} catalogoGeral={catalogoGeral}
                     editandoId={editandoId} dadosEdicao={dadosEdicao} isSubmitting={isSubmitting}
                     onEditar={iniciarEdicao} onAlterarCampo={handleEdicaoChange} onAplicarAluno={aplicarAlunoNaEdicao}
                     onSalvar={salvarEdicao} onCancelar={cancelarEdicao} onExcluir={removerLancamento}
@@ -679,7 +688,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
             )}
 
             {/* CONTEÚDO: ABA LIXEIRA (arquivo próprio: lixeira/AbaLixeira.jsx) */}
-            {visaoAtual === 'lixeira' && (
+            {visaoMostrada === 'lixeira' && (
                 <AbaLixeira
                     linhas={lixeira} erro={lixeiraErro} carregando={carregandoLixeira}
                     unidade={unidadeHistorico} temVisaoGlobal={temVisaoGlobal} descricaoPeriodo={descricaoPeriodo}

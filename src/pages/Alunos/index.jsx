@@ -14,6 +14,7 @@ import { CheckCircle2 } from 'lucide-react';
 import FichaAluno from './ficha/index.jsx';
 import { supabase } from '../../supabaseClient.js';
 import { addRecente } from '../../components/layout/recentesAlunos.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 const getBRDateString = () => {
     const d = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
@@ -43,6 +44,8 @@ const ModuloAlunos360 = ({
     const roleReal = String(usuarioReal?.role || usuarioLogado?.role || '').toUpperCase().trim();
     const temVisaoGlobal = roleReal === 'ADMIN' || roleReal === 'MENTOR';
     const ehAdmin = roleReal === 'ADMIN';
+    // Cadastrar e editar aluno nesta tela: permissão 607 (Configurações → Permissões)
+    const podeCadastrarAluno = podeFazer(usuarioReal || usuarioLogado, '607');
 
     const unidadeTravada = temVisaoGlobal
         ? (unidadeGlobal || 'TODAS')
@@ -355,10 +358,10 @@ const ModuloAlunos360 = ({
                         planos={planos}
                         totalFiltrados={totalExibido}
                         loading={loading}
-                        onNovoAluno={() => {
+                        onNovoAluno={podeCadastrarAluno ? () => {
                             setAlunoEditando(null);
                             setModalAlunoOpen(true);
-                        }}
+                        } : undefined}
                         ultimaAtualizacao={ultimaAtualizacao}
                     />
 
@@ -381,10 +384,10 @@ const ModuloAlunos360 = ({
                         itensPorPagina={itensPorPagina}
                         setItensPorPagina={setItensPorPagina}
                         onSelecionarAluno={handleSelecionarAluno}
-                        onEditarAluno={(aluno) => {
+                        onEditarAluno={podeCadastrarAluno ? (aluno) => {
                             setAlunoEditando({ ...aluno, unidade_vinculo: aluno.unidade });
                             setModalAlunoOpen(true);
-                        }}
+                        } : undefined}
                         onExcluirAluno={(aluno) => setAlunoExcluindo(aluno)}
                         onToastCopiado={() => dispararToast('Copiado!')}
                         onIniciarVendaAluno={handleIniciarVenda}
@@ -399,10 +402,10 @@ const ModuloAlunos360 = ({
                         else setAlunoFichaAberta(null);
                     }}
                     rotuloVoltar={origemFicha === 'assinaturas' ? 'Voltar para Histórico de Vendas' : undefined}
-                    onEditar={() => {
+                    onEditar={podeCadastrarAluno ? () => {
                         setAlunoEditando({ ...alunoFichaAberta, unidade_vinculo: alunoFichaAberta.unidade });
                         setModalAlunoOpen(true);
-                    }}
+                    } : undefined}
                     onVender={handleIniciarVenda}
                     onAvaliar={handleIniciarAvaliacao}
                     usuarioLogado={usuarioReal || usuarioLogado}

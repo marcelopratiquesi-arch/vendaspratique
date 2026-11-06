@@ -1,8 +1,10 @@
 // ==========================================
 // CENTRAL DE PENDÊNCIAS (decisão do dono, 05/11/2026)
 // Junta, por unidade, as 3 cobranças do sistema:
-//  1. CONFERÊNCIA — vendas sem conferir cuja sexta de prazo já passou (semana sábado→sexta), desde 01/10/2026,
-//     todas as vendas (regras em FechamentoCaixa/cobrancaAuditoria.js).
+//  1. CONFERÊNCIA — vendas sem conferir cuja sexta de prazo já passou (semana sábado→sexta), todas as vendas
+//     (regras em FechamentoCaixa/cobrancaAuditoria.js). Desde 06/11/2026 (decisão do dono: a comissão é paga todo dia 15):
+//     até o dia 15 cobra o MÊS ANTERIOR + o atual; do dia 16 em diante, só o mês atual (`inicioCobrancaConferencia`).
+//     Isso também diminui muito o que é baixado do banco.
 //  2. MOVIMENTAÇÃO — Ativos, Cancelamentos e Faturamento de CADA DIA (inclusive domingo e feriado), desde 05/11/2026.
 //     O dia de hoje só é cobrado a partir das 7h. Dia que ficou para trás continua sendo cobrado.
 //  3. METAS DO MÊS — Meta Start e Meta Mensal do mês atual. Dias 1 a 3: lembrete (amarelo); do dia 4 em diante: atrasado.
@@ -14,11 +16,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
 import { INICIO_COBRANCA_CONFERENCIA, semanaDaVenda, ultimaSextaVencida } from '../FechamentoCaixa/cobrancaAuditoria.js';
-import { buscarEnviosRelatorio, pendenciasRelatorio, nomesDoTurno } from './relatorioFechamento.js';
+import { buscarEnviosRelatorio, buscarConferenciasRelatorio, pendenciasRelatorio, nomesDoTurno, situacaoRelatorioDias } from './relatorioFechamento.js';
 
 export const INICIO_COBRANCA_MOVIMENTO = '2026-11-05';
 export const HORA_COBRANCA_MOVIMENTO = 7;
 export const DIA_PRAZO_METAS = 3;
+export const DIA_LIMITE_MES_ANTERIOR = 15; // conferência do mês anterior é cobrada até este dia (dia do pagamento)
+
+// Desde quando a conferência é cobrada hoje: até o dia 15, desde o dia 1º do mês anterior; depois, desde o dia 1º do mês atual
+export const inicioCobrancaConferencia = (agora = new Date()) => {
+    const dia = agora.getDate();
+    const base = new Date(agora.getFullYear(), agora.getMonth() - (dia <= DIA_LIMITE_MES_ANTERIOR ? 1 : 0), 1);
+    const iso = `${base.getFullYear()}-${String(base.getMonth() + 1).padStart(2, '0')}-01`;
+    return iso > INICIO_COBRANCA_CONFERENCIA ? iso : INICIO_COBRANCA_CONFERENCIA;
+};
 
 const paraIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -31,12 +42,12 @@ const CAMPOS_START = [['meta_nutri', 'Nutri'], ['meta_produtos', 'Produto'], ['m
 const CAMPOS_MENSAL = [['meta_ativos_mensal', 'Ativos Alvo'], ['meta_nutri_mensal', 'Nutri'], ['meta_plus_mensal', 'Plus'], ['meta_pers_mensal', 'Personal Class']];
 
 // ---------- LEITURA NO BANCO (o banco já entrega só o que a pessoa pode ver) ----------
-const buscarVendasPendentes = async (hojeIso) => {
+const buscarVendasPendentes = async (hojeIso, inicioIso) => {
     const todas = [];
     for (let de = 0; de < 100000; de += 1000) {
         const { data, error } = await supabase.from('vendas')
             .select('id, unidade, data, valor')
-            .gte('data', INICIO_COBRANCA_CONFERENCIA)
+            .gte('data', inicioIso)
             .lte('data', hojeIso)
             .or('conferiu.is.null,conferiu.eq.false')
             .order('id', { ascending: true })
@@ -73,24 +84,27 @@ const buscarSemPersonal = async () => {
 export const carregarDadosPendencias = async (agora = new Date()) => {
     const hojeIso = paraIso(agora);
     const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
-    const [vendas, movimento, metas, semPersonal, envios] = await Promise.all([
-        buscarVendasPendentes(hojeIso).catch(e => { console.warn('Pendências: não deu para ler as vendas', e?.message || e); return null; }),
+    const [vendas, movimento, metas, semPersonal, envios, conferenciasRelatorio] = await Promise.all([
+        buscarVendasPendentes(hojeIso, inicioCobrancaConferencia(agora)).catch(e => { console.warn('Pendências: não deu para ler as vendas', e?.message || e); return null; }),
         buscarMovimento().catch(e => { console.warn('Pendências: não deu para ler a movimentação', e?.message || e); return null; }),
         buscarMetas(agora).catch(e => { console.warn('Pendências: não deu para ler as metas', e?.message || e); return null; }),
         buscarSemPersonal(),
         buscarEnviosRelatorio(paraIso(ontem), hojeIso), // null = tabela ainda não criada (não cobra o relatório)
+        buscarConferenciasRelatorio(paraIso(ontem), hojeIso), // respostas do Líder no grupo (null = SQL ainda não rodado)
     ]);
-    return { vendas, movimento, metas, semPersonal, envios };
+    return { vendas, movimento, metas, semPersonal, envios, conferenciasRelatorio };
 };
 
 // ---------- CÁLCULO POR UNIDADE ----------
 const conferenciaDaUnidade = (vendas, agora) => {
     const hojeIso = paraIso(agora);
     const limite = ultimaSextaVencida(hojeIso);
+    const inicio = inicioCobrancaConferencia(agora);
     const mapa = {};
     vendas.forEach(v => {
+        if (String(v.data).slice(0, 10) < inicio) return; // mês anterior passou do dia 15: não cobra mais
         const s = semanaDaVenda(v.data);
-        if (s.inicio < INICIO_COBRANCA_CONFERENCIA) s.inicio = INICIO_COBRANCA_CONFERENCIA;
+        if (s.inicio < inicio) s.inicio = inicio;
         if (!mapa[s.fim]) mapa[s.fim] = { ...s, qtd: 0, valor: 0 };
         mapa[s.fim].qtd++;
         mapa[s.fim].valor += Number(v.valor) || 0;
@@ -178,13 +192,15 @@ export const montarPendencias = (dados, unidades = [], agora = new Date(), colab
         const movimento = dados.movimento ? movimentoDaUnidade(movPorUnidade[k] || [], dados.movimento.temAtivos, agora) : [];
         const metas = dados.metas ? metasDaUnidade(metasPorUnidade[k], semPersonal.has(k), agora) : null;
         // Relatório de fechamento da recepção (hoje e ontem), com o nome de quem devia enviar (turno no cadastro da Equipe)
-        const relatorio = dados.envios ? pendenciasRelatorio(dados.envios, nome, agora).map(r => ({ ...r, nomes: nomesDoTurno(colaboradores, nome, r.turno) })) : [];
+        const relatorio = dados.envios ? pendenciasRelatorio(dados.envios, nome, agora, dados.conferenciasRelatorio || []).map(r => ({ ...r, nomes: nomesDoTurno(colaboradores, nome, r.turno) })) : [];
+        // Situação de TODOS os turnos de ontem e hoje (enviado em verde, não enviado em vermelho) — só para mostrar na tela
+        const relatorioDias = dados.envios ? situacaoRelatorioDias(dados.envios, dados.conferenciasRelatorio || [], nome, agora).map(r => ({ ...r, nomes: nomesDoTurno(colaboradores, nome, r.turno) })) : [];
         // Quantas pendências (o número vermelho): conferência atrasada = 1, cada dia de movimentação = 1, cada card de meta = 1,
         // cada relatório de turno não enviado = 1
         const total = (conferencia?.atrasado ? 1 : 0) + movimento.length + (metas?.start ? 1 : 0) + (metas?.mensal ? 1 : 0) + relatorio.length;
         const lembretes = (conferencia && !conferencia.atrasado ? 1 : 0);
         const atrasado = !!(conferencia?.atrasado || movimento.some(d => !d.hoje) || (metas && metas.atrasado) || relatorio.some(r => r.situacao !== 'cobrando'));
-        return { unidade: nome, conferencia, movimento, metas, relatorio, total, lembretes, atrasado };
+        return { unidade: nome, conferencia, movimento, metas, relatorio, relatorioDias, total, lembretes, atrasado };
     }).sort((a, b) => b.total - a.total || Number(b.atrasado) - Number(a.atrasado) || a.unidade.localeCompare(b.unidade));
 };
 
@@ -213,11 +229,14 @@ export const usePendencias = ({ ativo, unidades = [], colaboradores = [] }) => {
             .on('postgres_changes', { event: '*', schema: 'public', table: 'metas_unidades' }, agendar)
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vendas' }, agendar)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'relatorios_fechamento_envios' }, agendar)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'relatorios_fechamento_conferencia' }, agendar)
             .subscribe();
+        // Conferiu no grupo / a recepção enviou nesta tela: recarrega na hora
+        window.addEventListener('relatorio-fechamento-enviado', recarregar);
         const intervalo = setInterval(recarregar, 10 * 60 * 1000);
         // Relógio de 1 minuto: às 7h a movimentação de hoje entra na cobrança; à meia-noite vira o dia
         const relogio = setInterval(() => setAgora(new Date()), 60 * 1000);
-        return () => { clearTimeout(timer.current); supabase.removeChannel(canal); clearInterval(intervalo); clearInterval(relogio); };
+        return () => { clearTimeout(timer.current); supabase.removeChannel(canal); clearInterval(intervalo); clearInterval(relogio); window.removeEventListener('relatorio-fechamento-enviado', recarregar); };
     }, [ativo, recarregar]);
 
     const chaveUnidades = unidades.join('|');
@@ -231,44 +250,84 @@ const juntar = (lista) => (lista.length > 1 ? `${lista.slice(0, -1).join(', ')} 
 const dinheiro = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 
 export const textoMovimentoDia = (d) => (d.semLancamento ? `${ddmm(d.data)} não lançou` : `${ddmm(d.data)} falta ${juntar(d.falta)}`);
+
+// Movimentação: dias seguidos com a MESMA falta viram um bloco só ("05/11 a 07/11 · falta Cancelamentos"),
+// para não encher a tela quando a unidade fica vários dias sem lançar (decisão do dono, 06/11/2026). Hoje fica separado.
+export const agruparDiasMovimento = (dias = []) => {
+    const blocos = [];
+    const umDiaDepois = (iso) => { const d = new Date(`${iso}T12:00:00`); d.setDate(d.getDate() + 1); return paraIso(d); };
+    dias.forEach(d => {
+        const chaveFalta = `${d.semLancamento ? 'SEM' : ''}|${d.falta.join(',')}`;
+        const ultimo = blocos[blocos.length - 1];
+        if (ultimo && !d.hoje && !ultimo.hoje && ultimo.chaveFalta === chaveFalta && umDiaDepois(ultimo.fim) === d.data) {
+            ultimo.fim = d.data; ultimo.qtd++;
+        } else {
+            blocos.push({ inicio: d.data, fim: d.data, qtd: 1, falta: d.falta, semLancamento: d.semLancamento, hoje: d.hoje, chaveFalta });
+        }
+    });
+    return blocos;
+};
+const textoBlocoMovimento = (b) => {
+    const quando = b.hoje ? 'hoje' : b.qtd > 1 ? `${ddmm(b.inicio)} a ${ddmm(b.fim)} (${b.qtd} dias)` : ddmm(b.inicio);
+    return b.semLancamento ? `${quando} não lançou` : `${quando} falta ${juntar(b.falta)}`;
+};
 export const textoMetaCard = (card) => (card.naoPreenchida ? 'não preenchida' : `falta ${juntar(card.falta)}`);
 // "hoje manhã não enviado (Ana)" / "04/11 noite não enviado (Júlia)"
 export const textoRelatorioTurno = (r) => `${r.hoje ? 'hoje' : ddmm(r.data)} ${r.rotulo} ${r.situacao === 'cobrando' ? 'ainda não enviado' : 'não enviado'}${r.nomes?.length ? ` (${r.nomes.join(' / ')})` : ''}`;
 
-const linhasDaUnidade = (u) => {
+// Tipos de pendência (o filtro da aba Pendências escolhe qual vai na mensagem)
+export const TIPOS_PENDENCIA = {
+    conferencia: (u) => !!u.conferencia?.atrasado,
+    movimento: (u) => u.movimento.length > 0,
+    metas: (u) => !!u.metas,
+    relatorio: (u) => (u.relatorio || []).length > 0,
+};
+const PRAZO_POR_TIPO = {
+    conferencia: `Conferência: toda sexta-feira (o mês anterior até o dia ${DIA_LIMITE_MES_ANTERIOR}, dia do pagamento).`,
+    movimento: 'Movimentação: todo dia a partir das 7h.',
+    metas: 'Metas: até o dia 03 de cada mês.',
+    relatorio: 'Relatório de fechamento: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.',
+};
+const TITULO_POR_TIPO = { conferencia: 'CONFERÊNCIA', movimento: 'MOVIMENTAÇÃO', metas: 'METAS DO MÊS', relatorio: 'RELATÓRIO DE FECHAMENTO' };
+
+// tipo = null (tudo) ou 'conferencia' | 'movimento' | 'metas' | 'relatorio' (só aquele)
+const linhasDaUnidade = (u, tipo = null) => {
     const l = [];
-    if (u.conferencia?.atrasado) {
+    const quer = (t) => !tipo || tipo === t;
+    if (quer('conferencia') && u.conferencia?.atrasado) {
         const c = u.conferencia;
         l.push(`🧾 Conferência: ${c.qtd} venda${c.qtd === 1 ? '' : 's'} sem conferir (${dinheiro(c.valor)} em comissão) · desde a semana ${ddmm(c.atrasadas[0].inicio)} a ${ddmm(c.atrasadas[0].fim)}`);
     }
-    if (u.movimento.length) l.push(`📊 Movimentação: ${u.movimento.map(textoMovimentoDia).join(' · ')}`);
-    if (u.metas) {
+    if (quer('movimento') && u.movimento.length) l.push(`📊 Movimentação: ${agruparDiasMovimento(u.movimento).map(textoBlocoMovimento).join(' · ')}`);
+    if (quer('metas') && u.metas) {
         const partes = [];
         if (u.metas.start) partes.push(`Meta Start ${textoMetaCard(u.metas.start)}`);
         if (u.metas.mensal) partes.push(`Meta Mensal ${textoMetaCard(u.metas.mensal)}`);
         l.push(`🎯 Metas de ${u.metas.mes}: ${partes.join(' · ')}${u.metas.atrasado ? ` (prazo dia ${String(DIA_PRAZO_METAS).padStart(2, '0')} vencido)` : ` (prazo até dia ${String(DIA_PRAZO_METAS).padStart(2, '0')})`}`);
     }
-    if (u.relatorio?.length) l.push(`📤 Relatório de fechamento: ${u.relatorio.map(textoRelatorioTurno).join(' · ')}`);
+    if (quer('relatorio') && u.relatorio?.length) l.push(`📤 Relatório de fechamento: ${u.relatorio.map(textoRelatorioTurno).join(' · ')}`);
     return l;
 };
 
-export const mensagemPendenciasGrupo = (lista, agora = new Date()) => {
-    const comPendencia = lista.filter(u => u.total > 0);
-    const emDia = lista.filter(u => u.total === 0);
+// tipo = null: todas as pendências; ou só um tipo (o que está escolhido no filtro da aba Pendências)
+export const mensagemPendenciasGrupo = (lista, agora = new Date(), tipo = null) => {
+    const tem = tipo ? TIPOS_PENDENCIA[tipo] : (u) => u.total > 0;
+    const comPendencia = lista.filter(tem);
+    const emDia = lista.filter(u => !tem(u));
     const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    let txt = `🚨 *PENDÊNCIAS DAS UNIDADES – ${ddmm(paraIso(agora))} às ${hora}*\n\n`;
+    let txt = `🚨 *PENDÊNCIAS${tipo ? ` – ${TITULO_POR_TIPO[tipo]}` : ' DAS UNIDADES'} – ${ddmm(paraIso(agora))} às ${hora}*\n\n`;
     if (!comPendencia.length) return `${txt}✅ Todas as unidades estão em dia. Obrigado, equipe!`;
-    txt += comPendencia.map(u => `*${u.unidade}*\n${linhasDaUnidade(u).join('\n')}`).join('\n\n');
+    txt += comPendencia.map(u => `*${u.unidade}*\n${linhasDaUnidade(u, tipo).join('\n')}`).join('\n\n');
     if (emDia.length) txt += `\n\n✅ *EM DIA:* ${emDia.map(u => u.unidade).join(', ')}`;
-    txt += '\n\n⏰ Por gentileza, regularizem hoje. Movimentação: todo dia a partir das 7h. Conferência: toda sexta-feira. Metas: até o dia 03 de cada mês. Relatório de fechamento: manhã até 14h30, noite até 23h, sábado e domingo até 13h.';
+    txt += `\n\n⏰ Por gentileza, regularizem hoje. ${tipo ? PRAZO_POR_TIPO[tipo] : Object.values(PRAZO_POR_TIPO).join(' ')}`;
     return txt;
 };
 
-export const mensagemPendenciasUnidade = (u, nomeLider) => {
+export const mensagemPendenciasUnidade = (u, nomeLider, tipo = null) => {
     const p = String(nomeLider || '').trim().split(/\s+/)[0] || '';
     const nome = p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : '';
     let txt = `Olá${nome ? `, ${nome}` : ''}! 👋\n\n🚨 *Pendências – ${u.unidade}*\n`;
-    txt += linhasDaUnidade(u).join('\n');
+    txt += linhasDaUnidade(u, tipo).join('\n');
     txt += '\n\nPor gentileza, regularize hoje. Obrigado!';
     return txt;
 };

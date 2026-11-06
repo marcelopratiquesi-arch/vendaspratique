@@ -9,6 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CalendarCheck, ClipboardCheck, BarChart3, Target, Send, X } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { DIA_PRAZO_METAS } from './pendencias.js';
+import { pedirConferirRelatorio } from './relatorioFechamento.js';
 
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
@@ -21,7 +22,7 @@ const Botao = ({ onClick, children }) => (
 );
 
 // Blocos de uma unidade (Conferência, Movimentação, Metas), cada um com o botão que leva à tela certa
-export const BlocosDaUnidade = ({ u, aoIr }) => {
+export const BlocosDaUnidade = ({ u, aoIr, podeConferirRelatorio = false }) => {
     const c = u.conferencia;
     return (
         <div className="space-y-2">
@@ -99,17 +100,18 @@ export const BlocosDaUnidade = ({ u, aoIr }) => {
                             <li key={`${r.data}-${r.turno}`} className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">
                                 <b>{r.hoje ? tx('Hoje') : ddmm(r.data)} · {tx(r.rotulo)}</b>: {r.situacao === 'cobrando' ? tx('ainda não enviado (prazo {hora})', { hora: r.atrasaTexto }) : tx('não enviado')}
                                 {r.nomes?.length > 0 && <span className="text-slate-500 dark:text-slate-400"> — {r.nomes.join(' / ')}</span>}
+                                {podeConferirRelatorio && <button type="button" onClick={() => pedirConferirRelatorio({ unidade: u.unidade, data: r.data, turno: r.turno, rotulo: r.rotulo, nomes: r.nomes })} className="ml-2 h-6 px-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest align-middle">{tx('Conferir')}</button>}
                             </li>
                         ))}
                     </ul>
-                    <p className="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Quem envia é o login da Recepção: Relatórios → WhatsApp Fechamento.')}</p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Quem envia é o login da Recepção: Relatórios → WhatsApp Fechamento.')}{podeConferirRelatorio ? ' ' + tx('Confira no grupo de vendas da unidade e clique em Conferir para marcar se foi enviado ou não.') : ''}</p>
                 </div>
             )}
         </div>
     );
 };
 
-const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, onFechar }) => {
+const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, onFechar, podeConferirRelatorio = false }) => {
     // Decide UMA vez, quando os dados chegam (entrada no sistema). Depois quem acompanha é o cartão do canto.
     const [aberta, setAberta] = useState(null); // null = ainda não decidiu
     const comAlgo = lista.filter(u => u.total > 0 || u.lembretes > 0);
@@ -152,7 +154,7 @@ const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, o
                     {visiveis.map(u => (
                         <div key={u.unidade}>
                             {ehMentor && <p className="text-[12px] font-black uppercase tracking-widest text-slate-800 mb-1.5 dark:text-white">{u.unidade}</p>}
-                            <BlocosDaUnidade u={u} aoIr={ir} />
+                            <BlocosDaUnidade u={u} aoIr={ir} podeConferirRelatorio={podeConferirRelatorio} />
                         </div>
                     ))}
                     {resto > 0 && (
@@ -161,7 +163,7 @@ const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, o
                         </button>
                     )}
                     <p className="text-[11px] font-semibold text-slate-500 leading-snug dark:text-slate-400">
-                        {tx('Movimentação: todo dia a partir das 7h. Conferência: toda sexta-feira. Metas: até o dia 03 de cada mês. Relatório da recepção: manhã até 14h30, noite até 23h, sábado e domingo até 13h.')}
+                        {tx('Movimentação: todo dia a partir das 7h. Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.')}
                     </p>
                 </div>
 

@@ -15,6 +15,10 @@ import { agruparProdutos } from './familiasProdutos.js';
 import { qtdValidaProduto, dosesValidasNoMes, LIMITE_DOSES_POR_UNIDADE_MES, INICIO_LIMITE_DOSES } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo } from './movimentoDiario.js';
+import { listaUnidadesRede, montarLinhasRede, ordenarLinhasRede, ultimoPlanoPorUnidade } from './visaoRede/calculosRede.js';
+import { montarMensagemPlanosRede } from './visaoRede/mensagemPlanosRede.js';
+import QuadroPlanosPorUnidade from './visaoRede/QuadroPlanosPorUnidade.jsx';
+import RitmoPorUnidade from './visaoRede/RitmoPorUnidade.jsx';
 import {
     TrendingUp, X, Users, Loader2, Layers, Calculator, Box, Briefcase,
     ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send, UserPlus, UserMinus, Wallet, HelpCircle
@@ -321,7 +325,9 @@ const DashboardTab = ({
     filtroMes, filtroAno,
     metaProdutos, metaNutri, metaPersonal, planos, produtos, abrirModalWhatsapp, onIrParaMetas,
     vendasTodas = [], faixa = null,
-    vendedoresOcultos = [], planosOcultos = [], produtosOcultos = [], servicosOcultos = []
+    vendedoresOcultos = [], planosOcultos = [], produtosOcultos = [], servicosOcultos = [],
+    // Visão da Rede (Admin/Mentor com o topo em "Todas"): lista de unidades e troca do seletor do topo
+    unidades = [], onAbrirUnidade
 }) => {
     const { t, locale } = useI18n();
     const escuro = useModoEscuro();
@@ -337,6 +343,10 @@ const DashboardTab = ({
     const [grupoRitmo, setGrupoRitmo] = useState('TODOS');
     // Ritmo: 'dia' = quantos planos em cada dia (montanha); 'acumulado' = a linha que só cresce (modo antigo)
     const [modoRitmo, setModoRitmo] = useState('dia');
+    // Visão da Rede (decisão do dono, 06/11/2026): ritmo com uma linha por unidade; o gráfico antigo fica no botão "Rede × meses anteriores"
+    const visaoRede = unidadeAtual === 'TODOS';
+    const [ritmoVisao, setRitmoVisao] = useState('unidades');
+    const ritmoPorUnidadeAtivo = visaoRede && ritmoVisao === 'unidades';
     const painelRef = useRef(null);
 
     // ==========================================
@@ -606,6 +616,32 @@ const DashboardTab = ({
         };
     }, [faixa, faixaAnteriorRitmo, faixaRetrasada, hojeIso, grupoRitmo, contagemPlanos, contagemAnteriorRitmo, contagemRetrasada, temAnteriorRitmo, temRetrasado]);
 
+    // ---------- Visão da Rede: uma linha por unidade (mesmas contas do Dashboard da unidade) ----------
+    const unidadesRede = useMemo(() => (visaoRede ? listaUnidadesRede(unidades, vendasFiltradas) : []), [visaoRede, unidades, vendasFiltradas]);
+    // Último plano de cada unidade: vendas carregadas no sistema, sem filtro de tela (selo "Sem plano há X dias")
+    const ultimoPlano = useMemo(() => (visaoRede ? ultimoPlanoPorUnidade(contarPlanosDoCard(vendasTodas, planos, produtos).contados) : new Map()), [visaoRede, vendasTodas, planos, produtos]);
+    const linhasRede = visaoRede ? ordenarLinhasRede(montarLinhasRede({
+        unidadesRede, contagemPlanos, contagemAnterior: temComparativo ? contagemAnterior : null, vendasFiltradas, planos, produtos,
+        qtdValidaProduto: (v) => qtdValidaProduto(v, dosesValidas), derivadosMovimento: movimento.derivados, faixa, ultimoPlano, hojeIso,
+    })) : [];
+    // Ativos da rede: soma do último lançamento de cada unidade até o fim do período
+    const ativosRede = linhasRede.filter(l => l.ativos !== null);
+    const somaAtivosRede = ativosRede.reduce((s, l) => s + l.ativos, 0);
+    // Unidade de cada vendedor (etiqueta no pódio da rede): cadastro da Equipe; sem cadastro, a unidade das vendas
+    const unidadeDoVendedor = useMemo(() => {
+        const mapa = new Map();
+        if (!visaoRede) return mapa;
+        vendasFiltradas.forEach(v => { const n = (v.vendedor || '').toUpperCase(); if (n && v.unidade && !mapa.has(n)) mapa.set(n, v.unidade); });
+        (colaboradores || []).forEach(c => { const n = String(c.nome || '').toUpperCase(); if (n && c.unidade) mapa.set(n, c.unidade); });
+        return mapa;
+    }, [visaoRede, vendasFiltradas, colaboradores]);
+    const contadosRitmoRede = useMemo(() => (grupoRitmo === 'NUTRI' ? contagemPlanos.nutri.contados
+        : contagemPlanos.contados.filter(it => grupoRitmo === 'TODOS' || it.base === grupoRitmo)), [grupoRitmo, contagemPlanos]);
+    const enviarPlanosRedeWhatsapp = () => {
+        const txt = montarMensagemPlanosRede({ linhas: linhasRede, textoPeriodo, totalPlanos, totalNutri: contagemPlanos.nutri.total });
+        abrirModalWhatsapp(txt, { titulo: tx('Planos por unidade'), icone: 'send', cor: 'emerald' });
+    };
+
     const dispararModalMetas = () => {
         const mesAtual = new Date().toLocaleString(locale || 'pt-BR', { month: 'long' }).toUpperCase();
 
@@ -667,7 +703,8 @@ const DashboardTab = ({
             let emoji = "🟢❌❌";
             if (qtd === 2) emoji = "🟢🟢❌";
             else if (qtd >= 3) emoji = "✅✅✅";
-            txt += `${posicaoAtual} ${emoji} ${nome} ${String(qtd).padStart(2, '0')}\n`;
+            const daUnidade = visaoRede && unidadeDoVendedor.get(item[0]) ? ` (${unidadeDoVendedor.get(item[0])})` : '';
+            txt += `${posicaoAtual} ${emoji} ${nome}${daUnidade} ${String(qtd).padStart(2, '0')}\n`;
             posicaoAtual++;
         });
 
@@ -678,7 +715,8 @@ const DashboardTab = ({
             txt += `${t('analytics.dashboard.wppAlertHelp', { defaultValue: '*SOCORRO, DEUS!!! 🙏*' })}\n\n`;
             zerados.forEach((item) => {
                 const nome = item[0].split(' ')[0];
-                txt += `${posicaoAtual} ❌❌❌ ${nome}\n`;
+                const daUnidade = visaoRede && unidadeDoVendedor.get(item[0]) ? ` (${unidadeDoVendedor.get(item[0])})` : '';
+                txt += `${posicaoAtual} ❌❌❌ ${nome}${daUnidade}\n`;
                 posicaoAtual++;
             });
         }
@@ -954,9 +992,36 @@ const DashboardTab = ({
                 </section>
             </div>
 
+            {/* ===== 3.3 PLANOS POR UNIDADE (só na Visão da Rede) ===== */}
+            {visaoRede && (
+                <QuadroPlanosPorUnidade
+                    linhas={linhasRede}
+                    gruposBase={gruposBase}
+                    escuro={escuro}
+                    temComparativo={temComparativo}
+                    carregandoAnterior={carregandoAnterior}
+                    nomeMesAnterior={nomeMesAnterior}
+                    textoPeriodo={textoPeriodo}
+                    totalPlanos={totalPlanos}
+                    totalNutri={totalNutri}
+                    semMovimento={movimento.semTabela}
+                    onAbrirUnidade={(nome) => onAbrirUnidade?.(nome)}
+                    onWhatsApp={enviarPlanosRedeWhatsapp}
+                />
+            )}
+
             {/* ===== 4. INDICADORES MENORES ===== */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                <CardMenor
+                {visaoRede ? (
+                    <CardMenor
+                        rotulo={tx('Ativos da rede')}
+                        valor={ativosRede.length > 0 ? somaAtivosRede.toLocaleString(localeAtual()) : <span className="text-base">{tx("Não Informado")}</span>}
+                        carregando={movimento.carregando}
+                        sub={tx('{x} de {y} unidades lançaram', { x: ativosRede.length, y: linhasRede.length })}
+                        dica={tx('Soma do último número de ativos lançado por cada unidade (aba Metas → Movimentação) até o fim do período. O número de cada unidade está no quadro "Planos por unidade".')}
+                        icone={Users} fundoIcone="bg-[#E8EEFF] dark:bg-blue-500/15" corIcone="text-[#1D4FD8] dark:text-blue-300"
+                    />
+                ) : <CardMenor
                     rotulo={tx("Ativos da Unidade")}
                     valor={ativosAtualBanco !== null ? Number(ativosAtualBanco).toLocaleString(localeAtual()) : <span className="text-base">{tx("Não Informado")}</span>}
                     carregando={isCarregandoAtivos}
@@ -964,7 +1029,7 @@ const DashboardTab = ({
                     // Ativos são lançados só na aba Metas (card Movimentação): o botão leva para lá
                     iconeBotao={Pencil} rotuloBotao={tx("Atualizar os ativos na aba Metas (Movimentação)")}
                     onClick={onIrParaMetas}
-                />
+                />}
                 {/* Entradas = planos base do período (automático) · Saídas = cancelamentos digitados · Faturamento = digitado */}
                 <CardMenor
                     rotulo={tx('Entradas')}
@@ -1038,17 +1103,31 @@ const DashboardTab = ({
                     </div>
                     {ritmo && (
                         <div className="flex flex-wrap items-center gap-4 text-[13px] font-semibold text-[#3B4458] dark:text-slate-300">
-                            <div className="inline-flex p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('Como mostrar o ritmo')}>
+                            {/* Visão da Rede: uma linha por unidade (padrão) ou o gráfico da rede somada × meses anteriores */}
+                            {visaoRede && (
+                                <div className="inline-flex p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('O que mostrar no ritmo')}>
+                                    {[['unidades', 'Por unidade'], ['rede', 'Rede × meses anteriores']].map(([id, nome]) => (
+                                        <button key={id} type="button" aria-pressed={ritmoVisao === id} onClick={() => setRitmoVisao(id)}
+                                            className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${ritmoVisao === id ? 'bg-blue-600 text-white shadow-sm' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
+                                            {tx(nome)}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                            {/* "Por unidade" é sempre acumulado (corrida com destaque); Por dia/Acumulado vale para os outros gráficos */}
+                            {!ritmoPorUnidadeAtivo && <div className="inline-flex p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('Como mostrar o ritmo')}>
                                 {[['dia', 'Por dia'], ['acumulado', 'Acumulado']].map(([id, nome]) => (
                                     <button key={id} type="button" aria-pressed={modoRitmo === id} onClick={() => setModoRitmo(id)}
                                         className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${modoRitmo === id ? 'bg-white text-[#0B1F4B] shadow-sm dark:bg-slate-900 dark:text-white' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
                                         {tx(nome)}
                                     </button>
                                 ))}
-                            </div>
-                            <span className="inline-flex items-center gap-2"><span className="w-6 h-1 rounded-full" style={{ background: corRitmo }} />{nomeMesAtual}</span>
-                            {temComparativo && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dashed" style={{ borderColor: COR_MES_ANTERIOR }} />{nomeMesAnterior}</span>}
-                            {temRetrasado && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dotted" style={{ borderColor: COR_MES_RETRASADO }} />{nomeMesRetrasado}</span>}
+                            </div>}
+                            {!ritmoPorUnidadeAtivo && <>
+                                <span className="inline-flex items-center gap-2"><span className="w-6 h-1 rounded-full" style={{ background: corRitmo }} />{nomeMesAtual}</span>
+                                {temComparativo && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dashed" style={{ borderColor: COR_MES_ANTERIOR }} />{nomeMesAnterior}</span>}
+                                {temRetrasado && <span className="inline-flex items-center gap-2"><span className="w-6 border-t-[3px] border-dotted" style={{ borderColor: COR_MES_RETRASADO }} />{nomeMesRetrasado}</span>}
+                            </>}
                         </div>
                     )}
                 </div>
@@ -1067,6 +1146,18 @@ const DashboardTab = ({
 
                 {!ritmo ? (
                     <p className="text-center text-[13px] font-semibold text-[#5B6478] py-10 dark:text-slate-400">{tx('Escolha um período de mais de um dia (ex.: "Este mês") para ver o ritmo.')}</p>
+                ) : ritmoPorUnidadeAtivo ? (
+                    <RitmoPorUnidade
+                        unidadesRede={unidadesRede}
+                        contados={contadosRitmoRede}
+                        faixa={faixa}
+                        hojeIso={hojeIso}
+                        escuro={escuro}
+                        especiais={ritmo.especiais}
+                        rotuloDia={(i, curto) => (curto ? ritmo.linhas[i]?.dia.slice(8) || '' : rotuloDiaRitmo(i))}
+                        corEixo={corEixo}
+                        corGrade={corGrade}
+                    />
                 ) : modoRitmo === 'dia' ? (
                     <>
                         {/* Destaques: melhor dia, pior dia e média */}
@@ -1333,7 +1424,7 @@ const DashboardTab = ({
                         <div className="space-y-6">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <h3 className="text-[16px] font-extrabold text-[#0F172A] dark:text-white">{tx('Ranking de produtos')}</h3>
+                                    <h3 className="text-[16px] font-extrabold text-[#0F172A] dark:text-white">{visaoRede ? tx('Top vendedores da rede') : tx('Ranking de produtos')}</h3>
                                     <p className="text-[13px] font-medium text-[#5B6478] dark:text-slate-400">{tx('Garrafas e Whey vendidos por consultor no período')}</p>
                                 </div>
                                 <button type="button" onClick={dispararModalCompartilhar} disabled={rankingOrdenado.length === 0} className="h-11 px-4 rounded-xl bg-[#0F7A3E] text-white text-[14px] font-bold inline-flex items-center gap-2 hover:bg-[#0C6533] transition-colors disabled:opacity-50">
@@ -1353,6 +1444,7 @@ const DashboardTab = ({
                                                 <div key={nome} className="flex-1 min-w-0 flex flex-col items-center">
                                                     <span className={`${e.circulo} rounded-full bg-[#0B1F4B] text-white font-extrabold flex items-center justify-center dark:bg-blue-600`}>{iniciais(nome)}</span>
                                                     <p className="mt-2 text-[14px] font-bold text-[#0F172A] truncate max-w-full dark:text-white">{nome.split(' ')[0]}</p>
+                                                    {visaoRede && unidadeDoVendedor.get(nome) && <p className="text-[10px] font-black uppercase tracking-wide text-blue-700 truncate max-w-full dark:text-blue-300">{unidadeDoVendedor.get(nome)}</p>}
                                                     <p className={`text-[12px] font-semibold mb-2 ${qtd === 0 ? 'text-[#B42318] dark:text-rose-300' : 'text-[#5B6478] dark:text-slate-400'}`}>{tx('{qtd} itens', { qtd })}</p>
                                                     <div className={`w-full rounded-t-xl border-t-4 ${e.fundo} ${e.borda} flex items-start justify-center pt-3`} style={{ height: e.altura }}>
                                                         <span className="text-lg font-extrabold text-[#0F172A] dark:text-white">{pos + 1}º</span>
@@ -1369,6 +1461,7 @@ const DashboardTab = ({
                                                     <span className="flex items-center gap-3 min-w-0">
                                                         <span className="w-8 text-[13px] font-extrabold text-[#5B6478] tabular-nums dark:text-slate-400">{i + 4}º</span>
                                                         <span className="text-[14px] font-bold text-[#0F172A] truncate dark:text-white">{nome.split(' ')[0]}</span>
+                                                        {visaoRede && unidadeDoVendedor.get(nome) && <span className="h-5 px-1.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-wide inline-flex items-center truncate max-w-[120px] dark:bg-blue-500/10 dark:text-blue-300">{unidadeDoVendedor.get(nome)}</span>}
                                                     </span>
                                                     <span className={`h-7 px-2.5 rounded-full text-[12px] font-bold inline-flex items-center tabular-nums ${qtd === 0 ? 'bg-[#FDECEA] text-[#B42318] dark:bg-rose-500/15 dark:text-rose-300' : 'bg-[#EEF1F6] text-[#0F172A] dark:bg-slate-800 dark:text-white'}`}>{dois(qtd)} {tx('un')}</span>
                                                 </li>

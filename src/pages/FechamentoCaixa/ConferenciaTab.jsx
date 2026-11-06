@@ -5,6 +5,7 @@ import { itensCatalogoParaEdicao } from '../HistoricoVendas/utils.js';
 import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle, User } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // ==========================================
 // 🧩 FORMATADOR SEGURO DE CPF E NOME
@@ -84,6 +85,9 @@ const ConferenciaTab = ({
     onSalvarEdicao, 
     onExcluirVenda  
 }) => {
+    // Ações pelas permissões (Configurações → Permissões, Etapa 2): 405 conferir/editar/excluir; 406 conferir a tela toda
+    const podeAgir = podeFazer(usuarioLogado, '405');
+    const podeConferirTela = podeAgir && podeFazer(usuarioLogado, '406');
     // FILTROS AVANÇADOS PREMIUM
     const [vendedoresOcultos, setVendedoresOcultos] = useState([]);
     const [planosOcultos, setPlanosOcultos] = useState([]);
@@ -556,7 +560,7 @@ const ConferenciaTab = ({
                         </div>
                         
                         <div className="flex flex-col gap-2 w-full sm:w-36 shrink-0 h-full justify-end">
-                            {usuarioLogado?.role === 'ADMIN' && (
+                            {podeConferirTela && (
                                 <button 
                                     onClick={() => {
                                         const ids = vendasFiltradas.map(v => v.id);
@@ -700,14 +704,16 @@ const ConferenciaTab = ({
                                             
                                             {/* BOTÃO STATUS */}
                                             <button 
-                                                onClick={() => toggleConferido(v.id, v.conferiu)}
+                                                onClick={() => podeAgir && toggleConferido(v.id, v.conferiu)}
+                                                disabled={!podeAgir}
+                                                title={podeAgir ? undefined : tx('Sem permissão para conferir (permissão 405).')}
                                                 className={`px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex flex-col items-center justify-center w-28 h-12 ${v.conferiu ? 'bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 hover:shadow-md' : 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200 hover:text-amber-800 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30 dark:hover:text-amber-300'}`}
                                             >
                                                 {v.conferiu ? <><Check className="w-4 h-4 mb-0.5"/> OK</> : <><Clock className="w-4 h-4 mb-0.5"/>{' '}{tx("PENDENTE")}</>}
                                             </button>
 
                                             {/* BOTÕES DE EDITAR / EXCLUIR EMPILHADOS */}
-                                            <div className="flex flex-col gap-1.5">
+                                            {podeAgir && <div className="flex flex-col gap-1.5">
                                                 <button 
                                                     onClick={() => setVendaEmEdicao(v)} 
                                                     title={tx("Editar Registro")}
@@ -726,7 +732,7 @@ const ConferenciaTab = ({
                                                 >
                                                     {tx("Apagar")}
                                                 </button>
-                                            </div>
+                                            </div>}
                                             
                                         </div>
                                     </td>

@@ -1,6 +1,6 @@
 // ==========================================
 // COBRANÇA DO RELATÓRIO DE FECHAMENTO — só no login da RECEPÇÃO (decisão do dono, 05/11/2026)
-// Na hora da cobrança do turno (seg-sex 14h00 manhã / 22h30 noite; sáb-dom 12h30), se o relatório do turno
+// Na hora da cobrança do turno (seg-sex 14h30 manhã / 22h30 noite; sáb-dom-feriado 12h30; envio 13h30–15h, 21h30–23h, 12h–13h), se o relatório do turno
 // ainda não foi enviado, abre uma janela no meio da tela (mesmo com a pessoa em outra tela) com o botão
 // "Ir para o relatório" (Dashboard → Relatórios, Hoje). "Lembrar em 15 min" fecha; o cartão do canto fica
 // e a janela volta 15 minutos depois. Some na hora em que o envio é registrado (Copiar/Enviar no WhatsApp Fechamento).
@@ -12,12 +12,14 @@ import { supabase } from '../../supabaseClient.js';
 import { tx } from '../../i18n/traduzir.js';
 import { turnosDoDia, situacaoDoTurno, nomesDoTurno, INICIO_COBRANCA_RELATORIO, ROTULO_TURNO } from './relatorioFechamento.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 const QUINZE_MIN = 15 * 60 * 1000;
 const paraIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 const CobrancaRelatorioRecepcao = ({ usuario, colaboradores = [], aoIrRelatorio }) => {
-    const ehRecepcao = String(usuario?.role || '').toUpperCase() === 'RECEPCAO';
+    // Só a Recepção, e só se a permissão 903 estiver ligada (Configurações → Permissões)
+    const ehRecepcao = String(usuario?.role || '').toUpperCase() === 'RECEPCAO' && podeFazer(usuario, '903');
     const unidade = String(usuario?.unidade || '').trim();
     const [agora, setAgora] = useState(() => new Date());
     const [envios, setEnvios] = useState(null); // null = ainda não leu (ou sem a tabela)

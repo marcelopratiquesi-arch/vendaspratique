@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, conexaoParaCriarLogin } from '../supabaseClient.js';
-import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2, Building2, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Settings, Lock, Shield, MapPin, Key, UserCheck, Save, UserMinus, Building, Trash2, Building2, AlertTriangle, KeyRound } from 'lucide-react';
 import ModalUnidadesMentor from '../components/Modals/ModalUnidadesMentor.jsx';
+import AbaPermissoes from '../permissoes/AbaPermissoes.jsx';
 import { avisar } from '../components/avisar.js';
 import { tx } from '../i18n/traduzir.js';
 
@@ -232,14 +233,19 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
 
                 <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 w-full md:w-auto relative z-10 shadow-inner dark:bg-slate-800 dark:border-slate-800">
                     <button onClick={() => setAbaAtiva('acessos')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'acessos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
-                        <Shield className="w-4 h-4" strokeWidth={2.5} />{' '}{tx("Logins e Permissões")}
+                        <Shield className="w-4 h-4" strokeWidth={2.5} />{' '}{tx("Logins")}
                     </button>
                     <button onClick={() => setAbaAtiva('unidades')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'unidades' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
                         <MapPin className="w-4 h-4" strokeWidth={2.5} />{' '}{tx("Gestão de Unidades")}
                     </button>
+                    {/* Permissões (06/11/2026): o que cada nível e cada login vê — só o Admin (esta tela já é só do Admin) */}
+                    <button onClick={() => setAbaAtiva('permissoes')} className={`flex-1 md:w-48 px-5 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${abaAtiva === 'permissoes' ? 'bg-white shadow-sm text-blue-700 border border-slate-200/50 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 border border-transparent dark:text-slate-400 dark:hover:text-white'}`}>
+                        <KeyRound className="w-4 h-4" strokeWidth={2.5} />{' '}{tx("Permissões")}
+                    </button>
                 </div>
             </div>
 
+            {abaAtiva === 'permissoes' ? <AbaPermissoes usuarios={usuariosAcesso} /> : (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 
                 {/* LADO ESQUERDO: FORMULÁRIOS */}
@@ -434,6 +440,7 @@ const Configuracoes = ({ unidades = [], setUnidades }) => {
                 </div>
 
             </div>
+            )}
 
             {mentorEditando && (
                 <ModalUnidadesMentor

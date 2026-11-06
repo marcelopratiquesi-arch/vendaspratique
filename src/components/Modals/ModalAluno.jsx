@@ -6,6 +6,7 @@ import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade } from '../../p
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { avisar } from '../avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogado, unidadeDestino }) => {
     const { t } = useI18n(); 
@@ -84,7 +85,8 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
     const unidadesDeFora = vinculosAluno.filter(u => !mesmaUnidade(u, unidadeAtiva));
     // Só edita dados pessoais (não mexe em vínculo nem em matrícula)
     const somenteDadosPessoais = situacao === 'OUTRA' && !modoTransferir;
-    const podeTransferir = Boolean(unidadeAtiva) && (situacao === 'OUTRA' || (situacao === 'MINHA' && vinculoMultiplo));
+    // Transferir: permissão 608 (Configurações → Permissões)
+    const podeTransferir = Boolean(unidadeAtiva) && (situacao === 'OUTRA' || (situacao === 'MINHA' && vinculoMultiplo)) && podeFazer(usuarioLogado, '608');
 
     const iniciarTransferencia = () => {
         setModoTransferir(true);

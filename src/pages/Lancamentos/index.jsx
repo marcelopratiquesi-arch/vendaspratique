@@ -4,6 +4,7 @@ import FormVisitante from './FormVisitante.jsx';
 import { ShoppingCart, UserPlus } from 'lucide-react';
 import IndicadorEtapas from './IndicadorEtapas.jsx';
 import { tx } from '../../i18n/traduzir.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 const LancamentoVendas = ({ 
     usuarioLogado, 
@@ -35,9 +36,13 @@ const LancamentoVendas = ({
         setAbaAtiva(novaAba);
     };
 
+    // Abas pelas permissões (Configurações → Permissões): 101 Lançar venda · 102 Cadastrar visitante
+    const abaLiberada = { venda: podeFazer(usuarioLogado, '101'), visitante: podeFazer(usuarioLogado, '102') };
+    const abaMostrada = abaLiberada[abaAtiva] ? abaAtiva : (abaLiberada.venda ? 'venda' : abaLiberada.visitante ? 'visitante' : null);
+
     // Lançar venda um pouco mais larga para os itens caberem numa linha só; o visitante fica como estava
     return (
-        <div className={`space-y-4 ${abaAtiva === 'venda' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto animate-[fadeIn_0.2s_ease-out]`}>
+        <div className={`space-y-4 ${abaMostrada === 'venda' ? 'max-w-6xl' : 'max-w-5xl'} mx-auto animate-[fadeIn_0.2s_ease-out]`}>
             
             {/* Topo: abas à esquerda e etapas da venda à direita (desenho aprovado, 30/10/2026) */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
@@ -45,8 +50,8 @@ const LancamentoVendas = ({
                     {[
                         ['venda', 'Lançar Venda', ShoppingCart],
                         ['visitante', 'Cadastrar Visitante', UserPlus],
-                    ].map(([id, rotulo, Icone]) => {
-                        const ativa = abaAtiva === id;
+                    ].filter(([id]) => abaLiberada[id]).map(([id, rotulo, Icone]) => {
+                        const ativa = abaMostrada === id;
                         return (
                             <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => handleTrocarAba(id)}
                                 className={`h-11 px-4 rounded-xl text-[14px] font-semibold flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] ${ativa ? 'bg-[#0B1F4B] text-white dark:bg-blue-600' : 'text-[#3B4458] hover:bg-[#F3F5FA] hover:text-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`}>
@@ -55,10 +60,14 @@ const LancamentoVendas = ({
                         );
                     })}
                 </div>
-                {abaAtiva === 'venda' && <IndicadorEtapas {...etapasVenda} />}
+                {abaMostrada === 'venda' && <IndicadorEtapas {...etapasVenda} />}
             </div>
 
-            {abaAtiva === 'venda' && (
+            {!abaMostrada && (
+                <p className="py-16 text-center text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('Você não tem permissão para lançar venda nem cadastrar visitante.')}</p>
+            )}
+
+            {abaMostrada === 'venda' && (
                 <div className="motion-safe:animate-[slideDown_0.2s_ease-out]">
                     <FormVenda 
                         usuarioLogado={usuarioLogado}
@@ -81,7 +90,7 @@ const LancamentoVendas = ({
                 </div>
             )}
 
-            {abaAtiva === 'visitante' && (
+            {abaMostrada === 'visitante' && (
                 <div className="motion-safe:animate-[slideDown_0.2s_ease-out]">
                     <FormVisitante 
                         usuarioLogado={usuarioLogado}

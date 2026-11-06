@@ -277,14 +277,14 @@ const ListaAlunos = ({
                                                         <Dumbbell className="w-4 h-4" />
                                                     </button>
                                                 )}
-                                                <button
+                                                {onEditarAluno && <button
                                                     type="button"
                                                     onClick={(e) => { e.stopPropagation(); onEditarAluno(aluno); }}
                                                     title={tx("Editar dados")}
                                                     className="p-2 rounded-lg bg-transparent text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/30 dark:hover:text-blue-400 border border-transparent hover:border-blue-200 dark:hover:border-blue-800 transition-all"
                                                 >
                                                     <UserRoundPen className="w-4 h-4" />
-                                                </button>
+                                                </button>}
                                                 {ehAdmin && (
                                                     <button
                                                         type="button"

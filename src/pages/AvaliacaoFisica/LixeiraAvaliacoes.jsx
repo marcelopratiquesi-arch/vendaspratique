@@ -6,6 +6,7 @@ import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao } from '../../components/periodoPadrao.js';
 import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // ==========================================
 // LIXEIRA DAS AVALIAÇÕES FÍSICAS (decisão do dono, 04/11/2026)
@@ -34,8 +35,8 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
     const [busca, setBusca] = useState('');
     const [restaurandoId, setRestaurandoId] = useState(null);
 
-    const papel = usuarioLogado?.roleReal || usuarioLogado?.role;
-    const podeRestaurar = papel === 'ADMIN' || papel === 'MENTOR';
+    // Restaurar: permissão 705 (padrão: Admin e Mentor; o banco confere)
+    const podeRestaurar = podeFazer(usuarioLogado, '705');
     const unidade = usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : null;
 
     const carregar = useCallback(async () => {

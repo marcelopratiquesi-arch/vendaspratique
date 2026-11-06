@@ -22,9 +22,11 @@ const FormVenda = ({
     onEtapas, // Etapas da venda (Cliente → Itens → Finalizar) para o indicador do topo
     vendas = [] // vendas já carregadas (só leitura), para o aviso do limite de doses únicas
 }) => {
-    // 🔥 Libera a escolha de unidade para quem não é recepção pura
-    const roleUsuario = String(usuarioLogado?.role || '').toUpperCase().trim();
-    const podeEscolherUnidade = ['ADMIN', 'MENTOR', 'LIDER', 'VENDEDOR'].includes(roleUsuario);
+    // Escolher a unidade da venda: só Admin e Mentor (papel verdadeiro). Líder e Recepção lançam sempre na
+    // própria unidade — o banco só aceita venda na unidade de quem lança (corrigido em 06/11/2026: antes o Líder
+    // via a lista de todas as unidades e a venda dava erro ao gravar em outra).
+    const roleUsuario = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase().trim();
+    const podeEscolherUnidade = ['ADMIN', 'MENTOR'].includes(roleUsuario);
 
     const [formData, setFormData] = useState({ 
         unidade: usuarioLogado?.unidade || '', 

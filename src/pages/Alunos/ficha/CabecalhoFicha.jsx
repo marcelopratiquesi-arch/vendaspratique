@@ -116,9 +116,9 @@ const CabecalhoFicha = ({ aluno, onEditar, onVender, onAvaliar, langAtual = 'pt-
             </div>
 
             <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
-                <button onClick={onEditar} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60">
+                {onEditar && <button onClick={onEditar} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm flex items-center justify-center gap-1.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60">
                     <UserRoundPen className="w-3.5 h-3.5" />{' '}{tx("Editar")}
-                </button>
+                </button>}
                 
                 {onVender && (
                     <button onClick={onVender} className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1.5">

@@ -1,5 +1,6 @@
 // src/pages/AnaliseVendas/RelatorioTab.jsx
 import PainelEnviosRelatorio from '../Pendencias/PainelEnviosRelatorio.jsx';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import React, { useState, useRef, useMemo } from 'react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import {
@@ -62,7 +63,8 @@ const RelatorioTab = ({
         totalItensUnicos: 0
     });
 
-    const permissaoGerencial = temVisaoGlobal || (usuarioLogado && usuarioLogado.role === 'LIDER');
+    // Planilha e WhatsApp Geral: permissão 311 (padrão: Admin, Mentor e Líder)
+    const permissaoGerencial = podeFazer(usuarioLogado, '311');
 
     // Unidades que aparecem sempre (mesmo sem venda), para a recepção conseguir mandar o fechamento "sem venda"
     const chaveFixas = unidadesFixas.filter(Boolean).join('|');
@@ -255,8 +257,8 @@ const RelatorioTab = ({
             onMouseMove={onMouseMove}
         >
             {/* Relatórios de fechamento da recepção (05/11/2026): Admin, Mentor e Líder acompanham quem enviou */}
-            {String(usuarioLogado?.role || '').toUpperCase() !== 'RECEPCAO' && (
-                <PainelEnviosRelatorio unidades={unidadesFixas} faixa={faixa} colaboradores={colaboradores} />
+            {podeFazer(usuarioLogado, '312') && (
+                <PainelEnviosRelatorio unidades={unidadesFixas} faixa={faixa} colaboradores={colaboradores} podeConferir={podeFazer(usuarioLogado, '313')} />
             )}
 
             {/* Modal de Auditoria com Pesquisa Interna e Download de Lista */}

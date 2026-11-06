@@ -12,6 +12,7 @@ import {
 import { SmartFilter } from '../../components/SmartFilter.jsx';
 import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from './FiltrosCompactos.jsx';
 import { tx } from '../../i18n/traduzir.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // 🔥 CORREÇÃO DE FUSO HORÁRIO BRASILEIRO
 const getLocalISODate = () => {
@@ -71,7 +72,8 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
     const [catalogoGeral, setCatalogoGeral] = useState([]); 
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
-    const podeEditar = ['ADMIN', 'MENTOR', 'LIDER'].includes(usuarioLogado?.role);
+    // Coluna de gestão aparece se a pessoa pode editar (204), excluir (205) ou marcar duplicidade (206)
+    const podeEditar = ['204', '205', '206'].some(c => podeFazer(usuarioLogado, c));
     
     const unidadeAtual = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
 
