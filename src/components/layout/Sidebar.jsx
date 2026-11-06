@@ -172,7 +172,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
     const grupos = [
         { id: 'op', nome: 'Operação', abas: abasRestantes.filter(a => ['assinaturas', 'fechamento'].includes(a.id)) },
         { id: 'rel', nome: 'Relacionamento', abas: abasRestantes.filter(a => ['crm', 'alunos', 'avaliacao'].includes(a.id)) },
-        { id: 'ges', nome: 'Gestão', abas: abasRestantes.filter(a => ['analise', 'comunicados', 'cadastros'].includes(a.id)) }
+        { id: 'ges', nome: 'Gestão', abas: abasRestantes.filter(a => ['analise', 'comunicados', 'cadastros', 'pendencias'].includes(a.id)) }
     ];
 
     const papel = traduzirRole(usuarioLogado?.role, t);

@@ -12,9 +12,13 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
     const [unidade, setUnidade] = useState('');
     const [tipoConta, setTipoConta] = useState('INTER');
     const [contaInter, setContaInter] = useState('');
+    // Turno da recepcionista (Manhã/Noite): usado na cobrança do relatório de fechamento (decisão do dono, 05/11/2026)
+    const [turno, setTurno] = useState('');
+    const ehRecepcao = role.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes('RECEP');
 
     useEffect(() => {
         if (isOpen) {
+            setTurno(dadosEdicao?.turno || '');
             if (dadosEdicao) {
                 setNome(dadosEdicao.nome || '');
                 setCpf(dadosEdicao.cpf || '');
@@ -47,7 +51,8 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
             role: role.toUpperCase(),
             unidade: unidade.toUpperCase(),
             tipo_conta: tipoConta,
-            conta_inter: tipoConta === 'INTER' ? contaInter.trim() : null
+            conta_inter: tipoConta === 'INTER' ? contaInter.trim() : null,
+            turno: ehRecepcao ? (turno || null) : null
         });
     };
 
@@ -101,6 +106,21 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                     {listaSetores.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                 </select>
                             </div>
+
+                            {ehRecepcao && (
+                                <div className="sm:col-span-2">
+                                    <label className={labelBase}>{tx("Turno da recepção")}</label>
+                                    <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner dark:bg-slate-800 dark:border-slate-800">
+                                        {[['MANHA', tx('Manhã (5h às 14h)')], ['NOITE', tx('Noite (14h às 23h)')], ['', tx('Sem turno')]].map(([valor, rotulo]) => (
+                                            <button key={valor || 'nenhum'} type="button" onClick={() => setTurno(valor)}
+                                                className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${turno === valor ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                                {rotulo}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx("Usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.")}</p>
+                                </div>
+                            )}
 
                             {temVisaoGlobal && (
                                 <div className="sm:col-span-1">

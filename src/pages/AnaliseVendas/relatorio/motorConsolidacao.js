@@ -1,5 +1,6 @@
 // src/pages/AnaliseVendas/relatorio/motorConsolidacao.js
 import { safeIsoDate, normalizeString, getCategoriaItem, decomporPlano } from '../utils.js';
+import { montarNomesCurtos } from '../../Lancamentos/seletores/setoresEquipe.js';
 
 export const ORDEM_CLASSICA = [
     "NUTRI",
@@ -70,9 +71,13 @@ export const processarConsolidadas = ({
     visitantesFiltrados = [],
     avaliacoesFiltradas = [],
     planos = [],
-    produtos = []
+    produtos = [],
+    // Unidades que aparecem SEMPRE, mesmo sem nenhuma venda/visita/avaliação (para mandar o fechamento "sem venda")
+    unidadesFixas = []
 }) => {
     const relatorioPorUnidade = {};
+    // Nome curto do consultor (1º e 2º nome, igual à Lançar venda): duas "Ana" não se misturam mais
+    const nomesCurtos = montarNomesCurtos([...new Set(vendasFiltradas.map(v => String(v.vendedor || '').trim()).filter(Boolean))].map(nome => ({ nome })));
     let vendasGlobal = 0;
 
     const inicializarUnidade = (unidade) => {
@@ -99,6 +104,8 @@ export const processarConsolidadas = ({
         }
     };
 
+    unidadesFixas.filter(Boolean).forEach(u => inicializarUnidade(u));
+
     const transacoesUnicas = new Set();
 
     vendasFiltradas.forEach(v => {
@@ -108,8 +115,8 @@ export const processarConsolidadas = ({
         let qtd = parseInt(v.quantidade, 10) || 1;
         const prodOriginal = (v.produto || 'ITEM NÃO IDENTIFICADO');
         const prodUpper = prodOriginal.toUpperCase().trim();
-        const primeiroNomeBruto = v.vendedor ? v.vendedor.trim().split(/\s+/)[0] : 'SISTEMA';
-        const vendPrimeiroNome = primeiroNomeBruto.charAt(0).toUpperCase() + primeiroNomeBruto.slice(1).toLowerCase();
+        const nomeVendedor = String(v.vendedor || '').trim();
+        const vendPrimeiroNome = nomeVendedor ? (nomesCurtos.get(nomeVendedor) || nomeVendedor) : 'Sistema';
 
         const categoriaMestre = getCategoriaItem(prodOriginal, planos, produtos);
 

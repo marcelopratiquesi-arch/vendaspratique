@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { contarPlanosDoCard, getCategoriaItem } from './utils.js';
 import { qtdValidaProduto } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
-import MovimentoDiarioPainel, { MovimentacaoForm } from './MovimentoDiarioPainel.jsx';
+import MovimentoDiarioPainel, { MovimentacaoForm, JanelaMovimento } from './MovimentoDiarioPainel.jsx';
 import MonitorMovimentacao from './MonitorMovimentacao.jsx';
 import HistoricoMetas from './HistoricoMetas.jsx';
 import { useMovimentoDiario, entradasPorDia, podeGravarMovimento } from './movimentoDiario.js';
@@ -16,7 +16,7 @@ import { infoDoMes, avaliarMeta } from './painel/calculosPainel.js';
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Input com Auto-Save (CORRIGIDO)
 // ==========================================
-const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, dbValue, onChange, onSave, theme = 'blue', large = false }) => {
+const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, dbValue, onChange, onSave, theme = 'blue', large = false, somenteLeitura = false, semBotao = false }) => {
     const [isSaving, setIsSaving] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
 
@@ -39,8 +39,9 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
         }
     };
 
+    // Só números inteiros (igual aos campos da Movimentação); vazio continua vazio
     const handleChange = (e) => {
-        const val = e.target.value;
+        const val = String(e.target.value || '').replace(/\D/g, '');
         onChange(val === '' ? '' : Number(val));
     };
 
@@ -98,12 +99,15 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
 
             <div className="flex items-center gap-2 shrink-0">
                 <input
-                    type="number"
-                    value={value}
+                    type="text"
+                    inputMode="numeric"
+                    aria-label={tx(label)}
+                    value={value ?? ''}
                     onChange={handleChange}
-                    className={`w-[72px] h-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:bg-white focus:ring-4 dark:bg-slate-800/60 dark:border-slate-800 dark:text-white dark:focus:bg-slate-900 ${styles.ring} text-center transition-all`}
+                    disabled={somenteLeitura}
+                    className={`w-[72px] h-10 bg-slate-50 border border-slate-200 rounded-xl text-sm font-black text-slate-800 outline-none focus:bg-white focus:ring-4 disabled:cursor-not-allowed dark:bg-slate-800/60 dark:border-slate-800 dark:text-white dark:focus:bg-slate-900 ${styles.ring} text-center transition-all`}
                 />
-                <button
+                {!somenteLeitura && !semBotao && <button
                     onClick={handleSave}
                     disabled={!hasChanged || isSaving}
                     title={!hasChanged ? tx("Sem alterações pendentes") : tx("Salvar esta meta")}
@@ -113,10 +117,10 @@ const InputFieldWithSave = ({ label, description, subtitle, icon: Icon, value, d
                         ${showSuccess ? '!bg-emerald-500 !text-white !border-emerald-600 scale-105 shadow-md' : ''}
                     `}
                 >
-                    {isSaving ? <Loader2 className="animate-spin w-4 h-4" /> : 
-                     showSuccess ? <Check className="w-4 h-4" /> : 
+                    {isSaving ? <Loader2 className="animate-spin w-4 h-4" /> :
+                     showSuccess ? <Check className="w-4 h-4" /> :
                      <Save className="w-4 h-4" />}
-                </button>
+                </button>}
             </div>
         </div>
     );
@@ -271,6 +275,10 @@ const MetasTab = ({
         });
     }, []);
     const podeEditarCampos = unidadeAtivaEdicao && unidadeAtivaEdicao !== 'TODOS';
+    // Metas: só Líder, Mentor e Admin definem; a Recepção só vê (decisão do dono, 05/11/2026)
+    const podeEditarMetas = podeGravarMovimento(usuarioLogado);
+    // Mês em que as metas são lidas e gravadas (vem do index: mês do período ou o mês atual)
+    const rotuloMesMetas = `${String(filtroMes).padStart(2, '0')}/${filtroAno}`;
     const semPersonal = !!semPersonalMapa[String(unidadeAtivaEdicao || '').toUpperCase()];
     const indicadoresMensal = semPersonal ? 3 : 4;
     const marcarSemPersonal = async (valor) => {
@@ -316,7 +324,11 @@ const MetasTab = ({
         if(filtroMes && filtroAno) buscarMetas();
     }, [filtroMes, filtroAno]);
 
+    // Preenche os campos com o que está no banco SÓ ao abrir / trocar de unidade ou mês. Depois de gravar
+    // (um card, ou os ativos pela Movimentação) NÃO recarrega os campos: senão apagava o que estava digitado no outro card.
+    const naoRecarregarCampos = useRef(false);
     useEffect(() => {
+        if (naoRecarregarCampos.current) { naoRecarregarCampos.current = false; return; }
         if (podeEditarCampos) {
             const metaDb = metasDoBanco[unidadeAtivaEdicao.toUpperCase()];
             if (metaDb) {
@@ -340,6 +352,8 @@ const MetasTab = ({
 
     const salvarCampo = async (colunaNoBanco, valorDigitado) => {
         if (!podeEditarCampos) return;
+        // Ativos do mês continuam sendo atualizados pela Movimentação (que já confere quem pode gravar)
+        if (!podeEditarMetas && colunaNoBanco !== 'ativos_atual') return;
 
         const parseField = (val) => (val === '' || val === null || val === undefined) ? null : Number(val);
         const valorFinal = parseField(valorDigitado);
@@ -357,6 +371,7 @@ const MetasTab = ({
 
         if (error) throw error;
 
+        naoRecarregarCampos.current = true;
         setMetasDoBanco(prev => {
             const oldData = prev[payload.unidade] || {};
             return {
@@ -364,6 +379,83 @@ const MetasTab = ({
                 [payload.unidade]: { ...oldData, ...payload }
             };
         });
+    };
+
+    // ==========================================
+    // GRAVAR O CARD INTEIRO (decisão do dono, 05/11/2026): um botão embaixo de cada card (Meta Start / Meta Mensal),
+    // igual à Movimentação. Todos os campos do card são obrigatórios e a Meta Mensal precisa ser MAIOR que a Meta Start
+    // (Nutri e Personal Class; Produto só existe na Start, Ativos e Plus só na Mensal). Se não estiver certo, abre a janela e NÃO grava.
+    // ==========================================
+    const [janelaMetas, setJanelaMetas] = useState(null); // { titulo, linhas: [], rodape }
+    const [gravandoBloco, setGravandoBloco] = useState(null); // 'start' | 'mensal' | null
+    const [gravadoBloco, setGravadoBloco] = useState(null);
+    const vazio = (v) => v === '' || v === null || v === undefined;
+    const camposStart = [
+        { coluna: 'meta_nutri', rotulo: 'Nutri', valor: metaNutri },
+        { coluna: 'meta_produtos', rotulo: 'Produto', valor: metaProdutos },
+        ...(semPersonal ? [] : [{ coluna: 'meta_personal', rotulo: 'Personal Class', valor: metaPersonal }]),
+    ];
+    const camposMensal = [
+        { coluna: 'meta_ativos_mensal', rotulo: 'Ativos Alvo', valor: metaAtivosMensal },
+        { coluna: 'meta_nutri_mensal', rotulo: 'Nutri', valor: metaNutriMensal },
+        { coluna: 'meta_plus_mensal', rotulo: 'Plus', valor: metaPlusMensal },
+        ...(semPersonal ? [] : [{ coluna: 'meta_pers_mensal', rotulo: 'Personal Class', valor: metaPersMensal }]),
+    ];
+    const mudouBloco = (campos) => campos.some(c => String(c.valor ?? '') !== String(metaCache?.[c.coluna] ?? ''));
+    // Pares Start x Mensal (o mesmo indicador nos dois cards)
+    const paresStartMensal = [
+        { rotulo: 'Nutri', start: metaNutri, mensal: metaNutriMensal },
+        ...(semPersonal ? [] : [{ rotulo: 'Personal Class', start: metaPersonal, mensal: metaPersMensal }]),
+    ];
+
+    const gravarBloco = async (tipo) => {
+        if (!podeEditarCampos || !podeEditarMetas || gravandoBloco) return;
+        const campos = tipo === 'start' ? camposStart : camposMensal;
+        const faltam = campos.filter(c => vazio(c.valor));
+        if (faltam.length) {
+            setJanelaMetas({
+                titulo: tx('Falta preencher'),
+                linhas: faltam.map(c => tx('Você precisa colocar a meta de {indicador}.', { indicador: tx(c.rotulo) })),
+                rodape: tipo === 'start' ? tx('A Meta Start só é gravada com todos os campos preenchidos corretamente.') : tx('A Meta Mensal só é gravada com todos os campos preenchidos corretamente.'),
+            });
+            return;
+        }
+        // Meta Mensal tem que ser maior que a Meta Start (os dois zerados = sem meta, não confere)
+        const errados = paresStartMensal.filter(p => !vazio(p.start) && !vazio(p.mensal) && !(Number(p.start) === 0 && Number(p.mensal) === 0) && Number(p.mensal) <= Number(p.start));
+        if (errados.length) {
+            setJanelaMetas({
+                titulo: tx('Meta Mensal menor que a Meta Start'),
+                linhas: errados.map(p => tx('{indicador}: a Meta Mensal ({mensal}) precisa ser maior que a Meta Start ({start}).', { indicador: tx(p.rotulo), mensal: p.mensal, start: p.start })),
+                rodape: tx('A Meta Mensal paga a gratificação e sempre é maior que a Meta Start. Corrija os números antes de gravar.'),
+            });
+            return;
+        }
+        const payload = { unidade: String(unidadeAtivaEdicao).toUpperCase(), mes: String(filtroMes), ano: String(filtroAno) };
+        campos.forEach(c => { payload[c.coluna] = Number(c.valor); });
+        setGravandoBloco(tipo);
+        const { error } = await supabase.from('metas_unidades').upsert(payload, { onConflict: 'unidade,mes,ano' });
+        setGravandoBloco(null);
+        if (error) {
+            console.error('Metas: erro ao gravar', error);
+            avisar(tx('Não foi possível gravar as metas: {erro}', { erro: error.message || '' }), 'erro');
+            return;
+        }
+        naoRecarregarCampos.current = true;
+        setMetasDoBanco(prev => ({ ...prev, [payload.unidade]: { ...(prev[payload.unidade] || {}), ...payload } }));
+        setGravadoBloco(tipo); setTimeout(() => setGravadoBloco(null), 1800);
+        avisar(tipo === 'start' ? tx('Meta Start gravada com sucesso!') : tx('Meta Mensal gravada com sucesso!'), 'sucesso');
+    };
+    const botaoGravarBloco = (tipo) => {
+        if (!podeEditarMetas) return null;
+        const mudou = mudouBloco(tipo === 'start' ? camposStart : camposMensal);
+        const cor = tipo === 'start' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-500 hover:bg-amber-600';
+        return (
+            <button type="button" onClick={() => gravarBloco(tipo)} disabled={!mudou || !!gravandoBloco}
+                className={`mt-5 w-full h-10 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors ${gravadoBloco === tipo ? 'bg-emerald-600 text-white' : mudou ? `${cor} text-white` : 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500'}`}>
+                {gravandoBloco === tipo ? <Loader2 className="w-4 h-4 animate-spin" /> : gravadoBloco === tipo ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                {gravadoBloco === tipo ? tx('Gravado') : tipo === 'start' ? tx('Gravar Meta Start') : tx('Gravar Meta Mensal')}
+            </button>
+        );
     };
 
     // Ritmo das metas (precisa de X por dia, projeção, cor): só quando o período é um mês escolhido
@@ -503,28 +595,31 @@ const MetasTab = ({
                                 <Zap className="w-6 h-6 text-blue-600 shrink-0 dark:text-blue-400" />
                                 <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight dark:text-blue-300">{tx("META START")}</h3>
                                 <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">{tx("Primordial")}</span>
+                                <span className="ml-auto text-[10px] font-black text-blue-700 uppercase tracking-widest shrink-0 dark:text-blue-300" title={tx("Mês em que estas metas valem")}>{rotuloMesMetas}</span>
                             </div>
                             <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
                                 {tx("Defina as metas iniciais da sua unidade.")}<br/>
                                 <strong className="text-blue-700 dark:text-blue-400">{tx("Conclua todos os indicadores")}</strong>{' '}{tx("para liberar a gratificação.")}
                             </p>
+                            {!podeEditarMetas && <p className="-mt-4 mb-4 text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx("Só Líder, Mentor e Admin definem as metas.")}</p>}
                             
                             <div className="space-y-3 flex-1">
-                                <InputFieldWithSave label={tx("Nutri")} description="Meta de planos Nutri" icon={Leaf} value={metaNutri} dbValue={metaCache?.meta_nutri} onChange={setMetaNutri} onSave={(val) => salvarCampo('meta_nutri', val)} theme="blue" />
-                                <InputFieldWithSave label={tx("Produto")} description="Meta de produtos físicos" icon={Package} value={metaProdutos} dbValue={metaCache?.meta_produtos} onChange={setMetaProdutos} onSave={(val) => salvarCampo('meta_produtos', val)} theme="blue" />
+                                <InputFieldWithSave label={tx("Nutri")} description="Meta de planos Nutri" icon={Leaf} value={metaNutri} dbValue={metaCache?.meta_nutri} onChange={setMetaNutri} onSave={(val) => salvarCampo('meta_nutri', val)} theme="blue" somenteLeitura={!podeEditarMetas} semBotao />
+                                <InputFieldWithSave label={tx("Produto")} description="Meta de produtos físicos" icon={Package} value={metaProdutos} dbValue={metaCache?.meta_produtos} onChange={setMetaProdutos} onSave={(val) => salvarCampo('meta_produtos', val)} theme="blue" somenteLeitura={!podeEditarMetas} semBotao />
                                 {semPersonal ? <div className="flex items-center justify-between p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl gap-3 dark:bg-slate-800/60 dark:border-slate-700">
                                         <div className="flex items-center gap-3 min-w-0"><div className="p-2 rounded-xl bg-white border border-slate-100 shrink-0 text-slate-400 dark:bg-slate-900 dark:border-slate-800"><Dumbbell className="w-5 h-5" /></div>
                                             <div className="min-w-0"><div className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Personal Class")}</div><div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx("Esta unidade não tem Personal Class")}</div></div></div>
-                                        <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>
+                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>}
                                     </div> : (
                                     <div>
-                                        <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" />
-                                        <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>
+                                        <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" icon={Dumbbell} value={metaPersonal} dbValue={metaCache?.meta_personal} onChange={setMetaPersonal} onSave={(val) => salvarCampo('meta_personal', val)} theme="blue" somenteLeitura={!podeEditarMetas} semBotao />
+                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>}
                                     </div>
                                 )}
                             </div>
 
-                            <button type="button" onClick={() => setHistoricoAberto('start')} className="mt-5 w-full h-10 rounded-xl border border-blue-200 bg-white text-blue-700 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10">
+                            {botaoGravarBloco('start')}
+                            <button type="button" onClick={() => setHistoricoAberto('start')} className="mt-3 w-full h-10 rounded-xl border border-blue-200 bg-white text-blue-700 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-blue-50 dark:bg-slate-900 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10">
                                 <History className="w-4 h-4" />{tx("Ver metas anteriores")}
                             </button>
                             <div className="mt-3 bg-blue-50/80 border border-blue-100 rounded-xl p-4 flex items-center gap-3 shadow-sm dark:bg-blue-500/10 dark:border-blue-500/30">
@@ -543,6 +638,7 @@ const MetasTab = ({
                                 <Award className="w-6 h-6 text-amber-500 shrink-0" />
                                 <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight dark:text-amber-300">{tx("META MENSAL")}</h3>
                                 <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ {indicadoresMensal * 50}</span>
+                                <span className="ml-auto text-[10px] font-black text-amber-700 uppercase tracking-widest shrink-0 dark:text-amber-300" title={tx("Mês em que estas metas valem")}>{rotuloMesMetas}</span>
                             </div>
                             <p className="text-xs font-medium text-slate-500 mb-6 leading-relaxed dark:text-slate-400">
                                 {tx("Defina as metas mensais da sua unidade.")}<br/>
@@ -550,22 +646,23 @@ const MetasTab = ({
                             </p>
                             
                             <div className="space-y-3 flex-1">
-                                <InputFieldWithSave label={tx("Ativos Alvo")} description="Objetivo de alunos ativos" icon={Users} value={metaAtivosMensal} dbValue={metaCache?.meta_ativos_mensal} onChange={setMetaAtivosMensal} onSave={(val) => salvarCampo('meta_ativos_mensal', val)} theme="amber" />
-                                <InputFieldWithSave label={tx("Nutri")} description="Meta mensal Nutri" icon={Leaf} value={metaNutriMensal} dbValue={metaCache?.meta_nutri_mensal} onChange={setMetaNutriMensal} onSave={(val) => salvarCampo('meta_nutri_mensal', val)} theme="amber" />
-                                <InputFieldWithSave label={tx("Plus")} description="Meta mensal Plus" icon={Star} value={metaPlusMensal} dbValue={metaCache?.meta_plus_mensal} onChange={setMetaPlusMensal} onSave={(val) => salvarCampo('meta_plus_mensal', val)} theme="amber" />
+                                <InputFieldWithSave label={tx("Ativos Alvo")} description="Objetivo de alunos ativos" icon={Users} value={metaAtivosMensal} dbValue={metaCache?.meta_ativos_mensal} onChange={setMetaAtivosMensal} onSave={(val) => salvarCampo('meta_ativos_mensal', val)} theme="amber" somenteLeitura={!podeEditarMetas} semBotao />
+                                <InputFieldWithSave label={tx("Nutri")} description="Meta mensal Nutri" icon={Leaf} value={metaNutriMensal} dbValue={metaCache?.meta_nutri_mensal} onChange={setMetaNutriMensal} onSave={(val) => salvarCampo('meta_nutri_mensal', val)} theme="amber" somenteLeitura={!podeEditarMetas} semBotao />
+                                <InputFieldWithSave label={tx("Plus")} description="Meta mensal Plus" icon={Star} value={metaPlusMensal} dbValue={metaCache?.meta_plus_mensal} onChange={setMetaPlusMensal} onSave={(val) => salvarCampo('meta_plus_mensal', val)} theme="amber" somenteLeitura={!podeEditarMetas} semBotao />
                                 {semPersonal ? <div className="flex items-center justify-between p-3 bg-slate-50 border border-dashed border-slate-300 rounded-2xl gap-3 dark:bg-slate-800/60 dark:border-slate-700">
                                         <div className="flex items-center gap-3 min-w-0"><div className="p-2 rounded-xl bg-white border border-slate-100 shrink-0 text-slate-400 dark:bg-slate-900 dark:border-slate-800"><Dumbbell className="w-5 h-5" /></div>
                                             <div className="min-w-0"><div className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Personal Class")}</div><div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx("Esta unidade não tem Personal Class")}</div></div></div>
-                                        <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>
+                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(false)} className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1 hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300"><RotateCcw className="w-3.5 h-3.5" />{tx("Tem Personal")}</button>}
                                     </div> : (
                                     <div>
-                                        <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" />
-                                        <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>
+                                        <InputFieldWithSave label={tx("Personal Class")} subtitle="(Zerar p/ ocultar)" description="Meta mensal Personal" icon={Dumbbell} value={metaPersMensal} dbValue={metaCache?.meta_pers_mensal} onChange={setMetaPersMensal} onSave={(val) => salvarCampo('meta_pers_mensal', val)} theme="amber" somenteLeitura={!podeEditarMetas} semBotao />
+                                        {podeEditarMetas && <button type="button" onClick={() => marcarSemPersonal(true)} className="mt-1 ml-1 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-rose-600 flex items-center gap-1 dark:text-slate-400"><XCircle className="w-3.5 h-3.5" />{tx("Não tem Personal Class")}</button>}
                                     </div>
                                 )}
                             </div>
 
-                            <button type="button" onClick={() => setHistoricoAberto('mensal')} className="mt-5 w-full h-10 rounded-xl border border-amber-200 bg-white text-amber-700 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-50 dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10">
+                            {botaoGravarBloco('mensal')}
+                            <button type="button" onClick={() => setHistoricoAberto('mensal')} className="mt-3 w-full h-10 rounded-xl border border-amber-200 bg-white text-amber-700 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-amber-50 dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-300 dark:hover:bg-amber-500/10">
                                 <History className="w-4 h-4" />{tx("Ver metas anteriores")}
                             </button>
                             <div className="mt-3 pt-4 border-t border-slate-200/80 flex flex-col items-center justify-center text-center dark:border-slate-800">
@@ -588,6 +685,14 @@ const MetasTab = ({
                     <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight dark:text-white">{tx("Painel de Configuração Oculto")}</h3>
                     <p className="text-sm font-medium text-slate-500 mt-2 max-w-md mx-auto dark:text-slate-400">{tx("Para definir os objetivos e atualizar os ativos, selecione uma unidade específica no filtro global.")}</p>
                 </div>
+            )}
+
+            {janelaMetas && (
+                <JanelaMovimento titulo={janelaMetas.titulo} fechar={() => setJanelaMetas(null)}
+                    botoes={[{ texto: tx('Entendi, vou corrigir'), principal: true, acao: () => setJanelaMetas(null) }]}>
+                    <ul className="space-y-2">{janelaMetas.linhas.map((l, i) => <li key={i}>👉 {l}</li>)}</ul>
+                    <p className="mt-4 text-[14px] text-slate-500 dark:text-slate-400">{janelaMetas.rodape}</p>
+                </JanelaMovimento>
             )}
 
             {historicoAberto && podeEditarCampos && (

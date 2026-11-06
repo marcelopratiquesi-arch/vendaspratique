@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Save, Loader2, Check, Pencil, HelpCircle, AlertTriangle, ArrowDownRight, ArrowUpRight, Wallet, UserPlus, UserMinus, Users } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
-import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, hojeIso, ativosAntesDe } from './movimentoDiario.js';
+import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, useHojeIso, ativosAntesDe } from './movimentoDiario.js';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const diaCurto = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
@@ -47,6 +47,39 @@ const AvisoSemTabela = () => (
     </p>
 );
 
+// Ativos que mudam mais que isto (5%) de um lançamento para o outro pedem conferência antes de gravar
+const LIMITE_PULO_ATIVOS = 0.05;
+const ddmmDe = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+// Janela (pop-up) de aviso dos cards de lançar (Movimentação, Meta Start, Meta Mensal): título, texto e botões.
+// Esc ou clicar fora fecha. Letras maiores (pedido do dono, 05/11/2026).
+export const JanelaMovimento = ({ titulo, children, botoes, fechar }) => {
+    useEffect(() => {
+        const aoTeclar = (e) => { if (e.key === 'Escape') fechar(); };
+        document.addEventListener('keydown', aoTeclar);
+        return () => document.removeEventListener('keydown', aoTeclar);
+    }, [fechar]);
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={(e) => { if (e.target === e.currentTarget) fechar(); }}>
+            <div role="alertdialog" aria-modal="true" aria-label={titulo} className="w-[min(560px,100%)] bg-white rounded-2xl border-2 border-amber-300 shadow-2xl p-7 dark:bg-slate-900 dark:border-amber-500/40">
+                <div className="flex items-center gap-3 mb-4">
+                    <AlertTriangle className="w-7 h-7 text-amber-500 shrink-0" />
+                    <h4 className="text-lg font-black uppercase tracking-widest text-slate-800 dark:text-white">{titulo}</h4>
+                </div>
+                <div className="text-base font-semibold text-slate-700 leading-relaxed dark:text-slate-200">{children}</div>
+                <div className="flex flex-wrap justify-end gap-2 mt-6">
+                    {botoes.map((b, i) => (
+                        <button key={i} type="button" onClick={b.acao} autoFocus={b.principal}
+                            className={`h-12 px-5 rounded-xl text-[13px] font-black uppercase tracking-widest transition-colors ${b.principal ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'}`}>
+                            {b.texto}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ---------- Formulário da movimentação (dentro do card "Movimentação") ----------
 // Card de LANÇAR (não de pesquisar), decisão do dono 31/10/2026. Três opções, todas do dia 1º do mês até a data:
 // "Este mês" (até hoje, padrão), "Ontem" (até ontem, para quem esqueceu) e "Escolher dia".
@@ -62,7 +95,8 @@ const Mais = ({ valor, cor, formatar = (v) => v }) => (valor === null || valor =
 // ativosMes = "Qtd. Ativos Atual" do mês (metas_unidades); aoGravarAtivos = continua atualizando esse número (meta de Ativos e card do Dashboard)
 export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, aoGravar, ativosMes = null, aoGravarAtivos }) => {
     const podeGravar = podeGravarMovimento(usuarioLogado);
-    const hoje = hojeIso();
+    // Muda sozinho à meia-noite: dia novo = campos vazios (só Entradas é automático)
+    const hoje = useHojeIso();
     const ontem = somarDiasIso(hoje, -1);
     const [modo, setModo] = useState('mes'); // 'mes' | 'ontem' | 'dia'
     const [diaEscolhido, setDiaEscolhido] = useState(ontem);
@@ -103,15 +137,33 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
         || (cancNum !== null && !Number.isInteger(cancNum)) || (ativosNum !== null && !Number.isInteger(ativosNum));
     const maisAtivos = ativosNum === null || Number.isNaN(ativosNum) || ativosAnterior === null ? null : ativosNum - ativosAnterior;
 
+    // Aviso amarelo (decisão do dono, 05/11/2026): lançamento só fica completo com Ativos, Cancelamentos e Faturamento.
+    // Não trava o botão: grava assim mesmo, mas avisa que vai aparecer como incompleto. Zero digitado vale como preenchido.
+    const faltando = [];
+    if (!semAtivos && ativosNum === null) faltando.push(tx('Ativos'));
+    if (cancNum === null) faltando.push(tx('Cancelamentos'));
+    if (fatNum === null) faltando.push(tx('Faturamento'));
+    const algoPreenchido = ativosNum !== null || cancNum !== null || fatNum !== null || !!gravado;
+    const textoFaltando = faltando.length > 1 ? `${faltando.slice(0, -1).join(', ')} ${tx('e')} ${faltando[faltando.length - 1]}` : faltando[0];
+
     const entradasMes = entradasAcumuladasAte(entradas, ate);
     const maisEntradas = entradas.get(ate) || 0;
     const maisCanc = cancNum === null || Number.isNaN(cancNum) ? null : cancNum - (anterior?.cancelamentosAcum ?? 0);
     const maisFat = fatNum === null || Number.isNaN(fatNum) ? null : centavos(fatNum - (anterior?.faturamentoAcum ?? 0));
 
-    const salvar = async (e) => {
-        e.preventDefault();
+    // Ativos mudou mais de 5% desde o último lançamento: pede conferência antes de gravar (decisão do dono, 05/11/2026)
+    const pulouAtivos = !semAtivos && ativosNum !== null && !Number.isNaN(ativosNum) && ativosAnterior !== null && ativosAnterior > 0
+        && Math.abs(ativosNum - ativosAnterior) / ativosAnterior > LIMITE_PULO_ATIVOS;
+    const [janela, setJanela] = useState(null); // 'falta' | 'ativos' | null
+
+    const salvar = async (e, ativosConferidos = false) => {
+        e?.preventDefault?.();
         if (!podeGravar || salvando || !mudou) return;
         if (invalido) return avisar(tx('Digite um número válido.'), 'erro');
+        // Os 3 campos são obrigatórios: sem eles, NÃO grava (decisão do dono, 05/11/2026)
+        if (faltando.length > 0) { setJanela('falta'); return; }
+        if (pulouAtivos && !ativosConferidos) { setJanela('ativos'); return; }
+        setJanela(null);
         setSalvando(true);
         const erro = await salvarMovimentoDia({ unidade, data: ate, faturamento: fatNum, cancelamentos: cancNum, ativos: semAtivos ? undefined : ativosNum, usuario: usuarioLogado });
         setSalvando(false);
@@ -133,6 +185,36 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
 
     return (
         <form id="movimentacao-form" onSubmit={salvar} className="space-y-3">
+            {janela && (
+                <JanelaMovimento
+                    titulo={janela === 'falta' ? tx('Falta preencher') : tx('Confira os ativos')}
+                    fechar={() => setJanela(null)}
+                    botoes={janela === 'falta'
+                        ? [{ texto: tx('Entendi, vou preencher'), principal: true, acao: () => setJanela(null) }]
+                        : [
+                            { texto: tx('Corrigir'), acao: () => setJanela(null) },
+                            { texto: tx('Está certo, gravar'), principal: true, acao: () => salvar(null, true) },
+                        ]}>
+                    {janela === 'falta' ? (
+                        <>
+                            {/* Uma linha por pendência, dizendo exatamente o que colocar (pedido do dono, 05/11/2026) */}
+                            <ul className="space-y-2">
+                                {!semAtivos && ativosNum === null && <li>👉 {tx('Você precisa colocar os ativos deste dia ({dia}).', { dia: ddmmDe(ate) })}</li>}
+                                {cancNum === null && <li>👉 {tx('Você precisa colocar o cancelamento até este dia ({dia}).', { dia: ddmmDe(ate) })}</li>}
+                                {fatNum === null && <li>👉 {tx('Você precisa colocar o faturamento até este dia ({dia}).', { dia: ddmmDe(ate) })}</li>}
+                            </ul>
+                            <p className="mt-4 text-[14px] text-slate-500 dark:text-slate-400">{tx('A movimentação só é gravada com Ativos, Cancelamentos e Faturamento preenchidos corretamente.')}</p>
+                        </>
+                    ) : (
+                        <>
+                            <p>{tx('Os ativos {mudaram} de {antes} para {agora} ({dif}), mais de 5% desde o último lançamento.', {
+                                mudaram: ativosNum < ativosAnterior ? tx('caíram') : tx('subiram'), antes: ativosAnterior, agora: ativosNum, dif: sinal(ativosNum - ativosAnterior),
+                            })}</p>
+                            <p className="mt-2">{tx('Pode ter sido erro de digitação. Confira antes de gravar.')}</p>
+                        </>
+                    )}
+                </JanelaMovimento>
+            )}
             {semTabela && <AvisoSemTabela />}
             <div>
                 <p className={rotulo}>
@@ -156,7 +238,7 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
                 dica={tx('Total de alunos ativos no dia (não é acumulado). O "+" mostra quantos ganhou ou perdeu desde o último lançamento.')}>
                 <div className="flex items-center gap-2">
                     <Mais valor={maisAtivos} cor={maisAtivos < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'} />
-                    <input type="text" inputMode="numeric" aria-label={tx('Ativos')} value={ativos} onChange={(e) => setAtivos(e.target.value)} disabled={!podeGravar} placeholder={ativosAnterior !== null ? String(ativosAnterior) : '0'} className={`${caixaNumero} w-[72px] text-center`} />
+                    <input type="text" inputMode="numeric" aria-label={tx('Ativos')} value={ativos} onChange={(e) => setAtivos(e.target.value)} disabled={!podeGravar} className={`${caixaNumero} w-[72px] text-center`} />
                 </div>
             </LinhaMov>
             {semAtivos && <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">{tx('Para guardar os ativos de cada dia, rode o arquivo sql/2026-10-31-movimento-diario/3_campo_ativos.sql no Supabase. Até lá, o número vale para o mês.')}</p>}
@@ -170,16 +252,25 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
             <LinhaMov icone={UserMinus} corIcone="text-rose-600 dark:text-rose-400" rotulo={tx('Cancelamentos')}>
                 <div className="flex items-center gap-2">
                     <Mais valor={maisCanc} cor="text-rose-600 dark:text-rose-400" />
-                    <input type="text" inputMode="numeric" aria-label={tx('Cancelamentos')} value={cancelamentos} onChange={(e) => setCancelamentos(e.target.value)} disabled={!podeGravar} placeholder="0" className={`${caixaNumero} w-[72px] text-center`} />
+                    <input type="text" inputMode="numeric" aria-label={tx('Cancelamentos')} value={cancelamentos} onChange={(e) => setCancelamentos(e.target.value)} disabled={!podeGravar} className={`${caixaNumero} w-[72px] text-center`} />
                 </div>
             </LinhaMov>
             <LinhaMov icone={Wallet} corIcone="text-blue-600 dark:text-blue-400" rotulo={tx('Faturamento (R$)')}>
                 <div className="flex items-center gap-2">
                     <Mais valor={maisFat} cor="text-blue-600 dark:text-blue-400" formatar={(v) => numeroParaCampo(v)} />
-                    <input type="text" inputMode="decimal" aria-label={tx('Faturamento (R$)')} value={faturamento} onChange={(e) => setFaturamento(e.target.value)} disabled={!podeGravar} placeholder="0,00" className={`${caixaNumero} w-[120px] text-right px-3`} />
+                    <input type="text" inputMode="decimal" aria-label={tx('Faturamento (R$)')} value={faturamento} onChange={(e) => setFaturamento(e.target.value)} disabled={!podeGravar} className={`${caixaNumero} w-[120px] text-right px-3`} />
                 </div>
             </LinhaMov>
 
+            {podeGravar && algoPreenchido && faltando.length > 0 && (
+                <p role="status" className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-3 py-2.5 text-[12px] font-semibold dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                        {tx('Falta preencher: {campos}.', { campos: textoFaltando })}
+                        {' '}{tx('Sem os 3 campos, não dá para gravar.')}
+                    </span>
+                </p>
+            )}
             {podeGravar ? (
                 <button type="submit" disabled={!mudou || salvando}
                     className={`w-full h-10 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors ${salvo ? 'bg-emerald-600 text-white' : mudou ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-slate-100 text-slate-400 cursor-not-allowed dark:bg-slate-800 dark:text-slate-500'}`}>

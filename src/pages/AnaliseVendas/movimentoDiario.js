@@ -18,6 +18,22 @@ export const podeGravarMovimento = (usuario) => PAPEIS_QUE_GRAVAM_MOVIMENTO.incl
 const tabelaNaoExiste = (erro) => /movimento_diario.*(does not exist|not find)|PGRST205|42P01/i.test(`${erro?.code || ''} ${erro?.message || ''}`);
 const paraIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 export const hojeIso = () => paraIso(new Date());
+// Relógio do dia: devolve a data de hoje e muda sozinho na meia-noite (tela aberta de um dia para o outro)
+export const useHojeIso = () => {
+    const [hoje, setHoje] = useState(hojeIso());
+    useEffect(() => {
+        const id = setInterval(() => { const h = hojeIso(); setHoje(a => (a === h ? a : h)); }, 30000);
+        const aoVoltar = () => { const h = hojeIso(); setHoje(a => (a === h ? a : h)); };
+        window.addEventListener('focus', aoVoltar);
+        return () => { clearInterval(id); window.removeEventListener('focus', aoVoltar); };
+    }, []);
+    return hoje;
+};
+// Pedido para a Análise de Vendas abrir numa aba (ex.: o aviso do Líder abre direto a aba Metas, card Movimentação)
+let abaPedida = null;
+export const EVENTO_ABA_ANALISE = 'pedir-aba-analise';
+export const pedirAbaAnalise = (aba) => { abaPedida = aba; window.dispatchEvent(new CustomEvent(EVENTO_ABA_ANALISE, { detail: aba })); };
+export const consumirAbaPedida = () => { const a = abaPedida; abaPedida = null; return a; };
 export const ontemIso = () => { const d = new Date(); d.setDate(d.getDate() - 1); return paraIso(d); };
 const diasEntre = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
 

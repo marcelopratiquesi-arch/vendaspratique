@@ -8,6 +8,7 @@ import ConferenciaTab from './ConferenciaTab.jsx';
 import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
+import { vendaAtrasada, consumirConferenciaPedida, EVENTO_PEDIR_CONFERENCIA } from './cobrancaAuditoria.js';
 import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, ChevronDown } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -27,11 +28,29 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
     // Filtro de período padrão do sistema (começa em "Este mês"). Faixa: início entra, fim não entra.
     const periodo = usePeriodoPadrao('este_mes');
+
+    // Janela de cobrança do Líder ("Fazer a conferência agora"): abre a aba Conferência no período das vendas pendentes
+    const aplicarPeriodo = periodo.propsSeletor.onAplicar;
+    useEffect(() => {
+        const atender = () => {
+            const pedido = consumirConferenciaPedida();
+            if (!pedido) return;
+            setSubAba('conferencia');
+            aplicarPeriodo({ preset: 'personalizado', tipo: 'periodo', inicio: pedido.inicio, fim: pedido.fim });
+        };
+        atender();
+        window.addEventListener(EVENTO_PEDIR_CONFERENCIA, atender);
+        return () => window.removeEventListener(EVENTO_PEDIR_CONFERENCIA, atender);
+    }, [aplicarPeriodo]);
     const inicioIso = periodo.faixa.inicio ? isoLocal(periodo.faixa.inicio) : '';
     const fimIso = periodo.faixa.fim ? isoLocal(periodo.faixa.fim) : '';
     const [filtroUnidadeIsolada, setFiltroUnidadeIsolada] = useState('TODOS'); 
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    // Aba Auditoria: Admin e Mentor de verdade (roleReal), mesmo quando escolhem uma unidade no topo
+    // (aí o App os trata como LIDER daquela unidade e a aba mostra só ela)
+    const papelReal = usuarioLogado?.roleReal || usuarioLogado?.role;
+    const podeVerAuditoria = papelReal === 'ADMIN' || papelReal === 'MENTOR';
     let colunasVisiveis = 10;
     if (temVisaoGlobal) colunasVisiveis++;
 
@@ -182,36 +201,53 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     let totalAuditoriaConferidos = 0;
     let totalAuditoriaPendentes = 0;
     let totalAuditoriaValorPendente = 0;
+    let totalAuditoriaAtrasadas = 0;
+    let totalAuditoriaValorAtrasado = 0;
 
     vendasDataAvancada.forEach(v => {
         const unid = v.unidade || 'MATRIZ';
         if (filtroUnidadeIsolada !== 'TODOS' && unid !== filtroUnidadeIsolada) return;
 
         if (!temVisaoGlobal && unid !== usuarioLogado?.unidade) return;
-        if (!relatorioAuditoria[unid]) relatorioAuditoria[unid] = { unidade: unid, registrados: 0, conferidos: 0, pendentes: 0, valorPendente: 0, ultimaEm: null, ultimaPor: null };
-        
-        relatorioAuditoria[unid].registrados++;
+        if (!relatorioAuditoria[unid]) relatorioAuditoria[unid] = { unidade: unid, registrados: 0, conferidos: 0, pendentes: 0, valorPendente: 0, atrasadas: 0, valorAtrasado: 0, maisAntiga: null, ultimaEm: null, ultimaPor: null, conferidasNoPeriodo: 0 };
+        const linha = relatorioAuditoria[unid];
+
+        linha.registrados++;
         totalAuditoriaRegistrados++;
 
         if (v.conferiu) {
-            relatorioAuditoria[unid].conferidos++;
+            linha.conferidos++;
             totalAuditoriaConferidos++;
         } else {
-            relatorioAuditoria[unid].pendentes++;
-            relatorioAuditoria[unid].valorPendente += Number(v.valor) || 0;
+            linha.pendentes++;
+            linha.valorPendente += Number(v.valor) || 0;
             totalAuditoriaPendentes++;
             totalAuditoriaValorPendente += Number(v.valor) || 0;
+            // Mais antiga sem conferir e atrasadas (passou do prazo de conferência)
+            if (!linha.maisAntiga || v.data < linha.maisAntiga) linha.maisAntiga = v.data;
+            if (vendaAtrasada(v)) {
+                linha.atrasadas++;
+                linha.valorAtrasado += Number(v.valor) || 0;
+                totalAuditoriaAtrasadas++;
+                totalAuditoriaValorAtrasado += Number(v.valor) || 0;
+            }
         }
     });
 
-    // Última conferência de cada unidade (qualquer data carregada), para ver se alguém está deixando acumular
+    // Última conferência de cada unidade (qualquer data carregada, últimos 90 dias), para ver se alguém está deixando acumular,
+    // e quantas conferências foram FEITAS dentro do período (pela data em que a pessoa conferiu)
+    const inicioMs = periodo.faixa.inicio ? periodo.faixa.inicio.getTime() : null;
+    const fimMs = periodo.faixa.fim ? periodo.faixa.fim.getTime() : null;
     vendas.forEach(v => {
         const linha = relatorioAuditoria[v.unidade || 'MATRIZ'];
         if (!linha || !v.conferiu || !v.conferido_em) return;
         if (!linha.ultimaEm || v.conferido_em > linha.ultimaEm) { linha.ultimaEm = v.conferido_em; linha.ultimaPor = v.conferido_por; }
+        const ms = new Date(v.conferido_em).getTime();
+        if ((inicioMs === null || ms >= inicioMs) && (fimMs === null || ms < fimMs)) linha.conferidasNoPeriodo++;
     });
-    const dadosTabelaAuditoria = Object.values(relatorioAuditoria).sort((a, b) => b.pendentes - a.pendentes || b.valorPendente - a.valorPendente);
-    const totaisAuditoria = { registrados: totalAuditoriaRegistrados, conferidos: totalAuditoriaConferidos, pendentes: totalAuditoriaPendentes, valorPendente: totalAuditoriaValorPendente };
+    // Mais atrasadas primeiro (é quem precisa ser cobrado), depois mais pendências
+    const dadosTabelaAuditoria = Object.values(relatorioAuditoria).sort((a, b) => b.atrasadas - a.atrasadas || b.pendentes - a.pendentes || b.valorPendente - a.valorPendente);
+    const totaisAuditoria = { registrados: totalAuditoriaRegistrados, conferidos: totalAuditoriaConferidos, pendentes: totalAuditoriaPendentes, valorPendente: totalAuditoriaValorPendente, atrasadas: totalAuditoriaAtrasadas, valorAtrasado: totalAuditoriaValorAtrasado };
 
     const abrirConferenciaDaUnidade = (unidade) => {
         if (temVisaoGlobal) setFiltroUnidadeIsolada(unidade);
@@ -241,7 +277,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                         ['conferencia', 'Conferência', ClipboardCheck],
                         ['comissoes', 'Comissões', Users],
                         ['geral', 'Visão Geral', PieChart],
-                        ...(temVisaoGlobal ? [['auditoria', 'Auditoria', ShieldAlert]] : []),
+                        ...(podeVerAuditoria ? [['auditoria', 'Auditoria', ShieldAlert]] : []),
                     ].map(([id, rotulo, Icone]) => {
                         const ativa = subAba === id;
                         return (
@@ -308,7 +344,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 />
             )}
             {subAba === 'comissoes' && <ComissoesTab dadosTabelaComissoes={dadosTabelaComissoes} />}
-            {subAba === 'auditoria' && temVisaoGlobal && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} onAbrirUnidade={abrirConferenciaDaUnidade} />}
+            {subAba === 'auditoria' && podeVerAuditoria && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
             {subAba === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} />}
         </div>
     );

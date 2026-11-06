@@ -1,5 +1,6 @@
 // src/pages/AnaliseVendas/index.jsx
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useHojeIso, consumirAbaPedida, EVENTO_ABA_ANALISE } from './movimentoDiario.js';
 import { supabase } from '../../supabaseClient.js';
 import { getMeses, safeIsoDate } from './utils.js';
 import ModalTextoWhatsapp from './Modais.jsx';
@@ -16,6 +17,7 @@ import { SeletorPeriodo, FiltroMultiplo, calcularPreset, ROTULO_ATALHO } from '.
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { avisar } from '../../components/avisar.js';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
+import { registrarEnvioRelatorio, ROTULO_TURNO } from '../Pendencias/relatorioFechamento.js';
 import { tx } from '../../i18n/traduzir.js';
 
 const getLocalISODate = () => {
@@ -39,7 +41,19 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const { t } = useI18n(); 
     const mesesTraduzidos = getMeses(t); 
 
-    const [abaPrincipal, setAbaPrincipal] = useState('dashboard');
+    // Aviso do Líder ("Lançar agora") pode pedir para abrir direto na aba Metas (card Movimentação)
+    const [abaPrincipal, setAbaPrincipal] = useState(() => consumirAbaPedida() || 'dashboard');
+    const [rolarParaMov, setRolarParaMov] = useState(() => abaPrincipal === 'visaoGeral');
+    useEffect(() => {
+        const aoPedir = () => { const aba = consumirAbaPedida(); if (aba) { setAbaPrincipal(aba); setRolarParaMov(aba === 'visaoGeral'); } };
+        window.addEventListener(EVENTO_ABA_ANALISE, aoPedir);
+        return () => window.removeEventListener(EVENTO_ABA_ANALISE, aoPedir);
+    }, []);
+    useEffect(() => {
+        if (!rolarParaMov || abaPrincipal !== 'visaoGeral') return undefined;
+        const id = setTimeout(() => { document.getElementById('movimentacao-form')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); setRolarParaMov(false); }, 400);
+        return () => clearTimeout(id);
+    }, [rolarParaMov, abaPrincipal]);
     // Botão "Filtros" do cabeçalho: mostra/esconde Consultores, Planos, Produtos e Serviços
     const [filtrosAbertos, setFiltrosAbertos] = useState(false);
     const [tipoFiltro, setTipoFiltro] = useState('mes');
@@ -75,6 +89,38 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const unidadeAtual = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
+
+    // Relógio: tela aberta na meia-noite vira sozinha. Períodos que dependem de hoje (Este mês, Hoje, Ontem,
+    // Últimos X dias) são recalculados; no dia 1º as metas do mês novo aparecem zeradas sem recarregar a página.
+    const hojeRelogio = useHojeIso();
+    const diaAnteriorRef = useRef(hojeRelogio);
+    const presetRef = useRef(presetPeriodo);
+    useEffect(() => { presetRef.current = presetPeriodo; }, [presetPeriodo]);
+    useEffect(() => {
+        if (diaAnteriorRef.current === hojeRelogio) return;
+        diaAnteriorRef.current = hojeRelogio;
+        const preset = presetRef.current;
+        if (preset === 'este_mes' || preset === 'mes_passado') {
+            const ref = new Date();
+            if (preset === 'mes_passado') ref.setMonth(ref.getMonth() - 1, 1);
+            setTipoFiltro('mes');
+            setFiltroMes(String(ref.getMonth() + 1).padStart(2, '0'));
+            setFiltroAno(String(ref.getFullYear()));
+            return;
+        }
+        if (['hoje', 'ontem', '3d', '7d', '15d', '30d'].includes(preset)) {
+            const p = calcularPreset(preset);
+            setTipoFiltro(p.tipo);
+            if (p.tipo === 'dia') setDiaEspecifico(p.dia || '');
+            if (p.tipo === 'periodo') { setDataInicio(p.inicio || ''); setDataFim(p.fim || ''); }
+        }
+    }, [hojeRelogio]);
+
+    // Mês das METAS (o que aparece e o que é gravado): o mês escolhido no período; com "Hoje", "Últimos X dias",
+    // um dia ou datas, vale o MÊS ATUAL (assim nunca grava meta no mês errado).
+    const periodoEhUmMes = tipoFiltro === 'mes' && filtroMes && filtroMes !== 'TODOS' && filtroAno && filtroAno !== 'TODOS';
+    const mesMetas = periodoEhUmMes ? filtroMes : hojeRelogio.slice(5, 7);
+    const anoMetas = periodoEhUmMes ? filtroAno : hojeRelogio.slice(0, 4);
 
     const anosUnicos = ['TODOS', ...new Set(vendas.map(v => safeIsoDate(v.data).split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if (anosUnicos.length === 1) anosUnicos.push(new Date().getFullYear().toString());
@@ -211,9 +257,10 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         }
     }, [temVisaoGlobal, abaPrincipal]);
 
+    const unidadeDoUsuario = usuarioLogado?.unidade;
     useEffect(() => {
         const fetchMetas = async () => {
-            const unidadeAlvo = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
+            const unidadeAlvo = temVisaoGlobal ? filtroUnidade : unidadeDoUsuario;
             if (!unidadeAlvo || unidadeAlvo === 'TODOS') {
                 setMetaNutri(0); setMetaProdutos(0); setMetaPersonal(0);
                 setMetaAtivosMensal(0); setMetaNutriMensal(0); setMetaPlusMensal(0); setMetaPersMensal(0);
@@ -225,8 +272,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 .from('metas_unidades')
                 .select('*')
                 .eq('unidade', unidadeAlvo.toUpperCase())
-                .eq('mes', filtroMes)
-                .eq('ano', filtroAno)
+                .eq('mes', mesMetas)
+                .eq('ano', anoMetas)
                 .maybeSingle();
 
             if (data) {
@@ -245,8 +292,10 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             }
         };
 
-        if (tipoFiltro === 'mes') fetchMetas();
-    }, [filtroMes, filtroAno, filtroUnidade, usuarioLogado, tipoFiltro, temVisaoGlobal]);
+        fetchMetas();
+    // Depende só do NOME da unidade (texto), não do objeto do usuário: o objeto é recriado a cada atualização do
+    // sistema (ex.: venda nova em qualquer unidade) e isso relia as metas e APAGAVA o que estava sendo digitado.
+    }, [mesMetas, anoMetas, filtroUnidade, unidadeDoUsuario, temVisaoGlobal]);
 
     const salvarMetasNuvem = async () => {
         const unidadeAlvo = temVisaoGlobal ? filtroUnidade : usuarioLogado?.unidade;
@@ -258,8 +307,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
         setIsSalvandoMetas(true);
         const payload = {
             unidade: unidadeAlvo.toUpperCase(),
-            mes: filtroMes,
-            ano: filtroAno,
+            mes: mesMetas,
+            ano: anoMetas,
             meta_nutri: metaNutri,
             meta_produtos: metaProdutos,
             meta_personal: metaPersonal,
@@ -419,13 +468,23 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     const abrirModalWhatsapp = (texto, config = {}) => {
         setTextoEditavel(texto);
-        setModalConfig({ titulo: config.titulo || 'Mensagem', icone: config.icone || 'send', cor: config.cor || 'emerald' });
+        setModalConfig({ titulo: config.titulo || 'Mensagem', icone: config.icone || 'send', cor: config.cor || 'emerald', registroFechamento: config.registroFechamento || null });
         setIsModalTextoOpen(true);
+    };
+
+    // Relatório de fechamento da recepção (05/11/2026): Copiar ou Enviar o "WhatsApp Fechamento" de HOJE
+    // conta como relatório enviado do turno (só login da Recepção e no horário; regras em Pendencias/relatorioFechamento.js)
+    const registrarFechamentoSeFor = async (acao) => {
+        const unidadeDoRelatorio = modalConfig.registroFechamento;
+        if (!unidadeDoRelatorio || tipoFiltro !== 'dia' || diaEspecifico !== hojeRelogio) return;
+        const r = await registrarEnvioRelatorio({ usuario: usuarioLogado, unidade: unidadeDoRelatorio, acao });
+        if (r.contou && r.motivo === 'ok') avisar(tx('Relatório de fechamento ({turno}) registrado como enviado.', { turno: tx(ROTULO_TURNO[r.turno] || '') }), 'sucesso');
     };
 
     const copiarTextoFinalDoModal = () => {
         navigator.clipboard.writeText(textoEditavel).then(() => {
             setCopiadoSucesso(true);
+            registrarFechamentoSeFor('COPIAR');
             setTimeout(() => { setCopiadoSucesso(false); setIsModalTextoOpen(false); }, 2000);
         });
     };
@@ -433,6 +492,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const enviarWhatsApp = () => {
         // WhatsApp Web/aplicativo direto (a página de passagem do WhatsApp estragava os emojis)
         abrirNoWhatsApp('', textoEditavel);
+        registrarFechamentoSeFor('ENVIAR');
     };
 
     useEffect(() => {
@@ -572,8 +632,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     metaProdutos={metaProdutos}
                     metaNutri={metaNutri}       
                     metaPersonal={metaPersonal} 
-                    filtroMes={filtroMes}
-                    filtroAno={filtroAno}
+                    filtroMes={mesMetas}
+                    filtroAno={anoMetas}
                     planos={planos}
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
@@ -585,8 +645,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 <MetasTab
                     temVisaoGlobal={temVisaoGlobal}
                     filtroUnidade={filtroUnidade}
-                    filtroMes={filtroMes}
-                    filtroAno={filtroAno}
+                    filtroMes={mesMetas}
+                    filtroAno={anoMetas}
                     vendasFiltradas={vendasFiltradas}
                     unidadesUnicas={unidadesUnicas}
                     usuarioLogado={usuarioLogado}
@@ -620,6 +680,11 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     produtos={produtos}
                     abrirModalWhatsapp={abrirModalWhatsapp}
                     usuarioLogado={usuarioLogado}
+                    unidadesFixas={unidadeAtual && unidadeAtual !== 'TODOS' ? [unidadeAtual] : unidadesUnicas.filter(u => u !== 'TODOS')}
+                    vendasTodas={vendas}
+                    unidadeAtual={unidadeAtual}
+                    faixa={faixaSaude}
+                    colaboradores={colaboradores}
                 />
             )}
 
@@ -629,6 +694,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     faixa={faixaSaude}
                     rotuloPeriodo={rotuloPeriodo}
                     catalogoGeral={catalogoGeral}
+                    planos={planos}
+                    produtos={produtos}
                     temVisaoGlobal={temVisaoGlobal}
                     filtroUnidade={filtroUnidade}
                     unidadeUsuario={usuarioLogado?.unidade}

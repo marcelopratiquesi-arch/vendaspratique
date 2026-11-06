@@ -52,15 +52,20 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
         try {
             const unidadeFinal = temVisaoGlobal ? payload.unidade : (usuarioVirtual?.unidade || usuarioLogado?.unidade);
             const finalPayload = { ...payload, unidade: unidadeFinal };
+            // Sem o campo "turno" no banco (falta rodar sql/2026-11-05-relatorio-fechamento), grava o resto e avisa
+            const semTurno = (error) => /turno/i.test(error?.message || '');
+            const avisarSemTurno = () => { console.warn('Equipe: campo turno não existe no banco — rode sql/2026-11-05-relatorio-fechamento/1_envios_e_turno.sql'); if (payload.turno) avisar(tx('O turno não foi gravado: falta criar o campo no banco (SQL do relatório de fechamento).'), 'atencao'); };
 
             if (payload.id) {
-                const { data, error } = await supabase.from('colaboradores').update(finalPayload).eq('id', payload.id).select();
+                let { data, error } = await supabase.from('colaboradores').update(finalPayload).eq('id', payload.id).select();
+                if (error && semTurno(error)) { delete finalPayload.turno; avisarSemTurno(); ({ data, error } = await supabase.from('colaboradores').update(finalPayload).eq('id', payload.id).select()); }
                 if (error) throw error;
                 if (data) setColaboradores(colaboradores.map(c => c.id === payload.id ? data[0] : c));
             } else {
                 delete finalPayload.id;
                 finalPayload.ativo = true;
-                const { data, error } = await supabase.from('colaboradores').insert([finalPayload]).select();
+                let { data, error } = await supabase.from('colaboradores').insert([finalPayload]).select();
+                if (error && semTurno(error)) { delete finalPayload.turno; avisarSemTurno(); ({ data, error } = await supabase.from('colaboradores').insert([finalPayload]).select()); }
                 if (error) throw error;
                 if (data) setColaboradores([...colaboradores, data[0]]);
             }

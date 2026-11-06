@@ -14,12 +14,26 @@ const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const horaDe = (ts) => (ts ? new Date(ts).toLocaleTimeString(localeAtual(), { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '');
 const diasDesde = (iso) => Math.round((new Date(`${hojeIso()}T12:00:00`) - new Date(`${iso}T12:00:00`)) / 86400000);
 
-// Situação pelo último dia lançado: hoje = em dia; ontem = atenção; 2+ dias ou nunca = atrasada
-const situacaoDe = (ultimo) => {
-    if (!ultimo) return { nivel: 3, rotulo: tx('Sem lançamento'), cor: 'rose' };
-    if (ultimo.data >= hojeIso()) return { nivel: 0, rotulo: tx('Em dia'), cor: 'emerald' };
-    if (ultimo.data === ontemIso()) return { nivel: 1, rotulo: tx('Ontem'), cor: 'amber' };
-    return { nivel: 2, rotulo: tx('Atrasada ({dias} d)', { dias: diasDesde(ultimo.data) }), cor: 'rose' };
+// "A, B e C"
+const juntar = (lista) => (lista.length > 1 ? `${lista.slice(0, -1).join(', ')} e ${lista[lista.length - 1]}` : lista[0] || '');
+// Campos que faltam no lançamento de HOJE (decisão do dono, 05/11/2026): completo = Ativos + Cancelamentos + Faturamento.
+// Zero digitado vale como preenchido; vazio (null) é falta. Entradas é automático e não conta.
+const camposFaltando = (linha, temCampoAtivos) => {
+    const falta = [];
+    if (temCampoAtivos && (linha.ativos === null || linha.ativos === undefined)) falta.push('Ativos');
+    if (linha.cancelamentos === null || linha.cancelamentos === undefined) falta.push('Cancelamentos');
+    if (linha.faturamento === null || linha.faturamento === undefined) falta.push('Faturamento');
+    return falta;
+};
+// Situação: hoje completo = em dia; hoje com falta = incompleto; ontem = atenção; 2+ dias ou nunca = atrasada
+const situacaoDe = (ultimo, temCampoAtivos) => {
+    if (!ultimo) return { nivel: 4, rotulo: tx('Sem lançamento'), cor: 'rose', falta: [] };
+    if (ultimo.data >= hojeIso()) {
+        const falta = camposFaltando(ultimo, temCampoAtivos);
+        return falta.length ? { nivel: 1, rotulo: tx('Incompleto'), cor: 'amber', falta } : { nivel: 0, rotulo: tx('Em dia'), cor: 'emerald', falta: [] };
+    }
+    if (ultimo.data === ontemIso()) return { nivel: 2, rotulo: tx('Ontem'), cor: 'amber', falta: [] };
+    return { nivel: 3, rotulo: tx('Atrasada ({dias} d)', { dias: diasDesde(ultimo.data) }), cor: 'rose', falta: [] };
 };
 const CORES = {
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30',
@@ -33,16 +47,19 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
     // Último lançamento de cada unidade (últimos 60 dias, independente do período escolhido) e últimos ativos lançados
     const [ultimos, setUltimos] = useState({});
     const [ativosPorUnidade, setAtivosPorUnidade] = useState({});
+    const [temCampoAtivos, setTemCampoAtivos] = useState(true);
     useEffect(() => {
         let ativo = true;
         const d = new Date(); d.setDate(d.getDate() - 60);
         const desde = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         const consultar = (campos) => supabase.from('movimento_diario').select(campos).gte('data', desde).order('data', { ascending: false });
         (async () => {
-            let { data, error } = await consultar('unidade, data, ativos, atualizado_por, atualizado_em');
+            let { data, error } = await consultar('unidade, data, ativos, cancelamentos, faturamento, atualizado_por, atualizado_em');
+            let comAtivos = true;
             // Sem o campo "ativos" no banco (falta rodar 3_campo_ativos.sql): lê sem ele
-            if (error && /ativos/i.test(error.message || '')) ({ data, error } = await consultar('unidade, data, atualizado_por, atualizado_em'));
+            if (error && /ativos/i.test(error.message || '')) { comAtivos = false; ({ data, error } = await consultar('unidade, data, cancelamentos, faturamento, atualizado_por, atualizado_em')); }
             if (!ativo) return;
+            setTemCampoAtivos(comAtivos);
             if (error) { console.error('Monitoramento: erro ao ler', error); return; }
             const mapa = {};
             const atv = {}; // { UNIDADE: { valor, anterior } } = os dois últimos ativos lançados
@@ -66,19 +83,21 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
         const mov = somarMovimentoNoPeriodo(derivados.filter(l => String(l.unidade).toUpperCase() === u), faixa);
         const ultimo = ultimos[u] || null;
         const atv = ativosPorUnidade[u] || null;
-        return { nome: u, ativos: atv ? atv.valor : null, ativosVar: atv && atv.anterior !== null ? atv.valor - atv.anterior : null, entradas, saidas: mov.lancamentos || mov.cancelamentos ? mov.cancelamentos : null, faturamento: mov.lancamentos ? mov.faturamento : null, ultimo, situacao: situacaoDe(ultimo) };
+        return { nome: u, ativos: atv ? atv.valor : null, ativosVar: atv && atv.anterior !== null ? atv.valor - atv.anterior : null, entradas, saidas: mov.lancamentos || mov.cancelamentos ? mov.cancelamentos : null, faturamento: mov.lancamentos ? mov.faturamento : null, ultimo, situacao: situacaoDe(ultimo, temCampoAtivos) };
     }).sort((a, b) => b.situacao.nivel - a.situacao.nivel || (a.ultimo?.data || '').localeCompare(b.ultimo?.data || '') || a.nome.localeCompare(b.nome)),
-    [unidades, vendasFiltradas, planos, produtos, derivados, faixa, ultimos, ativosPorUnidade]);
+    [unidades, vendasFiltradas, planos, produtos, derivados, faixa, ultimos, ativosPorUnidade, temCampoAtivos]);
 
     const total = linhas.reduce((t, l) => ({ ativos: t.ativos + (l.ativos || 0), entradas: t.entradas + l.entradas, saidas: t.saidas + (l.saidas || 0), faturamento: t.faturamento + (l.faturamento || 0) }), { ativos: 0, entradas: 0, saidas: 0, faturamento: 0 });
     const emDia = linhas.filter(l => l.situacao.nivel === 0).length;
-    const atrasadas = linhas.filter(l => l.situacao.nivel >= 2).length;
+    const incompletas = linhas.filter(l => l.situacao.nivel === 1).length;
+    const atrasadas = linhas.filter(l => l.situacao.nivel >= 3).length;
 
     // Mensagem de COBRANÇA do dia (decisão do dono, 04/11/2026): "detalhado" ou "resumo". Sem números da rede e sem faturamento.
     const enviarWhatsApp = (tipo) => {
         const numero = (n) => Number(n).toLocaleString('pt-BR');
         const lancaram = linhas.filter(l => l.situacao.nivel === 0);
-        const faltam = linhas.filter(l => l.situacao.nivel > 0);
+        const incompletos = linhas.filter(l => l.situacao.nivel === 1);
+        const faltam = linhas.filter(l => l.situacao.nivel > 1);
         // Conferir: lançou sem ativos, ativos zerado ou pulo maior que 5%
         const conferir = (l) => l.ativos === null || l.ativos === 0 || (l.ativosVar !== null && l.ativos - l.ativosVar > 0 && Math.abs(l.ativosVar) / (l.ativos - l.ativosVar) > 0.05);
         // Positivos em cima (maior ganho primeiro), zerados no meio, negativos embaixo (maior perda por último), "conferir" no fim
@@ -91,19 +110,30 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
             const icone = v > 0 ? '🟢⬆️' : v < 0 ? '🔴⬇️' : '⚪➖';
             return `${icone} ${l.nome} — ${numero(l.ativos)} ativos (${v > 0 ? '+' : ''}${v})`;
         };
-        const cobranca = faltam.length
-            ? `⏰ *Por gentileza, façam agora o lançamento que ainda não foi feito:*\n${faltam.map(l => `👉 ${l.nome}`).join('\n')}`
-            : '✅ Todas as unidades lançaram hoje. Obrigado!';
+        // Cobrança: o que falta completar (incompletos) e o lançamento do dia inteiro (quem não lançou)
+        const todosCampos = juntar(temCampoAtivos ? ['Ativos', 'Cancelamentos', 'Faturamento'] : ['Cancelamentos', 'Faturamento']);
+        const pendentes = [
+            ...incompletos.map(l => `👉 ${l.nome} — ${juntar(l.situacao.falta)}`),
+            ...faltam.map(l => `👉 ${l.nome} — lançamento do dia (${todosCampos})`),
+        ];
+        const cobranca = pendentes.length
+            ? `⏰ *Por gentileza, completem agora o que falta:*\n${pendentes.join('\n')}`
+            : '✅ Todas as unidades lançaram completo hoje. Obrigado!';
+        // Incompletos: ativos de hoje (se foi preenchido) e o que faltou
+        const linhaIncompleto = (l) => `${l.nome} — ${l.ultimo?.ativos !== null && l.ultimo?.ativos !== undefined ? `${numero(l.ultimo.ativos)} ativos · ` : ''}faltou preencher: ${juntar(l.situacao.falta)}`;
+        const blocoIncompletos = incompletos.length ? `⚠️ *LANÇAMENTO INCOMPLETO (${incompletos.length})*\n${incompletos.map(linhaIncompleto).join('\n')}\n\n` : '';
 
         let txt = `📊 *MOVIMENTAÇÃO – ${ddmm(hojeIso())}*\n\n`;
         if (tipo === 'resumo') {
-            txt += `✅ *JÁ LANÇARAM HOJE (${lancaram.length})*\n`;
+            txt += `✅ *LANÇAMENTO COMPLETO (${lancaram.length})*\n`;
             txt += (lancaram.map(l => `${l.nome}${l.ultimo?.atualizado_em ? ` — ${horaDe(l.ultimo.atualizado_em).slice(0, 5)}` : ''}`).join('\n') || '—') + '\n\n';
+            txt += blocoIncompletos;
             txt += `❌ *NÃO LANÇARAM (${faltam.length})*\n`;
             txt += (faltam.map(l => `${l.nome} — último lançamento: ${ultimoTexto(l)}`).join('\n') || '—') + '\n\n';
             txt += cobranca;
         } else {
-            txt += `✅ *JÁ LANÇARAM HOJE (${lancaram.length})*\n${ordenados.map(linhaAtivos).join('\n') || '—'}\n\n`;
+            txt += `✅ *LANÇAMENTO COMPLETO (${lancaram.length})*\n${ordenados.map(linhaAtivos).join('\n') || '—'}\n\n`;
+            txt += blocoIncompletos;
             txt += `❌ *NÃO LANÇARAM (${faltam.length})*\n${faltam.map(l => `${l.nome} — último lançamento: ${ultimoTexto(l)}`).join('\n') || '—'}\n\n`;
             // Entradas x saídas do período do topo (normalmente "Este mês"): ganhando aluno em verde, perdendo em vermelho
             const comSaldo = linhas.filter(l => l.saidas !== null).map(l => ({ nome: l.nome, saldo: l.entradas - l.saidas }));
@@ -131,7 +161,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                     <div>
                         <h3 className="text-[13px] font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Monitoramento da Movimentação')}</h3>
                         <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
-                            {tx('{ok} de {total} unidades lançaram hoje · {atrasadas} atrasadas', { ok: emDia, total: linhas.length, atrasadas })}
+                            {tx('{ok} de {total} unidades completas hoje · {incompletas} incompletas · {atrasadas} atrasadas', { ok: emDia, total: linhas.length, incompletas, atrasadas })}
                             {carregando && <Loader2 className="inline w-3 h-3 ml-1 animate-spin" />}
                         </p>
                     </div>
@@ -165,7 +195,12 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                                 return (
                                     <tr key={l.nome} className="border-t border-slate-100 dark:border-slate-800">
                                         <td className="px-3 py-3 text-[12px] font-black text-slate-800 dark:text-white">{l.nome}</td>
-                                        <td className="px-3 py-3"><span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wider ${CORES[l.situacao.cor]}`}>{l.situacao.rotulo}</span></td>
+                                        <td className="px-3 py-3">
+                                            <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wider ${CORES[l.situacao.cor]}`}>{l.situacao.rotulo}</span>
+                                            {l.situacao.falta.length > 0 && (
+                                                <span className="block mt-1 text-[10px] font-bold text-rose-600 dark:text-rose-400">{tx('Falta: {campos}', { campos: l.situacao.falta.map(c => tx(c)).join(', ') })}</span>
+                                            )}
+                                        </td>
                                         <td className="px-3 py-3 text-right tabular-nums whitespace-nowrap">
                                             <span className="text-[13px] font-black text-slate-800 dark:text-white">{l.ativos ?? <span className="text-slate-400">—</span>}</span>
                                             {l.ativosVar !== null && <span className={`ml-1.5 text-[11px] font-black ${l.ativosVar < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{l.ativosVar > 0 ? '+' : ''}{l.ativosVar}</span>}

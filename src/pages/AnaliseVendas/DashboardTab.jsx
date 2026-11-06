@@ -410,6 +410,8 @@ const DashboardTab = ({
     // Produtos que contam para meta/ranking (doses únicas até o limite da unidade + outros produtos)
     let totalProdutosValidos = 0;
     let totalServicos = 0;
+    // Doses únicas acima do limite (não contam para a meta), por produto — caixinha "X não conta" (decisão do dono, 05/11/2026)
+    const foraDaMetaPorProduto = {};
     const rankingProdutosFisicos = {};
     const rankingServicos = {};
 
@@ -439,6 +441,7 @@ const DashboardTab = ({
             // Meta e ranking: limite de doses únicas por unidade (limiteDoses.js)
             const qtdValida = qtdValidaProduto(v, dosesValidas);
             totalProdutosValidos += qtdValida;
+            if (qtd > qtdValida) foraDaMetaPorProduto[prodUpper] = (foraDaMetaPorProduto[prodUpper] || 0) + (qtd - qtdValida);
 
             // Se quem vendeu não estava no ranking (ex: Líder, Bem-estar), ele é inserido aqui dinamicamente
             if (rankingConsultoresFisicos[vendUpper] !== undefined) {
@@ -986,9 +989,20 @@ const DashboardTab = ({
                     dica={tx('Dinheiro que entrou, digitado dia a dia na aba Metas → Movimento do dia. Não é a comissão (a comissão fica no Fechamento).')}
                     icone={Wallet} fundoIcone="bg-[#E7F7EF] dark:bg-emerald-500/15" corIcone="text-[#0E9F6E] dark:text-emerald-300"
                 />
+                {/* Produtos físicos (decisão do dono, 05/11/2026): número grande = o que CONTA para a meta;
+                    caixinha "+X fora da meta" = doses únicas acima do limite; embaixo, o total vendido (contam + fora = vendidos) */}
                 <CardMenor
                     rotulo={t('analytics.dashboard.kpiProducts', { defaultValue: 'Produtos Físicos' })}
-                    valor={dois(totalVendasProdutos)}
+                    valor={totalVendasProdutos > totalProdutosValidos ? (
+                        <span className="inline-flex flex-wrap items-center gap-2">
+                            {dois(totalProdutosValidos)}
+                            <span className="h-6 px-2 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-black inline-flex items-center dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">
+                                {tx('+{qtd} fora da meta', { qtd: totalVendasProdutos - totalProdutosValidos })}
+                            </span>
+                        </span>
+                    ) : dois(totalVendasProdutos)}
+                    sub={totalVendasProdutos > totalProdutosValidos ? tx('{qtd} vendidos no total', { qtd: totalVendasProdutos }) : ''}
+                    dica={tx('Produtos que contam para a meta. Doses únicas (Whey e Energy) acima de {limite} por mês na unidade não contam para a meta (a comissão é paga normalmente) e aparecem na caixinha "fora da meta".', { limite: LIMITE_DOSES_POR_UNIDADE_MES })}
                     icone={Box} fundoIcone="bg-[#FFF1E5] dark:bg-orange-500/15" corIcone="text-[#C2410C] dark:text-orange-300"
                     iconeBotao={ArrowRight} rotuloBotao={tx("Ver produtos")}
                     onClick={abrirPainelProdutos}
@@ -1268,6 +1282,8 @@ const DashboardTab = ({
                                 {produtosAgrupados.map((p, idx) => {
                                     const aberto = produtoAberto === p.chave;
                                     const complemento = p.sabores ? [p.complemento, tx('{qtd} sabores', { qtd: p.sabores.length })].filter(Boolean).join(' · ') : '';
+                                    // Doses acima do limite da unidade nesta linha (não contam para a meta)
+                                    const naoConta = p.sabores ? p.sabores.reduce((s, x) => s + (foraDaMetaPorProduto[x.produto] || 0), 0) : (foraDaMetaPorProduto[p.nome] || 0);
                                     return (
                                         <li key={p.chave} className="border border-[#EEF1F6] rounded-xl dark:border-slate-800">
                                             <div className="flex items-center gap-3 p-3">
@@ -1281,6 +1297,12 @@ const DashboardTab = ({
                                                         <span className="block h-full rounded-full bg-[#F07B1A]" style={{ width: `${maiorProduto > 0 ? (p.total / maiorProduto) * 100 : 0}%` }} />
                                                     </span>
                                                 </span>
+                                                {naoConta > 0 && (
+                                                    <span className="h-8 px-2.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[12px] font-black inline-flex items-center tabular-nums shrink-0 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
+                                                        title={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })}>
+                                                        {tx('{qtd} não conta', { qtd: naoConta })}
+                                                    </span>
+                                                )}
                                                 <span className="h-8 px-3 rounded-full bg-[#C2410C] text-white text-[13px] font-extrabold inline-flex items-center tabular-nums shrink-0">{p.total} {tx('un')}</span>
                                                 {p.sabores ? (
                                                     <button type="button" onClick={() => setProdutoAberto(aberto ? null : p.chave)} aria-expanded={aberto} aria-label={tx('Ver sabores de {produto}', { produto: p.nome })}

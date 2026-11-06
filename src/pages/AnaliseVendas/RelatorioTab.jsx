@@ -1,4 +1,5 @@
 // src/pages/AnaliseVendas/RelatorioTab.jsx
+import PainelEnviosRelatorio from '../Pendencias/PainelEnviosRelatorio.jsx';
 import React, { useState, useRef, useMemo } from 'react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import {
@@ -12,6 +13,9 @@ import {
     montarTextoFechamentoUnidade
 } from './relatorio/exportadorSeguro.js';
 import { useResgateCpf } from './relatorio/useResgateCpf.js';
+import { useDosesValidas } from './useDosesValidas.js';
+import { qtdValidaProduto, LIMITE_DOSES_POR_UNIDADE_MES } from './limiteDoses.js';
+import { getCategoriaItem } from './utils.js';
 import ModalAuditoria from './relatorio/ModalAuditoria.jsx';
 import {
     Download,
@@ -35,7 +39,12 @@ const RelatorioTab = ({
     temVisaoGlobal = false,
     labelFiltroAtual = '',
     abrirModalWhatsapp,
-    usuarioLogado
+    usuarioLogado,
+    unidadesFixas = [],
+    vendasTodas = [],
+    unidadeAtual = 'TODOS',
+    faixa = null,
+    colaboradores = []
 }) => {
     const { t, locale, language } = useI18n();
     const langAtual = locale || language || 'pt-BR';
@@ -55,10 +64,14 @@ const RelatorioTab = ({
 
     const permissaoGerencial = temVisaoGlobal || (usuarioLogado && usuarioLogado.role === 'LIDER');
 
+    // Unidades que aparecem sempre (mesmo sem venda), para a recepção conseguir mandar o fechamento "sem venda"
+    const chaveFixas = unidadesFixas.filter(Boolean).join('|');
+    const fixasEstaveis = useMemo(() => (chaveFixas ? chaveFixas.split('|') : []), [chaveFixas]);
+
     // 🧠 Motor Único de Consolidação e Deduplicação
     const {
         relatorioPorUnidade,
-        unidadesOrdenadas,
+        unidadesOrdenadas: unidadesBrutas,
         vendasGlobal,
         baseRankingUnidades
     } = useMemo(() => {
@@ -67,9 +80,51 @@ const RelatorioTab = ({
             visitantesFiltrados,
             avaliacoesFiltradas,
             planos,
-            produtos
+            produtos,
+            unidadesFixas: fixasEstaveis
         });
-    }, [vendasFiltradas, visitantesFiltrados, avaliacoesFiltradas, planos, produtos]);
+    }, [vendasFiltradas, visitantesFiltrados, avaliacoesFiltradas, planos, produtos, fixasEstaveis]);
+
+    // Quem vendeu primeiro (em ordem alfabética); as unidades sem venda ficam no fim
+    const unidadesOrdenadas = useMemo(() => [...unidadesBrutas].sort((a, b) => {
+        const va = relatorioPorUnidade[a].totalGeralVendas > 0 ? 0 : 1;
+        const vb = relatorioPorUnidade[b].totalGeralVendas > 0 ? 0 : 1;
+        return va - vb || a.localeCompare(b);
+    }), [unidadesBrutas, relatorioPorUnidade]);
+    const unidadesSemVenda = unidadesOrdenadas.filter(u => relatorioPorUnidade[u].totalGeralVendas === 0);
+
+    // Faixa fina de resumo da unidade (Nutri é adicional e não soma nos planos)
+    // Doses únicas acima do limite da unidade no mês: não contam para a meta. O relatório continua mostrando o
+    // VENDIDO e ganha a caixinha "X fora da meta" em Produtos (decisão do dono, 05/11/2026)
+    const dosesValidas = useDosesValidas({ vendasCarregadas: vendasTodas, vendasDaTela: vendasFiltradas, unidade: unidadeAtual, planos, produtos });
+    const foraDaMetaPorUnidade = useMemo(() => {
+        const mapa = {};
+        vendasFiltradas.forEach(v => {
+            if (getCategoriaItem(v.produto, planos, produtos) !== 'PRODUTO') return;
+            const fora = (parseInt(v.quantidade, 10) || 1) - qtdValidaProduto(v, dosesValidas);
+            if (fora > 0) { const u = v.unidade || 'SEM UNIDADE'; mapa[u] = (mapa[u] || 0) + fora; }
+        });
+        return mapa;
+    }, [vendasFiltradas, dosesValidas, planos, produtos]);
+    const caixinhaForaDaMeta = (qtd) => (qtd > 0 ? (
+        <span className="h-5 px-1.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black normal-case tracking-normal inline-flex items-center dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
+            title={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })}>
+            {tx('{qtd} fora da meta', { qtd })}
+        </span>
+    ) : null);
+
+    const resumoDaUnidade = (dados) => {
+        const g = (nome) => dados.grupos[nome]?.total || 0;
+        return [
+            { rotulo: 'Vendas', valor: dados.totalGeralVendas, cor: 'text-slate-800 dark:text-white' },
+            { rotulo: 'Planos', valor: g('PLUS') + g('FIT') + g('PERSONAL CLASS') + g('PROMOÇÕES') + g('FÉRIAS') + g('OUTROS PLANOS'), cor: 'text-blue-700 dark:text-blue-400' },
+            { rotulo: 'Nutri (adicional)', valor: g('NUTRI'), cor: 'text-emerald-700 dark:text-emerald-400' },
+            { rotulo: 'Produtos', valor: g('PRODUTOS'), cor: 'text-amber-700 dark:text-amber-400', produtos: true },
+            { rotulo: 'Serviços', valor: g('SERVIÇOS') + g('NÃO CLASSIFICADOS'), cor: 'text-violet-700 dark:text-violet-400' },
+            { rotulo: 'Visitantes', valor: dados.visitantes.length, cor: 'text-blue-700 dark:text-blue-400' },
+            { rotulo: 'Avaliações', valor: dados.avaliacoes.length, cor: 'text-orange-700 dark:text-orange-400' },
+        ];
+    };
 
     const rankingUnidades = useMemo(() => {
         return filtrarEOrdenarRanking(baseRankingUnidades, 'TOTAL', null);
@@ -164,7 +219,8 @@ const RelatorioTab = ({
             visaoDetalhada,
             labelFiltroAtual,
             langAtual,
-            t
+            t,
+            unidadesSemVenda
         });
         abrirModalWhatsapp(txt, {
             titulo: t('analytics.report.wppGlobalModal', { defaultValue: 'Resumo Global' }),
@@ -184,7 +240,8 @@ const RelatorioTab = ({
         abrirModalWhatsapp(txt, {
             titulo: `${t('analytics.report.reportName', { defaultValue: 'Relatório' })}: ${unidadeAlvo}`,
             icone: 'file-text',
-            cor: 'blue'
+            cor: 'blue',
+            registroFechamento: unidadeAlvo // Copiar/Enviar conta como relatório de fechamento enviado (Recepção, hoje, no horário)
         });
     };
 
@@ -197,6 +254,11 @@ const RelatorioTab = ({
             onMouseUp={onMouseLeaveOrUp}
             onMouseMove={onMouseMove}
         >
+            {/* Relatórios de fechamento da recepção (05/11/2026): Admin, Mentor e Líder acompanham quem enviou */}
+            {String(usuarioLogado?.role || '').toUpperCase() !== 'RECEPCAO' && (
+                <PainelEnviosRelatorio unidades={unidadesFixas} faixa={faixa} colaboradores={colaboradores} />
+            )}
+
             {/* Modal de Auditoria com Pesquisa Interna e Download de Lista */}
             <ModalAuditoria
                 modalConfig={modalConfig}
@@ -332,8 +394,27 @@ const RelatorioTab = ({
                                     </div>
                                 </div>
 
+                                {/* Faixa fina de resumo (visual compacto) */}
+                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-6 py-3 bg-white border-t border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                                    {resumoDaUnidade(dados).map(item => (
+                                        <div key={item.rotulo} className="flex items-baseline gap-1.5">
+                                            <span className={`text-lg font-black tabular-nums ${item.valor > 0 ? item.cor : 'text-slate-300 dark:text-slate-600'}`}>{item.valor}</span>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx(item.rotulo)}</span>
+                                            {item.produtos && <span className="self-center">{caixinhaForaDaMeta(foraDaMetaPorUnidade[unidade] || 0)}</span>}
+                                        </div>
+                                    ))}
+                                </div>
+
                                 <div className={`transition-all duration-300 ${isRecolhido ? 'h-0 opacity-0 overflow-hidden' : 'p-6 md:p-8 bg-slate-50/50 border-t border-slate-200 dark:bg-slate-800/40 dark:border-slate-800'}`}>
                                     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                                        {/* Sem venda: aviso no lugar dos grupos (o WhatsApp Fechamento continua no topo) */}
+                                        {dados.totalGeralVendas === 0 && (
+                                            <div className="bg-white border border-dashed border-rose-200 rounded-2xl p-5 flex flex-col items-center justify-center text-center min-h-[88px] dark:bg-slate-900 dark:border-rose-500/30">
+                                                <FileX2 className="w-5 h-5 text-rose-500 mb-1.5" />
+                                                <p className="text-[11px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{tx('Sem registro de venda no período')}</p>
+                                                <p className="text-[10px] font-bold text-slate-500 mt-1 dark:text-slate-400">{tx('Use o WhatsApp Fechamento para avisar que não houve venda.')}</p>
+                                            </div>
+                                        )}
                                         {/* VENDAS POR GRUPO (CLICÁVEIS) */}
                                         {gruposUnidadeFiltrados.map(([grupo, info]) => (
                                             <div key={grupo} className="bg-white border border-slate-200 rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.02)] flex flex-col overflow-hidden transition-all hover:shadow-md hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700">
@@ -348,8 +429,11 @@ const RelatorioTab = ({
                                                             {grupo === 'NUTRI' && <span className="ml-1.5 text-[10px] font-bold normal-case tracking-normal text-slate-500 dark:text-slate-400">· {tx('adicional, não soma nos planos')}</span>}
                                                         </span>
                                                     </div>
-                                                    <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
-                                                        {String(info.total).padStart(2, '0')} UN
+                                                    <span className="flex items-center gap-1.5">
+                                                        {grupo === 'PRODUTOS' && caixinhaForaDaMeta(foraDaMetaPorUnidade[unidade] || 0)}
+                                                        <span className="text-[10px] font-black bg-slate-100 text-slate-600 px-2.5 py-1 rounded-md border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
+                                                            {String(info.total).padStart(2, '0')} UN
+                                                        </span>
                                                     </span>
                                                 </div>
 
@@ -409,19 +493,19 @@ const RelatorioTab = ({
                                                     {String(dados.visitantes.length).padStart(2, '0')} UN
                                                 </span>
                                             </div>
-                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px] group-hover:bg-blue-50/20 transition-colors dark:bg-slate-800/40 dark:group-hover:bg-blue-500/10">
+                                            <div className="flex-1 bg-slate-50/30 p-4 flex flex-col items-center justify-center text-center min-h-[88px] group-hover:bg-blue-50/20 transition-colors dark:bg-slate-800/40 dark:group-hover:bg-blue-500/10">
                                                 {hasVisitantes ? (
                                                     <>
-                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-blue-600/70 transition-colors dark:text-slate-400">
+                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5 group-hover:text-blue-600/70 transition-colors dark:text-slate-400">
                                                             {t('analytics.report.totalCaptured', { defaultValue: 'Total Capturado' })}
                                                         </p>
-                                                        <p className="text-4xl md:text-5xl font-black text-slate-800 group-hover:text-blue-700 transition-colors dark:text-white dark:group-hover:text-blue-400">
+                                                        <p className="text-lg font-black tabular-nums text-slate-800 group-hover:text-blue-700 transition-colors dark:text-white dark:group-hover:text-blue-400">
                                                             {dados.visitantes.length}
                                                         </p>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <p className="text-4xl md:text-5xl font-black text-slate-300 mb-2">00</p>
+                                                        <p className="text-lg font-black tabular-nums text-slate-300 mb-1 dark:text-slate-600">00</p>
                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                                             {t('analytics.report.emptyVisitors', { defaultValue: 'Nenhuma visita' })}
                                                         </p>
@@ -448,19 +532,19 @@ const RelatorioTab = ({
                                                     {String(dados.avaliacoes.length).padStart(2, '0')} UN
                                                 </span>
                                             </div>
-                                            <div className="flex-1 bg-slate-50/30 p-5 flex flex-col items-center justify-center text-center min-h-[160px] group-hover:bg-orange-50/20 transition-colors dark:bg-slate-800/40 dark:group-hover:bg-orange-500/10">
+                                            <div className="flex-1 bg-slate-50/30 p-4 flex flex-col items-center justify-center text-center min-h-[88px] group-hover:bg-orange-50/20 transition-colors dark:bg-slate-800/40 dark:group-hover:bg-orange-500/10">
                                                 {hasAvaliacoes ? (
                                                     <>
-                                                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 group-hover:text-orange-600/70 transition-colors dark:text-slate-400">
+                                                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5 group-hover:text-orange-600/70 transition-colors dark:text-slate-400">
                                                             {t('analytics.report.doneToday', { defaultValue: 'Realizadas' })}
                                                         </p>
-                                                        <p className="text-4xl md:text-5xl font-black text-slate-800 group-hover:text-orange-700 transition-colors dark:text-white dark:group-hover:text-orange-400">
+                                                        <p className="text-lg font-black tabular-nums text-slate-800 group-hover:text-orange-700 transition-colors dark:text-white dark:group-hover:text-orange-400">
                                                             {dados.avaliacoes.length}
                                                         </p>
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <p className="text-4xl md:text-5xl font-black text-slate-300 mb-2">00</p>
+                                                        <p className="text-lg font-black tabular-nums text-slate-300 mb-1 dark:text-slate-600">00</p>
                                                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                                                             {t('analytics.report.emptyAssessments', { defaultValue: 'Nenhuma avaliação' })}
                                                         </p>

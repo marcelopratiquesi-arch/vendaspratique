@@ -4,7 +4,7 @@ import { useI18n } from './i18n/I18nContext.jsx';
 
 import { 
     ShoppingCart, History, PieChart, Wallet, 
-    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone, Building2
+    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone, Building2, BellRing
 } from 'lucide-react';
 
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
@@ -23,6 +23,13 @@ import Configuracoes from './pages/Configuracoes.jsx';
 import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
+import { pedirAbaAnalise } from './pages/AnaliseVendas/movimentoDiario.js';
+import { pedirConferencia } from './pages/FechamentoCaixa/cobrancaAuditoria.js';
+import PaginaPendencias from './pages/Pendencias/index.jsx';
+import JanelaPendencias from './pages/Pendencias/JanelaPendencias.jsx';
+import CartaoPendencias from './pages/Pendencias/CartaoPendencias.jsx';
+import { usePendencias } from './pages/Pendencias/pendencias.js';
+import CobrancaRelatorioRecepcao from './pages/Pendencias/CobrancaRelatorioRecepcao.jsx';
 import { tx } from './i18n/traduzir.js';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
@@ -481,6 +488,31 @@ export default function App() {
         return ativas.filter(u => minhas.has(normalizarNomeBusca(u.nome)));
     }, [ehMentor, unidades, unidadesMentor]);
 
+    // Central de cobranças (decisão do dono, 05/11/2026): Líder = a unidade dele; Mentor = as dele; Admin = todas.
+    // Um carregamento só, usado pela janela do login, pelo cartão do canto e pela aba Pendências (com o número vermelho).
+    const papelCobranca = usuarioLogado?.role;
+    const unidadesCobradas = useMemo(() => {
+        if (papelCobranca === 'LIDER') return usuarioLogado?.unidade ? [usuarioLogado.unidade] : [];
+        if (papelCobranca === 'MENTOR' || papelCobranca === 'ADMIN') return unidadesVisiveis.map(u => u.nome).filter(Boolean);
+        return [];
+    }, [papelCobranca, usuarioLogado?.unidade, unidadesVisiveis]);
+    const pendencias = usePendencias({ ativo: ['LIDER', 'MENTOR', 'ADMIN'].includes(papelCobranca), unidades: unidadesCobradas, colaboradores });
+    const cobradoNaTela = papelCobranca === 'LIDER' || papelCobranca === 'MENTOR';
+    const [janelaPendenciasFechada, setJanelaPendenciasFechada] = useState(false);
+    const aoFecharJanelaPendencias = useCallback(() => setJanelaPendenciasFechada(true), []);
+    useEffect(() => { setJanelaPendenciasFechada(false); }, [usuarioLogado?.email]);
+    // Botões das pendências: Mentor/Admin passam a olhar a unidade da pendência (seletor do topo) e a tela certa abre
+    const irParaPendencia = (tipo, u) => {
+        if (ehChefe && u?.unidade) setUnidadeGlobal(u.unidade);
+        if (tipo === 'conferencia') {
+            if (u?.conferencia?.periodo) pedirConferencia(u.conferencia.periodo);
+            handleNavigation('fechamento');
+        } else {
+            pedirAbaAnalise('visaoGeral'); // aba Metas, card Movimentação (os cards das metas ficam na mesma linha)
+            handleNavigation('analise');
+        }
+    };
+
     // Se a unidade escolhida no topo foi desativada, volta para a visão de todas
     useEffect(() => {
         if (unidadeGlobal === 'TODAS') return;
@@ -551,6 +583,7 @@ export default function App() {
         { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'] },
         { id: 'cadastros', label: t('navigation.management'), icon: Database, permissoes: ['ADMIN', 'MENTOR', 'LIDER'] },
         { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, permissoes: ['ADMIN', 'MENTOR', 'LIDER', 'RECEPCAO'], badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
+        { id: 'pendencias', label: tx('Pendências'), icon: BellRing, permissoes: ['ADMIN', 'MENTOR'], badge: pendencias.total > 0 ? pendencias.total : null },
         { id: 'config', label: t('navigation.settings'), icon: Settings, permissoes: ['ADMIN'] }
     ];
 
@@ -565,6 +598,21 @@ export default function App() {
         <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
             
             <IdleCurtain isIdle={isIdle} />
+
+            {/* Central de cobranças (decisão do dono, 05/11/2026): Líder e Mentor ganham a janela ao entrar e o cartão
+                do canto (Conferência, Movimentação e Metas). O Admin cobra pela aba Pendências. */}
+            {cobradoNaTela && (
+                <>
+                    <JanelaPendencias lista={pendencias.lista} carregado={pendencias.carregado && unidadesCobradas.length > 0} ehMentor={ehMentor}
+                        aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} onFechar={aoFecharJanelaPendencias} />
+                    <CartaoPendencias lista={pendencias.lista} ehMentor={ehMentor} escondido={!janelaPendenciasFechada}
+                        aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} />
+                </>
+            )}
+
+            {/* Recepção: cobrança do relatório de fechamento do turno (14h00 manhã, 22h30 noite, 12h30 sáb/dom; 05/11/2026) */}
+            <CobrancaRelatorioRecepcao usuario={usuarioLogado} colaboradores={colaboradores}
+                aoIrRelatorio={() => { pedirAbaAnalise('relatorio'); handleNavigation('analise'); }} />
 
             <SidebarDesktop 
                 isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
@@ -675,6 +723,7 @@ export default function App() {
                     )}
                     {activeTab === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} />}
                     {activeTab === 'comunicados' && <CentralComunicados usuarioLogado={usuarioLogado} unidades={unidadesVisiveis} />}
+                    {activeTab === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} />}
                     {activeTab === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
                     </>)}
                 </main>

@@ -178,7 +178,8 @@ export const montarTextoGlobalWhatsapp = ({
     visaoDetalhada = false,
     labelFiltroAtual = '',
     langAtual = 'pt-BR',
-    t
+    t,
+    unidadesSemVenda = []
 }) => {
     const dataAtual = new Date();
     const dia = String(dataAtual.getDate()).padStart(2, '0');
@@ -217,6 +218,13 @@ export const montarTextoGlobalWhatsapp = ({
             txt += `\n`;
         });
     });
+
+    // Unidades sem nenhuma venda no período (decisão do dono, 05/11/2026)
+    if (unidadesSemVenda.length > 0) {
+        txt += `❌ *SEM REGISTRO DE VENDA:*\n`;
+        unidadesSemVenda.forEach(u => { txt += `▫️ ${u}\n`; });
+        txt += `\n`;
+    }
 
     txt += `${tr('analytics.report.wppTotalGlobal', '📈 *TOTAL GERAL:*')} ${vendasGlobal} ${tr('analytics.report.wppSalesLow', 'vendas')}\n`;
 
@@ -298,7 +306,8 @@ export const montarTextoFechamentoUnidade = ({
         });
         txt += `\n${tr('analytics.report.wppTotalSalesUpper', '📈 *TOTAL DE VENDAS:')} ${String(dados.totalGeralVendas).padStart(2, '0')}*\n`;
     } else {
-        txt += `${tr('analytics.report.wppNoSales', 'Nenhuma venda registrada.')}\n`;
+        // Fechamento sem venda: mensagem clara para a recepção mandar mesmo assim (decisão do dono, 05/11/2026)
+        txt += `❌ *SEM REGISTRO DE VENDA NO PERÍODO*\n`;
     }
 
     txt += `\n➖➖➖➖➖➖➖➖➖➖\n\n`;

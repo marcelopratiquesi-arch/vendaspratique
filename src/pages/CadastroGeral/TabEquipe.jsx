@@ -164,6 +164,7 @@ const TabEquipe = ({ colaboradores, onEdit, onToggleStatus, temVisaoGlobal, unid
                                     </td>
                                     <td className="px-4 py-3 align-middle text-[10px] font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                         {c.role}
+                                        {c.turno && <span className="ml-1.5 inline-block px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200 text-[10px] dark:bg-blue-500/10 dark:text-blue-300 dark:border-blue-500/30">{c.turno === 'MANHA' ? tx('Manhã') : tx('Noite')}</span>}
                                     </td>
                                     {temVisaoGlobal && (
                                         <td className="px-4 py-3 align-middle">

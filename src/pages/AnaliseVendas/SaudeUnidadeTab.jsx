@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { supabase } from '../../supabaseClient.js';
 import { decomporPlano, normalizeString, safeIsoDate } from './utils.js';
+import { aplicarLimiteDoses, qtdValidaProduto, LIMITE_DOSES_POR_UNIDADE_MES } from './limiteDoses.js';
 import {
     TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, HelpCircle, ArrowUpDown, ArrowDown, ArrowUp,
     HeartPulse, Info, CircleSlash, Sparkles, Users, ChevronDown
@@ -211,6 +212,8 @@ const SaudeUnidadeTab = ({
     produtosOcultos = [],
     servicosOcultos = [],
     colaboradores = [],
+    planos = [],
+    produtos = [],
 }) => {
     const escuro = useModoEscuro();
     const paleta = escuro ? CORES.escuro : CORES.claro;
@@ -273,6 +276,15 @@ const SaudeUnidadeTab = ({
         return 'SERVICO';
     };
 
+    // Doses únicas acima do limite da unidade no mês (limiteDoses.js): não contam para a meta.
+    // Aqui o total continua sendo o VENDIDO; só aparece a caixinha "X fora da meta" (decisão do dono, 05/11/2026).
+    const dosesValidas = useMemo(() => {
+        const porId = new Map();
+        doBanco.forEach(v => porId.set(v.id, v));
+        vendas.forEach(v => porId.set(v.id ?? v, v));
+        return aplicarLimiteDoses([...porId.values()], planos, produtos);
+    }, [doBanco, vendas, planos, produtos]);
+
     const dados = useMemo(() => {
         if (!periodos) return null;
         // Junta banco + tela (a tela vale mais, por estar atualizada em tempo real)
@@ -287,7 +299,7 @@ const SaudeUnidadeTab = ({
 
         const itens = new Map();
         // PLANO = só planos base (Nutri é adicional, decomporPlano); NUTRI = adicionais; itens = total de vendas
-        const tot = { atual: { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, itens: 0, comissao: 0 }, antes: { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, itens: 0, comissao: 0 } };
+        const tot = { atual: { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, itens: 0, comissao: 0, foraMeta: 0 }, antes: { PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, itens: 0, comissao: 0, foraMeta: 0 } };
         // Mesma regra do card de planos: mesmo plano + mesma matrícula + mesmo dia conta 1 vez
         const planosVistos = new Set();
         const grupos = {};
@@ -321,6 +333,7 @@ const SaudeUnidadeTab = ({
                 if (decomposto.nutri) tot[lado].NUTRI += qtd;
             } else {
                 tot[lado][cat] += qtd;
+                if (cat === 'PRODUTO') tot[lado].foraMeta += Math.max(0, qtd - qtdValidaProduto(v, dosesValidas));
             }
             tot[lado].itens += qtd;
             tot[lado].comissao += comissao;
@@ -381,7 +394,7 @@ const SaudeUnidadeTab = ({
 
         return { tot, totalAtual, totalAntes, listaItens, grupos: Object.values(grupos), evolucao, tipoGrupo, avisos };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- categoriaDe só depende do mapaCatalogo
-    }, [periodos, doBanco, vendas, unidadeFixa, unidadesPermitidas, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, mapaCatalogo, membrosEquipe]);
+    }, [periodos, doBanco, vendas, unidadeFixa, unidadesPermitidas, vendedoresOcultos, planosOcultos, produtosOcultos, servicosOcultos, mapaCatalogo, membrosEquipe, dosesValidas]);
 
     // Tabela de itens
     const [categoria, setCategoria] = useState('PLANO');
@@ -480,6 +493,12 @@ const SaudeUnidadeTab = ({
                         <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx(nome)}</span>
                         <span className="text-base font-black text-slate-700 tabular-nums dark:text-slate-200">{d.tot.atual[cat]}</span>
                         <Variacao valor={variacao(d.tot.atual[cat], d.tot.antes[cat])} />
+                        {cat === 'PRODUTO' && d.tot.atual.foraMeta > 0 && (
+                            <span className="self-center h-5 px-1.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black inline-flex items-center dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
+                                title={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })}>
+                                {tx('{qtd} fora da meta', { qtd: d.tot.atual.foraMeta })}
+                            </span>
+                        )}
                     </div>
                 ))}
                 {/* Nutri é adicional: aparece à parte, não soma nos planos */}
