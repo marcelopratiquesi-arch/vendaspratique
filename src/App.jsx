@@ -10,6 +10,7 @@ import {
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import IdleCurtain from './components/layout/IdleCurtain.jsx';
+import { MINUTOS_PARA_PAUSAR, SEGUNDOS_DE_AVISO, pausarSistema, sistemaPausado } from './components/pausaSistema.js';
 import BlockingGate from './components/BlockingGate/index.jsx';
 
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
@@ -58,6 +59,7 @@ export default function App() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
     const [isIdle, setIsIdle] = useState(false); 
+    const [segundosParaPausar, setSegundosParaPausar] = useState(null); // null = sem aviso de pausa
     
     // Estados de Seleção de Aluno
     const [alunoPreSelecionado, setAlunoPreSelecionado] = useState(null);
@@ -209,18 +211,40 @@ export default function App() {
         return () => { raiz.style.zoom = ''; };
     }, [usuarioLogado]);
 
+    // Inatividade (decisão do dono, 07/11/2026): 30 min sem uso = PAUSA de verdade (desliga o "ao vivo" e as
+    // releituras do banco). No último minuto aparece o cartão com contagem regressiva; mexer cancela.
+    // Conta pelo relógio (e confere ao voltar para a aba), porque aba minimizada atrasa os temporizadores.
     useEffect(() => {
-        let timeoutId;
-        const resetTimer = () => {
-            clearTimeout(timeoutId);
-            if (!isIdle) timeoutId = setTimeout(() => setIsIdle(true), 30 * 60 * 1000);
+        if (isIdle) return undefined;
+        const LIMITE = MINUTOS_PARA_PAUSAR * 60 * 1000;
+        const AVISO = SEGUNDOS_DE_AVISO * 1000;
+        let ultimaAtividade = Date.now();
+        const conferir = () => {
+            const parado = Date.now() - ultimaAtividade;
+            if (parado >= LIMITE) {
+                pausarSistema();
+                setSegundosParaPausar(null);
+                setIsIdle(true);
+                return;
+            }
+            const falta = LIMITE - parado;
+            setSegundosParaPausar(falta <= AVISO ? Math.ceil(falta / 1000) : null);
         };
-        const eventos = ['mousemove', 'keydown', 'scroll', 'touchstart', 'click'];
-        eventos.forEach(evento => window.addEventListener(evento, resetTimer));
-        resetTimer();
+        const marcarAtividade = () => {
+            if (document.hidden) return;
+            // Voltou depois do limite (ex.: aba minimizada): pausa em vez de contar como uso
+            if (Date.now() - ultimaAtividade >= LIMITE) { conferir(); return; }
+            ultimaAtividade = Date.now();
+            setSegundosParaPausar(null);
+        };
+        const eventos = ['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart', 'click'];
+        eventos.forEach(evento => window.addEventListener(evento, marcarAtividade, { passive: true }));
+        document.addEventListener('visibilitychange', conferir);
+        const relogio = setInterval(conferir, 1000);
         return () => {
-            clearTimeout(timeoutId);
-            eventos.forEach(evento => window.removeEventListener(evento, resetTimer));
+            clearInterval(relogio);
+            document.removeEventListener('visibilitychange', conferir);
+            eventos.forEach(evento => window.removeEventListener(evento, marcarAtividade));
         };
     }, [isIdle]);
 
@@ -230,6 +254,7 @@ export default function App() {
         let timerAgenda = null;
 
         const syncComunicados = async () => {
+            if (sistemaPausado()) return; // pausado por inatividade: não vai ao banco
             try {
                 const { data: authData, error: authError } = await supabase.auth.getUser();
                 if (authError || !authData?.user?.email || !isMounted) return;
@@ -610,7 +635,7 @@ export default function App() {
     return (
         <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
             
-            <IdleCurtain isIdle={isIdle} />
+            <IdleCurtain isIdle={isIdle} segundosParaPausar={segundosParaPausar} />
 
             {/* Central de cobranças (decisão do dono, 05/11/2026): Líder e Mentor ganham a janela ao entrar e o cartão
                 do canto (Conferência, Movimentação e Metas). O Admin cobra pela aba Pendências. */}

@@ -5,6 +5,10 @@ import './index.css'
 import { I18nProvider } from './i18n/I18nContext.jsx' // 🔥 INJETANDO O CÉREBRO
 import { CentralDeAvisos } from './components/Avisos.jsx'
 import AvisoVersaoNova from './components/AvisoVersaoNova.jsx'
+import { limparMarcaDeAtualizacao } from './components/pausaSistema.js'
+
+// Veio de "recarregar na versão mais nova": tira a marca ?atualizado= do endereço
+limparMarcaDeAtualizacao()
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -3063,4 +3063,9 @@ export default {
     "Carteiras organizadas: {banco} contato(s) parado(s) voltaram para o Banco Bruto e {gel} foram para a Geladeira (sem resposta).": "Portfolios organized: {banco} idle contact(s) went back to the Raw Base and {gel} went to the Cooler (no answer).",
     "{qtd} pessoas": "{qtd} people",
     "Pessoas contatadas hoje (meta: {meta} por recepcionista)": "People contacted today (goal: {meta} per receptionist)",
+    "O sistema vai pausar em {seg} s": "The system will pause in {seg} s",
+    "Sem uso há quase 30 minutos. Mexa o mouse ou aperte qualquer tecla para continuar.": "Unused for almost 30 minutes. Move the mouse or press any key to continue.",
+    "Ao continuar, o sistema abre já na versão mais nova.": "When you continue, the system opens on the newest version.",
+    "Recarregar agora": "Reload now",
+    "Se estiver no meio de um lançamento, termine e salve antes.": "If you are in the middle of an entry, finish and save it first.",
 };

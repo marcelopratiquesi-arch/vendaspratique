@@ -36,7 +36,7 @@ export default {
     "header.signOut": "Sair",
 
     "idle.title": "Sessão Inativa",
-    "idle.description": "Por motivos de segurança e para garantir a sincronização em tempo real do banco de dados, o sistema foi pausado após 15 minutos sem uso.",
+    "idle.description": "Por motivos de segurança e para garantir a sincronização em tempo real do banco de dados, o sistema foi pausado após 30 minutos sem uso.",
     "idle.button": "Atualizar Sistema Agora",
 
     // SIDEBAR E TOPBAR

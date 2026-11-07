@@ -14,6 +14,7 @@
 // ==========================================
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../../supabaseClient.js';
+import { sistemaPausado } from '../../components/pausaSistema.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
 import { INICIO_COBRANCA_CONFERENCIA, semanaDaVenda, ultimaSextaVencida } from '../FechamentoCaixa/cobrancaAuditoria.js';
 import { buscarEnviosRelatorio, buscarConferenciasRelatorio, pendenciasRelatorio, nomesDoTurno, situacaoRelatorioDias } from './relatorioFechamento.js';
@@ -233,7 +234,7 @@ export const usePendencias = ({ ativo, unidades = [], colaboradores = [] }) => {
             .subscribe();
         // Conferiu no grupo / a recepção enviou nesta tela: recarrega na hora
         window.addEventListener('relatorio-fechamento-enviado', recarregar);
-        const intervalo = setInterval(recarregar, 10 * 60 * 1000);
+        const intervalo = setInterval(() => { if (!sistemaPausado()) recarregar(); }, 10 * 60 * 1000); // pausado por inatividade: não relê
         // Relógio de 1 minuto: às 7h a movimentação de hoje entra na cobrança; à meia-noite vira o dia
         const relogio = setInterval(() => setAgora(new Date()), 60 * 1000);
         return () => { clearTimeout(timer.current); supabase.removeChannel(canal); clearInterval(intervalo); clearInterval(relogio); window.removeEventListener('relatorio-fechamento-enviado', recarregar); };

@@ -9,6 +9,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Send, X } from 'lucide-react';
 import { supabase } from '../../supabaseClient.js';
+import { sistemaPausado } from '../../components/pausaSistema.js';
 import { tx } from '../../i18n/traduzir.js';
 import { turnosDoDia, situacaoDoTurno, nomesDoTurno, INICIO_COBRANCA_RELATORIO, ROTULO_TURNO } from './relatorioFechamento.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
@@ -37,7 +38,7 @@ const CobrancaRelatorioRecepcao = ({ usuario, colaboradores = [], aoIrRelatorio 
         if (!ehRecepcao || !unidade) return undefined;
         ler();
         const relogio = setInterval(() => setAgora(new Date()), 30 * 1000);
-        const releitura = setInterval(ler, 5 * 60 * 1000);
+        const releitura = setInterval(() => { if (!sistemaPausado()) ler(); }, 5 * 60 * 1000); // pausado por inatividade: não relê
         const aoEnviar = () => ler();
         window.addEventListener('relatorio-fechamento-enviado', aoEnviar);
         const canal = supabase.channel(`relatorio-recepcao-${Math.random().toString(36).slice(2, 8)}`)

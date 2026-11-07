@@ -38,7 +38,7 @@ export default {
     "header.signOut": "Cerrar sesión",
 
     "idle.title": "Sesión inactiva",
-    "idle.description": "Por seguridad, y para mantener la base de datos sincronizada en tiempo real, el sistema se pausó después de 15 minutos sin uso.",
+    "idle.description": "Por seguridad, y para mantener la base de datos sincronizada en tiempo real, el sistema se pausó después de 30 minutos sin uso.",
     "idle.button": "Actualizar el sistema ahora",
 
     // SIDEBAR

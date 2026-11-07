@@ -36,7 +36,7 @@ export default {
     "header.signOut": "Sign Out",
 
     "idle.title": "Inactive Session",
-    "idle.description": "For security reasons and to guarantee real-time database synchronization, the system was paused after 15 minutes of inactivity.",
+    "idle.description": "For security reasons and to guarantee real-time database synchronization, the system was paused after 30 minutes of inactivity.",
     "idle.button": "Update System Now",
 
     // SIDEBAR

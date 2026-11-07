@@ -3063,4 +3063,9 @@ export default {
     "Carteiras organizadas: {banco} contato(s) parado(s) voltaram para o Banco Bruto e {gel} foram para a Geladeira (sem resposta).": "Carteras organizadas: {banco} contacto(s) parado(s) volvieron al Banco Bruto y {gel} fueron a la Heladera (sin respuesta).",
     "{qtd} pessoas": "{qtd} personas",
     "Pessoas contatadas hoje (meta: {meta} por recepcionista)": "Personas contactadas hoy (meta: {meta} por recepcionista)",
+    "O sistema vai pausar em {seg} s": "El sistema se va a pausar en {seg} s",
+    "Sem uso há quase 30 minutos. Mexa o mouse ou aperte qualquer tecla para continuar.": "Sin uso hace casi 30 minutos. Mové el mouse o apretá cualquier tecla para seguir.",
+    "Ao continuar, o sistema abre já na versão mais nova.": "Al seguir, el sistema abre ya en la versión más nueva.",
+    "Recarregar agora": "Recargar ahora",
+    "Se estiver no meio de um lançamento, termine e salve antes.": "Si estás en medio de una carga, terminala y guardala antes.",
 };
