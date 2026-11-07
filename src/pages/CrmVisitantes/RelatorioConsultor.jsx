@@ -19,6 +19,7 @@ const TIPOS = [
     { chave: 'VISITANTE_24H', rotulo: 'Visitante 24h', cor: 'text-blue-600 dark:text-blue-400' },
     { chave: 'VISITANTE_48H', rotulo: 'Visitante 48h', cor: 'text-amber-600 dark:text-amber-400' },
     { chave: 'MIGRACAO', rotulo: 'Migração', cor: 'text-emerald-600 dark:text-emerald-400' },
+    { chave: 'RESGATE', rotulo: 'Resgate', cor: 'text-teal-600 dark:text-teal-400' },
     { chave: 'CANCELADO', rotulo: 'Cancelados', cor: 'text-rose-600 dark:text-rose-400' },
     { chave: 'INATIVO', rotulo: 'Inativos', cor: 'text-orange-600 dark:text-orange-400' },
     { chave: 'CANCELADO_INATIVO_ANTIGO', rotulo: 'Cancelado/Inativo (antigo)', cor: 'text-orange-500 dark:text-orange-300', soSeTiver: true },
@@ -195,7 +196,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
             )}
 
             {/* TOTAIS POR TIPO (clicar filtra a lista) */}
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+            <div className="p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
                 <button type="button" onClick={() => setTipoFiltro('')} className={`text-left rounded-xl border p-3 transition-all ${!tipoFiltro ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/30'}`}>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Todos")}</p>
                     <p className="text-2xl font-black text-slate-800 dark:text-white">{daPessoa.length}</p>

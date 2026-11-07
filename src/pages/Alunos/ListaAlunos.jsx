@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     ArrowUpDown, ArrowUp, ArrowDown, Users, AlertCircle, RefreshCw, 
     ChevronLeft, ChevronRight, ShoppingCart, Dumbbell, UserRoundPen, Trash2,
@@ -76,6 +76,14 @@ const getCorPlano = (nomePlano) => {
     return mapCoresPlanos.DEFAULT;
 };
 
+// Situação do aluno (07/11/2026): cor da etiqueta pelo status vindo da importação do Cadastro
+const corSituacao = (s) => {
+    if (['ATIVO', 'CLIENTE'].includes(s)) return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
+    if (['FINALIZADO', 'CANCELADO', 'BLOQUEADO'].includes(s)) return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30';
+    if (s === 'VISITANTE') return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30';
+    return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
+};
+
 const CabecalhoOrdenavel = ({ coluna, label, ordemColuna, ordemDirecao, onOrdenar, className = '' }) => {
     const ativo = ordemColuna === coluna;
     return (
@@ -99,18 +107,53 @@ const CabecalhoOrdenavel = ({ coluna, label, ordemColuna, ordemDirecao, onOrdena
     );
 };
 
+// Ordenações oferecidas no "Ordenar por" (as colunas que saíram da tabela continuam ordenáveis por aqui)
+const OPCOES_ORDEM = [
+    ['nome|ASC', 'Nome (A → Z)'], ['nome|DESC', 'Nome (Z → A)'],
+    ['cadastro|DESC', 'Cadastro mais recente'], ['cadastro|ASC', 'Cadastro mais antigo'],
+    ['cpf|ASC', 'CPF'], ['telefone|ASC', 'Telefone'], ['email|ASC', 'E-mail'],
+    ['unidade|ASC', 'Unidade'], ['situacao|ASC', 'Situação'], ['plano|ASC', 'Plano'],
+];
+
+// Altura da tabela: acompanha a tela (o sistema inteiro está com zoom 0,8, por isso 125vh = altura da janela)
+const ALTURA_TABELA = 'calc(125vh - 400px)';
+
 const ListaAlunos = ({
     alunos = [], totalCount = 0, loading = false, erro = null,
     onTentarNovamente, onLimparFiltros, ehAdmin = false,
     unidadeMinha = '', avisoLimite = '',
-    ordemColuna = 'nome', ordemDirecao = 'ASC', onOrdenar,
+    ordemColuna = 'nome', ordemDirecao = 'ASC', onOrdenar, onDefinirOrdem,
     pagina = 1, setPagina, itensPorPagina = 25, setItensPorPagina,
-    onSelecionarAluno, onEditarAluno, onExcluirAluno, 
-    onIniciarVendaAluno, onIniciarAvaliacaoAluno, onToastCopiado
+    onSelecionarAluno, onEditarAluno, onExcluirAluno,
+    onIniciarVendaAluno, onIniciarAvaliacaoAluno, onToastCopiado,
+    resumo = null, filtroSituacao = 'TODAS', onFiltrarSituacao
 }) => {
     const totalPaginas = Math.max(1, Math.ceil(totalCount / itensPorPagina));
     const inicioItem = totalCount === 0 ? 0 : (pagina - 1) * itensPorPagina + 1;
     const fimItem = Math.min(pagina * itensPorPagina, totalCount);
+
+    // Barra de rolagem lateral também EM CIMA da tabela (sincronizada com a de baixo)
+    const corpoRef = useRef(null);
+    const topoRef = useRef(null);
+    const tabelaRef = useRef(null);
+    const [larguraTabela, setLarguraTabela] = useState(0);
+    const [rolagemLateral, setRolagemLateral] = useState(false);
+    useEffect(() => {
+        const corpo = corpoRef.current;
+        const tabela = tabelaRef.current;
+        if (!corpo || !tabela) return undefined;
+        const medir = () => {
+            setLarguraTabela(tabela.scrollWidth);
+            setRolagemLateral(tabela.scrollWidth > corpo.clientWidth + 1);
+        };
+        medir();
+        if (typeof ResizeObserver === 'undefined') return undefined;
+        const observador = new ResizeObserver(medir);
+        observador.observe(corpo);
+        observador.observe(tabela);
+        return () => observador.disconnect();
+    }, [alunos, loading, erro]);
+    const igualar = (de, para) => { if (de && para && Math.abs(de.scrollLeft - para.scrollLeft) > 1) para.scrollLeft = de.scrollLeft; };
 
     if (erro) {
         return (
@@ -127,22 +170,80 @@ const ListaAlunos = ({
         );
     }
 
+    // Faixa de resumo (C): clicar filtra pela situação
+    const numero = (n) => (n == null ? '…' : Number(n).toLocaleString(localeAtual()));
+    const itensResumo = [
+        { filtro: 'TODAS', valor: resumo?.total, rotulo: tx("alunos"), cor: 'text-slate-800 dark:text-white' },
+        { filtro: 'ATIVOS', valor: resumo?.ativos, rotulo: tx("ativos"), cor: 'text-emerald-600 dark:text-emerald-400' },
+        { filtro: 'NAO_ATIVOS', valor: resumo?.naoAtivos, rotulo: tx("não ativos"), cor: 'text-rose-600 dark:text-rose-400' },
+        { filtro: 'SEM', valor: resumo?.sem, rotulo: tx("sem situação"), cor: 'text-slate-500 dark:text-slate-400' },
+    ];
+    const valorOrdem = `${ordemColuna}|${ordemDirecao}`;
+    const opcoesOrdem = OPCOES_ORDEM.some(([v]) => v === valorOrdem)
+        ? OPCOES_ORDEM
+        : [...OPCOES_ORDEM, [valorOrdem, `${tx(ordemColuna)} ${ordemDirecao === 'DESC' ? '↓' : '↑'}`]];
+
+    const thFixo = 'px-5 py-3.5 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800';
+
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
-            <div className="overflow-x-auto custom-scrollbar max-h-[65vh]">
-                <table className="w-full text-left border-collapse min-w-[1050px]">
+            {/* RESUMO + ORDENAR POR */}
+            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-1">
+                    {itensResumo.map((it, i) => {
+                        const ativo = filtroSituacao === it.filtro;
+                        return (
+                            <React.Fragment key={it.filtro}>
+                                {i > 0 && <span className="text-slate-300 dark:text-slate-700 px-0.5">·</span>}
+                                <button
+                                    type="button"
+                                    onClick={() => onFiltrarSituacao?.(ativo && it.filtro !== 'TODAS' ? 'TODAS' : it.filtro)}
+                                    title={it.filtro === 'TODAS' ? tx("Mostrar todas as situações") : tx("Filtrar por esta situação")}
+                                    className={`px-2 py-1 rounded-lg flex items-baseline gap-1.5 transition-colors ${ativo ? 'bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}
+                                >
+                                    <span className={`text-base font-black leading-none ${it.cor}`}>{numero(it.valor)}</span>
+                                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{it.rotulo}</span>
+                                </button>
+                            </React.Fragment>
+                        );
+                    })}
+                </div>
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    {tx("Ordenar por")}
+                    <select
+                        value={valorOrdem}
+                        onChange={(e) => { const [col, dir] = e.target.value.split('|'); onDefinirOrdem?.(col, dir); }}
+                        className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                        {opcoesOrdem.map(([v, r]) => <option key={v} value={v}>{tx(r)}</option>)}
+                    </select>
+                </label>
+            </div>
+
+            {/* BARRA DE ROLAGEM DE CIMA (só quando a tabela não cabe na largura) */}
+            {rolagemLateral && (
+                <div ref={topoRef} onScroll={() => igualar(topoRef.current, corpoRef.current)} className="overflow-x-auto overflow-y-hidden rolagem-grossa border-b border-slate-100 dark:border-slate-800">
+                    <div style={{ width: larguraTabela, height: 1 }} />
+                </div>
+            )}
+
+            <div
+                ref={corpoRef}
+                onScroll={() => igualar(corpoRef.current, topoRef.current)}
+                className="overflow-auto rolagem-grossa"
+                style={{ maxHeight: ALTURA_TABELA, minHeight: 280 }}
+            >
+                <table ref={tabelaRef} className="w-full text-left border-collapse min-w-[860px]">
                     <thead className="bg-slate-50 dark:bg-slate-800/90 sticky top-0 z-30 backdrop-blur">
                         <tr>
-                            <CabecalhoOrdenavel coluna="nome" label={tx("Aluno")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} className="sticky left-0 bg-slate-50 dark:bg-slate-800/90 z-30 w-[280px]" />
-                            <CabecalhoOrdenavel coluna="cpf" label="CPF" ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="email" label={tx("E-mail")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="telefone" label={tx("Telefone")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="nome" label={tx("Aluno")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} className="sticky left-0 bg-slate-50 dark:bg-slate-800/90 z-30 w-[300px]" />
+                            <th className={thFixo}>{tx("Contato")}</th>
                             {/* Unidade sempre visível: a busca é na rede inteira (regra 8 do CLAUDE.md) */}
                             <CabecalhoOrdenavel coluna="unidade" label={tx("Unidade")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
+                            <CabecalhoOrdenavel coluna="situacao" label={tx("Situação")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
                             <CabecalhoOrdenavel coluna="plano" label={tx("Plano")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            <CabecalhoOrdenavel coluna="cadastro" label={tx("Cadastro")} ordemColuna={ordemColuna} ordemDirecao={ordemDirecao} onOrdenar={onOrdenar} />
-                            {/* 🔥 COLUNA DE AÇÕES STICKY À DIREITA */}
-                            <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 border-b border-slate-200 dark:border-slate-800 text-right sticky right-0 bg-slate-50 dark:bg-slate-800/90 z-30 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">{tx("Ações")}</th>
+                            {/* COLUNA DE AÇÕES FIXA À DIREITA */}
+                            <th className={`${thFixo} text-right sticky right-0 bg-slate-50 dark:bg-slate-800/90 z-30 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]`}>{tx("Ações")}</th>
                         </tr>
                     </thead>
 
@@ -150,19 +251,17 @@ const ListaAlunos = ({
                         {loading ? (
                             Array.from({ length: 8 }).map((_, idx) => (
                                 <tr key={idx} className="animate-pulse">
-                                    <td className="px-5 py-4"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" /><div className="space-y-2 flex-1"><div className="h-3.5 w-32 bg-slate-200 dark:bg-slate-800 rounded" /><div className="h-2 w-16 bg-slate-100 dark:bg-slate-800/60 rounded" /></div></div></td>
-                                    <td className="px-5 py-4"><div className="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                                    <td className="px-5 py-4"><div className="h-3 w-36 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                                    <td className="px-5 py-4"><div className="h-3 w-24 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                                    <td className="px-5 py-4"><div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                                    <td className="px-5 py-4"><div className="space-y-2"><div className="h-4 w-20 bg-slate-200 dark:bg-slate-800 rounded" /><div className="h-2 w-16 bg-slate-100 dark:bg-slate-800/60 rounded" /></div></td>
-                                    <td className="px-5 py-4"><div className="h-3 w-20 bg-slate-200 dark:bg-slate-800 rounded" /></td>
-                                    <td className="px-5 py-4 text-right sticky right-0 bg-white dark:bg-slate-900 z-10 border-l border-slate-100 dark:border-slate-800/60 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]"><div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded ml-auto" /></td>
+                                    <td className="px-5 py-3.5"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 shrink-0" /><div className="space-y-2 flex-1"><div className="h-3.5 w-40 bg-slate-200 dark:bg-slate-800 rounded" /><div className="h-2 w-28 bg-slate-100 dark:bg-slate-800/60 rounded" /></div></div></td>
+                                    <td className="px-5 py-3.5"><div className="space-y-2"><div className="h-3 w-28 bg-slate-200 dark:bg-slate-800 rounded" /><div className="h-2 w-36 bg-slate-100 dark:bg-slate-800/60 rounded" /></div></td>
+                                    <td className="px-5 py-3.5"><div className="h-5 w-20 bg-slate-200 dark:bg-slate-800 rounded" /></td>
+                                    <td className="px-5 py-3.5"><div className="h-5 w-16 bg-slate-200 dark:bg-slate-800 rounded" /></td>
+                                    <td className="px-5 py-3.5"><div className="space-y-2"><div className="h-4 w-20 bg-slate-200 dark:bg-slate-800 rounded" /><div className="h-2 w-16 bg-slate-100 dark:bg-slate-800/60 rounded" /></div></td>
+                                    <td className="px-5 py-3.5 text-right sticky right-0 bg-white dark:bg-slate-900 z-10 border-l border-slate-100 dark:border-slate-800/60"><div className="h-8 w-24 bg-slate-200 dark:bg-slate-800 rounded ml-auto" /></td>
                                 </tr>
                             ))
                         ) : alunos.length === 0 ? (
                             <tr>
-                                <td colSpan={8}className="py-24 text-center">
+                                <td colSpan={6} className="py-24 text-center">
                                     <div className="flex flex-col items-center">
                                         <div className="w-12 h-12 rounded-full bg-slate-50 dark:bg-slate-800 text-slate-300 dark:text-slate-500 flex items-center justify-center mb-3 border border-slate-100 dark:border-slate-700"><Users className="w-5 h-5" /></div>
                                         <p className="text-sm font-black text-slate-600 dark:text-slate-300 uppercase">{tx("Nenhum aluno encontrado")}</p>
@@ -175,6 +274,7 @@ const ListaAlunos = ({
                                 const matriculaValida = aluno.matricula && String(aluno.matricula).toUpperCase() !== 'VISITANTE' ? aluno.matricula : '';
                                 const planoClass = getCorPlano(aluno.ultimo_plano);
                                 const avatarColor = getAvatarColor(aluno.nome);
+                                const cadastro = aluno.created_at ? tx("Cadastrado no sistema em {data}", { data: formatarDataBR(aluno.created_at) }) : '';
 
                                 return (
                                     <tr
@@ -182,8 +282,8 @@ const ListaAlunos = ({
                                         onClick={() => onSelecionarAluno(aluno)}
                                         className="group/row hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
                                     >
-                                        {/* A) HIERARQUIA VISUAL DO ALUNO COM AVATAR DINÂMICO */}
-                                        <td className="px-5 py-4 sticky left-0 bg-white dark:bg-slate-900 group-hover/row:bg-slate-50 dark:group-hover/row:bg-slate-800/90 transition-colors z-10 border-r border-slate-100 dark:border-slate-800/60">
+                                        {/* ALUNO: nome, matrícula e CPF (o CPF saiu da coluna própria) */}
+                                        <td className="px-5 py-3.5 sticky left-0 bg-white dark:bg-slate-900 group-hover/row:bg-slate-50 dark:group-hover/row:bg-slate-800/90 transition-colors z-10 border-r border-slate-100 dark:border-slate-800/60">
                                             <div className="flex items-center gap-3.5">
                                                 {aluno.foto_url ? (
                                                     <img src={aluno.foto_url} alt={aluno.nome} className="w-8 h-8 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0" />
@@ -193,50 +293,57 @@ const ListaAlunos = ({
                                                     </div>
                                                 )}
                                                 <div className="flex flex-col min-w-0 justify-center">
-                                                    <div className="flex items-center gap-1.5 group/cell">
-                                                        <span className="text-sm font-black text-slate-800 dark:text-slate-100 truncate group-hover/row:text-blue-600 dark:group-hover/row:text-blue-400 transition-colors uppercase">
+                                                    <div className="flex items-center gap-1 group/cell">
+                                                        <span className="text-sm font-black text-slate-800 dark:text-slate-100 truncate max-w-[230px] group-hover/row:text-blue-600 dark:group-hover/row:text-blue-400 transition-colors uppercase" title={[aluno.nome, cadastro].filter(Boolean).join('\n')}>
                                                             {aluno.nome}
                                                         </span>
                                                         <BotaoCopiarPadrao valor={aluno.nome} apenasDigitos={false} label={tx("Copiar nome")} onCopiado={onToastCopiado} />
                                                     </div>
-                                                    {matriculaValida && (
-                                                        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
-                                                            {tx("Mat.")}{' '}{matriculaValida}
-                                                        </span>
-                                                    )}
+                                                    <div className="flex items-center gap-1 mt-0.5 group/cell text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">
+                                                        {matriculaValida && <span className="uppercase">{tx("Mat.")}{' '}{matriculaValida}</span>}
+                                                        {matriculaValida && aluno.cpf && <span className="text-slate-300 dark:text-slate-700">·</span>}
+                                                        {aluno.cpf ? <span className="font-mono">{formatarCPF(aluno.cpf)}</span> : <span>{tx("sem CPF")}</span>}
+                                                        <BotaoCopiarPadrao valor={aluno.cpf} apenasDigitos={true} label={tx("Copiar CPF")} onCopiado={onToastCopiado} />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
 
-                                        {/* OUTRAS COLUNAS (TEXTO MAIS FORTE - ACESSIBILIDADE WCAG) */}
-                                        <td className="px-5 py-4 whitespace-nowrap group/cell">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="font-mono text-[13px] font-semibold text-slate-600 dark:text-slate-300">{formatarCPF(aluno.cpf)}</span>
-                                                <BotaoCopiarPadrao valor={aluno.cpf} apenasDigitos={true} label={tx("Copiar CPF")} onCopiado={onToastCopiado} />
+                                        {/* CONTATO: telefone em cima, e-mail embaixo (cada um com copiar) */}
+                                        <td className="px-5 py-3.5 max-w-[240px]">
+                                            <div className="flex items-center gap-1 group/cell">
+                                                <span className="font-mono text-[13px] font-semibold text-slate-700 dark:text-slate-200 whitespace-nowrap">{aluno.telefone ? formatarTelefone(aluno.telefone) : '—'}</span>
+                                                <BotaoCopiarPadrao valor={aluno.telefone} apenasDigitos={true} label={tx("Copiar telefone")} onCopiado={onToastCopiado} />
                                             </div>
-                                        </td>
-                                        <td className="px-5 py-4 max-w-[200px] group/cell">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-[13px] font-medium text-slate-600 dark:text-slate-300 truncate lowercase" title={aluno.email || ''}>{aluno.email || '—'}</span>
+                                            <div className="flex items-center gap-1 group/cell mt-0.5 min-w-0">
+                                                <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 truncate lowercase" title={aluno.email || ''}>{aluno.email || tx("sem e-mail")}</span>
                                                 <BotaoCopiarPadrao valor={aluno.email} apenasDigitos={false} label={tx("Copiar e-mail")} onCopiado={onToastCopiado} />
                                             </div>
                                         </td>
-                                        <td className="px-5 py-4 whitespace-nowrap group/cell">
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="font-mono text-[13px] font-semibold text-slate-600 dark:text-slate-300">{formatarTelefone(aluno.telefone)}</span>
-                                                <BotaoCopiarPadrao valor={aluno.telefone} apenasDigitos={true} label={tx("Copiar telefone")} onCopiado={onToastCopiado} />
-                                            </div>
-                                        </td>
 
-                                        <td className="px-5 py-4 max-w-[220px]">
+                                        <td className="px-5 py-3.5 max-w-[200px]">
                                             <EtiquetasUnidade unidades={aluno.unidades || (aluno.unidade ? [aluno.unidade] : [])} unidadeMinha={unidadeMinha} />
                                         </td>
 
-                                        {/* B) PLANO (BADGE COM CORES HARMÔNICAS) */}
-                                        <td className="px-5 py-4">
+                                        {/* SITUAÇÃO (07/11/2026): vem da importação do Cadastro → Alunos */}
+                                        <td className="px-5 py-3.5 whitespace-nowrap">
+                                            {aluno.situacao ? (
+                                                <span
+                                                    className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${corSituacao(aluno.situacao)}`}
+                                                    title={aluno.situacao_desde ? tx("Situação desde {data}", { data: new Date(aluno.situacao_desde).toLocaleDateString(localeAtual()) }) : ''}
+                                                >
+                                                    {aluno.situacao}
+                                                </span>
+                                            ) : (
+                                                <span className="text-[13px] font-medium text-slate-300 dark:text-slate-600 cursor-help" title={tx("Ainda sem situação: importe a lista em Cadastro → Alunos")}>—</span>
+                                            )}
+                                        </td>
+
+                                        {/* PLANO */}
+                                        <td className="px-5 py-3.5">
                                             {aluno.ultimo_plano ? (
                                                 <div className="flex flex-col items-start">
-                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${planoClass} max-w-[160px] truncate`} title={aluno.ultimo_plano}>
+                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${planoClass} max-w-[170px] truncate`} title={aluno.ultimo_plano}>
                                                         {aluno.ultimo_plano}
                                                     </span>
                                                     {aluno.ultimo_plano_data && (
@@ -248,12 +355,8 @@ const ListaAlunos = ({
                                             )}
                                         </td>
 
-                                        <td className="px-5 py-4 whitespace-nowrap">
-                                            <span className="text-[13px] font-medium text-slate-600 dark:text-slate-300">{formatarDataBR(aluno.created_at)}</span>
-                                        </td>
-
-                                        {/* C) AÇÕES FIXAS À DIREITA (STICKY) */}
-                                        <td className="px-5 py-4 text-right sticky right-0 bg-white dark:bg-slate-900 group-hover/row:bg-slate-50 dark:group-hover/row:bg-slate-800/90 transition-colors z-10 border-l border-slate-100 dark:border-slate-800/60 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
+                                        {/* AÇÕES FIXAS À DIREITA */}
+                                        <td className="px-5 py-3.5 text-right sticky right-0 bg-white dark:bg-slate-900 group-hover/row:bg-slate-50 dark:group-hover/row:bg-slate-800/90 transition-colors z-10 border-l border-slate-100 dark:border-slate-800/60 shadow-[-10px_0_15px_-3px_rgba(0,0,0,0.02)]">
                                             <div className="inline-flex items-center justify-end gap-1">
                                                 {onIniciarVendaAluno && (
                                                     <button

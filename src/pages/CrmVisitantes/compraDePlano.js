@@ -88,10 +88,9 @@ export const aplicarDecisoes = async (decisoes, origem = 'Nova Venda') => {
         const observacao = d.acao === 'FECHAR'
             ? `Movido de "${faseAntiga}" para "Fechado" (automático: comprou ${compra.produto} em ${quando} · ${origem})`
             : `Movido de "${faseAntiga}" para "Arquivado" (automático: comprou ${compra.produto} no ${String(compra.unidade || '').toUpperCase()} em ${quando}). Saiu do CRM.`;
-        // Fechado conta para a recepcionista dona do contato; saída por compra em outra unidade não conta para ninguém
-        const consultor = d.acao === 'FECHAR'
-            ? (lead.puxado_por || (String(lead.origem || '').toUpperCase() === 'RECEPCAO' ? lead.vendedor : '') || 'Sistema')
-            : 'Sistema';
+        // Decisão do dono (07/11/2026): quem comprou sai do funil SEM contar como venda nem meta de ninguém
+        // (antes o "Fechado" ia para a recepcionista dona do contato e contava como contato na meta dela).
+        const consultor = 'Sistema';
         await supabase.from('historico_leads').insert([{ lead_id: String(lead.id), tipo_acao: 'Mudança de Fase', consultor, observacao }]);
         feitas.push({ ...d, campos });
     }

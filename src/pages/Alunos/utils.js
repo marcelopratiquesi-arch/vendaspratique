@@ -73,6 +73,76 @@ export const copiarTextoSeguro = async (valor, apenasDigitos = false) => {
 };
 
 // ==========================================
+// SITUAÇÃO DO ALUNO (decisão do dono, 07/11/2026): vem da importação do Cadastro (alunos.status_aluno).
+// Filtro da Central de Alunos: TODAS · ATIVOS (ATIVO/CLIENTE) · NAO_ATIVOS · SEM (nunca importado) · status exato.
+// O banco filtra pela função listar_alunos_360 (sql/2026-11-07-alunos-situacao); na busca pela rede, a tela filtra.
+// ==========================================
+export const SITUACOES_ATIVAS = ['ATIVO', 'CLIENTE'];
+export const OPCOES_SITUACAO = ['TODAS', 'ATIVOS', 'NAO_ATIVOS', 'INATIVO', 'FINALIZADO', 'CANCELADO', 'VISITANTE', 'SUSPENSO', 'TRANCADO', 'BLOQUEADO', 'SEM'];
+export const situacaoDoAluno = (aluno) => String(aluno?.situacao ?? aluno?.status_aluno ?? '').toUpperCase().trim();
+export const alunoCombinaSituacao = (aluno, filtro) => {
+    const f = String(filtro || 'TODAS').toUpperCase();
+    const s = situacaoDoAluno(aluno);
+    if (f === 'TODAS') return true;
+    if (f === 'ATIVOS') return SITUACOES_ATIVAS.includes(s);
+    if (f === 'NAO_ATIVOS') return Boolean(s) && !SITUACOES_ATIVAS.includes(s);
+    if (f === 'SEM') return !s;
+    return s === f;
+};
+// Deixa todo aluno com "situacao" e "situacao_desde", venha de onde vier (função do banco ou tabela alunos)
+const comSituacao = (a) => ({
+    ...a,
+    situacao: situacaoDoAluno(a),
+    situacao_desde: a?.situacao_desde ?? a?.status_atualizado_em ?? null,
+});
+// Função do banco ainda sem a situação (SQL de 07/11 não rodado): busca a situação dos alunos da página
+const anexarSituacao = async (lista, signal) => {
+    if (!lista.length || 'situacao' in lista[0] || 'status_aluno' in lista[0]) return lista.map(comSituacao);
+    let consulta = supabase.from('alunos').select('id, status_aluno, status_atualizado_em').in('id', lista.map(a => a.id).filter(Boolean));
+    if (signal && typeof consulta.abortSignal === 'function') consulta = consulta.abortSignal(signal);
+    const { data, error } = await consulta;
+    if (error) return lista.map(comSituacao);
+    const porId = new Map((data || []).map(d => [d.id, d]));
+    return lista.map(a => comSituacao({ ...a, ...(porId.get(a.id) || {}) }));
+};
+
+// Faixa de resumo da Central (07/11/2026): quantos alunos ativos, não ativos e sem situação com os MESMOS
+// filtros da tela (unidade, plano, período). Pede só a contagem ao banco (1 linha por consulta).
+// Devolve { total, ativos, naoAtivos, sem } ou null (banco sem o SQL de 07/11/2026 ou erro).
+export const contarSituacoesAlunos = async ({ unidade = 'TODAS', plano = 'TODOS', dataInicio = '', dataFim = '', roleUsuario = 'RECEPCAO', unidadeUsuario = '', signal = null }) => {
+    const contar = async (situacao) => {
+        let chamada = supabase.rpc('listar_alunos_360', {
+            p_busca: '', p_unidade: unidade || 'TODAS', p_plano: plano || 'TODOS',
+            p_data_inicio: dataInicio || null, p_data_fim: dataFim || null,
+            p_ordem_coluna: 'nome', p_ordem_direcao: 'ASC', p_pagina: 1, p_limite: 1,
+            p_role_usuario: roleUsuario || 'RECEPCAO', p_unidade_usuario: unidadeUsuario || '', p_situacao: situacao,
+        });
+        if (signal && typeof chamada.abortSignal === 'function') chamada = chamada.abortSignal(signal);
+        const { data, error } = await chamada;
+        if (error) throw error;
+        return data && data.length ? Number(data[0].total_count || 0) : 0;
+    };
+    try {
+        const [ativos, naoAtivos, sem] = await Promise.all([contar('ATIVOS'), contar('NAO_ATIVOS'), contar('SEM')]);
+        return { total: ativos + naoAtivos + sem, ativos, naoAtivos, sem };
+    } catch (e) {
+        if (!signal?.aborted) console.warn('Resumo da Central de Alunos indisponível:', e?.message || e);
+        return null;
+    }
+};
+// Mesma conta, feita na tela (busca pela rede inteira)
+export const resumirSituacoes = (lista = []) => {
+    const r = { total: lista.length, ativos: 0, naoAtivos: 0, sem: 0 };
+    lista.forEach(a => {
+        const s = situacaoDoAluno(a);
+        if (!s) r.sem++;
+        else if (SITUACOES_ATIVAS.includes(s)) r.ativos++;
+        else r.naoAtivos++;
+    });
+    return r;
+};
+
+// ==========================================
 // ⚡ MOTOR DE BUSCA NO SERVIDOR (RPC + FALLBACK SUPREMO GLOBAL)
 // ==========================================
 export const buscarAlunosPaginado = async ({
@@ -87,18 +157,22 @@ export const buscarAlunosPaginado = async ({
     limite = 25,
     roleUsuario = 'RECEPCAO',
     unidadeUsuario = '',
+    situacao = 'TODAS',
     signal = null
 }) => {
     const termoBusca = String(busca || '').trim();
     const termoNumerico = termoBusca.replace(/\D/g, '');
-    
+
     // Tenta adaptar o termo para a RPC (ex: formata o CPF automaticamente)
     let termoRpc = termoBusca;
     if (termoNumerico.length === 11 && !termoBusca.includes('-')) {
         termoRpc = termoNumerico.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
     }
 
+    // Situação: só manda quando há filtro (assim a tela funciona mesmo antes do SQL de 07/11/2026)
+    const filtrandoSituacao = String(situacao || 'TODAS').toUpperCase() !== 'TODAS';
     let rpcCall = supabase.rpc('listar_alunos_360', {
+        ...(filtrandoSituacao ? { p_situacao: String(situacao).toUpperCase() } : {}),
         p_busca: termoRpc,
         p_unidade: unidade || 'TODAS',
         p_plano: plano || 'TODOS',
@@ -119,6 +193,11 @@ export const buscarAlunosPaginado = async ({
     const { data, error } = await rpcCall;
     // Pedido cancelado de propósito (chegou um pedido mais novo): não é erro, não avisa no console
     if (signal?.aborted) return { alunos: [], totalCount: 0 };
+    if (error && filtrandoSituacao) {
+        // Banco ainda sem o filtro de situação: avisa a tela em vez de mostrar a lista sem filtrar
+        console.warn('listar_alunos_360 sem p_situacao — rode sql/2026-11-07-alunos-situacao', error.message);
+        return { alunos: [], totalCount: 0, faltaSqlSituacao: true };
+    }
     if (error) console.error("Erro na RPC listar_alunos_360:", error);
 
     let lista = data || [];
@@ -165,7 +244,7 @@ export const buscarAlunosPaginado = async ({
     }
 
     return {
-        alunos: lista,
+        alunos: await anexarSituacao(lista, signal),
         totalCount
     };
 };
@@ -399,7 +478,7 @@ export const buscarAlunosNaRede = async ({
         });
     });
 
-    const comUnidades = await anexarUnidades([...porId.values()], unidadeMinha, signal);
+    const comUnidades = (await anexarUnidades([...porId.values()], unidadeMinha, signal)).map(comSituacao);
     const porNome = (a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR');
     const ordenados = [
         ...comUnidades.filter(a => a.da_minha_unidade).sort(porNome),

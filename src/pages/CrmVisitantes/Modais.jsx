@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas, textoMensagemEnviada, rotuloMensagemDoLead } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas, textoMensagemEnviada, rotuloMensagemDoLead, dataLocalISO, diasParado, DIAS_PARADO_VERMELHO, ehVisitanteRecepcao, dataDaVisita } from './utils';
 import { carregarResumoDoDia } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
 import { 
@@ -19,7 +19,8 @@ const Modais = ({
     visitantes = [], setConsultorAtivo,
     onNaoContatar,
     onProximoContato,
-    aoEnviarWhatsApp
+    aoEnviarWhatsApp,
+    contatosDoDia = null
 }) => {
     const [novaNota, setNovaNota] = useState('');
     const [textoRelatorio, setTextoRelatorio] = useState('');
@@ -115,91 +116,118 @@ const Modais = ({
     // ==========================================
     // GERADOR DE RELATÓRIO DO TURNO
     // ==========================================
+    // Repaginado em 07/11/2026 (decisão do dono): curto, com o que importa em cima. Quem comprou plano e saiu
+    // sozinho do funil não aparece (não conta como venda nem meta de ninguém).
     const gerarRelatorioWhatsApp = (resumoDia = null) => {
         const validos = progressoHoje.filter(p => p && p.data_contato);
         const nomeGerador = consultorAtivo ? consultorAtivo.nome : (usuarioLogado?.nome || 'Equipe');
+        const unidadeTexto = String(consultorAtivo?.unidade || usuarioLogado?.unidade || '').toUpperCase();
+        const hojeBR = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const hora = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-        let hrs = 0, mins = 0, primeiroTexto = '--:--', ultimoTexto = '--:--';
-        const contadores = {
-            '👤 Capturas (Novos Leads)': 0,
-            '💬 WhatsApp Enviados': 0,
-            '📞 Ligações Realizadas': 0,
-            '📝 Fichas Atualizadas': 0,
-            '➡️ Moveu p/ Em Contato': 0,
-            '🏆 Vendas Concluídas': 0,
-            '❌ Moveu p/ Perdido': 0,
-        };
-        let outrasAcoes = 0;
-
-        if (validos.length > 0) {
-            const progressoOrdenado = [...validos].sort((a, b) => new Date(a.data_contato).getTime() - new Date(b.data_contato).getTime());
-            const primeiro = new Date(progressoOrdenado[0].data_contato);
-            const ultimo = new Date(progressoOrdenado[progressoOrdenado.length - 1].data_contato);
-            const diffMs = ultimo.getTime() - primeiro.getTime();
-            hrs = Math.floor(diffMs / 3600000);
-            mins = Math.floor((diffMs % 3600000) / 60000);
-            primeiroTexto = primeiro.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-            ultimoTexto = ultimo.toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'});
-
-            progressoOrdenado.forEach(p => {
-                if (p.tipo === 'Captura') contadores['👤 Capturas (Novos Leads)']++;
-                else if (p.tipo === 'Ligação') contadores['📞 Ligações Realizadas']++;
-                else if (p.tipo === 'WhatsApp') contadores['💬 WhatsApp Enviados']++;
-                else if (p.tipo === 'Observação') contadores['📝 Fichas Atualizadas']++;
-                else if (p.tipo === 'Mudança de Fase') {
-                    if (p.observacao?.includes('para "Em Contato"')) contadores['➡️ Moveu p/ Em Contato']++;
-                    else if (p.observacao?.includes('para "Fechado"')) contadores['🏆 Vendas Concluídas']++;
-                    else if (p.observacao?.includes('para "Perdido"')) contadores['❌ Moveu p/ Perdido']++;
-                    else outrasAcoes++;
-                }
-            });
-        }
-
-        // "visitantes" já chega só com a carteira de quem opera (inclusive os perdidos da Geladeira)
-        const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por || v.vendedor, nomeGerador));
-        const snapshotFunil = {
-            'Novo': meusLeads.filter(v => v.status === 'Novo').length,
-            'Em Contato': meusLeads.filter(v => v.status === 'Em Contato').length,
-            'Fechado': meusLeads.filter(v => v.status === 'Fechado').length,
-            'Perdido': meusLeads.filter(v => v.status === 'Perdido').length,
-        };
-
-        let texto = `📊 *RELATÓRIO DE FECHAMENTO - PRATIQUE*\n`;
-        texto += `👤 Consultor(a): *${nomeGerador}*\n`;
-        texto += `🎯 Meta Atingida: *${contarPessoasDaMeta(validos)} / ${META_DIARIA} Pessoas contatadas* (${validos.length} ações)\n`;
-        texto += `⏱️ Turno Focado: *${hrs}h ${mins}m* (Das ${primeiroTexto} às ${ultimoTexto})\n\n`;
-        
-        texto += `*🔥 PRODUTIVIDADE HOJE:*\n`;
-        let teveAcao = false;
-        Object.keys(contadores).forEach(k => { 
-            if (contadores[k] > 0) { texto += `${k}: *${contadores[k]}*\n`; teveAcao = true; }
+        // Meios (funil pelo histórico; Migração/Resgate/aniversário sem contato no funil pelos contatos feitos)
+        let whatsapp = 0, ligacoes = 0, notas = 0, capturas = 0, emContato = 0, fechou = 0, perdido = 0;
+        validos.forEach(p => {
+            const obs = String(p.observacao || '');
+            if (p.tipo === 'WhatsApp') whatsapp++;
+            else if (p.tipo === 'Ligação') ligacoes++;
+            else if (p.tipo === 'Observação') notas++;
+            else if (p.tipo === 'Captura') capturas++;
+            else if (p.tipo === 'Contato CRM') { if (obs.endsWith('WHATSAPP')) whatsapp++; else if (obs.endsWith('LIGACAO')) ligacoes++; }
+            else if (p.tipo === 'Mudança de Fase') {
+                if (obs.includes('para "Em Contato"')) emContato++;
+                else if (obs.includes('para "Fechado"')) fechou++;
+                else if (obs.includes('para "Perdido"')) perdido++;
+            }
         });
-        if (outrasAcoes > 0) texto += `🔄 Outras Movimentações: *${outrasAcoes}*\n`;
-        if (!teveAcao && outrasAcoes === 0) texto += `Nenhuma interação registrada neste turno.\n`;
+        const feitosHoje = resumoDia?.feitos || [];
+        const semWhatsApp = feitosHoje.filter(x => x.canal === 'MANUAL').length;
 
-        // Contatos do dia (pop-up "Contatos de hoje", Migração e Não contatar), lidos do banco
-        if (resumoDia) {
-            const linhaTipo = (tipo) => {
-                const doTipo = resumoDia.feitos.filter(f => f.tipo === tipo);
-                const viaWpp = doTipo.filter(f => f.canal === 'WHATSAPP').length;
-                const viaLigacao = doTipo.filter(f => f.canal === 'LIGACAO').length;
-                const semWpp = doTipo.length - viaWpp - viaLigacao;
-                return `*${doTipo.length}* (${viaWpp} WhatsApp${viaLigacao > 0 ? ` · ${viaLigacao} ligação` : ''}${semWpp > 0 ? ` · ${semWpp} sem WhatsApp ⚠️` : ''})`;
-            };
-            texto += `\n*📅 CONTATOS DO DIA:*\n`;
-            texto += `🎂 Aniversários: ${linhaTipo('ANIVERSARIO')}\n`;
-            texto += `👋 Visitantes 24h: ${linhaTipo('VISITANTE_24H')}\n`;
-            texto += `🔁 Visitantes 48h: ${linhaTipo('VISITANTE_48H')}\n`;
-            texto += `🥗 Migração: ${linhaTipo('MIGRACAO')} · *${resumoDia.interessados}* interessado(s)\n`;
-            texto += `🚫 Não contatar: *${resumoDia.naoContatar}*\n`;
+        const pessoas = contarPessoasDaMeta(validos);
+        const pct = META_DIARIA ? Math.round((pessoas / META_DIARIA) * 100) : 0;
+        let texto = `📊 *FECHAMENTO DE TURNO — ${nomeGerador}*${unidadeTexto ? ` · ${unidadeTexto}` : ''} · ${hojeBR}\n`;
+        if (validos.length > 0) {
+            const ordem = [...validos].sort((a, b) => new Date(a.data_contato) - new Date(b.data_contato));
+            const primeiro = new Date(ordem[0].data_contato);
+            const ultimo = new Date(ordem[ordem.length - 1].data_contato);
+            const min = Math.max(0, Math.round((ultimo - primeiro) / 60000));
+            texto += `⏱️ Das ${hora(primeiro)} às ${hora(ultimo)} (${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')})\n`;
+        } else {
+            texto += `⏱️ Nenhum contato registrado hoje\n`;
+        }
+        texto += `🎯 Meta: *${pessoas} / ${META_DIARIA} pessoas* (${pct}%)\n`;
+
+        // Visitantes que ela cadastrou hoje × boas-vindas mandadas (07/11/2026)
+        const hojeIso = dataLocalISO(new Date());
+        const visitantesHoje = visitantes.filter(v => ehVisitanteRecepcao(v) && dataDaVisita(v) === hojeIso && mesmoNome(v.vendedor || v.puxado_por, nomeGerador));
+        if (visitantesHoje.length) {
+            const comBoasVindas = resumoDia ? visitantesHoje.filter(v => resumoDia.boasVindas?.has(String(v.id))).length : null;
+            texto += comBoasVindas === null
+                ? `🆕 Visitantes de hoje: *${visitantesHoje.length}*\n`
+                : `🆕 Visitantes de hoje: *${visitantesHoje.length}* · 💬 Boas-vindas: *${comBoasVindas} de ${visitantesHoje.length}*${comBoasVindas < visitantesHoje.length ? ` ⚠️ (${visitantesHoje.length - comBoasVindas} sem boas-vindas)` : ' ✅'}\n`;
         }
 
-        texto += `\n*📸 FOTO DA MINHA CARTEIRA:*\n`;
-        texto += `⭐ Novos (Aguardando): *${snapshotFunil['Novo']}*\n`;
-        texto += `📲 Em Contato: *${snapshotFunil['Em Contato']}*\n`;
-        texto += `✅ Fechados (Total): *${snapshotFunil['Fechado']}*\n`;
-        texto += `❌ Perdidos: *${snapshotFunil['Perdido']}*\n`;
-        
+        texto += `\n*📲 COMO CONTATOU*\n`;
+        texto += `💬 WhatsApp: *${whatsapp}* · 📞 Ligações: *${ligacoes}*${semWhatsApp ? ` · ⚠️ Sem WhatsApp: *${semWhatsApp}*` : ''}\n`;
+        if (notas || capturas) texto += [notas && `📝 Notas: *${notas}*`, capturas && `👤 Novos contatos: *${capturas}*`].filter(Boolean).join(' · ') + '\n';
+
+        // Resultado das conversas (janela "Como foi o contato?" da Migração e do Resgate)
+        const res = resumoDia?.resultados || [];
+        if (res.length) {
+            const n = (r) => res.filter(x => x.resultado === r).length;
+            const responderam = n('PENSANDO') + n('INTERESSADO') + n('NAO_QUER');
+            texto += `\n*🗣️ RESULTADO DAS CONVERSAS*\n`;
+            texto += `✅ Responderam: *${responderam}* · ⭐ Interessados: *${n('INTERESSADO')}*\n`;
+            texto += `🔕 Não responderam: *${n('SEM_RESPOSTA')}* · 👎 Não querem: *${n('NAO_QUER')}*\n`;
+        }
+
+        // Contatos do dia da unidade (feitos por qualquer uma) e o que ficou sem contato
+        const grupos = contatosDoDia?.grupos;
+        if (grupos) {
+            const ROT = [['VISITANTE_24H', '👋 24h'], ['VISITANTE_48H', '🔁 48h'], ['ATRASADOS', '⏰ Atrasados'], ['ANIVERSARIO', '🎂 Aniversários']];
+            const partes = ROT.filter(([k]) => (grupos[k] || []).length).map(([k, r]) => {
+                const lista = grupos[k] || [];
+                const feitos = lista.filter(p => p.feito).length;
+                return `${r}: ${feitos} de ${lista.length}${feitos === lista.length ? ' ✅' : ''}`;
+            });
+            if (partes.length) {
+                texto += `\n*📅 CONTATOS DO DIA (unidade)*\n${partes.join(' · ')}\n`;
+                const faltou = ROT.map(([k, r]) => [r, (grupos[k] || []).filter(p => !p.feito).length]).filter(([, q]) => q > 0);
+                if (faltou.length) texto += `⚠️ Ficaram sem contato: ${faltou.map(([r, q]) => `${q} ${r.replace(/^\S+ /, '')}`).join(', ')}\n`;
+            }
+        }
+
+        if (resumoDia) {
+            const linha = (tipo, origem) => {
+                const qtd = feitosHoje.filter(x => x.tipo === tipo).length;
+                const interessados = res.filter(x => x.origem === origem && x.resultado === 'INTERESSADO').length;
+                return { qtd, interessados };
+            };
+            const mig = linha('MIGRACAO', 'MIGRACAO');
+            const resg = linha('RESGATE', 'RESGATE');
+            const interessadosMig = Math.max(mig.interessados, resumoDia.interessados || 0);
+            if (mig.qtd || interessadosMig || resg.qtd || resumoDia.naoContatar) texto += '\n';
+            if (mig.qtd || interessadosMig) texto += `🥗 *Migração:* ${mig.qtd} contatado(s) · ${interessadosMig} interessado(s)\n`;
+            if (resg.qtd || resg.interessados) texto += `🔄 *Resgate:* ${resg.qtd} contatado(s) · ${resg.interessados} interessado(s)\n`;
+            if (resumoDia.naoContatar) texto += `🚫 Não contatar: ${resumoDia.naoContatar}\n`;
+        }
+
+        if (emContato || fechou || perdido) {
+            texto += `\n*🏆 FUNIL HOJE*\n`;
+            texto += [emContato && `➡️ Para Em Contato: *${emContato}*`, fechou && `✅ Fechou: *${fechou}*`, perdido && `❌ Perdido: *${perdido}*`].filter(Boolean).join(' · ') + '\n';
+        }
+
+        // Foto da carteira: o que ela deixa para amanhã
+        const amanha = dataLocalISO(new Date(Date.now() + 86400000));
+        const abertos = visitantes.filter(v => mesmoNome(v.puxado_por || v.vendedor, nomeGerador) && ['Novo', 'Em Contato'].includes(v.status));
+        const novos = abertos.filter(v => v.status === 'Novo').length;
+        const emContatoCarteira = abertos.filter(v => v.status === 'Em Contato').length;
+        const paraAmanha = abertos.filter(v => String(v.proximo_contato || '').slice(0, 10) === amanha).length;
+        const pendentesAgenda = abertos.filter(v => ['atrasado', 'hoje'].includes(situacaoProximoContato(v))).length;
+        const parados = abertos.filter(v => (diasParado(v, v.ultima_acao_em) || 0) >= DIAS_PARADO_VERMELHO).length;
+        texto += `\n*📸 CARTEIRA*\n`;
+        texto += `Novos *${novos}* · Em contato *${emContatoCarteira}* · Para amanhã *${paraAmanha}*\n`;
+        if (pendentesAgenda || parados) texto += [pendentesAgenda && `⏰ Agendados sem contato: *${pendentesAgenda}*`, parados && `🧊 Parados ${DIAS_PARADO_VERMELHO}+ dias: *${parados}*`].filter(Boolean).join(' · ') + '\n';
         return texto;
     };
 
@@ -216,7 +244,7 @@ const Modais = ({
             return () => { ativo = false; };
         }
         return undefined;
-    }, [mostrarRelatorio, progressoHoje, consultorAtivo, visitantes, usuarioLogado?.nome]);
+    }, [mostrarRelatorio, progressoHoje, consultorAtivo, visitantes, usuarioLogado?.nome, contatosDoDia]);
 
     return (
         <>

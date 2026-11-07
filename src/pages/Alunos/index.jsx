@@ -3,13 +3,13 @@ import FiltrosAlunos from './FiltrosAlunos.jsx';
 import ListaAlunos from './ListaAlunos.jsx';
 import { ModalConfirmarExclusaoAluno } from './ModaisAlunos.jsx';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
-import { buscarAlunosPaginado, buscarAlunosNaRede, anexarUnidades } from './utils.js';
+import { buscarAlunosPaginado, buscarAlunosNaRede, anexarUnidades, alunoCombinaSituacao, contarSituacoesAlunos, resumirSituacoes } from './utils.js';
 
 // Máximo de alunos trazidos numa busca pela rede (acima disso, pedimos para refinar a busca)
 const LIMITE_BUSCA_REDE = 100;
 
 // Ordenação feita na tela durante a busca pela rede (mesmas colunas da tabela)
-const CAMPO_ORDEM = { nome: 'nome', cpf: 'cpf', email: 'email', telefone: 'telefone', unidade: 'unidade', plano: 'ultimo_plano', cadastro: 'created_at', created_at: 'created_at' };
+const CAMPO_ORDEM = { nome: 'nome', cpf: 'cpf', email: 'email', telefone: 'telefone', unidade: 'unidade', plano: 'ultimo_plano', situacao: 'situacao', cadastro: 'created_at', created_at: 'created_at' };
 import { CheckCircle2 } from 'lucide-react';
 import FichaAluno from './ficha/index.jsx';
 import { supabase } from '../../supabaseClient.js';
@@ -56,6 +56,9 @@ const ModuloAlunos360 = ({
     const [buscaInput, setBuscaInput] = useState('');
     const [buscaDebounced, setBuscaDebounced] = useState('');
     const [filtroPlano, setFiltroPlano] = useState('TODOS');
+    // Situação do aluno (decisão do dono, 07/11/2026): TODAS, ATIVOS, NAO_ATIVOS, SEM ou um status exato
+    const [filtroSituacao, setFiltroSituacao] = useState('TODAS');
+    const [faltaSqlSituacao, setFaltaSqlSituacao] = useState(false);
     const [filtroUnidade, setFiltroUnidade] = useState(unidadeTravada);
     
     const [filtroPeriodo, setFiltroPeriodo] = useState('hoje');
@@ -162,10 +165,11 @@ const ModuloAlunos360 = ({
         setErro(null);
 
         try {
-            const { alunos: rows, totalCount: count } = await buscarAlunosPaginado({
+            const { alunos: rows, totalCount: count, faltaSqlSituacao: semSql } = await buscarAlunosPaginado({
                 busca: '',
                 unidade: temVisaoGlobal ? filtroUnidade : unidadeTravada,
                 plano: filtroPlano,
+                situacao: filtroSituacao,
                 dataInicio,
                 dataFim,
                 ordemColuna,
@@ -181,6 +185,7 @@ const ModuloAlunos360 = ({
             const rowsComUnidades = await anexarUnidades(rows, unidadeMinha, controller.signal);
 
             if (!controller.signal.aborted) {
+                setFaltaSqlSituacao(Boolean(semSql));
                 setAlunos(rowsComUnidades);
                 setTotalCount(count);
                 setUltimaAtualizacao(new Date());
@@ -194,7 +199,7 @@ const ModuloAlunos360 = ({
             }
         }
     }, [
-        filtroUnidade, unidadeTravada, filtroPlano, dataInicio,
+        filtroUnidade, unidadeTravada, filtroPlano, filtroSituacao, dataInicio,
         dataFim, ordemColuna, ordemDirecao, pagina, itensPorPagina,
         temVisaoGlobal, roleReal, usuarioLogado?.unidade, unidadeMinha
     ]);
@@ -232,6 +237,26 @@ const ModuloAlunos360 = ({
         }
     }, [buscaDebounced, unidadeMinha, roleReal]);
 
+    // Faixa de resumo (07/11/2026): ativos / não ativos / sem situação com os mesmos filtros (menos a situação).
+    // Sem busca: o banco conta. Com busca: conta na tela (resultado da rede).
+    const [resumoServidor, setResumoServidor] = useState(null);
+    useEffect(() => {
+        if (isSearching) return undefined;
+        const controller = new AbortController();
+        setResumoServidor(null);
+        contarSituacoesAlunos({
+            unidade: temVisaoGlobal ? filtroUnidade : unidadeTravada,
+            plano: filtroPlano,
+            dataInicio,
+            dataFim,
+            roleUsuario: roleReal,
+            unidadeUsuario: usuarioLogado?.unidade || '',
+            signal: controller.signal
+        }).then(r => { if (!controller.signal.aborted) setResumoServidor(r); });
+        return () => controller.abort();
+    }, [isSearching, temVisaoGlobal, filtroUnidade, unidadeTravada, filtroPlano, dataInicio, dataFim, roleReal, usuarioLogado?.unidade]);
+    const resumo = useMemo(() => (isSearching ? resumirSituacoes(resultadoRede) : resumoServidor), [isSearching, resultadoRede, resumoServidor]);
+
     const recarregar = useCallback((silencioso = false) => {
         if (isSearching) carregarBuscaRede(silencioso);
         else carregarListaServidor(silencioso);
@@ -266,11 +291,13 @@ const ModuloAlunos360 = ({
         const campo = CAMPO_ORDEM[ordemColuna] || 'nome';
         const sentido = ordemDirecao === 'DESC' ? -1 : 1;
         const comparar = (a, b) => String(a[campo] || '').localeCompare(String(b[campo] || ''), 'pt-BR', { numeric: true }) * sentido;
+        // Na busca pela rede, o filtro de situação é feito aqui na tela
+        const filtrados = resultadoRede.filter(a => alunoCombinaSituacao(a, filtroSituacao));
         return [
-            ...resultadoRede.filter(a => a.da_minha_unidade).sort(comparar),
-            ...resultadoRede.filter(a => !a.da_minha_unidade).sort(comparar)
+            ...filtrados.filter(a => a.da_minha_unidade).sort(comparar),
+            ...filtrados.filter(a => !a.da_minha_unidade).sort(comparar)
         ];
-    }, [resultadoRede, ordemColuna, ordemDirecao]);
+    }, [resultadoRede, ordemColuna, ordemDirecao, filtroSituacao]);
 
     const alunosExibidos = isSearching
         ? resultadoRedeOrdenado.slice((pagina - 1) * itensPorPagina, pagina * itensPorPagina)
@@ -291,6 +318,7 @@ const ModuloAlunos360 = ({
         setBuscaInput('');
         setBuscaDebounced('');
         setFiltroPlano('TODOS');
+        setFiltroSituacao('TODAS');
         const hojeStrReset = getBRDateString();
         setFiltroPeriodo('hoje');
         setDataInicio(hojeStrReset);
@@ -344,6 +372,9 @@ const ModuloAlunos360 = ({
                         setBuscaInput={setBuscaInput}
                         filtroPlano={filtroPlano}
                         setFiltroPlano={(val) => { setFiltroPlano(val); setPagina(1); }}
+                        filtroSituacao={filtroSituacao}
+                        setFiltroSituacao={(val) => { setFiltroSituacao(val); setPagina(1); }}
+                        faltaSqlSituacao={faltaSqlSituacao && filtroSituacao !== 'TODAS' && !isSearching}
                         filtroUnidade={filtroUnidade}
                         setFiltroUnidade={handleChangeUnidade}
                         filtroPeriodo={filtroPeriodo}
@@ -379,6 +410,10 @@ const ModuloAlunos360 = ({
                         ordemColuna={ordemColuna}
                         ordemDirecao={ordemDirecao}
                         onOrdenar={handleOrdenar}
+                        onDefinirOrdem={(col, dir) => { setOrdemColuna(col); setOrdemDirecao(dir); setPagina(1); }}
+                        resumo={resumo}
+                        filtroSituacao={filtroSituacao}
+                        onFiltrarSituacao={(val) => { setFiltroSituacao(val); setPagina(1); }}
                         pagina={pagina}
                         setPagina={setPagina}
                         itensPorPagina={itensPorPagina}

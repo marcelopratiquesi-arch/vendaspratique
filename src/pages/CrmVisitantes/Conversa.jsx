@@ -3,7 +3,8 @@ import { supabase } from '../../supabaseClient.js';
 import {
     COLUNAS, STATUS_TOKENS, dataDoLead, classeTipoLead, contatoCombinaComBusca, situacaoProximoContato, formatarDiaCurto,
     gerarTextoWhatsApp, chaveMensagemDoLead, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp,
-    podeEditarMensagensProntas, formatarDataHora, textoMensagemEnviada, rotuloMensagemDoLead
+    podeEditarMensagensProntas, formatarDataHora, textoMensagemEnviada, rotuloMensagemDoLead,
+    ordenarContatos, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos
 } from './utils';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import MensagensProntas from './MensagensProntas';
@@ -242,10 +243,14 @@ const Conversa = ({
         'Hoje': pendentesDoDia,
         ...Object.fromEntries(COLUNAS.map(c => [c, visitantes.filter(v => v.status === c).length]))
     }), [visitantes, pendentesDoDia]);
-    const lista = useMemo(() => visitantes
+    const listaFiltrada = useMemo(() => visitantes
         .filter(v => filtro === 'Todos' || filtro === 'Hoje' || v.status === filtro)
         .filter(v => contatoCombinaComBusca(v, busca))
-        .sort((a, b) => String(momento(b)).localeCompare(String(momento(a)))), [visitantes, filtro, busca]);
+        // Ordem: fila inteligente (padrão), mais antigos ou mais novos (07/11/2026)
+        , [visitantes, filtro, busca]);
+    const [ordem, setOrdemEstado] = useState(lerOrdemContatos);
+    const setOrdem = (v) => { setOrdemEstado(v); salvarOrdemContatos(v); };
+    const lista = useMemo(() => ordenarContatos(listaFiltrada, ordem), [listaFiltrada, ordem]);
 
     // Itens da lista da esquerda (para as setas do teclado)
     const itensNav = useMemo(() => (modoHoje
@@ -482,6 +487,9 @@ const Conversa = ({
                         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome, CPF ou telefone')}
                             className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
+                    <select value={ordem} onChange={(e) => setOrdem(e.target.value)} title={tx('Ordem da lista')} className="w-full h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+                        {ORDENS_CONTATOS.map(o => <option key={o.val} value={o.val}>{tx(o.label)}</option>)}
+                    </select>
                     <div className="flex flex-wrap gap-1">
                         {FILTROS.map(f => (
                             <button key={f} type="button" onClick={() => setFiltro(f)}

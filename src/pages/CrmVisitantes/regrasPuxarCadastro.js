@@ -61,6 +61,14 @@ const cpfsJaNoCrm = async (cpfs) => {
     return achados;
 };
 
+// Alunos que já estão sendo trabalhados na aba Resgate (07/11/2026): não vão também para a Base
+const alunosNoResgate = async () => {
+    const { data, error } = await supabase.from('crm_resgate').select('aluno_id, status, puxado_em');
+    if (error) return new Set(); // sem o SQL do Resgate: ninguém está lá
+    const limite = Date.now() - 7 * 86400000;
+    return new Set((data || []).filter(r => r.status !== 'NA_FILA' || (r.puxado_em && new Date(r.puxado_em).getTime() >= limite)).map(r => r.aluno_id));
+};
+
 const telefoneValido = (tel) => {
     const t = apenasDigitos(tel);
     return (t.length === 10 || t.length === 11) && !telefoneFalso(t);
@@ -77,7 +85,7 @@ export const conferirAlunos = async (alunos, statusEscolhidos) => {
 
     const desde = new Date(Date.now() - DIAS_SEM_COMPRA * 86400000);
     const desdeIso = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, '0')}-${String(desde.getDate()).padStart(2, '0')}`;
-    const [noCrm, naoContatar, compras] = await Promise.all([cpfsJaNoCrm(cpfs), carregarNaoContatar(), buscarComprasDePlano(cpfs, desdeIso)]);
+    const [noCrm, naoContatar, compras, resgate] = await Promise.all([cpfsJaNoCrm(cpfs), carregarNaoContatar(), buscarComprasDePlano(cpfs, desdeIso), alunosNoResgate()]);
     if (compras === null) return { erro: 'SQL_COMPRAS' };
     const compraram = new Set(compras.map(c => apenasDigitos(c.cpf)));
 
@@ -85,7 +93,7 @@ export const conferirAlunos = async (alunos, statusEscolhidos) => {
     const prontos = [];
     lista.forEach(a => {
         const cpf = apenasDigitos(a.cpf);
-        if (noCrm.has(cpf)) contagem.noCrm++;
+        if (noCrm.has(cpf) || resgate.has(a.id)) contagem.noCrm++;
         else if (estaNaoContatar(naoContatar, { cpf, alunoId: a.id })) contagem.naoContatar++;
         else if (!telefoneValido(a.telefone)) contagem.semTelefone++;
         else if (compraram.has(cpf)) contagem.comprou++;

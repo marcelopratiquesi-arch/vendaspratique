@@ -24,7 +24,8 @@ export const ROTULOS_MENSAGENS = {
     VISITANTE_24H: 'Visitante 24h',
     VISITANTE_48H: 'Visitante 48h',
     ANIVERSARIO: 'Aniversário',
-    MIGRACAO: 'Migração (Nutri)'
+    MIGRACAO: 'Migração (Nutri)',
+    VISITANTE_BOAS_VINDAS: 'Boas-vindas (visitante)'
 };
 
 export const MENSAGENS_PADRAO = {
@@ -159,6 +160,20 @@ export const MENSAGENS_PADRAO = {
         'E aí, {nome}! 💪 Bora turbinar seus treinos? Com a nutricionista da Pratique {unidade} você treina e come do jeito certo. 🥗 Quer saber como trocar o plano?',
         'Oi, {nome}! 😊 Sua dedicação nos treinos merece ainda mais resultado! O plano com nutricionista pode te ajudar muito. Posso te contar como funciona?',
         '{saudacao}, {nome}! 🥗✨ Já pensou em ter um cardápio feito para o seu objetivo? Com o plano com Nutri da Pratique {unidade} você tem! Quer que eu te explique?'
+    ),
+    // Cadastro de Visitante (07/11/2026, decisão do dono): só recepcionar e colocar-se à disposição.
+    // Não oferecer valores nem planos.
+    VISITANTE_BOAS_VINDAS: v(
+        'Oi, {nome}, tudo bem? Aqui é da Pratique {unidade}! 😊 Foi muito bom te receber aqui hoje. Ficou alguma dúvida? Estou à disposição!',
+        '{saudacao}, {nome}! Aqui é da Pratique {unidade}. 💙 Obrigado pela visita de hoje, foi um prazer te receber! Se quiser saber mais alguma coisa, é só me chamar por aqui.',
+        'Olá, {nome}! Tudo bem? Que bom que você veio conhecer a Pratique {unidade} hoje! 😄 Qualquer dúvida, pode contar comigo.',
+        'Oi, {nome}! 😊 Aqui é da Pratique {unidade}. Passando para agradecer a sua visita e dizer que você foi muito bem-vindo(a)! Ficou alguma dúvida?',
+        '{saudacao}, {nome}! Foi um prazer receber você hoje na Pratique {unidade}. ✨ A gente faz questão de esclarecer qualquer dúvida, é só chamar!',
+        'Oi, {nome}, tudo certo? Aqui é da Pratique {unidade}! 💪 Obrigado por vir nos conhecer hoje. Quer saber mais alguma informação?',
+        'Olá, {nome}! 😊 Aqui é da recepção da Pratique {unidade}. Muito obrigado pela visita! Se ficou alguma dúvida, estou aqui para te ajudar.',
+        '{saudacao}, {nome}! 💙 Que alegria ter recebido você hoje aqui na Pratique {unidade}. Qualquer coisa que precisar, é só me mandar mensagem!',
+        'Oi, {nome}! Tudo bem? Foi muito bom te receber hoje na Pratique {unidade}. 🙌 Ficou com alguma dúvida? Respondo com todo o prazer.',
+        'E aí, {nome}! 😄 Aqui é da Pratique {unidade}. Obrigado pela visita de hoje, você é sempre bem-vindo(a) por aqui! Quer saber mais alguma informação?'
     )
 };
 

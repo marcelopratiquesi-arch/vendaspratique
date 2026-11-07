@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText, Globe, BarChart3, ArrowRight, MessageCircle, Phone, PenTool } from 'lucide-react';
-import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO } from './utils';
+import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText, BarChart3, ArrowRight, MessageCircle, Phone, PenTool } from 'lucide-react';
+import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO, ehMudancaPorCompra, ehBoasVindas, situacaoProximoContato, LIMITE_CARTEIRA } from './utils';
 import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar, ehSemWhatsApp } from './contatosFeitos';
-import PainelRedeCrm from './PainelRedeCrm';
+import PainelCrm from './PainelCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import RelatorioConsultor from './RelatorioConsultor';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
@@ -14,8 +14,9 @@ import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 // ==========================================
 // TELA DE ENTRADA DO CRM (redesenho de 29/10/2026, decisão do dono)
 // - Um filtro de período só, no padrão do sistema (o mesmo do Histórico e do Dashboard), para a página toda.
-// - Abas: Equipe (escolher quem opera) · Desempenho (números e planilha) · Rede (Admin/Mentor na Visão Global)
-//   · Relatório (por recepcionista) · Histórico ("O que aconteceu").
+// - Abas (07/11/2026, decisão do dono: de 5 para 3): Equipe (escolher quem opera + Base) · Painel (uma tabela só:
+//   antigas Desempenho + Rede + Resultado por recepcionista, PainelCrm.jsx) · Contatos (antigos Relatório e Histórico:
+//   "Pessoas contatadas" e "O que aconteceu").
 // - Equipe: cartões pequenos (só o primeiro nome); na Visão Global, agrupados por unidade.
 // - Planilha enxuta: 24h, 48h e Migração logo depois do nome; o resto em "ver detalhes" na linha.
 // - Clicar numa linha da planilha abre um resumo lateral (com "Abrir o CRM dela" e "Ver relatório").
@@ -45,18 +46,6 @@ const tempoRelativo = (valor) => {
     return tx('há {dias} dias', { dias: Math.round((new Date(a2, m2 - 1, d2) - new Date(a1, m1 - 1, d1)) / 86400000) });
 };
 
-const Kpi = ({ icone: Icone, titulo, valor, cor, destaque = false }) => (
-    <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 shadow-sm flex items-center gap-3 ${destaque ? 'border-blue-200 dark:border-blue-500/30' : 'border-slate-200 dark:border-slate-800'}`}>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${cor}`}>
-            <Icone className="w-5 h-5" />
-        </div>
-        <div className="min-w-0">
-            <p className="text-2xl font-black text-slate-800 dark:text-white tracking-tight leading-none">{valor}</p>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-1 truncate">{tx(titulo)}</p>
-        </div>
-    </div>
-);
-
 const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas = [], leads: leadsTodos = [], colaboradores = [], versao = 0, onAtualizar, onEscolher, conteudoBase = null }) => {
     // Filtro de período padrão do sistema (vale para a página inteira)
     const periodo = usePeriodoPadrao('hoje');
@@ -78,14 +67,16 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const [relatorioPessoa, setRelatorioPessoa] = useState('');
     // Resumo lateral de uma recepcionista e linhas da planilha abertas em "ver detalhes"
     const [resumoDe, setResumoDe] = useState(null);
-    const [detalhesAbertos, setDetalhesAbertos] = useState(() => new Set());
     // Grupos de unidade abertos na aba Equipe (Visão Global)
     const [gruposAbertos, setGruposAbertos] = useState(() => new Set());
 
+    // Aba Contatos: "Pessoas contatadas" (relatório por recepcionista) ou "O que aconteceu" (histórico)
+    const [subContatos, setSubContatos] = useState('pessoas');
     const abrirRelatorioDe = (nome) => {
         setRelatorioPessoa(normalizarNome(nome));
         setResumoDe(null);
-        setAba('relatorio');
+        setSubContatos('pessoas');
+        setAba('contatos');
     };
 
     const visaoGlobal = !usuarioLogado?.unidade || usuarioLogado.unidade === 'TODAS';
@@ -128,7 +119,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             const { data, error } = await query;
             if (cancelado) return;
             if (error) { console.error('Erro ao buscar histórico do CRM:', error); setErroHistorico(true); setHistorico([]); }
-            else setHistorico(data || []);
+            else setHistorico((data || []).filter(h => !ehMudancaPorCompra(h.observacao)));
             setCarregando(false);
         };
         buscar();
@@ -143,7 +134,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
         let cancelado = false;
         // A visita é 1 ou 2 dias antes do prazo: busca a partir de 2 dias antes do início do período
         const desde = faixa.inicio ? somarDiasISO(dataLocalISO(faixa.inicio), -2) : null;
-        Promise.all([carregarContatosFeitos({ tipos: ['VISITANTE_24H', 'VISITANTE_48H', 'ANIVERSARIO', 'MIGRACAO'], desde }), carregarNaoContatar()])
+        Promise.all([carregarContatosFeitos({ tipos: ['VISITANTE_24H', 'VISITANTE_48H', 'ANIVERSARIO', 'MIGRACAO', 'RESGATE'], desde }), carregarNaoContatar()])
             .then(([feitos, bloqueados]) => {
                 if (cancelado) return;
                 setFeitosVisitas(feitos || []);
@@ -190,6 +181,28 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
         return porPessoa;
         // eslint-disable-next-line react-hooks/exhaustive-deps -- a faixa muda junto com periodo.chave
     }, [leads, feitosVisitas, naoContatar, periodo.chave]);
+
+    // Boas-vindas (07/11/2026): visitantes cadastrados no período por quem atendeu × quantos receberam a mensagem
+    // de boas-vindas no WhatsApp ("8 de 10"). Mostra quem cadastra e não manda.
+    const boasVindasPorPessoa = useMemo(() => {
+        const inicioISO = faixa.inicio ? dataLocalISO(faixa.inicio) : '';
+        const fimISO = faixa.fim ? dataLocalISO(faixa.fim) : '';
+        const hoje = diaISO(0);
+        const receberam = new Set(historico.filter(ehBoasVindas).map(h => String(h.lead_id)));
+        const mapa = new Map();
+        leads.filter(ehVisitanteRecepcao).forEach(l => {
+            const visita = dataDaVisita(l);
+            if (!visita || visita > hoje || (inicioISO && visita < inicioISO) || (fimISO && visita >= fimISO)) return;
+            const chave = normalizarNome(l.vendedor || l.puxado_por);
+            if (!chave) return;
+            const atual = mapa.get(chave) || { total: 0, enviadas: 0 };
+            atual.total++;
+            if (receberam.has(String(l.id))) atual.enviadas++;
+            mapa.set(chave, atual);
+        });
+        return mapa;
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- a faixa muda junto com periodo.chave
+    }, [leads, historico, periodo.chave]);
 
     // Contatos marcados como feitos SEM WhatsApp no período (em vermelho, para o Líder conferir), por quem marcou
     const semWhatsAppPorPessoa = useMemo(() => {
@@ -247,6 +260,12 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
 
             const daPessoa = leads.filter(l => mesmoNome(l.puxado_por, r.nome));
             const carteira = daPessoa.filter(l => FASES_EM_ATENDIMENTO.includes(l.status));
+            // Cartão da equipe (07/11/2026): para hoje (agendados hoje/atrasados) e pessoas contatadas hoje (meta)
+            const hojeIso = diaISO(0);
+            const pessoasHoje = new Set([
+                ...contatos.filter(h => dataLocalISO(h.data_registro) === hojeIso && !String(h.observacao || '').startsWith('Movido em lote')).map(h => `lead:${h.lead_id}`),
+                ...feitosVisitas.filter(x => !x.lead_id && mesmoNome(x.consultor, r.nome) && dataLocalISO(x.criado_em) === hojeIso).map(x => `aluno:${x.aluno_id || x.id}`)
+            ]).size;
             const puxados = daPessoa.filter(l => l.puxado_em && dentroDaFaixa(l.puxado_em, faixa)).length;
 
             return {
@@ -262,19 +281,25 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 perdidos: new Set(acoes.filter(h => moveuPara(h, 'Perdido')).map(h => String(h.lead_id))).size,
                 acoes: contatos.length + feitosDaPessoa.length,
                 emAtendimento: carteira.length,
+                paraHoje: carteira.filter(l => ['hoje', 'atrasado'].includes(situacaoProximoContato(l))).length,
+                atrasadosAgenda: carteira.filter(l => situacaoProximoContato(l) === 'atrasado').length,
+                pessoasHoje,
                 semContato: carteira.filter(l => !idsTrabalhados.has(String(l.id))).length,
                 ultima: [ultimaFunil, ultimaFeito].filter(Boolean).sort((x, y) => new Date(x) - new Date(y)).pop() || null,
                 prazos: prazosVisitantes.get(normalizarNome(r.nome)) || { noPrazo24: 0, atrasado24: 0, noPrazo48: 0, atrasado48: 0 },
                 semWhatsApp: semWhatsAppPorPessoa.get(normalizarNome(r.nome)) || 0,
-                migracao: migracaoPorPessoa.get(normalizarNome(r.nome)) || { total: 0, whatsapp: 0 }
+                migracao: migracaoPorPessoa.get(normalizarNome(r.nome)) || { total: 0, whatsapp: 0 },
+                boasVindas: boasVindasPorPessoa.get(normalizarNome(r.nome)) || { total: 0, enviadas: 0 }
             };
         })
             // Visão Global: agrupadas por unidade; dentro da unidade, por nome
             .sort((a, b) => String(a.colaborador.unidade || '').localeCompare(String(b.colaborador.unidade || ''), 'pt-BR') || String(a.colaborador.nome || '').localeCompare(String(b.colaborador.nome || ''), 'pt-BR'));
         // eslint-disable-next-line react-hooks/exhaustive-deps -- a faixa muda junto com periodo.chave
-    }, [recepcionistas, historico, leads, leadPorId, periodo.chave, prazosVisitantes, semWhatsAppPorPessoa, migracaoPorPessoa, feitosVisitas]);
+    }, [recepcionistas, historico, leads, leadPorId, periodo.chave, prazosVisitantes, semWhatsAppPorPessoa, migracaoPorPessoa, boasVindasPorPessoa, feitosVisitas]);
 
     const linhaDe = (r) => linhas.find(l => l.colaborador.id === r.id);
+    // Números da planilha por nome, para o Painel (24h/48h, boas-vindas, migração, sem contato, fechou)
+    const extrasPorNome = useMemo(() => new Map(linhas.map(l => [normalizarNome(l.colaborador.nome), l])), [linhas]);
 
     const kpis = useMemo(() => ({
         base: leads.filter(v => !v.puxado_em && v.status !== 'Arquivado').length,
@@ -318,15 +343,12 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const nomeUnidade = unidadeFoco?.nome || (visaoGlobal ? tx('Todas as unidades') : usuarioLogado?.unidade);
     const historicoNoLimite = historico.length >= LIMITE_HISTORICO;
     const th = 'px-3 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
-    const td = 'px-3 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 text-center';
 
     // Abas pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era). Equipe é a principal (sempre).
     const ABAS = [
         { id: 'equipe', rotulo: 'Equipe', icone: Users },
-        { id: 'desempenho', rotulo: 'Desempenho', icone: BarChart3, codigo: '502' },
-        ...(mostrarPainelRede ? [{ id: 'rede', rotulo: 'Rede', icone: Globe, codigo: '503' }] : []),
-        { id: 'relatorio', rotulo: 'Relatório', icone: FileText, codigo: '504' },
-        { id: 'historico', rotulo: 'Histórico', icone: Clock, codigo: '505' }
+        { id: 'painel', rotulo: 'Painel', icone: BarChart3, codigo: '502' },
+        { id: 'contatos', rotulo: 'Contatos', icone: FileText, codigo: '504' }
     ].filter(a => !a.codigo || podeVer(usuarioLogado, a.codigo));
     const abaMostrada = ABAS.some(a => a.id === aba) ? aba : 'equipe';
 
@@ -342,15 +364,27 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                         {partes[0]?.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                        <p className="font-black text-sm text-slate-800 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 uppercase truncate leading-tight">{partes[0]}</p>
+                        <p className="font-black text-sm text-slate-800 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 uppercase truncate leading-tight">{partes[0]}{String(c.turno || '').toUpperCase() === 'MANHA' ? ' ☀' : String(c.turno || '').toUpperCase() === 'NOITE' ? ' 🌙' : ''}</p>
                         <p className="text-[10px] font-bold text-slate-400 truncate">{l?.ultima ? tempoRelativo(l.ultima) : tx('Sem ação no período')}</p>
                     </div>
                 </div>
                 {l && (
-                    <div className="grid grid-cols-3 gap-1 text-center bg-slate-50 dark:bg-slate-800/60 rounded-xl py-1.5">
-                        <div title={tx('Carteira')}><p className="text-sm font-black text-blue-600 dark:text-blue-400 leading-none">{l.emAtendimento}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Carteira')}</p></div>
-                        <div title={tx('Ações')}><p className="text-sm font-black text-slate-700 dark:text-slate-200 leading-none">{l.acoes}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Ações')}</p></div>
-                        <div title={tx('Fechou')}><p className="text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none">{l.fechados}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Fechou')}</p></div>
+                    <div className="space-y-1.5">
+                        {/* Meta de hoje (pessoas diferentes) */}
+                        <div className="flex items-center gap-2" title={tx('Meta do dia: pessoas diferentes contatadas hoje')}>
+                            <span className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.pessoasHoje >= 150 ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${Math.min(100, (l.pessoasHoje / 150) * 100)}%` }} /></span>
+                            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 tabular-nums whitespace-nowrap">{l.pessoasHoje}/150 {tx('hoje')}</span>
+                        </div>
+                        {/* Carteira × limite */}
+                        <div className="flex items-center gap-2" title={tx('Carteira: contatos em atendimento (Novo + Em Contato). Limite de {limite}.', { limite: LIMITE_CARTEIRA })}>
+                            <span className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.emAtendimento > LIMITE_CARTEIRA ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (l.emAtendimento / LIMITE_CARTEIRA) * 100)}%` }} /></span>
+                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${l.emAtendimento > LIMITE_CARTEIRA ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{l.emAtendimento.toLocaleString(localeAtual())}/{LIMITE_CARTEIRA}{l.emAtendimento > LIMITE_CARTEIRA ? ' ⚠️' : ''}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 text-center bg-slate-50 dark:bg-slate-800/60 rounded-xl py-1.5">
+                            <div title={tx('Agendados para hoje ou atrasados')}><p className={`text-sm font-black leading-none ${l.atrasadosAgenda ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'}`}>{l.paraHoje}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Para hoje')}</p></div>
+                            <div title={tx('Ações')}><p className="text-sm font-black text-slate-700 dark:text-slate-200 leading-none">{l.acoes}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Ações')}</p></div>
+                            <div title={tx('Fechou')}><p className="text-sm font-black text-emerald-600 dark:text-emerald-400 leading-none">{l.fechados}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Fechou')}</p></div>
+                        </div>
                     </div>
                 )}
             </button>
@@ -368,12 +402,6 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
         if (novo.has(chave)) novo.delete(chave); else novo.add(chave);
         return novo;
     });
-    const alternarDetalhes = (id) => setDetalhesAbertos(prev => {
-        const novo = new Set(prev);
-        if (novo.has(id)) novo.delete(id); else novo.add(id);
-        return novo;
-    });
-
     const avisoDesligadas = desligadasEscondidas > 0 && (
         <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1.5">
             <UserX className="w-3.5 h-3.5" />
@@ -439,9 +467,9 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                     <AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Não foi possível carregar o histórico de contatos. Os números de ações podem aparecer zerados.")}
                 </div>
             )}
-            {historicoNoLimite && ['desempenho', 'historico', 'equipe'].includes(aba) && (
+            {historicoNoLimite && ['painel', 'contatos', 'equipe'].includes(aba) && (
                 <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300 text-xs font-bold rounded-xl px-4 py-3 flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Muitas ações no período: a planilha leu só as")}{' '}{LIMITE_HISTORICO.toLocaleString(localeAtual())}{' '}{tx("mais recentes, então os números podem estar abaixo da realidade. Escolha um período menor")}{visaoGlobal && !chaveFoco ? " " + tx("ou clique numa unidade no Painel da Rede") : ''}.
+                    <AlertTriangle className="w-4 h-4 shrink-0" />{' '}{tx("Muitas ações no período: a planilha leu só as")}{' '}{LIMITE_HISTORICO.toLocaleString(localeAtual())}{' '}{tx("mais recentes, então os números podem estar abaixo da realidade. Escolha um período menor")}{visaoGlobal && !chaveFoco ? " " + tx("ou clique numa unidade no Painel") : ''}.
                 </div>
             )}
 
@@ -487,127 +515,48 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 </div>
             )}
 
-            {/* ABA DESEMPENHO: números grandes e planilha enxuta */}
-            {abaMostrada === 'desempenho' && (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                        <Kpi icone={Activity} titulo="Ações no período" valor={kpis.acoes} cor="bg-blue-600 text-white" destaque />
-                        <Kpi icone={PhoneForwarded} titulo="Em atendimento" valor={kpis.emAtendimento} cor="bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400" />
-                        <Kpi icone={PhoneOff} titulo="Carteira sem contato" valor={kpis.semContato} cor="bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400" />
-                        <Kpi icone={CheckCircle2} titulo="Fechados no período" valor={kpis.fechados} cor="bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" />
-                    </div>
+            {/* ABA PAINEL (07/11/2026): faixa fina com os números da carteira + uma tabela só (PainelCrm.jsx) */}
+            {abaMostrada === 'painel' && (
+                <div className="space-y-3">
                     <div className="flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                            <Database className="w-3.5 h-3.5" />{tx("Base aguardando")}: <strong className="text-slate-800 dark:text-white">{kpis.base}</strong>
-                        </span>
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                            <Snowflake className="w-3.5 h-3.5 text-cyan-500" />{tx("Na Geladeira")}: <strong className="text-slate-800 dark:text-white">{kpis.geladeira}</strong>
-                        </span>
+                        {[
+                            [Activity, 'Ações no período', kpis.acoes, 'text-blue-600 dark:text-blue-400', 'Tudo o que a recepção fez no período: WhatsApp, ligações, notas e mudanças de fase.'],
+                            [PhoneForwarded, 'Em atendimento', kpis.emAtendimento, 'text-blue-600 dark:text-blue-400', 'Contatos nas carteiras das recepcionistas (Novo e Em Contato).'],
+                            [PhoneOff, 'Carteira sem contato', kpis.semContato, 'text-rose-600 dark:text-rose-400', 'Contatos das carteiras em que ninguém fez nada no período.'],
+                            [CheckCircle2, 'Fechados no período', kpis.fechados, 'text-emerald-600 dark:text-emerald-400', 'Contatos que a recepcionista passou para Fechado (fechou plano).'],
+                            [Database, 'Base aguardando', kpis.base, 'text-slate-500 dark:text-slate-400', 'Contatos no Banco Bruto, ainda sem recepcionista.'],
+                            [Snowflake, 'Na Geladeira', kpis.geladeira, 'text-cyan-500', 'Contatos Perdidos (voltam a ser trabalhados depois de 30 dias).']
+                        ].map(([Icone, rotulo, valor, cor, dica]) => (
+                            <span key={rotulo} title={tx(dica)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                <Icone className={`w-3.5 h-3.5 ${cor}`} />{tx(rotulo)}: <strong className="text-base font-black text-slate-800 dark:text-white">{valor}</strong>
+                            </span>
+                        ))}
                     </div>
-
-                    {/* PLANILHA POR RECEPCIONISTA */}
-                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-                        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-                            <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">{tx("Planilha por recepcionista")}</h4>
-                            <p className="text-[11px] font-medium text-slate-400 mt-0.5">{tx("Clique numa linha para ver o resumo da recepcionista. A seta abre os detalhes.")}</p>
-                        </div>
-                        <div className="overflow-x-auto custom-scrollbar">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-slate-50 dark:bg-slate-800/60">
-                                    <tr>
-                                        <th className={`${th} sticky left-0 z-10 bg-slate-50 dark:bg-slate-800`}>{tx("Recepcionista")}</th>
-                                        <th className={`${th} text-center`} title={tx("No prazo (quem fez) · atrasados (quem atendeu a visita)")}>{tx("Visitantes 24h")}</th>
-                                        <th className={`${th} text-center`} title={tx("No prazo (quem fez) · atrasados (quem atendeu a visita)")}>{tx("Visitantes 48h")}</th>
-                                        <th className={`${th} text-center`} title={tx("Contatos de migração para plano com nutricionista no período")}>{tx("Migração")}</th>
-                                        <th className={`${th} text-center`} title={tx("WhatsApp, ligações, notas e mudanças de fase")}>{tx("Ações")}</th>
-                                        <th className={`${th} text-center`}>{tx("Fechou")}</th>
-                                        <th className={`${th} text-center`} title={tx("\"Sem contato\" = contatos na carteira da pessoa em que nada foi feito no período.")}>{tx("Sem contato")}</th>
-                                        <th className={`${th} text-center`} title={tx("Contatos marcados como feitos sem mandar o WhatsApp (o Líder confere)")}>{tx("Sem WhatsApp")}</th>
-                                        <th className={th}>{tx("Última ação")}</th>
-                                        <th className={th}></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {linhas.length === 0 ? (
-                                        <tr><td colSpan="10" className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Nenhuma recepcionista para mostrar.")}</td></tr>
-                                    ) : linhas.map(l => {
-                                        const aberta = detalhesAbertos.has(l.colaborador.id);
-                                        const partes = String(l.colaborador.nome || '').trim().split(' ');
-                                        return (
-                                            <React.Fragment key={l.colaborador.id}>
-                                                <tr className="group hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer transition-colors" onClick={() => setResumoDe(l.colaborador)} title={l.colaborador.nome}>
-                                                    <td className="px-3 py-3 sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-800">
-                                                        <p className="text-xs font-black text-slate-800 dark:text-white uppercase whitespace-nowrap">{partes[0]}{' '}<span className="text-slate-400 font-bold">{partes.slice(1).join(' ').split(' ')[0] || ''}</span></p>
-                                                        {visaoGlobal && l.colaborador.unidade && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{l.colaborador.unidade}</p>}
-                                                    </td>
-                                                    <td className={td}>
-                                                        <span className="font-black text-emerald-600 dark:text-emerald-400" title={tx("Feitos no prazo")}>{l.prazos.noPrazo24}</span>
-                                                        {l.prazos.atrasado24 > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black" title={tx("Atrasados (de quem atendeu a visita)")}>{l.prazos.atrasado24}{' '}{tx("atras.")}</span>}
-                                                    </td>
-                                                    <td className={td}>
-                                                        <span className="font-black text-emerald-600 dark:text-emerald-400" title={tx("Feitos no prazo")}>{l.prazos.noPrazo48}</span>
-                                                        {l.prazos.atrasado48 > 0 && <span className="ml-1.5 px-1.5 py-0.5 rounded-md bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 text-[10px] font-black" title={tx("Atrasados (de quem atendeu a visita)")}>{l.prazos.atrasado48}{' '}{tx("atras.")}</span>}
-                                                    </td>
-                                                    <td className={td} title={tx("{whatsapp} via WhatsApp · {v2} sem WhatsApp", { whatsapp: l.migracao.whatsapp, v2: l.migracao.total - l.migracao.whatsapp })}>
-                                                        <span className={`font-black ${l.migracao.total > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>{l.migracao.total}</span>
-                                                    </td>
-                                                    <td className={`${td} font-black text-slate-800 dark:text-white`} title={tx("WhatsApp {w} · Ligações {l} · Notas {n}", { w: l.whatsapp, l: l.ligacoes, n: l.notas })}>{l.acoes}</td>
-                                                    <td className={`${td} text-emerald-600 dark:text-emerald-400 font-black`}>{l.fechados}</td>
-                                                    <td className={td}>
-                                                        <span className={`px-2 py-0.5 rounded-md font-black ${l.semContato > 0 ? 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300' : 'text-slate-400'}`}>{l.semContato}</span>
-                                                    </td>
-                                                    <td className={td}>
-                                                        <span className={`px-2 py-0.5 rounded-md font-black ${l.semWhatsApp > 0 ? 'bg-rose-600 text-white' : 'text-slate-400'}`} title={tx("Marcados como feitos sem WhatsApp")}>{l.semWhatsApp}</span>
-                                                    </td>
-                                                    <td className="px-3 py-3 text-[11px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap" title={l.ultima ? formatarDataHora(l.ultima) : ''}>{l.ultima ? tempoRelativo(l.ultima) : '—'}</td>
-                                                    <td className="px-2 py-3 text-right">
-                                                        <button type="button" onClick={(e) => { e.stopPropagation(); alternarDetalhes(l.colaborador.id); }} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10" title={tx("Ver detalhes")} aria-expanded={aberta}>
-                                                            <ChevronDown className={`w-4 h-4 transition-transform ${aberta ? 'rotate-180' : ''}`} />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                                {aberta && (
-                                                    <tr className="bg-slate-50/70 dark:bg-slate-800/40">
-                                                        <td colSpan="10" className="px-4 py-3">
-                                                            <div className="flex flex-wrap gap-2">
-                                                                {[
-                                                                    ['Puxados', l.puxados], ['Visitantes trabalhados', l.visitantes], ['Cancelados/Inativos trabalhados', l.cancelados],
-                                                                    ['WhatsApp', l.whatsapp], ['Ligações', l.ligacoes], ['Notas', l.notas], ['Perdidos', l.perdidos], ['Carteira', l.emAtendimento]
-                                                                ].map(([rotulo, valor]) => (
-                                                                    <span key={rotulo} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                                                        {tx(rotulo)}: <strong className="text-slate-800 dark:text-white">{valor}</strong>
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                )}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-                        {desligadasEscondidas > 0 && <div className="px-5 py-2.5 border-t border-slate-100 dark:border-slate-800">{avisoDesligadas}</div>}
-                    </div>
+                    <PainelCrm
+                        podeCobrar={mostrarPainelRede && podeFazer(usuarioLogado, '518')}
+                        colaboradores={colaboradores}
+                        recepcionistas={recepcionistas}
+                        faixa={faixa}
+                        rotuloPeriodo={periodo.rotulo}
+                        versao={versao}
+                        visaoGlobal={visaoGlobal}
+                        unidadeEscopo={chaveFoco || (!visaoGlobal ? normalizarNome(usuarioLogado?.unidade) : '')}
+                        extras={extrasPorNome}
+                        onAbrirResumo={setResumoDe}
+                    />
+                    {avisoDesligadas}
                 </div>
             )}
 
-            {/* ABA REDE: uso do CRM por unidade (Admin/Mentor na Visão Global) */}
-            {abaMostrada === 'rede' && mostrarPainelRede && (
-                <PainelRedeCrm
-                    podeCobrar={podeFazer(usuarioLogado, '518')}
-                    colaboradores={colaboradores}
-                    faixa={faixa}
-                    rotuloPeriodo={periodo.rotulo}
-                    versao={versao}
-                    unidadeFoco={chaveFoco}
-                    onFocarUnidade={setUnidadeFoco}
-                />
+            {/* ABA CONTATOS (07/11/2026): "Pessoas contatadas" (antigo Relatório) | "O que aconteceu" (antigo Histórico) */}
+            {abaMostrada === 'contatos' && (
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-fit">
+                    {[['pessoas', 'Pessoas contatadas'], ['acontecimentos', 'O que aconteceu']].map(([id, rotulo]) => (
+                        <button key={id} type="button" onClick={() => setSubContatos(id)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${subContatos === id ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>{tx(rotulo)}</button>
+                    ))}
+                </div>
             )}
-
-            {/* ABA RELATÓRIO POR RECEPCIONISTA */}
-            {abaMostrada === 'relatorio' && (
+            {abaMostrada === 'contatos' && subContatos === 'pessoas' && (
                 <RelatorioConsultor
                     recepcionistas={recepcionistas}
                     leads={leads}
@@ -621,8 +570,8 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 />
             )}
 
-            {/* ABA HISTÓRICO: o que aconteceu */}
-            {abaMostrada === 'historico' && (
+            {/* CONTATOS → O que aconteceu */}
+            {abaMostrada === 'contatos' && subContatos === 'acontecimentos' && (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
                     <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                         <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2">
@@ -726,6 +675,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                             ['Carteira', linhaResumo.emAtendimento, 'text-blue-600 dark:text-blue-400'],
                                             ['Visitantes 24h', `${linhaResumo.prazos.noPrazo24}${linhaResumo.prazos.atrasado24 ? ` / ${linhaResumo.prazos.atrasado24}⚠` : ''}`, 'text-emerald-600 dark:text-emerald-400'],
                                             ['Visitantes 48h', `${linhaResumo.prazos.noPrazo48}${linhaResumo.prazos.atrasado48 ? ` / ${linhaResumo.prazos.atrasado48}⚠` : ''}`, 'text-emerald-600 dark:text-emerald-400'],
+                                            ['Boas-vindas', linhaResumo.boasVindas.total ? `${linhaResumo.boasVindas.enviadas} / ${linhaResumo.boasVindas.total}` : '—', linhaResumo.boasVindas.total && linhaResumo.boasVindas.enviadas < linhaResumo.boasVindas.total ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'],
                                             ['Migração', linhaResumo.migracao.total, 'text-blue-600 dark:text-blue-400'],
                                             ['Sem contato', linhaResumo.semContato, 'text-amber-600 dark:text-amber-400'],
                                             ['Sem WhatsApp', linhaResumo.semWhatsApp, linhaResumo.semWhatsApp > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'],
@@ -742,6 +692,8 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                         <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-blue-500" />{tx("Ligações")}: {linhaResumo.ligacoes}</span>
                                         <span className="inline-flex items-center gap-1"><PenTool className="w-3.5 h-3.5 text-slate-400" />{tx("Notas")}: {linhaResumo.notas}</span>
                                         <span className="inline-flex items-center gap-1">{tx("Puxados")}: {linhaResumo.puxados}</span>
+                                        <span className="inline-flex items-center gap-1">{tx("Visitantes trabalhados")}: {linhaResumo.visitantes}</span>
+                                        <span className="inline-flex items-center gap-1">{tx("Cancelados/Inativos trabalhados")}: {linhaResumo.cancelados}</span>
                                     </div>
                                 </>
                             )}

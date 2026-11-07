@@ -100,6 +100,10 @@ export const grupoMotivoPerda = (motivo) => {
 // Amarelo a partir de 5 dias, vermelho a partir de 10. Só vale para quem está em Novo ou Em Contato.
 export const DIAS_PARADO_AMARELO = 5;
 export const DIAS_PARADO_VERMELHO = 10;
+// Mudança de fase feita sozinha porque o contato comprou plano (compraDePlano.js): não conta como contato,
+// meta nem venda de ninguém (decisão do dono, 07/11/2026). Vale também para as antigas gravadas no nome da recepcionista.
+export const ehMudancaPorCompra = (observacao) => String(observacao || '').includes('(automático: comprou ');
+
 export const ACOES_QUE_TIRAM_DO_PARADO = ['WhatsApp', 'Ligação', 'Observação', 'Mudança de Fase', 'Fila de Trabalho'];
 
 const diasEntre = (isoInicio, isoFim) => {
@@ -207,6 +211,10 @@ export const ehRecepcao = (colaborador) => {
 
 // Fases em que o lead ainda está sendo trabalhado (Kanban)
 export const FASES_EM_ATENDIMENTO = ['Novo', 'Em Contato'];
+// Limite de carteira (decisão do dono, 07/11/2026): cada recepcionista fica com no máximo 300 contatos em atendimento
+// (Novo + Em Contato). O resto fica no Banco Bruto; o Distribuir/Mover não passa do limite e o excedente (só "Novo"
+// vindo de lista, os enviados há mais tempo) volta para o Banco Bruto. Visitante do Cadastro de Visitante nunca volta.
+export const LIMITE_CARTEIRA = 300;
 
 // O "Day Use (3 Dias)" não existe mais (decisão do dono). Contatos antigos que ainda estejam nessa fase
 // aparecem como "Em Contato" para não sumirem do Kanban. Fase vazia ou desconhecida aparece como "Novo".
@@ -248,6 +256,8 @@ export const chaveMensagemDoLead = (lead) => (String(lead?.tipo_lead || '').toUp
 // Histórico do WhatsApp com a situação da mensagem (06/11/2026): Mensagem enviada (Visitante 24h): "texto".
 // Assim a Conversa mostra no balão em que etapa o contato estava. Mensagens antigas não têm o rótulo.
 export const rotuloMensagemDoLead = (lead) => ROTULOS_MENSAGENS[chaveMensagemDoLead(lead)] || '';
+// Boas-vindas do Cadastro de Visitante (07/11/2026): gravada como "Mensagem enviada (Boas-vindas): ..."
+export const ehBoasVindas = (h) => h?.tipo_acao === 'WhatsApp' && String(h?.observacao || '').startsWith('Mensagem enviada (Boas-vindas)');
 export const textoMensagemEnviada = (texto, rotulo) => `Mensagem enviada${rotulo ? ` (${rotulo})` : ''}: "${texto}"`;
 export const gerarTextoWhatsApp = (lead) => montarMensagem(chaveMensagemDoLead(lead), { nome: lead?.nome, unidade: lead?.unidade });
 
@@ -259,4 +269,47 @@ export const STATUS_TOKENS = {
     'Em Contato': { border: 'border-amber-200 dark:border-amber-500/30', text: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50/50 dark:bg-amber-500/10', accent: 'bg-amber-500', hex: '#f59e0b', icone: 'phone-forwarded' },
     'Fechado': { border: 'border-emerald-200 dark:border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50/50 dark:bg-emerald-500/10', accent: 'bg-emerald-500', hex: '#10b981', icone: 'check-circle' },
     'Perdido': { border: 'border-rose-200 dark:border-rose-500/30', text: 'text-rose-700 dark:text-rose-300', bg: 'bg-rose-50/50 dark:bg-rose-500/10', accent: 'bg-rose-500', hex: '#f43f5e', icone: 'x-circle' }
+};
+
+// ==========================================
+// FILA INTELIGENTE (decisão do dono, 07/11/2026): ordem de quem vale mais a pena contatar AGORA,
+// usada no Kanban e na Conversa (e a escolha "Mais antigos / Mais novos").
+//   0 Agendado atrasado · 1 Agendado para hoje · 2 Visitante 24h/48h · 3 Em Contato sem contato há 2+ dias ·
+//   4 Novo · 7 Contatado nos últimos 2 dias · 8 Agendado para outro dia · 9 Fechado/Perdido
+// Dentro do mesmo grupo, quem está parado há mais tempo vem primeiro. Quem acabou de ser contatado vai para o fim.
+// ==========================================
+export const ORDENS_CONTATOS = [
+    { val: 'PRIORIDADE', label: 'Prioridade (fila inteligente)' },
+    { val: 'ANTIGOS', label: 'Mais antigos primeiro' },
+    { val: 'NOVOS', label: 'Mais novos primeiro' }
+];
+const CHAVE_ORDEM_CONTATOS = 'crm_ordem_contatos';
+export const lerOrdemContatos = () => { try { return localStorage.getItem(CHAVE_ORDEM_CONTATOS) || 'PRIORIDADE'; } catch { return 'PRIORIDADE'; } };
+export const salvarOrdemContatos = (v) => { try { localStorage.setItem(CHAVE_ORDEM_CONTATOS, v); } catch { /* sem armazenamento */ } };
+const momentoContato = (v) => v?.ultima_acao_em || v?.puxado_em || dataDoLead(v) || '';
+export const prioridadeContato = (v) => {
+    const status = normalizarStatus(v?.status);
+    if (status === 'Fechado' || status === 'Perdido') return { nivel: 9, rotulo: '' };
+    const agenda = situacaoProximoContato(v);
+    if (agenda === 'atrasado') return { nivel: 0, rotulo: 'Agendado atrasado' };
+    if (agenda === 'hoje') return { nivel: 1, rotulo: 'Agendado hoje' };
+    if (ehVisitanteRecepcao(v)) {
+        const visita = dataDaVisita(v);
+        if (visita === diaISO(-1)) return { nivel: 2, rotulo: 'Visitante 24h' };
+        if (visita === diaISO(-2)) return { nivel: 2, rotulo: 'Visitante 48h' };
+    }
+    if (agenda === 'futuro') return { nivel: 8, rotulo: '' };
+    const ultima = v?.ultima_acao_em ? dataLocalISO(v.ultima_acao_em) : '';
+    if (status === 'Em Contato') {
+        if (ultima && ultima > diaISO(-2)) return { nivel: 7, rotulo: '' };
+        return { nivel: 3, rotulo: 'Sem contato há 2+ dias' };
+    }
+    return { nivel: 4, rotulo: '' };
+};
+export const ordenarContatos = (lista, ordem = 'PRIORIDADE') => {
+    const copia = [...lista];
+    if (ordem === 'ANTIGOS') return copia.sort((a, b) => String(momentoContato(a)).localeCompare(String(momentoContato(b))));
+    if (ordem === 'NOVOS') return copia.sort((a, b) => String(momentoContato(b)).localeCompare(String(momentoContato(a))));
+    const nivel = new Map(copia.map(v => [v.id, prioridadeContato(v).nivel]));
+    return copia.sort((a, b) => (nivel.get(a.id) - nivel.get(b.id)) || String(momentoContato(a)).localeCompare(String(momentoContato(b))));
 };

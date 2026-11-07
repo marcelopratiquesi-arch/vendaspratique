@@ -15,6 +15,7 @@ export const TIPOS_CONTATO = {
     VISITANTE_48H: 'Visitante 48h',
     ANIVERSARIO: 'Aniversário',
     MIGRACAO: 'Migração',
+    RESGATE: 'Resgate',
     CANCELADO: 'Cancelado',
     INATIVO: 'Inativo'
 };
@@ -81,9 +82,9 @@ export const registrarContatoFeito = async (registro) => {
     return !error;
 };
 
-// Alunos com contato de Migração já registrado hoje (um por aluno por dia: repetir não soma)
-export const carregarMigracaoContatadosHoje = async () => {
-    const { data, error } = await supabase.from('crm_contatos_feitos').select('aluno_id').eq('tipo', 'MIGRACAO').eq('referencia', diaISO(0));
+// Alunos com contato de Migração (ou Resgate) já registrado hoje (um por aluno por dia: repetir não soma)
+export const carregarMigracaoContatadosHoje = async (tipo = 'MIGRACAO') => {
+    const { data, error } = await supabase.from('crm_contatos_feitos').select('aluno_id').eq('tipo', tipo).eq('referencia', diaISO(0));
     if (error) { console.warn('Não foi possível ler os contatos de migração de hoje:', error.message || error); return new Set(); }
     return new Set((data || []).map(r => r.aluno_id).filter(Boolean));
 };
@@ -172,17 +173,60 @@ export const devolverDaFilaMigracao = async ({ aluno_id, unidade, quem }) => {
     if (error) throw error;
 };
 
+// ==========================================
+// RESGATE (decisão do dono, 07/11/2026): fila dos alunos FINALIZADOS / INATIVOS, igual à Migração.
+// Tabela crm_resgate e função crm_puxar_resgate (sql/2026-11-07-crm-resgate). null = falta o SQL.
+// ==========================================
+export const carregarAndamentoResgate = async () => {
+    const { data, error } = await supabase.from('crm_resgate').select('*');
+    if (error) { console.warn('Tabela crm_resgate indisponível (rode sql/2026-11-07-crm-resgate):', error.message || error); return null; }
+    return new Map((data || []).map(r => [r.aluno_id, r]));
+};
+
+export const salvarAndamentoResgate = async ({ aluno_id, unidade, status, quem, puxado_por, puxado_em, extras }) => {
+    const linha = {
+        aluno_id, unidade: String(unidade || '').toUpperCase().trim(), status,
+        atualizado_em: new Date().toISOString(), atualizado_por: quem, ...(extras || {})
+    };
+    if (puxado_por !== undefined) linha.puxado_por = puxado_por;
+    if (puxado_em !== undefined) linha.puxado_em = puxado_em;
+    const { error } = await supabase.from('crm_resgate').upsert(linha, { onConflict: 'aluno_id' });
+    if (error) throw error;
+};
+
+export const puxarParaFilaResgate = async ({ alunoIds, unidade, operador }) => {
+    if (!alunoIds.length) return [];
+    const { data, error } = await supabase.rpc('crm_puxar_resgate', {
+        p_unidade: String(unidade || '').toUpperCase().trim(), p_aluno_ids: alunoIds, p_operador: operador
+    });
+    if (error) throw error;
+    return (data || []).map(item => (item && typeof item === 'object' ? Object.values(item)[0] : item));
+};
+
+export const devolverDaFilaResgate = async ({ aluno_id, unidade, quem }) => {
+    const { error } = await supabase.from('crm_resgate').upsert({
+        aluno_id, unidade: String(unidade || '').toUpperCase().trim(), status: 'NA_FILA',
+        puxado_por: null, puxado_em: null, volta_em: null, tentativas: 0, resultado: null,
+        atualizado_em: new Date().toISOString(), atualizado_por: quem
+    }, { onConflict: 'aluno_id' });
+    if (error) throw error;
+};
+
 // Resumo do dia de quem fecha o turno (contatos feitos, Não contatar e interessados na Migração)
 export const carregarResumoDoDia = async (consultor) => {
     const inicio = new Date(); inicio.setHours(0, 0, 0, 0);
     const desde = inicio.toISOString();
-    const [feitos, bloqueios, interessados] = await Promise.all([
-        supabase.from('crm_contatos_feitos').select('tipo, canal').eq('consultor', consultor).gte('criado_em', desde),
+    const [feitos, bloqueios, interessados, resultados, boasVindas] = await Promise.all([
+        supabase.from('crm_contatos_feitos').select('tipo, canal, lead_id, aluno_id').eq('consultor', consultor).gte('criado_em', desde),
         supabase.from('crm_nao_contatar').select('id', { count: 'exact', head: true }).eq('colocado_por', consultor).gte('criado_em', desde),
-        supabase.from('crm_migracao').select('aluno_id', { count: 'exact', head: true }).eq('status', 'INTERESSADO').eq('atualizado_por', consultor).gte('atualizado_em', desde)
+        supabase.from('crm_migracao').select('aluno_id', { count: 'exact', head: true }).eq('status', 'INTERESSADO').eq('atualizado_por', consultor).gte('atualizado_em', desde),
+        // Resultados da janela "Como foi o contato?" (Migração e Resgate; sem o SQL de 07/11 volta vazio)
+        supabase.from('crm_resultados_contato').select('origem, resultado').eq('consultor', consultor).gte('criado_em', desde),
+        // Boas-vindas mandadas hoje (Cadastro de Visitante), de qualquer pessoa
+        supabase.from('historico_leads').select('lead_id').eq('tipo_acao', 'WhatsApp').like('observacao', 'Mensagem enviada (Boas-vindas)%').gte('data_registro', desde)
     ]);
     if (feitos.error) { console.warn('Resumo do dia indisponível:', feitos.error.message || feitos.error); return null; }
-    return { feitos: feitos.data || [], naoContatar: bloqueios.count || 0, interessados: interessados.count || 0 };
+    return { feitos: feitos.data || [], naoContatar: bloqueios.count || 0, interessados: interessados.count || 0, resultados: resultados.error ? [] : (resultados.data || []), boasVindas: new Set((boasVindas.data || []).map(h => String(h.lead_id))) };
 };
 
 // Contatos feitos de um aluno (aba Contatos e linha do tempo da ficha): pelo aluno ou pelos contatos do CRM dele.

@@ -5,7 +5,11 @@ import { mascaraCPF, validarCPF, telefoneSem55 } from '../CadastroGeral/utilsAlu
 import { buscarAlunosNaRede, buscarUnidadesDoAluno } from '../Alunos/utils.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
-import { UserPlus, Target, Send, Loader2, CheckCircle2, Briefcase, AlertTriangle, UserRoundPen, Search, RefreshCw, PhoneOff, User, Phone, ChevronDown } from 'lucide-react';
+import { UserPlus, Target, Send, Loader2, CheckCircle2, Briefcase, AlertTriangle, UserRoundPen, Search, RefreshCw, PhoneOff, User, Phone, ChevronDown, MessageCircle } from 'lucide-react';
+import { montarMensagem, MENSAGENS_PADRAO } from '../CrmVisitantes/embaralhador.js';
+import { carregarMensagensProntas } from '../CrmVisitantes/contatosFeitos.js';
+import { textoMensagemEnviada } from '../CrmVisitantes/utils.js';
+import { tentarAbrirNoWhatsApp, abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -66,9 +70,31 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
     const [sucesso, setSucesso] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // BOAS-VINDAS NO WHATSAPP (decisão do dono, 07/11/2026): com nome e telefone, aparece a mensagem de boas-vindas
+    // (10 versões, situação VISITANTE_BOAS_VINDAS; só recepciona, não oferece valores). "Salvar e enviar no WhatsApp"
+    // salva no funil já em "Em Contato", grava a mensagem no histórico (conta na meta de quem atendeu) e abre o WhatsApp.
+    // O 24h (amanhã) e o 48h continuam iguais. O botão antigo "Só salvar no funil" continua.
+    const [mensagensProntas, setMensagensProntas] = useState(null);
+    const modeloBoasVindas = (fonte) => montarMensagem('VISITANTE_BOAS_VINDAS', { nome: 'Qqq', unidade: 'Uuu' }, fonte || MENSAGENS_PADRAO);
+    const [modeloBV, setModeloBV] = useState(() => modeloBoasVindas());
+    const [whatsPendente, setWhatsPendente] = useState(null); // { telefone, texto } quando o navegador bloqueou a aba
+    useEffect(() => {
+        let ativo = true;
+        carregarMensagensProntas().then(m => { if (ativo && m) { setMensagensProntas(m); setModeloBV(modeloBoasVindas(m)); } });
+        return () => { ativo = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carrega uma vez
+    }, []);
+    const maiusculaInicial = (s) => String(s || '').toLowerCase().replace(/(^|\s)(\S)/g, (m, e, l) => e + l.toUpperCase());
+
     // Unidade(s) de origem da pessoa escolhida (só para mostrar; a visita fica na unidade de quem atende)
     const [unidadesAluno, setUnidadesAluno] = useState([]);
     const unidadeMinha = temVisaoGlobal ? leadForm.unidade : (usuarioLogado?.unidade || '');
+    const textoBoasVindas = (() => {
+        const primeiro = maiusculaInicial(String(rapido.nome || '').trim().split(' ')[0]);
+        const uni = maiusculaInicial(String(unidadeMinha || '').trim());
+        const t = modeloBV.split('Qqq').join(primeiro || 'tudo bem');
+        return uni ? t.split('Uuu').join(uni) : t.replace(/ ?Uuu/g, '');
+    })();
 
     useEffect(() => {
         const id = alunoEncontrado?.id;
@@ -370,49 +396,71 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
     };
 
     // Envio do cadastro rápido (nome + telefone; CPF só se digitado)
+    // Telefone já no funil? Confere enquanto a pessoa digita (para o clique abrir o WhatsApp na hora, sem esperar o banco)
+    const [telDuplicado, setTelDuplicado] = useState(null);
+    useEffect(() => {
+        if (modo !== 'rapido' || telRapido.length < 10) { setTelDuplicado(null); return undefined; }
+        let ativo = true;
+        const t = setTimeout(async () => {
+            const { data } = await supabase.from('leads').select('nome, vendedor, status')
+                .or(`telefone.eq.${telRapido},telefone.eq.55${telRapido}`).not('status', 'in', '("Fechado","Arquivado")').limit(1);
+            if (ativo) setTelDuplicado(data?.[0] || null);
+        }, 400);
+        return () => { ativo = false; clearTimeout(t); };
+    }, [modo, telRapido]);
+
+    // Caminho único (decisão do dono, 07/11/2026): "Salvar e enviar no WhatsApp". O WhatsApp abre NO CLIQUE
+    // (igual ao CRM, sem bloqueio do navegador) e o visitante é salvo em seguida, já em "Em Contato", com a
+    // boas-vindas no histórico em nome de quem atendeu (conta na meta dela).
     const enviarRapido = async () => {
         if (rapido.nome.trim().length < 2) return avisar(tx("Digite o nome do visitante."));
         if (telRapido.length < 10) return avisar(tx("Digite o telefone com DDD."));
         if (cpfRapidoErro) return avisar(tx("CPF inválido. Corrija ou deixe em branco."));
         if (temVisaoGlobal && !leadForm.unidade) return avisar(tx("Selecione a Unidade do visitante."));
         if (!leadForm.vendedor) return avisar(tx("Selecione o consultor que atendeu o visitante."));
+        if (telDuplicado && !window.confirm(tx('Este telefone já está no funil do CRM ({nome}, consultor {vendedor}). Cadastrar mesmo assim?', { nome: telDuplicado.nome || '—', vendedor: telDuplicado.vendedor || '—' }))) return;
         envioTravadoRef.current = true;
+        const textoEnviado = textoBoasVindas;
+        const telefone = telRapido;
+        const abriu = tentarAbrirNoWhatsApp(telefone, textoEnviado);
         setIsSubmitting(true);
         try {
-            // Mesmo telefone já no funil? Pergunta antes, para não duplicar
-            const { data: iguais } = await supabase.from('leads').select('nome, vendedor, status')
-                .or(`telefone.eq.${telRapido},telefone.eq.55${telRapido}`).not('status', 'in', '("Fechado","Arquivado")').limit(1);
-            if (iguais && iguais.length > 0) {
-                const l = iguais[0];
-                if (!window.confirm(tx('Este telefone já está no funil do CRM ({nome}, consultor {vendedor}). Cadastrar mesmo assim?', { nome: l.nome || '—', vendedor: l.vendedor || '—' }))) {
-                    envioTravadoRef.current = false;
-                    return;
-                }
-            }
             const agora = new Date().toISOString();
             const vendedorSelecionado = leadForm.vendedor.toUpperCase();
-            const { error } = await supabase.from('leads').insert([{
+            const { data: salvos, error } = await supabase.from('leads').insert([{
                 unidade: leadForm.unidade.toUpperCase(),
                 data: getLocalDateISO(),
                 nome: rapido.nome.trim().toUpperCase(),
                 cpf: cpfRapido.length === 11 ? cpfRapido : null,
-                telefone: telRapido,
+                telefone,
                 interesse: leadForm.interesse.trim().toUpperCase(),
                 vendedor: vendedorSelecionado,
                 observacao: leadForm.observacao,
                 origem: 'RECEPCAO',
-                status: 'Novo',
+                // Já mandou a boas-vindas: entra em "Em Contato" (WhatsApp em "Novo" move sozinho, regra de 06/11)
+                status: 'Em Contato',
                 data_criacao: agora,
                 criado_por: usuarioLogado?.nome || 'SISTEMA',
                 puxado_em: agora,
                 puxado_por: vendedorSelecionado
-            }]);
+            }]).select('id');
             if (error) {
                 envioTravadoRef.current = false;
-                if (error.code === '23505') return avisar(tx("🚨 BLOQUEADO: este CPF já está no funil do CRM.\n\nSe for um retorno, peça ao consultor responsável para procurá-lo na aba \"Base\" ou \"Geladeira\" do CRM."));
+                if (error.code === '23505') return avisar(tx("O WhatsApp abriu, mas o visitante NÃO foi salvo: este CPF já está no funil do CRM. Procure o contato na Base ou na Geladeira do CRM."), 'erro');
                 throw error;
             }
+            const leadId = salvos?.[0]?.id;
+            if (leadId) {
+                const { error: erroHist } = await supabase.from('historico_leads').insert([
+                    { lead_id: String(leadId), tipo_acao: 'WhatsApp', consultor: leadForm.vendedor, observacao: textoMensagemEnviada(textoEnviado, 'Boas-vindas') },
+                    { lead_id: String(leadId), tipo_acao: 'Mudança de Fase', consultor: leadForm.vendedor, observacao: 'Movido de "Novo" para "Em Contato" (automático: WhatsApp)' }
+                ]);
+                if (erroHist) console.warn('Boas-vindas: visitante salvo, mas o histórico não foi gravado:', erroHist.message);
+            }
+            setModeloBV(modeloBoasVindas(mensagensProntas));
             setSucesso(true);
+            // Navegador bloqueou a aba: o aviso de sucesso mostra o botão "Abrir o WhatsApp"
+            if (!abriu) { setWhatsPendente({ telefone, texto: textoEnviado }); return; }
             setTimeout(() => {
                 setSucesso(false);
                 if (voltarHub) voltarHub();
@@ -421,7 +469,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         } catch (error) {
             envioTravadoRef.current = false;
             console.error("Erro:", error);
-            avisar(tx("Não foi possível salvar o visitante. Tente novamente."));
+            avisar(tx("O WhatsApp abriu, mas o visitante NÃO foi salvo. Tente de novo."), 'erro');
         } finally {
             setIsSubmitting(false);
         }
@@ -454,6 +502,16 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                             </div>
                             <h3 className="text-2xl font-black text-slate-800 tracking-tight mb-2 dark:text-white">{tx("Visitante registrado!")}</h3>
                             <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Enviado direto para o Funil CRM.")}</p>
+                            {whatsPendente && (
+                                <div className="mt-6 w-full space-y-2">
+                                    <button type="button" onClick={() => { abrirNoWhatsApp(whatsPendente.telefone, whatsPendente.texto); setWhatsPendente(null); setSucesso(false); if (voltarHub) voltarHub(); else envioTravadoRef.current = false; }} className="w-full h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                        <MessageCircle className="w-5 h-5" />{' '}{tx("Abrir o WhatsApp")}
+                                    </button>
+                                    <button type="button" onClick={() => { setWhatsPendente(null); setSucesso(false); if (voltarHub) voltarHub(); else envioTravadoRef.current = false; }} className="w-full h-10 rounded-xl bg-slate-100 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-400">
+                                        {tx("Concluir")}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
@@ -726,10 +784,26 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                             </div>
                         </div>
 
-                        <div className="mt-8 pt-6 border-t border-slate-100 flex justify-end dark:border-slate-800">
-                            <button type="submit" disabled={isSubmitting || sucesso || !pronto} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 px-10 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 text-xs active:scale-[0.98]">
-                                {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Inserindo no CRM...")}</> : <><Send className="w-5 h-5" />{' '}{tx("Enviar para o Funil CRM")}</>}
-                            </button>
+                        {modo === 'rapido' && pronto && (
+                            <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                                <div className="flex items-center justify-between gap-2 mb-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5"><MessageCircle className="w-4 h-4" />{' '}{tx("Mensagem de boas-vindas")}</span>
+                                    <button type="button" onClick={() => setModeloBV(modeloBoasVindas(mensagensProntas))} className="text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Gerar outra")}</button>
+                                </div>
+                                <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{textoBoasVindas}</p>
+                            </div>
+                        )}
+
+                        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col-reverse md:flex-row justify-end gap-3 dark:border-slate-800">
+                            {modo === 'rapido' ? (
+                                <button type="submit" disabled={isSubmitting || sucesso || !pronto} className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 px-8 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 text-xs active:scale-[0.98]" title={tx("Salva o visitante no funil e já abre o WhatsApp com a mensagem de boas-vindas")}>
+                                    {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Salvando...")}</> : <><MessageCircle className="w-5 h-5" />{' '}{tx("Salvar e enviar no WhatsApp")}</>}
+                                </button>
+                            ) : (
+                                <button type="submit" disabled={isSubmitting || sucesso || !pronto} className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 px-8 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 text-xs active:scale-[0.98]">
+                                    {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Inserindo no CRM...")}</> : <><Send className="w-5 h-5" />{' '}{tx("Enviar para o Funil CRM")}</>}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

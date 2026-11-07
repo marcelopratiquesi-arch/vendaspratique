@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, Star, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText } from 'lucide-react';
+import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, Star, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine, ClipboardCheck } from 'lucide-react';
 import { decomporPlano } from '../AnaliseVendas/utils.js';
-import { MENSAGENS_PADRAO, abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, somarDiasISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
+import { MENSAGENS_PADRAO, abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
 import { montarMensagem } from './embaralhador.js';
 import {
     carregarUltimoPlanoAlunos, carregarAndamentoMigracao, salvarAndamentoMigracao, puxarParaFilaMigracao,
@@ -9,7 +9,11 @@ import {
 } from './contatosFeitos';
 import { JanelaNaoContatar } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
-import { telefoneFalso, telefoneSem55 } from '../CadastroGeral/utilsAlunos.js';
+import JanelaResultadoContato from './JanelaResultadoContato';
+import {
+    ANDAMENTOS_BASE, VISOES_FILA as VISOES, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
+    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato
+} from './resultadoContato.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -45,13 +49,9 @@ import { tx } from '../../i18n/traduzir.js';
 // Campos no banco: crm_migracao.volta_em / tentativas / resultado (sql/2026-11-06-crm-migracao-resultado).
 // ==========================================
 
-// Etapa mostrada na linha (calculada pela situação gravada + data de volta)
+// Etapa mostrada na linha (regras em resultadoContato.js, as mesmas do Resgate)
 const ANDAMENTOS = {
-    NAO_CONTATADO: { rotulo: 'Não contatado', classe: 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700' },
-    PARA_HOJE: { rotulo: 'Para hoje', classe: 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30' },
-    AGUARDANDO: { rotulo: 'Aguardando', classe: 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700' },
-    INTERESSADO: { rotulo: 'Interessado', classe: 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-500/30' },
-    GELADEIRA: { rotulo: 'Geladeira', classe: 'bg-cyan-50 dark:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-200 dark:border-cyan-500/30' },
+    ...ANDAMENTOS_BASE,
     MIGROU: { rotulo: 'Migrou', classe: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30' }
 };
 const FILTROS_ANDAMENTO = [
@@ -70,83 +70,7 @@ const CONTADORES = [
     { chave: 'MIGROU_MES', filtro: 'MIGROU', rotulo: 'Migraram no mês', classe: ANDAMENTOS.MIGROU.classe },
     { chave: 'DESISTIRAM', filtro: 'GELADEIRA', rotulo: 'Desistiram', classe: ANDAMENTOS.GELADEIRA.classe }
 ];
-// Resultado do contato: em quantos dias volta para a lista "Para hoje"
-const DIAS_VOLTA_PENSANDO = 3;
-const DIAS_VOLTA_SEM_RESPOSTA = 2;
-const DIAS_GELADEIRA = 30;
-const MAX_TENTATIVAS = 3;
-const NA_GELADEIRA = ['NAO_QUER', 'SEM_RESPOSTA'];
-const dataBR = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '');
-const VISOES = [
-    { val: 'FILA', label: 'Minha fila' },
-    { val: 'DISPONIVEIS', label: 'Disponíveis' },
-    { val: 'TODOS', label: 'Todos' },
-    { val: 'SEM_TELEFONE', label: 'Sem telefone' }
-];
-// Telefone que não dá para ligar nem mandar WhatsApp
-const semTelefoneValido = (tel) => {
-    const limpo = telefoneSem55(tel);
-    return limpo.length < 10 || telefoneFalso(limpo);
-};
-const QUANTIDADES_PUXAR = [10, 15, 20, 50];
-const DIAS_PARA_DEVOLVER = 7;
 const POR_PAGINA = 50;
-
-// Linha pequena embaixo da etapa: quando volta, tentativas, motivo da geladeira
-const detalheEtapa = (l) => {
-    const reg = l.registro || {};
-    const partes = [];
-    if (l.etapa === 'GELADEIRA') partes.push(`${l.situacao === 'NAO_QUER' ? tx('Não quer') : tx('Sem resposta')} · ${tx('volta {dia}', { dia: dataBR(l.voltaEm) })}`);
-    else if (l.etapa === 'AGUARDANDO') partes.push(tx('volta {dia}', { dia: dataBR(l.voltaEm) }));
-    else if (l.etapa === 'PARA_HOJE' && l.voltaEm) partes.push(l.voltaEm < diaISO(0) ? tx('atrasado desde {dia}', { dia: dataBR(l.voltaEm) }) : tx('volta hoje'));
-    if (reg.resultado === 'PENSANDO' && l.situacao === 'CONTATADO') partes.push(tx('vai pensar'));
-    if (Number(reg.tentativas) > 0 && l.situacao === 'CONTATADO') partes.push(tx('tentativa {n} de {max}', { n: reg.tentativas, max: MAX_TENTATIVAS }));
-    if (l.etapa === 'PARA_HOJE' && NA_GELADEIRA.includes(l.situacao)) partes.push(tx('voltou da geladeira'));
-    return partes.join(' · ');
-};
-
-// Janela "Como foi o contato?" (abre depois do WhatsApp/Ligar ou pelo botão Resultado)
-const JanelaResultado = ({ aluno, hoje, onEscolher, onFechar }) => {
-    const tentativas = Number(aluno.registro?.tentativas) || 0;
-    const proxima = Math.min(tentativas + 1, MAX_TENTATIVAS);
-    const vaiParaGeladeira = proxima >= MAX_TENTATIVAS;
-    const opcoes = [
-        { tipo: 'PENSANDO', icone: MessageSquareText, titulo: tx('Respondeu, vai pensar'), texto: tx('Volta para você em {dias} dias ({dia}).', { dias: DIAS_VOLTA_PENSANDO, dia: dataBR(somarDiasISO(hoje, DIAS_VOLTA_PENSANDO)) }), cor: 'border-blue-200 dark:border-blue-500/30 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-blue-700 dark:text-blue-300' },
-        { tipo: 'SEM_RESPOSTA', icone: PhoneMissed, titulo: tx('Não respondeu / não atendeu'), texto: vaiParaGeladeira ? tx('{n}ª tentativa: vai para a geladeira e volta em {dias} dias.', { n: proxima, dias: DIAS_GELADEIRA }) : tx('Tentativa {n} de {max}. Volta em {dias} dias ({dia}).', { n: proxima, max: MAX_TENTATIVAS, dias: DIAS_VOLTA_SEM_RESPOSTA, dia: dataBR(somarDiasISO(hoje, DIAS_VOLTA_SEM_RESPOSTA)) }), cor: 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
-        { tipo: 'INTERESSADO', icone: Star, titulo: tx('Interessado'), texto: tx('Vai para o seu funil em "Em Contato".'), cor: 'border-amber-200 dark:border-amber-500/30 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-700 dark:text-amber-300' },
-        { tipo: 'NAO_QUER', icone: ThumbsDown, titulo: tx('Não quer'), texto: tx('Vai para a geladeira da Migração e volta em {dias} dias. Não entra no "Não contatar".', { dias: DIAS_GELADEIRA }), cor: 'border-cyan-200 dark:border-cyan-500/30 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' }
-    ];
-    return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-[min(460px,100%)] border border-slate-200 dark:border-slate-800 overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-start gap-3">
-                    <ClipboardCheck className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                        <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Como foi o contato?')}</h3>
-                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{aluno.nome}</p>
-                    </div>
-                    <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>
-                </div>
-                <div className="p-4 space-y-2">
-                    {opcoes.map(o => (
-                        <button key={o.tipo} type="button" onClick={() => onEscolher(o.tipo)} className={`w-full text-left rounded-xl border px-4 py-3 flex items-start gap-3 transition-colors ${o.cor}`}>
-                            <o.icone className="w-5 h-5 shrink-0 mt-0.5" />
-                            <span className="min-w-0">
-                                <span className="block text-xs font-black uppercase tracking-widest">{o.titulo}</span>
-                                <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{o.texto}</span>
-                            </span>
-                        </button>
-                    ))}
-                </div>
-                <div className="px-4 pb-4">
-                    <button type="button" onClick={onFechar} className="w-full h-10 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center gap-1.5" title={tx('Fecha sem marcar o resultado (não conta tentativa)')}>
-                        <Clock3 className="w-3.5 h-3.5" />{' '}{tx('Decidir depois')}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
 
 const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), onNaoContatar, onContatoFeito, onInteressado }) => {
     const [alunos, setAlunos] = useState(null);
@@ -222,16 +146,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 const semTel = semTelefoneValido(a.telefone);
                 // Etapa e dia de volta: contatado volta na data marcada (sem data: 2 dias depois do último contato);
                 // geladeira (Não quer / Sem resposta) volta em 30 dias
-                let etapa = situacao;
-                let voltaEm = null;
-                if (situacao === 'CONTATADO') {
-                    voltaEm = registro?.volta_em || somarDiasISO(dataLocalISO(registro?.atualizado_em || registro?.criado_em) || hoje, DIAS_VOLTA_SEM_RESPOSTA);
-                    etapa = voltaEm <= hoje ? 'PARA_HOJE' : 'AGUARDANDO';
-                } else if (NA_GELADEIRA.includes(situacao)) {
-                    voltaEm = registro?.volta_em || somarDiasISO(dataLocalISO(registro?.atualizado_em) || hoje, DIAS_GELADEIRA);
-                    etapa = voltaEm <= hoje ? 'PARA_HOJE' : 'GELADEIRA';
-                }
-                const paraHoje = etapa === 'NAO_CONTATADO' || etapa === 'PARA_HOJE';
+                const { etapa, voltaEm, paraHoje } = calcularEtapa(situacao, registro, hoje);
                 return { ...a, situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, disponivel: disponivel && !semTel, minhaFila: !semTel && !disponivel && mesmoNome(dono, operador) };
             })
             .filter(Boolean);
@@ -254,11 +169,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         if (!['HOJE', 'TODOS'].includes(filtroAndamento) && l.etapa !== filtroAndamento) return false;
         if (filtroPlano && l.ultimo_plano !== filtroPlano) return false;
         return contatoCombinaComBusca(l, busca);
-    }).sort((a, b) => (
-        (a.paraHoje ? 0 : 1) - (b.paraHoje ? 0 : 1)
-        || String(a.voltaEm || '9999').localeCompare(String(b.voltaEm || '9999'))
-        || String(b.data_compra || '').localeCompare(String(a.data_compra || ''))
-    )), [daVisao, filtroAndamento, filtroPlano, busca]);
+    }).sort((a, b) => ordenarFila(a, b) || String(b.data_compra || '').localeCompare(String(a.data_compra || ''))), [daVisao, filtroAndamento, filtroPlano, busca]);
 
     // Copia a lista dos sem telefone (nome, CPF, último plano) para procurar os números no TECACE
     const copiarSemTelefone = async () => {
@@ -362,27 +273,13 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     const aplicarResultado = async (linha, tipo) => {
         setResultadoPara(null);
         const reg = linha.registro || {};
-        const tentativasAntes = Number(reg.tentativas) || 0;
-        const jaMarcouHoje = reg.resultado === 'SEM_RESPOSTA' && dataLocalISO(reg.atualizado_em) === hoje;
-        let status; let extras;
-        if (tipo === 'PENSANDO') {
-            status = 'CONTATADO'; extras = { resultado: 'PENSANDO', volta_em: somarDiasISO(hoje, DIAS_VOLTA_PENSANDO), tentativas: 0 };
-        } else if (tipo === 'SEM_RESPOSTA') {
-            const n = jaMarcouHoje ? Math.max(tentativasAntes, 1) : tentativasAntes + 1;
-            extras = n >= MAX_TENTATIVAS
-                ? { resultado: 'SEM_RESPOSTA', volta_em: somarDiasISO(hoje, DIAS_GELADEIRA), tentativas: 0 }
-                : { resultado: 'SEM_RESPOSTA', volta_em: somarDiasISO(hoje, DIAS_VOLTA_SEM_RESPOSTA), tentativas: n };
-            status = n >= MAX_TENTATIVAS ? 'SEM_RESPOSTA' : 'CONTATADO';
-        } else if (tipo === 'INTERESSADO') {
-            status = 'INTERESSADO'; extras = { resultado: 'INTERESSADO', volta_em: null, tentativas: 0 };
-        } else {
-            status = 'NAO_QUER'; extras = { resultado: 'NAO_QUER', volta_em: somarDiasISO(hoje, DIAS_GELADEIRA), tentativas: 0 };
-        }
+        const { status, extras } = camposDoResultado(tipo, reg, hoje);
         const dono = reg.puxado_por ? undefined : (linha.dono || operador);
         setSalvando(linha.aluno_id);
         try {
             const r = await salvarAndamentoMigracao({ aluno_id: linha.aluno_id, unidade: unidadeChave, status, quem: operador, puxado_por: dono, extras });
             if (r?.semCamposNovos) setSemCamposNovos(true);
+            registrarResultadoContato({ unidade: unidadeChave, consultor: operador, origem: 'MIGRACAO', aluno_id: linha.aluno_id, resultado: tipo });
             atualizarLocal(linha.aluno_id, { status, ...(r?.semCamposNovos ? {} : extras), atualizado_em: new Date().toISOString(), ...(dono ? { puxado_por: dono } : {}) });
             if (status === 'SEM_RESPOSTA') avisar(tx("{nome}: {qtd} tentativas sem resposta. Foi para a geladeira e volta em {dias} dias.", { nome: linha.nome, qtd: MAX_TENTATIVAS, dias: DIAS_GELADEIRA }));
             if (tipo === 'INTERESSADO' && onInteressado) await onInteressado(linha);
@@ -604,9 +501,11 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             )}
 
             {resultadoPara && (
-                <JanelaResultado
+                <JanelaResultadoContato
                     aluno={resultadoPara}
                     hoje={hoje}
+                    textoInteressado={tx('Vai para o seu funil em "Em Contato".')}
+                    textoNaoQuer={tx('Vai para a geladeira da Migração e volta em {dias} dias. Não entra no "Não contatar".', { dias: DIAS_GELADEIRA })}
                     onEscolher={(tipo) => aplicarResultado(resultadoPara, tipo)}
                     onFechar={() => setResultadoPara(null)}
                 />

@@ -18,7 +18,32 @@ body {
 ::-webkit-scrollbar-track { 
   background: transparent; 
 }
-::-webkit-scrollbar-thumb { 
+::-webkit-scrollbar-thumb {
   @apply bg-slate-300 dark:bg-slate-700 transition-colors duration-500;
-  border-radius: 4px; 
+  border-radius: 4px;
+}
+
+/* Barra de rolagem GROSSA (Central de Alunos, 07/11/2026): fácil de pegar com o mouse e escurece ao passar o mouse */
+.rolagem-grossa::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+.rolagem-grossa::-webkit-scrollbar-track {
+  @apply bg-slate-100 dark:bg-slate-800/70;
+}
+.rolagem-grossa::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 dark:bg-slate-600;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.rolagem-grossa::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-500 dark:bg-slate-400;
+}
+.rolagem-grossa::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Firefox (não tem ::-webkit-scrollbar) */
+@supports not selector(::-webkit-scrollbar) {
+  .rolagem-grossa { scrollbar-width: auto; scrollbar-color: #94a3b8 transparent; }
 }

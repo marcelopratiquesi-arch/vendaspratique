@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { Search, X, RefreshCw, Building2, Bookmark, UserPlus, ChevronDown, Users } from 'lucide-react';
+import { Search, X, RefreshCw, Building2, Bookmark, UserPlus, ChevronDown, Users, BadgeCheck, AlertTriangle } from 'lucide-react';
+import { OPCOES_SITUACAO } from './utils.js';
+
+// Texto de cada opção do filtro de situação (o valor é o que vai para o banco)
+const ROTULO_SITUACAO = {
+    TODAS: 'Todas as situações', ATIVOS: 'Ativos', NAO_ATIVOS: 'Não ativos (todos)', INATIVO: 'Inativo', FINALIZADO: 'Finalizado',
+    CANCELADO: 'Cancelado', VISITANTE: 'Visitante', SUSPENSO: 'Suspenso', TRANCADO: 'Trancado', BLOQUEADO: 'Bloqueado', SEM: 'Sem situação',
+};
 import { SeletorPeriodo, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { MESES_FILTRO, faixaDoFiltro, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
@@ -12,6 +19,7 @@ const formatTime = (date) => {
 const FiltrosAlunos = ({
     buscaInput, setBuscaInput,
     filtroPlano, setFiltroPlano,
+    filtroSituacao = 'TODAS', setFiltroSituacao, faltaSqlSituacao = false,
     filtroUnidade, setFiltroUnidade,
     filtroPeriodo, setFiltroPeriodo,
     dataInicio, setDataInicio,
@@ -39,7 +47,7 @@ const FiltrosAlunos = ({
         setFiltroPeriodo(p.preset);
     };
 
-    const temFiltroAtivo = Boolean(buscaInput) || filtroPlano !== 'TODOS' || (temVisaoGlobal && filtroUnidade !== 'TODAS') || preset !== 'todo';
+    const temFiltroAtivo = Boolean(buscaInput) || filtroPlano !== 'TODOS' || filtroSituacao !== 'TODAS' || (temVisaoGlobal && filtroUnidade !== 'TODAS') || preset !== 'todo';
 
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 flex flex-col gap-5">
@@ -108,6 +116,19 @@ const FiltrosAlunos = ({
                         <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                     </div>
 
+                    {/* SITUAÇÃO (07/11/2026): vem da importação do Cadastro → Alunos */}
+                    <div className="relative min-w-[170px] flex-1 lg:flex-none" title={tx("Situação do aluno, vinda da importação em Cadastro → Alunos")}>
+                        <BadgeCheck className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroSituacao !== 'TODAS' ? 'text-blue-500' : 'text-slate-400'}`} />
+                        <select
+                            value={filtroSituacao}
+                            onChange={(e) => setFiltroSituacao?.(e.target.value)}
+                            className={`w-full border rounded-xl pl-9 pr-8 py-3.5 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer appearance-none shadow-sm ${filtroSituacao !== 'TODAS' ? 'bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-700 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200'}`}
+                        >
+                            {OPCOES_SITUACAO.map(op => <option key={op} value={op}>{tx(ROTULO_SITUACAO[op] || op)}</option>)}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
                     <SeletorPeriodo
                         rotulo={rotuloDoFiltro(filtroAtual)}
                         preset={preset}
@@ -138,6 +159,13 @@ const FiltrosAlunos = ({
                     )}
                 </div>
             </div>
+
+            {faltaSqlSituacao && (
+                <div className="px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center gap-2 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    {tx("O filtro de situação ainda não funciona: falta rodar no banco o SQL 2026-11-07-alunos-situacao.")}
+                </div>
+            )}
         </div>
     );
 };

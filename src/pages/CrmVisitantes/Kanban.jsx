@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, classeTipoLead } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, classeTipoLead, ordenarContatos } from './utils';
 import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import { tx } from '../../i18n/traduzir.js';
@@ -176,7 +176,7 @@ const Kanban = ({
     registrarHistorico,
     podeApagar = false,
     onProximoContato
-}) => {
+, ordem = 'PRIORIDADE'}) => {
     const [deletingIds, setDeletingIds] = useState(() => new Set());
     const [sendingNotaIds, setSendingNotaIds] = useState(() => new Set());
     const [notasSalvasIds, setNotasSalvasIds] = useState(() => new Set());
@@ -215,11 +215,10 @@ const Kanban = ({
         for (const v of visitantes) {
             if (grupos[v.status]) grupos[v.status].push(v);
         }
-        for (const coluna of COLUNAS) {
-            grupos[coluna].sort((a, b) => new Date(b.puxado_em || dataDoLead(b)) - new Date(a.puxado_em || dataDoLead(a)));
-        }
+        // Ordem escolhida no topo do CRM (fila inteligente, mais antigos ou mais novos)
+        for (const coluna of COLUNAS) grupos[coluna] = ordenarContatos(grupos[coluna], ordem);
         return grupos;
-    }, [visitantes]);
+    }, [visitantes, ordem]);
 
     const handleLigarMicroSip = useCallback(async (lead) => {
         if (!lead.telefone) return;

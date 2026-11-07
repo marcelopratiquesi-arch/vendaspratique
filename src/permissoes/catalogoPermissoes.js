@@ -94,10 +94,8 @@ export const CATALOGO_PERMISSOES = [
 
     // ---------- 5xx CRM ----------
     { codigo: '501', nome: 'Entrada: aba Equipe', tipo: 'ver', padrao: TODOS, travada: true, descricao: 'Aba principal da tela (para esconder a tela, desligue o 005).' },
-    { codigo: '502', nome: 'Entrada: aba Desempenho', tipo: 'ver', padrao: TODOS },
-    { codigo: '503', nome: 'Entrada: aba Rede', tipo: 'ver', padrao: GLOBAL, rede: true },
-    { codigo: '504', nome: 'Entrada: aba Relatório', tipo: 'ver', padrao: TODOS },
-    { codigo: '505', nome: 'Entrada: aba Histórico', tipo: 'ver', padrao: TODOS },
+    { codigo: '502', nome: 'Entrada: aba Painel', tipo: 'ver', padrao: TODOS, descricao: 'Desde 07/11/2026 junta as antigas abas Desempenho e Rede e o Resultado por recepcionista (o antigo 503 deixou de existir).' },
+    { codigo: '504', nome: 'Entrada: aba Contatos', tipo: 'ver', padrao: TODOS, descricao: 'Desde 07/11/2026 junta as antigas abas Relatório e Histórico (o antigo 505 deixou de existir).' },
     { codigo: '506', nome: 'CRM da recepcionista: Kanban', tipo: 'ver', padrao: TODOS, travada: true, descricao: 'Visão principal do CRM da recepcionista.' },
     { codigo: '507', nome: 'CRM da recepcionista: Lista', tipo: 'ver', padrao: TODOS },
     { codigo: '508', nome: 'CRM da recepcionista: Hoje', tipo: 'ver', padrao: TODOS },
@@ -113,6 +111,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '518', nome: '"Cobrar no WhatsApp" do Painel da Rede', tipo: 'fazer', padrao: GLOBAL, rede: true },
     { codigo: '519', nome: 'CRM da recepcionista: Conversa', tipo: 'ver', padrao: TODOS, descricao: 'Contatos de um lado e a conversa do contato do outro (como o WhatsApp Business).' },
     { codigo: '520', nome: 'Base: puxar alunos do cadastro', tipo: 'fazer', padrao: TODOS, descricao: 'Traz para o Banco Bruto os alunos da unidade pelo status (Finalizado, Inativo...). Fica dentro da Base (517).' },
+    { codigo: '521', nome: 'CRM da recepcionista: Resgate', tipo: 'ver', padrao: TODOS, descricao: 'Alunos finalizados e inativos (status do cadastro) numa fila separada, igual à Migração.' },
 
     // ---------- 6xx ALUNOS ----------
     { codigo: '601', nome: 'Ficha: aba Dados', tipo: 'ver', padrao: TODOS, travada: true, descricao: 'Aba principal da ficha (para esconder a tela, desligue o 006).' },

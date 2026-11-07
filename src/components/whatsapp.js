@@ -34,6 +34,16 @@ export const linkWhatsApp = (telefone, texto) => {
     return destinoWhatsApp() === 'app' ? `whatsapp://send?${params}` : `https://web.whatsapp.com/send?${params}`;
 };
 
+// Igual ao abrirNoWhatsApp, mas diz se a aba abriu (false = o navegador bloqueou; usado depois de salvar,
+// no Cadastro de Visitante, 07/11/2026: aí a tela mostra um botão "Abrir o WhatsApp").
+export const tentarAbrirNoWhatsApp = (telefone, texto) => {
+    const link = linkWhatsApp(telefone, texto);
+    if (link.startsWith('whatsapp://')) { window.location.href = link; return true; }
+    const aba = window.open(link, 'whatsapp_pratique');
+    if (aba) aba.focus();
+    return !!aba;
+};
+
 // Abre a conversa: aplicativo pelo próprio endereço; WhatsApp Web sempre na mesma aba ("whatsapp_pratique")
 export const abrirNoWhatsApp = (telefone, texto) => {
     const link = linkWhatsApp(telefone, texto);
