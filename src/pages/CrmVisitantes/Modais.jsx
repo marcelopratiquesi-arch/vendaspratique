@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas, textoMensagemEnviada, rotuloMensagemDoLead } from './utils';
 import { carregarResumoDoDia } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
 import { 
@@ -90,7 +90,7 @@ const Modais = ({
 
     const enviarWppDireto = async () => {
         if (!modalWpp.lead) return;
-        await registrarHistorico(modalWpp.lead.id, 'WhatsApp', `Mensagem enviada: "${modalWpp.texto}"`);
+        await registrarHistorico(modalWpp.lead.id, 'WhatsApp', textoMensagemEnviada(modalWpp.texto, rotuloMensagemDoLead(modalWpp.lead)));
         abrirNoWhatsApp(modalWpp.lead.telefone, modalWpp.texto);
         const leadContatado = modalWpp.lead;
         setModalWpp({ show: false, lead: null, texto: '' });
@@ -182,8 +182,9 @@ const Modais = ({
             const linhaTipo = (tipo) => {
                 const doTipo = resumoDia.feitos.filter(f => f.tipo === tipo);
                 const viaWpp = doTipo.filter(f => f.canal === 'WHATSAPP').length;
-                const semWpp = doTipo.length - viaWpp;
-                return `*${doTipo.length}* (${viaWpp} WhatsApp${semWpp > 0 ? ` · ${semWpp} sem WhatsApp ⚠️` : ''})`;
+                const viaLigacao = doTipo.filter(f => f.canal === 'LIGACAO').length;
+                const semWpp = doTipo.length - viaWpp - viaLigacao;
+                return `*${doTipo.length}* (${viaWpp} WhatsApp${viaLigacao > 0 ? ` · ${viaLigacao} ligação` : ''}${semWpp > 0 ? ` · ${semWpp} sem WhatsApp ⚠️` : ''})`;
             };
             texto += `\n*📅 CONTATOS DO DIA:*\n`;
             texto += `🎂 Aniversários: ${linhaTipo('ANIVERSARIO')}\n`;
@@ -272,7 +273,15 @@ const Modais = ({
                             <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
                         </div>
                         <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-4 shrink-0">
-                            <button onClick={() => { navigator.clipboard.writeText(modalWpp.texto); avisar(tx("Texto copiado!")); }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                            <button onClick={() => {
+                                navigator.clipboard.writeText(modalWpp.texto);
+                                avisar(tx("Texto copiado!"));
+                                // Copiou para mandar: contato em "Novo" vai sozinho para "Em Contato" (decisão do dono, 06/11/2026)
+                                if (modalWpp.lead?.status === 'Novo') {
+                                    alterarStatus(modalWpp.lead.id, 'Em Contato', undefined, 'copiou a mensagem');
+                                    setModalWpp(atual => ({ ...atual, lead: atual.lead ? { ...atual.lead, status: 'Em Contato' } : atual.lead }));
+                                }
+                            }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
                                 <Copy className="w-4 h-4" />{' '}{tx("Copiar")}
                             </button>
                             <button onClick={enviarWppDireto} className="flex-[2] py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">

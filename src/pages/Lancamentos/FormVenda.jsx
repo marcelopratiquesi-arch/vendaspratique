@@ -11,6 +11,7 @@ import SeletorConsultor from './seletores/SeletorConsultor.jsx';
 import { BookOpen, Box, Briefcase, Trash2, Plus, Minus, MessageSquare, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard, CalendarDays, Building2, ChevronDown, Phone, Mail } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { fecharContatosPelaVenda } from '../CrmVisitantes/compraDePlano.js';
 import { ehDoseUnica, dosesValidasNoMes, LIMITE_DOSES_POR_UNIDADE_MES, INICIO_LIMITE_DOSES } from '../AnaliseVendas/limiteDoses.js';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
@@ -264,8 +265,13 @@ const FormVenda = ({
                     else avisar(tx("A venda foi salva. Mas o vínculo do aluno NÃO foi movido para {v1}.\n\nMotivo: {erro}", { v1: formData.unidade.toUpperCase(), erro: resultado.erro }));
                 }
 
+                // CRM (decisão do dono, 06/11/2026): venda de plano com o CPF de um contato do CRM desta unidade
+                // move o contato sozinho para "Fechado" (conta para a recepcionista). Nunca atrapalha a venda.
+                const fechados = await fecharContatosPelaVenda({ cpf: alunoEncontrado.cpf, unidade: formData.unidade, itens: itensValidos, dia: formData.data });
+                if (fechados > 0) avisar(tx("Contato do CRM movido para \"Fechado\" automaticamente."), 'sucesso');
+
                 setSucesso(true);
-                
+
                 // 🔥 Redirecionamento Automático
                 setTimeout(() => {
                     setSucesso(false);

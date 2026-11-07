@@ -125,6 +125,15 @@ export const calcularIdade = (dataNascimentoIso, dataReferencia = new Date()) =>
     return idade;
 };
 
+// Unidade como vem na planilha ("00028 - SANTA INES"): separa o código do nome (decisão do dono, 06/11/2026:
+// o nome que vale é o do nosso sistema; o código só ajuda a não confundir duas unidades com o mesmo nome).
+export const separarUnidadePlanilha = (valor) => {
+    const texto = String(valor || '').trim().replace(/\s+/g, ' ');
+    const m = texto.match(/^(\d+)\s*[-–—]\s*(.+)$/);
+    if (m) return { codigo: m[1], nome: m[2].trim().toUpperCase() };
+    return { codigo: '', nome: texto.toUpperCase() };
+};
+
 // ==========================================
 // PARSER DO EXCEL (SMART PASTE) - BLINDADO TECACE
 // ==========================================
@@ -148,7 +157,7 @@ export const parseSmartPaste = (rawText) => {
         colMap = {
             nome: headers.findIndex(h => h.includes('NOME')),
             cpf: headers.findIndex(h => h.includes('DOCUMENTO') || h.includes('CPF')),
-            matricula: headers.findIndex(h => h.includes('MATRÍCULA') || h.includes('MATRICULA') || h.includes('ID')),
+            matricula: headers.findIndex(h => h.includes('MATRÍCULA') || h.includes('MATRICULA') || h.trim() === 'ID'),
             telefone: headers.findIndex(h => h.includes('TELEFONE') || h.includes('CELULAR')),
             email: headers.findIndex(h => h.includes('EMAIL') || h.includes('E-MAIL')),
             status: headers.findIndex(h => h.trim() === 'STATUS' || h.trim() === 'SITUAÇÃO' || h.trim() === 'SITUACAO'),
@@ -216,6 +225,9 @@ export const parseSmartPaste = (rawText) => {
             avisos.push('Nascimento');
         }
 
+        const unidadeBruta = colMap.unidade >= 0 ? String(cols[colMap.unidade] || '').trim() : '';
+        const unidadeSeparada = separarUnidadePlanilha(unidadeBruta);
+
         parsedData.push({
             status,
             avisos, 
@@ -232,7 +244,10 @@ export const parseSmartPaste = (rawText) => {
             status_tecace: String((colMap.status >= 0 ? cols[colMap.status] : cols[4]) || '').trim().toUpperCase(),
             sexo: colMap.sexo >= 0 ? String(cols[colMap.sexo] || '').trim().toUpperCase() : '',
             data_cadastro: colMap.dataCadastro >= 0 ? parseDataBrParaIso(cols[colMap.dataCadastro] || '') : null,
-            unidade_tecace: colMap.unidade >= 0 ? String(cols[colMap.unidade] || '').trim().toUpperCase() : ''
+            unidade_tecace: unidadeBruta.toUpperCase(),
+            // Unidade da planilha sem o número (ex.: "SANTA INES") e o código (ex.: "00028")
+            unidade_planilha: unidadeSeparada.nome,
+            unidade_codigo: unidadeSeparada.codigo
         });
     }
     

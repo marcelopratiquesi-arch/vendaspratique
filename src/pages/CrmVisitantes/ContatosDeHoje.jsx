@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { CalendarCheck, X, MessageCircle, Check, Loader2, Cake, UserCheck, Repeat, PenSquare, Ban, AlarmClock } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { CalendarCheck, X, MessageCircle, Check, Loader2, Cake, UserCheck, Repeat, PenSquare, Ban, AlarmClock, PhoneCall } from 'lucide-react';
 import { JanelaNaoContatar, JanelaJustificativa } from './JanelasContato';
 import {
     ehVisitanteRecepcao, dataDaVisita, diaISO, MENSAGENS_PADRAO,
-    abrirNoWhatsApp, marcaFeitoPor, podeEditarMensagensProntas
+    abrirNoWhatsApp, marcaFeitoPor, podeEditarMensagensProntas, textoMensagemEnviada
 } from './utils';
 import {
     carregarMensagensProntas, carregarContatosFeitos, registrarContatoFeito,
-    carregarNaoContatar, carregarAniversariantes, chaveContatoFeito, estaNaoContatar, incluirNaoContatar
+    carregarNaoContatar, carregarAniversariantes, chaveContatoFeito, estaNaoContatar, incluirNaoContatar, ligarPeloSip
 } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
-import { montarMensagem, previaMensagem } from './embaralhador.js';
+import { montarMensagem, previaMensagem, ROTULOS_MENSAGENS } from './embaralhador.js';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
@@ -20,6 +20,10 @@ import { tx, localeAtual } from '../../i18n/traduzir.js';
 // Atrasados: visitaram de 3 a 7 dias atrás e ainda não tiveram o 2º contato (ex.: o prazo caiu num domingo).
 // Todas as recepcionistas veem todos os pendentes da unidade; quem marcar primeiro tira da lista.
 // Fica sempre montado (calcula os pendentes para o botão do CRM) e só desenha a janela quando aberto.
+// "embutido" (06/11/2026): aparece dentro da aba Hoje do CRM, sem janela por cima e sem botão de fechar.
+// "onDados" (06/11/2026): manda para a Conversa (botão Hoje) todos os contatos do dia, FEITOS e pendentes
+// (com hora, quem fez e o meio), e as ações (WhatsApp, Ligar, marcar feito) para tudo contar igual.
+// Botão Ligar (MicroSIP): registra o contato do dia com o meio LIGACAO (não fica vermelho).
 // ==========================================
 
 const GRUPOS = [
@@ -29,12 +33,12 @@ const GRUPOS = [
     { tipo: 'ANIVERSARIO', titulo: 'Aniversariantes do dia', sub: 'Alunos da unidade', icone: Cake, cor: 'text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/15' }
 ];
 
-const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, onFechar, onPendentes, registrarHistorico, onNaoContatar, onContatoFeito, versao = 0 }) => {
+const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, onFechar, onPendentes, registrarHistorico, onNaoContatar, onContatoFeito, versao = 0, embutido = false, onDados }) => {
     // Janelas: justificativa (feito sem WhatsApp) e "Não contatar"
     const [justificando, setJustificando] = useState(null);
     const [bloqueando, setBloqueando] = useState(null);
     const [mensagens, setMensagens] = useState(MENSAGENS_PADRAO);
-    const [feitos, setFeitos] = useState(new Set());
+    const [feitos, setFeitos] = useState(new Map()); // chave -> { criado_em, consultor, canal }
     const [naoContatar, setNaoContatar] = useState(new Set());
     const [aniversariantes, setAniversariantes] = useState([]);
     // Começa "carregando": só conta pendentes depois de saber quem já foi atendido
@@ -60,7 +64,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
             carregarAniversariantes(unidadeChave)
         ]);
         setMensagens(msgs);
-        setFeitos(new Set((linhasFeitas || []).map(r => chaveContatoFeito(r.tipo, r.lead_id || r.aluno_id, r.referencia))));
+        setFeitos(new Map((linhasFeitas || []).map(r => [chaveContatoFeito(r.tipo, r.lead_id || r.aluno_id, r.referencia), { criado_em: r.criado_em, consultor: r.consultor, canal: r.canal }])));
         setNaoContatar(bloqueados);
         setAniversariantes(aniv || []);
         setCarregando(false);
@@ -68,8 +72,8 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
 
     useEffect(() => { carregar(); }, [carregar, versao]);
 
-    // Pendentes de cada grupo (fora: Não contatar, quem já fechou plano e quem já foi marcado como feito)
-    const pendentes = useMemo(() => {
+    // Contatos do dia de cada grupo (fora: Não contatar e quem já fechou plano); "pendentes" = ainda não feitos
+    const todosDoDia = useMemo(() => {
         const visitantes = leads.filter(l =>
             ehVisitanteRecepcao(l)
             && String(l.unidade || '').toUpperCase().trim() === unidadeChave
@@ -78,7 +82,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
         );
         const pessoaDoLead = (l, tipo, dia, atrasado = false) => ({
             chave: chaveContatoFeito(tipo, String(l.id), dia),
-            tipo, referencia: dia, lead: l, lead_id: String(l.id), aluno_id: null,
+            tipo, referencia: dia, lead: l, lead_id: String(l.id), aluno_id: null, atrasado,
             nome: l.nome, telefone: l.telefone, cpf: l.cpf,
             detalhe: `${atrasado ? tx('ATRASADO') + ' · ' : ''}${tx('Visitou em {dia}', { dia: dia.split('-').reverse().join('/') })}${l.vendedor ? ` · ${tx('atendido por {nome}', { nome: String(l.vendedor).split(' ')[0] })}` : ''}`
         });
@@ -97,9 +101,12 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                 nome: a.nome, telefone: a.telefone, cpf: a.cpf,
                 detalhe: a.data_nascimento ? tx('Faz {idade} anos hoje', { idade: new Date().getFullYear() - Number(String(a.data_nascimento).slice(0, 4)) }) : tx('Aniversário hoje')
             }));
-        const naoFeitos = (lista) => lista.filter(p => !feitos.has(p.chave));
-        return { VISITANTE_24H: naoFeitos(v24), VISITANTE_48H: naoFeitos(v48), ATRASADOS: naoFeitos(atrasados), ANIVERSARIO: naoFeitos(aniv) };
+        // Todos (feitos e pendentes), cada um com o registro do contato quando já foi feito
+        const comFeito = (lista) => lista.map(p => ({ ...p, feito: feitos.get(p.chave) || null }));
+        return { VISITANTE_24H: comFeito(v24), VISITANTE_48H: comFeito(v48), ATRASADOS: comFeito(atrasados), ANIVERSARIO: comFeito(aniv) };
     }, [leads, unidadeChave, naoContatar, aniversariantes, feitos, ontem, anteontem, hoje, inicioAtrasados]);
+    // Atrasado que já foi feito sai da lista (o "feito" de um atrasado conta só nele)
+    const pendentes = useMemo(() => Object.fromEntries(Object.entries(todosDoDia).map(([k, lista]) => [k, lista.filter(p => !p.feito)])), [todosDoDia]);
 
     const totalPendentes = GRUPOS.reduce((soma, g) => soma + pendentes[g.tipo].length, 0);
     useEffect(() => { if (onPendentes) onPendentes(totalPendentes, carregando); }, [totalPendentes, carregando, onPendentes]);
@@ -108,12 +115,22 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
     const textoDe = (pessoa) => montarMensagem(pessoa.tipo, { nome: pessoa.nome, unidade: unidadeChave }, mensagens);
     const previaDe = (pessoa) => previaMensagem(pessoa.tipo, { nome: pessoa.nome, unidade: unidadeChave }, mensagens);
 
+    const rotuloDe = (pessoa) => `${ROTULOS_MENSAGENS[pessoa.tipo] || ''}${pessoa.atrasado ? ' · atrasado' : ''}`;
+
+    // Ligar (MicroSIP): conta como feito com o meio LIGACAO e registra a ligação no funil (visitante)
+    const ligar = async (pessoa) => {
+        if (!pessoa.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
+        ligarPeloSip(pessoa.telefone);
+        if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${pessoa.telefone}`);
+        await marcarFeito(pessoa, { canal: 'LIGACAO' });
+    };
+
     // Anti-golpe: abrir o WhatsApp JÁ conta como feito (canal WHATSAPP) e tira a pessoa da lista
     const abrirWhatsApp = async (pessoa) => {
         if (!pessoa.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
         const texto = textoDe(pessoa);
         abrirNoWhatsApp(pessoa.telefone, texto);
-        if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'WhatsApp', `Mensagem enviada: "${texto}"`);
+        if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'WhatsApp', textoMensagemEnviada(texto, rotuloDe(pessoa)));
         await marcarFeito(pessoa, { canal: 'WHATSAPP' });
     };
 
@@ -134,11 +151,11 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                 observacao: marcaFeitoPor(usuarioLogado, operador) || null
             });
             // Aniversário (sem contato no funil) soma na meta do dia; visitante já soma pelo histórico do funil
-            if (!pessoa.lead && onContatoFeito) onContatoFeito(`Contato ${pessoa.tipo === 'ANIVERSARIO' ? 'de aniversário' : ''} ${canal === 'WHATSAPP' ? 'via WhatsApp' : 'sem WhatsApp'}`, `aluno:${pessoa.aluno_id}`);
-            if (pessoa.lead && registrarHistorico && canal !== 'WHATSAPP') {
+            if (!pessoa.lead && onContatoFeito) onContatoFeito(`Contato ${pessoa.tipo === 'ANIVERSARIO' ? 'de aniversário' : ''} ${canal === 'WHATSAPP' ? 'via WhatsApp' : canal === 'LIGACAO' ? 'por ligação' : 'sem WhatsApp'}`, `aluno:${pessoa.aluno_id}`);
+            if (pessoa.lead && registrarHistorico && canal === 'MANUAL') {
                 await registrarHistorico(pessoa.lead.id, 'Observação', `Contato de ${pessoa.tipo === 'VISITANTE_24H' ? '24h' : '48h'} do visitante marcado como feito SEM WhatsApp: ${justificativa}.`);
             }
-            setFeitos(prev => new Set(prev).add(pessoa.chave));
+            setFeitos(prev => new Map(prev).set(pessoa.chave, { criado_em: new Date().toISOString(), consultor: operador, canal }));
         } catch (err) {
             console.error('Erro ao marcar contato como feito:', err);
             avisar(tx("Não foi possível marcar como feito.\n\n{v1}", { v1: err?.message || '' }));
@@ -147,16 +164,27 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
         }
     };
 
+    const acoesRef = useRef({});
+    acoesRef.current = { abrirWhatsApp, ligar, marcarFeito, textoDe, rotuloDe };
+    const acoes = useMemo(() => ({
+        abrirWhatsApp: (p) => acoesRef.current.abrirWhatsApp(p),
+        ligar: (p) => acoesRef.current.ligar(p),
+        marcarFeito: (p, opcoes) => acoesRef.current.marcarFeito(p, opcoes),
+        textoDe: (p) => acoesRef.current.textoDe(p),
+        rotuloDe: (p) => acoesRef.current.rotuloDe(p),
+    }), []);
+    useEffect(() => { if (onDados) onDados({ grupos: todosDoDia, carregando, acoes }); }, [todosDoDia, carregando, acoes, onDados]);
+
     if (!aberto) return null;
 
     return (
-        <div className="fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
-            <div className="w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto overflow-hidden">
-                <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+        <div className={embutido ? '' : 'fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]'} onMouseDown={embutido ? undefined : (e) => { if (e.target === e.currentTarget) onFechar(); }}>
+            <div className={embutido ? 'w-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden' : 'w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto overflow-hidden'}>
+                <div className={`${embutido ? 'px-4 py-3' : 'px-6 py-5'} border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3`}>
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><CalendarCheck className="w-5 h-5" /></div>
                         <div>
-                            <h3 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx("Contatos de hoje")}</h3>
+                            <h3 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">{embutido ? tx("Visitantes e aniversariantes de hoje") : tx("Contatos de hoje")}</h3>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{unidadeChave} · {new Date().toLocaleDateString(localeAtual())} · {totalPendentes}{' '}{tx("pendente(s)")}</p>
                         </div>
                     </div>
@@ -166,11 +194,11 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                 <PenSquare className="w-3.5 h-3.5" />{' '}{tx("Mensagens")}
                             </button>
                         )}
-                        <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title={tx("Fechar")}><X className="w-4 h-4" /></button>
+                        {!embutido && <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title={tx("Fechar")}><X className="w-4 h-4" /></button>}
                     </div>
                 </div>
 
-                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                <div className={embutido ? 'p-4 space-y-5' : 'p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar'}>
                     {carregando && <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Loader2 className="w-4 h-4 animate-spin" />{' '}{tx("Atualizando...")}</div>}
                     {GRUPOS.map(g => {
                         const Icone = g.icone;
@@ -197,6 +225,9 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                                 <div className="flex items-center gap-2 shrink-0">
                                                     <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: previaDe(p) })}>
                                                         {marcando === p.chave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
+                                                    </button>
+                                                    <button type="button" onClick={() => ligar(p)} disabled={marcando === p.chave || !p.telefone} className="px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
+                                                        <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
                                                     </button>
                                                     <button type="button" onClick={() => setJustificando(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
                                                         <Check className="w-3.5 h-3.5" />{' '}{tx("Feito sem WhatsApp")}

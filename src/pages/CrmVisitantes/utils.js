@@ -1,5 +1,5 @@
 import { localeAtual, tx } from '../../i18n/traduzir.js';
-import { MENSAGENS_PADRAO, montarMensagem, chaveDaFase } from './embaralhador.js';
+import { MENSAGENS_PADRAO, montarMensagem, chaveDaFase, ROTULOS_MENSAGENS } from './embaralhador.js';
 import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 // ==========================================
 // UTILS: Funções de Apoio do CRM
@@ -72,6 +72,7 @@ export const classeTipoLead = (tipo) => {
     if (t === 'VISITANTE') return 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/30';
     if (t === 'CANCELADO') return 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30';
     if (t === 'INATIVO' || t === TIPO_ANTIGO_CANCELADO_INATIVO) return 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/30';
+    if (t === 'MIGRACAO') return 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30';
     return 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800';
 };
 
@@ -240,7 +241,14 @@ export const getSaudacao = () => {
 // ==========================================
 // Cada clique monta uma mensagem NOVA (10 versões por situação, embaralhador.js), pela fase e pelo tipo do contato.
 // Os textos vêm de "Mensagens" (Admin/Líder/Mentor editam); sem nada no banco, valem as versões padrão.
-export const chaveMensagemDoLead = (lead) => chaveDaFase(normalizarStatus(lead?.status), ehCanceladoOuInativo(lead?.tipo_lead));
+// Aluno que veio da Migração (Interessado), ainda em aberto: usa as mensagens de migração
+export const chaveMensagemDoLead = (lead) => (String(lead?.tipo_lead || '').toUpperCase() === 'MIGRACAO' && ['Novo', 'Em Contato'].includes(normalizarStatus(lead?.status))
+    ? 'MIGRACAO'
+    : chaveDaFase(normalizarStatus(lead?.status), ehCanceladoOuInativo(lead?.tipo_lead)));
+// Histórico do WhatsApp com a situação da mensagem (06/11/2026): Mensagem enviada (Visitante 24h): "texto".
+// Assim a Conversa mostra no balão em que etapa o contato estava. Mensagens antigas não têm o rótulo.
+export const rotuloMensagemDoLead = (lead) => ROTULOS_MENSAGENS[chaveMensagemDoLead(lead)] || '';
+export const textoMensagemEnviada = (texto, rotulo) => `Mensagem enviada${rotulo ? ` (${rotulo})` : ''}: "${texto}"`;
 export const gerarTextoWhatsApp = (lead) => montarMensagem(chaveMensagemDoLead(lead), { nome: lead?.nome, unidade: lead?.unidade });
 
 // Configurações Globais do Funil

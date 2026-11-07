@@ -111,6 +111,8 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '516', nome: 'Editar mensagens prontas', tipo: 'fazer', padrao: GESTAO, banco: true, descricao: 'As mensagens valem para a rede inteira.' },
     { codigo: '517', nome: 'Base: Smart Paste, distribuir e mover', tipo: 'fazer', padrao: TODOS },
     { codigo: '518', nome: '"Cobrar no WhatsApp" do Painel da Rede', tipo: 'fazer', padrao: GLOBAL, rede: true },
+    { codigo: '519', nome: 'CRM da recepcionista: Conversa', tipo: 'ver', padrao: TODOS, descricao: 'Contatos de um lado e a conversa do contato do outro (como o WhatsApp Business).' },
+    { codigo: '520', nome: 'Base: puxar alunos do cadastro', tipo: 'fazer', padrao: TODOS, descricao: 'Traz para o Banco Bruto os alunos da unidade pelo status (Finalizado, Inativo...). Fica dentro da Base (517).' },
 
     // ---------- 6xx ALUNOS ----------
     { codigo: '601', nome: 'Ficha: aba Dados', tipo: 'ver', padrao: TODOS, travada: true, descricao: 'Aba principal da ficha (para esconder a tela, desligue o 006).' },
@@ -147,6 +149,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '902', nome: 'Janela e cartão de cobranças ao entrar', tipo: 'fazer', padrao: ['MENTOR', 'LIDER'], mudavelPara: ['MENTOR', 'LIDER'], descricao: 'Para Líder e Mentor (o Admin vê tudo na aba Pendências).' },
     { codigo: '903', nome: 'Cobrança do relatório de fechamento', tipo: 'fazer', padrao: ['RECEPCAO'], mudavelPara: ['RECEPCAO'], descricao: 'Só a Recepção (o envio só conta pelo login da Recepção); dá para desligar.' },
     { codigo: '904', nome: 'Janela para marcar o turno das recepcionistas', tipo: 'fazer', padrao: ['LIDER'], mudavelPara: ['LIDER'], descricao: 'Só o Líder (da unidade dele); dá para desligar.' },
+    { codigo: '909', nome: 'Lembrete para fazer o CRM', tipo: 'fazer', padrao: ['RECEPCAO'], mudavelPara: ['RECEPCAO'], descricao: 'Só a Recepção: janela nos horários do CRM (seg-sex 8h, 10h, 12h, 14h30, 15h30, 17h30, 19h30; sáb/dom/feriado 9h e 11h).' },
     { codigo: '905', nome: 'Configurações: Logins', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '906', nome: 'Configurações: Unidades', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '907', nome: 'Configurações: Permissões', tipo: 'ver', padrao: SO_ADMIN, travada: true },

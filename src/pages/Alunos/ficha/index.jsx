@@ -10,7 +10,7 @@ import TabAvaliacoes from './TabAvaliacoes.jsx';
 import TabContatosCrm from './TabContatosCrm.jsx';
 import TabLinhaTempo from './TabLinhaTempo.jsx';
 import { limparApenasDigitos } from '../utils.js';
-import { carregarContatosDoAluno, TIPOS_CONTATO } from '../../CrmVisitantes/contatosFeitos.js';
+import { carregarContatosDoAluno, TIPOS_CONTATO, ehSemWhatsApp } from '../../CrmVisitantes/contatosFeitos.js';
 import { excluirAvaliacaoComMotivo } from '../../AvaliacaoFisica/lixeira.js';
 import { consultaSeguraOuDireta } from '../../../components/consultaSegura.js';
 import { tx } from '../../../i18n/traduzir.js';
@@ -175,27 +175,30 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
                     .map(c => ({
                         id: `contato_${c.id}`,
                         created_at: c.criado_em,
-                        tipo_acao: `${TIPOS_CONTATO[c.tipo] || c.tipo} · ${c.canal === 'WHATSAPP' ? 'WhatsApp' : 'sem WhatsApp'}`,
+                        tipo_acao: `${TIPOS_CONTATO[c.tipo] || c.tipo} · ${c.canal === 'WHATSAPP' ? 'WhatsApp' : c.canal === 'LIGACAO' ? 'ligação' : 'sem WhatsApp'}`,
                         descricao: (c.canal === 'WHATSAPP'
                             ? `Mensagem de ${String(TIPOS_CONTATO[c.tipo] || c.tipo).toLowerCase()} enviada pelo WhatsApp.`
-                            : `Marcado como feito SEM WhatsApp. Justificativa: ${c.justificativa || 'não informada'}.`)
+                            : c.canal === 'LIGACAO'
+                                ? `Ligação de ${String(TIPOS_CONTATO[c.tipo] || c.tipo).toLowerCase()} (MicroSIP).`
+                                : `Marcado como feito SEM WhatsApp. Justificativa: ${c.justificativa || 'não informada'}.`)
                             + (c.observacao ? ` (${c.observacao})` : ''),
                         autor: c.consultor,
-                        alerta: c.canal !== 'WHATSAPP'
+                        alerta: ehSemWhatsApp(c.canal)
                     }));
                 historicoCrm = [...historicoCrm, ...contatosNaAba]
                     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
                 contatosFeitos.forEach(c => {
                     const viaWhatsApp = c.canal === 'WHATSAPP';
+                    const viaLigacao = c.canal === 'LIGACAO';
                     timeline.push({
                         id: `contato_${c.id}`,
                         data_real: new Date(c.criado_em),
                         tipo: 'CRM',
-                        titulo: `Contato ${TIPOS_CONTATO[c.tipo] || c.tipo}${viaWhatsApp ? ' via WhatsApp' : ' SEM WhatsApp'}`,
-                        descricao: `Por ${c.consultor || 'N/I'} (${c.unidade || '—'}).${viaWhatsApp ? '' : ` Justificativa: ${c.justificativa || 'não informada'}.`}${c.observacao ? ` ${c.observacao}.` : ''}`,
+                        titulo: `Contato ${TIPOS_CONTATO[c.tipo] || c.tipo}${viaWhatsApp ? ' via WhatsApp' : viaLigacao ? ' por ligação' : ' SEM WhatsApp'}`,
+                        descricao: `Por ${c.consultor || 'N/I'} (${c.unidade || '—'}).${viaWhatsApp || viaLigacao ? '' : ` Justificativa: ${c.justificativa || 'não informada'}.`}${c.observacao ? ` ${c.observacao}.` : ''}`,
                         icone: MessageCircle,
-                        corBg: viaWhatsApp ? 'bg-emerald-500' : 'bg-rose-500'
+                        corBg: viaWhatsApp ? 'bg-emerald-500' : viaLigacao ? 'bg-blue-500' : 'bg-rose-500'
                     });
                 });
 

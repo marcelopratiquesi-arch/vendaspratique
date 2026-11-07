@@ -254,6 +254,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                     <AlunosTab 
                         usuarioLogado={usuarioLogado} 
                         usuarioVirtual={usuarioVirtual}
+                        unidades={unidades}
                     />
                 )}
 

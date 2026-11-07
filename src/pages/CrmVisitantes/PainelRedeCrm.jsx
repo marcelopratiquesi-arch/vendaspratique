@@ -188,7 +188,7 @@ const PainelRedeCrm = ({ podeCobrar = true, colaboradores = [], faixa = { inicio
                 id: `f${f.id}`, quando: f.criado_em, consultor: f.consultor, tipoAcao: 'Contato',
                 unidade: f.unidade || unidadeDoConsultor.get(normalizarNome(f.consultor)) || '',
                 // 24h/48h com contato do funil já têm o WhatsApp no histórico: aqui só o público e o "sem WhatsApp"
-                meio: f.canal === 'WHATSAPP' ? (semLead ? 'WhatsApp' : null) : 'Sem WhatsApp',
+                meio: f.canal === 'WHATSAPP' ? (semLead ? 'WhatsApp' : null) : f.canal === 'LIGACAO' ? (semLead ? 'Ligação' : null) : 'Sem WhatsApp',
                 publico: PUBLICOS[t] ? t : null, fechou: null, contaNaUnidade: semLead,
                 pessoa: semLead ? `aluno:${f.aluno_id || `f${f.id}`}` : `lead:${f.lead_id}`,
             });

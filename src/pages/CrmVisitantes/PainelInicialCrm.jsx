@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText, Globe, BarChart3, ArrowRight, MessageCircle, Phone, PenTool } from 'lucide-react';
 import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO } from './utils';
-import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar } from './contatosFeitos';
+import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar, ehSemWhatsApp } from './contatosFeitos';
 import PainelRedeCrm from './PainelRedeCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import RelatorioConsultor from './RelatorioConsultor';
@@ -195,7 +195,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const semWhatsAppPorPessoa = useMemo(() => {
         const mapa = new Map();
         feitosVisitas
-            .filter(f => f.canal && f.canal !== 'WHATSAPP' && dentroDaFaixa(f.criado_em, faixa))
+            .filter(f => ehSemWhatsApp(f.canal) && dentroDaFaixa(f.criado_em, faixa))
             .forEach(f => { const chave = normalizarNome(f.consultor); mapa.set(chave, (mapa.get(chave) || 0) + 1); });
         return mapa;
         // eslint-disable-next-line react-hooks/exhaustive-deps -- a faixa muda junto com periodo.chave

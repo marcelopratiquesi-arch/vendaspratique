@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { FileText, Loader2, Download, ChevronDown, AlertTriangle } from 'lucide-react';
 import { normalizarNome, formatarDataHora, ehCanceladoOuInativo, dataLocalISO } from './utils';
-import { carregarContatosFeitosPeriodo } from './contatosFeitos';
+import { carregarContatosFeitosPeriodo, ehSemWhatsApp, rotuloCanal } from './contatosFeitos';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
@@ -106,7 +106,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
             const lead = f.lead_id ? leadPorId.get(String(f.lead_id)) : null;
             resultado.push({
                 id: `f${f.id}`, quando: f.criado_em, consultor: f.consultor, tipo: f.tipo, nome: f.nome || lead?.nome || '—',
-                semWhatsApp: f.canal !== 'WHATSAPP', meio: f.canal === 'WHATSAPP' ? 'WhatsApp' : 'Sem WhatsApp',
+                semWhatsApp: ehSemWhatsApp(f.canal), meio: rotuloCanal(f.canal),
                 justificativa: f.justificativa || '', unidade: f.unidade, feitoPor: f.observacao || '',
                 contato: { nome: f.nome || lead?.nome, aluno_id: f.aluno_id || null, cpf: lead?.cpf || '' }
             });

@@ -57,10 +57,26 @@ export const carregarContatosFeitosPeriodo = async ({ inicio, fim }) => {
     return data || [];
 };
 
+// Meio do contato (campo canal): WHATSAPP (clicou no WhatsApp), LIGACAO (clicou em Ligar, MicroSIP — 06/11/2026)
+// e MANUAL ("feito sem WhatsApp", com justificativa, em vermelho para o Líder). Ligação NÃO fica vermelha.
+export const ehSemWhatsApp = (canal) => !!canal && canal !== 'WHATSAPP' && canal !== 'LIGACAO';
+export const rotuloCanal = (canal) => (canal === 'WHATSAPP' ? 'WhatsApp' : canal === 'LIGACAO' ? 'Ligação' : 'Sem WhatsApp');
+
+// Abre a ligação no MicroSIP (o mesmo botão de Ligar do Kanban)
+export const ligarPeloSip = (telefone) => {
+    const numero = apenasDigitos(telefone);
+    if (numero) window.location.href = `sip:${numero}`;
+};
+
 // Grava o "Marcar como feito". Se outra pessoa marcou antes (registro repetido), considera feito.
 // Devolve false quando já estava gravado (não gravou de novo).
+// Se o banco ainda não aceitar o canal LIGACAO (trava de valores), grava como MANUAL com a justificativa "Ligação (MicroSIP)".
 export const registrarContatoFeito = async (registro) => {
-    const { error } = await supabase.from('crm_contatos_feitos').insert([registro]);
+    let { error } = await supabase.from('crm_contatos_feitos').insert([registro]);
+    if (error && error.code === '23514' && registro.canal === 'LIGACAO') {
+        console.warn('crm_contatos_feitos ainda não aceita o canal LIGACAO; gravando como MANUAL (Ligação).');
+        ({ error } = await supabase.from('crm_contatos_feitos').insert([{ ...registro, canal: 'MANUAL', justificativa: registro.justificativa || 'Ligação (MicroSIP)' }]));
+    }
     if (error && error.code !== '23505') throw error;
     return !error;
 };
@@ -112,15 +128,24 @@ export const carregarAndamentoMigracao = async () => {
 };
 
 // puxado_por/puxado_em: dono da fila (se não vier, o banco mantém o que já tinha)
-export const salvarAndamentoMigracao = async ({ aluno_id, unidade, status, quem, puxado_por, puxado_em }) => {
+// extras (06/11/2026): { volta_em, tentativas, resultado } do resultado do contato. Sem o SQL
+// 2026-11-06-crm-migracao-resultado, grava sem eles e devolve { semCamposNovos: true }.
+export const salvarAndamentoMigracao = async ({ aluno_id, unidade, status, quem, puxado_por, puxado_em, extras }) => {
     const linha = {
         aluno_id, unidade: String(unidade || '').toUpperCase().trim(), status,
         atualizado_em: new Date().toISOString(), atualizado_por: quem
     };
     if (puxado_por !== undefined) linha.puxado_por = puxado_por;
     if (puxado_em !== undefined) linha.puxado_em = puxado_em;
-    const { error } = await supabase.from('crm_migracao').upsert(linha, { onConflict: 'aluno_id' });
+    let { error } = await supabase.from('crm_migracao').upsert({ ...linha, ...(extras || {}) }, { onConflict: 'aluno_id' });
+    if (error && extras && (error.code === 'PGRST204' || error.code === '42703')) {
+        console.warn('Migração: campos do resultado (volta_em, tentativas, resultado) não existem. Rode sql/2026-11-06-crm-migracao-resultado.');
+        ({ error } = await supabase.from('crm_migracao').upsert(linha, { onConflict: 'aluno_id' }));
+        if (error) throw error;
+        return { semCamposNovos: true };
+    }
     if (error) throw error;
+    return { semCamposNovos: false };
 };
 
 // "Puxar" alunos da Migração para a fila (situação NA_FILA = puxado, ainda não contatado).

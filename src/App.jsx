@@ -31,6 +31,7 @@ import CartaoPendencias from './pages/Pendencias/CartaoPendencias.jsx';
 import JanelaConferirRelatorio from './pages/Pendencias/JanelaConferirRelatorio.jsx';
 import { usePendencias } from './pages/Pendencias/pendencias.js';
 import CobrancaRelatorioRecepcao from './pages/Pendencias/CobrancaRelatorioRecepcao.jsx';
+import LembreteCrm from './pages/Pendencias/LembreteCrm.jsx';
 import PopupTurnoRecepcao from './pages/Pendencias/PopupTurnoRecepcao.jsx';
 import { tx } from './i18n/traduzir.js';
 import { usePermissoes } from './permissoes/usePermissoes.js';
@@ -631,6 +632,9 @@ export default function App() {
 
             <CobrancaRelatorioRecepcao usuario={usuarioComPode} colaboradores={colaboradores}
                 aoIrRelatorio={() => { pedirAbaAnalise('relatorio'); handleNavigation('analise'); }} />
+
+            {/* Recepção: lembrete para fazer o CRM (seg-sex 8h, 10h, 12h, 14h30, 15h30, 17h30, 19h30; sáb/dom/feriado 9h e 11h; permissão 909; 06/11/2026) */}
+            <LembreteCrm usuario={usuarioComPode} aoIrCrm={() => handleNavigation('crm')} />
 
             <SidebarDesktop 
                 isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 

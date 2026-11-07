@@ -3,7 +3,7 @@ import { supabase } from '../../../supabaseClient.js';
 import { Building2, IdCard, Calendar, User, Phone, Mail, MessageCircle, Clock, Edit2 } from 'lucide-react';
 import { formatarTelefone, formatarDataBR, limparApenasDigitos } from '../utils.js';
 import CopyButton from './CopyButton.jsx';
-import { tx } from '../../../i18n/traduzir.js';
+import { tx, localeAtual } from '../../../i18n/traduzir.js';
 
 const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
     const [cpfReal, setCpfReal] = useState(aluno.cpf || '');
@@ -33,6 +33,20 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
         };
         buscarDadosReais();
     }, [aluno]);
+
+    // Dados da importação (Cadastro → Alunos → Smart Paste, 06/11/2026): status, desde quando, data de cadastro e sexo.
+    // Sem os campos no banco (sql/2026-11-06-alunos-importacao), o bloco não aparece.
+    const [importado, setImportado] = useState(null);
+    useEffect(() => {
+        let ativo = true;
+        setImportado(null);
+        if (!aluno?.id) return undefined;
+        supabase.from('alunos').select('status_aluno, status_atualizado_em, data_cadastro, sexo').eq('id', aluno.id).maybeSingle()
+            .then(({ data, error }) => { if (ativo && !error && data) setImportado(data); });
+        return () => { ativo = false; };
+    }, [aluno?.id]);
+    const statusAluno = String(importado?.status_aluno || '').toUpperCase();
+    const statusAtivo = ['ATIVO', 'CLIENTE'].includes(statusAluno);
 
     const calcularIdade = (data) => {
         if (!data) return '—';
@@ -104,7 +118,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                                 <User className="w-3.5 h-3.5" /> <span className={labelText}>{tx("Gênero")}</span>
                             </div>
                             <div className={valueContainer}>
-                                <span className={`${valueText} uppercase`}>{aluno.genero || 'N/I'}</span>
+                                <span className={`${valueText} uppercase`}>{aluno.genero || aluno.sexo || importado?.sexo || 'N/I'}</span>
                                 <div className="w-7 h-7 shrink-0"></div>
                             </div>
                         </div>
@@ -155,6 +169,31 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                 </div>
 
             </div>
+
+            {importado && (importado.status_aluno || importado.data_cadastro) && (
+                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl px-5 py-4 shadow-sm flex flex-wrap items-center gap-x-8 gap-y-3">
+                    <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
+                        <IdCard className="w-4 h-4 text-slate-400" />{' '}{tx("Situação na academia")}
+                    </h3>
+                    <div className="flex flex-col">
+                        <span className={labelText + ' text-slate-500 dark:text-slate-400'}>{tx("Status")}</span>
+                        <span className="flex items-center gap-2">
+                            <span className={`px-2 py-0.5 rounded-md border text-[11px] font-black uppercase tracking-widest ${statusAluno ? (statusAtivo ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30') : 'bg-slate-50 text-slate-400 border-slate-200 dark:bg-slate-800/60 dark:border-slate-700'}`}>
+                                {statusAluno || '—'}
+                            </span>
+                            {importado.status_atualizado_em && (
+                                <span className="text-[10px] font-bold text-slate-400">
+                                    {tx("desde {data}", { data: new Date(importado.status_atualizado_em).toLocaleDateString(localeAtual()) })}
+                                </span>
+                            )}
+                        </span>
+                    </div>
+                    <div className="flex flex-col">
+                        <span className={labelText + ' text-slate-500 dark:text-slate-400'}>{tx("Data de cadastro")}</span>
+                        <span className={valueText}>{importado.data_cadastro ? formatarDataBR(importado.data_cadastro) : '—'}</span>
+                    </div>
+                </div>
+            )}
 
             {temVisaoGlobal && (
                 <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">

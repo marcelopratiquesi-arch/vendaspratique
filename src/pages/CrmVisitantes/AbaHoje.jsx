@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarCheck, AlarmClock, MessageCircle, Check, Info, Ban, CalendarClock, Loader2 } from 'lucide-react';
+import { CalendarCheck, AlarmClock, MessageCircle, Check, Info, Ban, CalendarClock, Loader2, PhoneCall } from 'lucide-react';
+import { ligarPeloSip } from './contatosFeitos';
 import { JanelaJustificativa } from './JanelasContato';
 import { EtiquetaParado } from './EtiquetasCrm';
-import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, abrirNoWhatsApp, classeTipoLead } from './utils';
+import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, abrirNoWhatsApp, classeTipoLead, textoMensagemEnviada, rotuloMensagemDoLead } from './utils';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -39,7 +40,17 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
         const texto = gerarTextoWhatsApp(lead);
         abrirNoWhatsApp(lead.telefone, texto);
         setRegistrando(lead.id);
-        await registrarHistorico(lead.id, 'WhatsApp', `Mensagem enviada: "${texto}"`);
+        await registrarHistorico(lead.id, 'WhatsApp', textoMensagemEnviada(texto, rotuloMensagemDoLead(lead)));
+        setRegistrando(null);
+        onPedirProximo(lead);
+    };
+
+    // Ligar (MicroSIP): registra a ligação (conta na meta) e pergunta o próximo contato
+    const ligar = async (lead) => {
+        if (!lead.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
+        ligarPeloSip(lead.telefone);
+        setRegistrando(lead.id);
+        await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
         setRegistrando(null);
         onPedirProximo(lead);
     };
@@ -50,19 +61,20 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
     };
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out] space-y-8">
-            <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <div className="w-14 h-14 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shadow-inner">
-                    <CalendarCheck className="w-7 h-7" />
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm animate-[fadeIn_0.3s_ease-out]">
+            <div className="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 px-4 py-3">
+                <div className="w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center">
+                    <CalendarCheck className="w-5 h-5" />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{tx("Contatos marcados para hoje")}</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">
+                    <h2 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx("Contatos marcados para hoje")}</h2>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
                         {tx("Quem tem o \"próximo contato\" para hoje ou atrasado.")}{' '}{futuros > 0 && <span className="font-bold">{futuros}{' '}{tx("marcado(s) para os próximos dias.")}</span>}
                     </p>
                 </div>
             </div>
 
+            <div className="p-4 space-y-5">
             {GRUPOS.map(g => {
                 const Icone = g.icone;
                 const lista = grupos[g.chave];
@@ -96,6 +108,9 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                                             <button type="button" onClick={() => abrirWhatsApp(v)} disabled={registrando === v.id} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato")}>
                                                 {registrando === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                             </button>
+                                            <button type="button" onClick={() => ligar(v)} disabled={registrando === v.id || !v.telefone} className="px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
+                                                <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
+                                            </button>
                                             <button type="button" onClick={() => setJustificando(v)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
                                                 <Check className="w-3.5 h-3.5" />{' '}{tx("Feito sem WhatsApp")}
                                             </button>
@@ -118,6 +133,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                     </div>
                 );
             })}
+            </div>
 
             {justificando && (
                 <JanelaJustificativa

@@ -5,6 +5,7 @@ import { formatarCPF, apenasDigitos, mesmoNome, podeApagarLeads, ehRecepcao, dat
 import Metricas from './Metricas';
 import Kanban from './Kanban';
 import Lista from './Lista';
+import Conversa from './Conversa';
 import Modais from './Modais';
 import RelatorioCrm from './RelatorioCrm'; // ✅ IMPORTAÇÃO DO NOVO RELATÓRIO
 import PainelInicialCrm from './PainelInicialCrm';
@@ -12,11 +13,13 @@ import ContatosDeHoje from './ContatosDeHoje';
 import AbaMigracao from './AbaMigracao';
 import AbaNaoContatar from './AbaNaoContatar';
 import AbaHoje from './AbaHoje';
+import PuxarDoCadastro from './PuxarDoCadastro';
+import { buscarComprasDePlano, decidirPelasCompras, aplicarDecisoes } from './compraDePlano';
 import { JanelaNaoContatar, JanelaMotivoPerda, JanelaProximoContato } from './JanelasContato';
 import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas } from './contatosFeitos';
 import { diaISO, contarPessoasDaMeta } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
-import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
@@ -105,11 +108,19 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
     const podeApagar = podeApagarLeads(usuarioLogado);
 
-    const [visaoAtiva, setVisaoAtiva] = useState('kanban'); // a Base foi para a aba Equipe da entrada (04/11/2026)
+    // A última visão escolhida (Conversa, Kanban, Lista...) fica guardada neste computador (06/11/2026)
+    const [visaoAtiva, setVisaoAtivaEstado] = useState(() => {
+        try { return localStorage.getItem('crm_visao_recepcionista') || 'kanban'; } catch { return 'kanban'; }
+    }); // a Base foi para a aba Equipe da entrada (04/11/2026)
+    const setVisaoAtiva = (visao) => {
+        setVisaoAtivaEstado(visao);
+        try { localStorage.setItem('crm_visao_recepcionista', visao); } catch { /* navegador sem armazenamento: só não lembra */ }
+    };
     // Abas do CRM da recepcionista pelas permissões (Configurações → Permissões, 06/11/2026; padrão = como era).
     // O Kanban é a visão principal (sempre).
     const visaoLiberada = {
         kanban: true,
+        conversa: podeVer(usuarioLogado, '519'),
         lista: podeVer(usuarioLogado, '507'),
         hoje: podeVer(usuarioLogado, '508'),
         geladeira: podeVer(usuarioLogado, '509'),
@@ -276,6 +287,12 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             consultor: consultorAtual,
             observacao: observacao
         }]);
+
+        // Mandou WhatsApp ou ligou para um contato em "Novo": vai sozinho para "Em Contato" (decisão do dono, 06/11/2026)
+        if (tipoAcao === 'WhatsApp' || tipoAcao === 'Ligação') {
+            const lead = visitantes.find(v => String(v.id) === String(leadId));
+            if (lead && lead.status === 'Novo') await alterarStatus(lead.id, 'Em Contato', undefined, tipoAcao);
+        }
     };
 
     // Mesmo registro para vários leads de uma vez (lotes): uma ida só ao banco, não conta na meta
@@ -310,20 +327,15 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     }, []);
     const podeContatar = (v) => !estaNaoContatar(naoContatar, { cpf: v.cpf, leadId: String(v.id) });
 
-    // Pop-up "Contatos de hoje" (visitantes 24h/48h e aniversariantes). Abre sozinho uma vez por dia
-    // (por pessoa e unidade, neste navegador) quando há pendentes; depois, pelo botão no topo do CRM.
+    // "Contatos de hoje" (visitantes 24h/48h, atrasados e aniversariantes). Desde 06/11/2026 fica DENTRO da aba Hoje
+    // (decisão do dono). A janela antiga só é usada por quem não tem a aba Hoje (permissão 508).
     const [contatosHojeAberto, setContatosHojeAberto] = useState(false);
     const [pendentesHoje, setPendentesHoje] = useState({ total: 0, carregando: true });
     const aoAtualizarPendentes = useCallback((total, carregando) => setPendentesHoje({ total, carregando }), []);
-    useEffect(() => {
-        if (!consultorAtivo || !unidadeOperacao || pendentesHoje.carregando || pendentesHoje.total === 0) return;
-        const chave = `crm_contatos_hoje_${unidadeOperacao}_${consultorAtivo.nome}_${diaISO(0)}`;
-        let jaAbriu = false;
-        try { jaAbriu = sessionStorage.getItem(chave) === '1'; } catch { jaAbriu = false; }
-        if (jaAbriu) return;
-        try { sessionStorage.setItem(chave, '1'); } catch { /* navegador sem armazenamento: só não lembra */ }
-        setContatosHojeAberto(true);
-    }, [consultorAtivo, unidadeOperacao, pendentesHoje]);
+    // Contatos do dia (24h, 48h, atrasados, aniversariantes; feitos e pendentes) para o botão "Hoje" da Conversa
+    const [contatosDoDia, setContatosDoDia] = useState(null);
+    // Menu "Mais" das abas (Geladeira, Não contatar, Métricas, Relatório)
+    const [maisAberto, setMaisAberto] = useState(false);
 
     // CPFs que já estão no CRM em TODAS as unidades. Usa a consulta segura "crm_cpfs_existentes"
     // (a tabela leads é protegida por unidade: a busca direta só enxergaria a própria unidade).
@@ -728,6 +740,35 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         // eslint-disable-next-line react-hooks/exhaustive-deps -- roda quando os contatos chegam (uma vez por dia por unidade)
     }, [unidadeOperacao, visitantes.length]);
 
+    // Contato que comprou plano (decisão do dono, 06/11/2026; regras em compraDePlano.js): na MESMA unidade vai
+    // sozinho para "Fechado" (conta para a recepcionista); em OUTRA unidade sai do CRM ("Arquivado").
+    // Confere ao abrir o CRM e de novo quando chegam mais contatos (no máximo a cada 2 minutos por unidade).
+    const ultimaConferenciaCompras = useRef({});
+    useEffect(() => {
+        if (!unidadeOperacao) return;
+        const agora = Date.now();
+        if (agora - (ultimaConferenciaCompras.current[unidadeOperacao] || 0) < 120000) return;
+        const candidatos = visitantes.filter(v => daUnidadeOperacao(v) && ['Novo', 'Em Contato', 'Perdido'].includes(normalizarStatus(v.status))
+            && apenasDigitos(v.cpf).length === 11 && String(v.tipo_lead || '').toUpperCase() !== 'MIGRACAO');
+        if (!candidatos.length) return;
+        ultimaConferenciaCompras.current[unidadeOperacao] = agora;
+        // Não cancela no meio: a gravação vale mesmo se a tela mudar (cada contato só muda uma vez)
+        (async () => {
+            const datas = candidatos.map(v => String(dataDoLead(v) || '')).map(d => (/^\d{2}\/\d{2}\/\d{4}/.test(d) ? d.slice(0, 10).split('/').reverse().join('-') : d.slice(0, 10))).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort();
+            const compras = await buscarComprasDePlano(candidatos.map(v => v.cpf), datas[0] || null);
+            if (!compras || !compras.length) return;
+            const feitas = await aplicarDecisoes(decidirPelasCompras(candidatos, compras), 'conferido no CRM');
+            if (!feitas.length) return;
+            const campos = new Map(feitas.map(f => [f.lead.id, f.campos]));
+            setVisitantes(prev => prev.map(v => campos.has(v.id) ? { ...v, ...campos.get(v.id) } : v));
+            const fechou = feitas.filter(f => f.acao === 'FECHAR').length;
+            const saiu = feitas.filter(f => f.acao === 'SAIR');
+            if (fechou) avisar(tx("{qtd} contatos foram para \"Fechado\": compraram plano nesta unidade.", { qtd: fechou }), 'sucesso');
+            if (saiu.length) avisar(tx("{qtd} contatos saíram do CRM: compraram plano em outra unidade ({unidades}).", { qtd: saiu.length, unidades: [...new Set(saiu.map(f => String(f.compra.unidade || '').toUpperCase()))].join(', ') }), 'atencao');
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- roda quando os contatos chegam (no máximo a cada 2 minutos)
+    }, [unidadeOperacao, visitantes.length]);
+
     // Mover: só contatos ainda não trabalhados (fase Novo) da recepcionista de origem
     const contatosParaMover = (nome) => visitantes.filter(v => v.puxado_em && mesmoNome(v.puxado_por, nome) && normalizarStatus(v.status) === 'Novo' && daUnidadeOperacao(v));
     const moverEntre = async () => {
@@ -791,7 +832,8 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         }
     };
 
-    const alterarStatus = async (id, novoStatus, motivoPerda) => {
+    // origem: o que moveu sozinho (ex.: 'WhatsApp', 'Ligação', 'copiou a mensagem'); fica no histórico como "(automático: ...)"
+    const alterarStatus = async (id, novoStatus, motivoPerda, origem) => {
         const leadAtual = visitantes.find(v => v.id === id);
         const statusAntigo = leadAtual ? leadAtual.status : null;
         if (statusAntigo === novoStatus) return;
@@ -803,13 +845,71 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...campos } : v));
         setModalDetalhe(m => (m.show && m.lead?.id === id ? { ...m, lead: { ...m.lead, ...campos } } : m));
 
-        await registrarHistorico(id, 'Mudança de Fase', `Movido de "${statusAntigo}" para "${novoStatus}"${textoMotivo(motivoPerda)}`);
+        await registrarHistorico(id, 'Mudança de Fase', `Movido de "${statusAntigo}" para "${novoStatus}"${textoMotivo(motivoPerda)}${origem ? ` (automático: ${origem})` : ''}`);
         const { error } = await atualizarLeads([id], campos);
 
         if (error) {
             setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...anteriores } : v));
             avisar(tx("Erro de conexão. Revertendo ação."));
         }
+    };
+
+    // Migração: aluno marcado como "Interessado" vai para o funil da recepcionista em "Em Contato" (decisão do dono, 06/11/2026).
+    // Se o CPF já tem um contato no CRM da unidade, reaproveita (passa para a carteira dela e para "Em Contato");
+    // senão cria o contato (tipo MIGRACAO). Grava "Fila de Trabalho" no histórico: não soma de novo na meta
+    // (o contato de migração já contou para o aluno).
+    const levarAlunoParaFunil = async (aluno) => {
+        const operador = consultorAtivo?.nome;
+        if (!operador || !unidadeOperacao || !aluno) return;
+        const cpf = apenasDigitos(aluno.cpf);
+        const agora = new Date().toISOString();
+        const obs = `Interessado na migração para plano com nutricionista (último plano: ${aluno.ultimo_plano || '—'}). Veio da aba Migração.`;
+        const existente = cpf ? visitantes.find(v => apenasDigitos(v.cpf) === cpf && v.status !== 'Arquivado') : null;
+        if (existente) {
+            const campos = {
+                ...(existente.status === 'Em Contato' ? {} : camposDaFase('Em Contato')),
+                puxado_por: operador,
+                puxado_em: existente.puxado_em && mesmoNome(existente.puxado_por, operador) ? existente.puxado_em : agora,
+            };
+            const anteriores = Object.fromEntries(Object.keys(campos).map(k => [k, existente[k] ?? null]));
+            setVisitantes(prev => prev.map(v => v.id === existente.id ? { ...v, ...campos } : v));
+            const { error } = await atualizarLeads([existente.id], campos);
+            if (error) {
+                setVisitantes(prev => prev.map(v => v.id === existente.id ? { ...v, ...anteriores } : v));
+                avisar(tx("Não foi possível levar o aluno para o funil.\n\n{v1}", { v1: error.message || '' }), 'erro');
+                return;
+            }
+            await registrarHistoricoLote([existente.id], 'Fila de Trabalho', existente.status === 'Em Contato' ? obs : `${obs} Movido de "${existente.status}" para "Em Contato" (automático).`);
+            avisar(tx("{nome} foi para o seu funil em \"Em Contato\".", { nome: aluno.nome }), 'sucesso');
+            return;
+        }
+        const novo = {
+            unidade: unidadeOperacao,
+            nome: aluno.nome,
+            telefone: apenasDigitos(aluno.telefone) || aluno.telefone || null,
+            cpf: cpf || null,
+            tipo_lead: 'MIGRACAO',
+            origem: 'CRM',
+            vendedor: operador,
+            status: 'Em Contato',
+            data: new Date().toLocaleDateString('pt-BR'),
+            criado_em: agora,
+            puxado_em: agora,
+            puxado_por: operador,
+            perdido_em: null,
+        };
+        let { data, error } = await supabase.from('leads').insert([novo]).select();
+        // Se o banco tiver trava nos tipos, grava sem o tipo (o histórico diz que veio da Migração)
+        if (error && error.code === '23514') ({ data, error } = await supabase.from('leads').insert([{ ...novo, tipo_lead: null }]).select());
+        if (error || !data?.[0]) {
+            avisar(error?.code === '23505'
+                ? tx("Este aluno já está no CRM de outra unidade (CPF repetido). Ele não foi para o seu funil.")
+                : tx("Não foi possível levar o aluno para o funil.\n\n{v1}", { v1: error?.message || '' }), 'erro');
+            return;
+        }
+        adicionarLeads(data);
+        await registrarHistoricoLote([data[0].id], 'Fila de Trabalho', obs);
+        avisar(tx("{nome} foi para o seu funil em \"Em Contato\".", { nome: aluno.nome }), 'sucesso');
     };
 
     // Próximo contato (Bloco 4): data AAAA-MM-DD ou null para tirar. Não conta na meta nem tira do "parado".
@@ -852,6 +952,33 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     const meusLeadsAtivos = meusLeads.filter(v => v.puxado_em && v.status !== 'Perdido').map(comUltimaAcao);
     // Aba "Hoje": próximo contato marcado para hoje ou atrasado
     const pendentesProximo = meusLeadsAtivos.filter(v => ['hoje', 'atrasado'].includes(situacaoProximoContato(v))).length;
+    // Número vermelho da aba Hoje: agendados (hoje/atrasados) + visitantes 24h/48h, atrasados e aniversariantes
+    const totalHoje = pendentesProximo + (visaoLiberada.hoje ? pendentesHoje.total : 0);
+
+    // Uma vez por dia (por recepcionista e unidade, neste navegador), havendo pendentes, o CRM abre na aba Hoje
+    // (antes abria a janela "Contatos de hoje"; quem não tem a aba Hoje continua vendo a janela)
+    useEffect(() => {
+        if (!consultorAtivo || !unidadeOperacao || pendentesHoje.carregando) return;
+        if (pendentesHoje.total + pendentesProximo === 0) return;
+        const chave = `crm_contatos_hoje_${unidadeOperacao}_${consultorAtivo.nome}_${diaISO(0)}`;
+        let jaAbriu = false;
+        try { jaAbriu = sessionStorage.getItem(chave) === '1'; } catch { jaAbriu = false; }
+        if (jaAbriu) return;
+        try { sessionStorage.setItem(chave, '1'); } catch { /* navegador sem armazenamento: só não lembra */ }
+        if (visaoLiberada.hoje) setVisaoAtivaEstado('hoje');
+        else if (pendentesHoje.total > 0) setContatosHojeAberto(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [consultorAtivo, unidadeOperacao, pendentesHoje, pendentesProximo]);
+
+    const meusLeadsGeladeira = meusLeads.filter(v => v.status === 'Perdido');
+    // Abas que ficam no menu "Mais" (pouco usadas no dia a dia; nada foi tirado)
+    const abasMais = [
+        visaoLiberada.geladeira && ['geladeira', Snowflake, `${tx("Geladeira")} (${meusLeadsGeladeira.length})`, tx("Perdidos: esperam 30 dias e podem voltar para o Kanban")],
+        visaoLiberada.naocontatar && ['naocontatar', Ban, tx("Não contatar"), tx("Pediram para não receber mais contato")],
+        visaoLiberada.dashboard && ['dashboard', PieChart, tx("Métricas"), tx("Números da carteira")],
+        visaoLiberada.relatorio && ['relatorio', Table, tx("Relatório"), tx("Relatório de conversão")],
+    ].filter(Boolean);
+    const abaMaisAtiva = abasMais.find(a => a[0] === visaoMostrada) || null;
 
     // Base (piscina): busca por nome, CPF ou telefone e páginas de 50
     const leadsNaBaseFiltrados = buscaBase.trim() ? leadsNaBase.filter(v => contatoCombinaComBusca(v, buscaBase)) : leadsNaBase;
@@ -865,7 +992,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         setSelecionadosBase(prev => (marcar ? [...new Set([...prev, ...idsPagina])] : prev.filter(id => !idsPagina.includes(id))));
     };
     const mudarBuscaBase = (texto) => { setBuscaBase(texto); setPaginaBase(1); setSelecionadosBase([]); };
-    const meusLeadsGeladeira = meusLeads.filter(v => v.status === 'Perdido');
 
 
     // Próximo contato: abrir a janela para marcar/mudar a data. Depois de um WhatsApp num contato que estava
@@ -965,6 +1091,15 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                             </div>
                         )}
                     </div>
+{podeFazer(usuarioLogado, '520') && (
+                        <PuxarDoCadastro
+                            unidade={unidadeOperacao}
+                            onSalvos={(salvos, status) => {
+                                adicionarLeads(salvos);
+                                registrarHistoricoLote(salvos.map(l => l.id), 'Importação em Lote', `Inserido na Base pelo "Puxar do cadastro" (${status.join(', ')}).`);
+                            }}
+                        />
+                    )}
 <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
                             <div>
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Send className="w-4 h-4" />{' '}{tx("Distribuir contatos")}</h3>
@@ -1157,74 +1292,96 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto relative">
 
-            {/* HEADER DE PRODUTIVIDADE */}
-            <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between shadow-sm flex-wrap gap-4">
-                <div className="flex items-center gap-4 flex-1 min-w-[300px]">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shrink-0 ${metaBatida ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 shadow-inner' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 shadow-inner'}`}>
-                        {metaBatida ? <Trophy className="w-6 h-6" /> : <Target className="w-6 h-6 animate-pulse" />}
-                    </div>
-                    <div className="flex-1 max-w-xl">
-                        <div className="flex justify-between items-end mb-1.5">
-                            <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest">
-                                {tx("Operador:")}{' '}<strong className="text-blue-600 dark:text-blue-400">{consultorLogado}</strong>
-                                {unidadeOperacao && <span className="ml-2 px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{unidadeOperacao}</span>}
-                            </span>
-                            <span className={`text-xs font-black transition-colors ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{pessoasHoje} / {META_DIARIA}{' '}{tx("Pessoas contatadas")}</span>
+            {/* TOPO ENXUTO (decisão do dono, 06/11/2026): operador, meta, botões e abas numa faixa só */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                <div className="px-4 py-2.5 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-[260px]">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${metaBatida ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400'}`}>
+                            {metaBatida ? <Trophy className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                         </div>
-                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden shadow-inner">
-                            <div className={`h-2.5 rounded-full transition-all duration-500 ease-out ${metaBatida ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${pctMeta}%` }}></div>
+                        <div className="flex-1 max-w-xl min-w-0">
+                            <div className="flex justify-between items-center gap-2 mb-1">
+                                <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-1.5 min-w-0">
+                                    <strong className="text-blue-600 dark:text-blue-400 truncate" title={consultorLogado}>{consultorLogado}</strong>
+                                    {unidadeOperacao && <span className="shrink-0 px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{unidadeOperacao}</span>}
+                                    {/* Quem está operando o CRM de outra pessoa: etiqueta pequena (antes era uma faixa azul inteira) */}
+                                    {lideraOuAcompanha && (
+                                        <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-px rounded bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 cursor-help"
+                                            title={`${tx("Você está vendo o CRM de")} ${consultorLogado}${tx(". O que você fizer aqui conta para")} ${consultorLogado.split(' ')[0]}${tx(", com a marca \"feito por")} ${usuarioLogado?.nome?.split(' ')[0] || tx("você")}${tx("\" no histórico.")}`}>
+                                            <Info className="w-3 h-3" />{tx("feito por")}{' '}{usuarioLogado?.nome?.split(' ')[0] || tx("você")}
+                                        </span>
+                                    )}
+                                </span>
+                                <span className={`shrink-0 text-[11px] font-black ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{pessoasHoje} / {META_DIARIA}{' '}{tx("Pessoas contatadas")}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                                <div className={`h-1.5 rounded-full transition-all duration-500 ease-out ${metaBatida ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${pctMeta}%` }}></div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                
-                <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <button onClick={() => setContatosHojeAberto(true)} className={`px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 border ${pendentesHoje.total > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-700' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-slate-200 dark:border-slate-800'}`}>
-                        <CalendarCheck className="w-4 h-4" />{' '}{tx("Contatos de hoje")}{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
-                    </button>
-                    <button onClick={() => setConsultorAtivo(null)} className="px-4 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-800">
-                        <LogOut className="w-4 h-4" /> {lideraOuAcompanha ? tx("Voltar ao Painel") : tx("Trocar")}
-                    </button>
-                    <button onClick={() => setMostrarRelatorio(true)} className={`px-6 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center gap-2 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-[0_4px_15px_rgba(16,185,129,0.3)]' : 'bg-slate-800 text-white hover:bg-black border border-slate-700 shadow-md'}`}>
-                        <FileText className="w-4 h-4" />{' '}{tx("Fechar Turno")}
-                    </button>
-                </div>
-            </div>
 
-            {lideraOuAcompanha && (
-                <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/30 text-blue-800 dark:text-blue-300 rounded-xl px-4 py-2.5 text-[11px] font-bold flex items-center gap-2">
-                    <Info className="w-4 h-4 shrink-0 text-blue-600 dark:text-blue-400" />
-                    {tx("Você está vendo o CRM de")}{' '}<strong className="uppercase">{consultorLogado}</strong>{tx(". O que você fizer aqui conta para")}{' '}{consultorLogado.split(' ')[0]}{tx(", com a marca \"feito por")}{' '}{usuarioLogado?.nome?.split(' ')[0] || tx("você")}{tx("\" no histórico.")}
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        {/* Sem a aba Hoje (permissão 508), os contatos de hoje continuam na janela de antes */}
+                        {!visaoLiberada.hoje && (
+                            <button onClick={() => setContatosHojeAberto(true)} className={`h-8 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 border ${pendentesHoje.total > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-700' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-slate-200 dark:border-slate-800'}`}>
+                                <CalendarCheck className="w-3.5 h-3.5" />{' '}{tx("Contatos de hoje")}{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
+                            </button>
+                        )}
+                        <button onClick={() => setConsultorAtivo(null)} className="h-8 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-800">
+                            <LogOut className="w-3.5 h-3.5" /> {lideraOuAcompanha ? tx("Voltar ao Painel") : tx("Trocar")}
+                        </button>
+                        <button onClick={() => setMostrarRelatorio(true)} className={`h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-800 text-white hover:bg-black border border-slate-700'}`}>
+                            <FileText className="w-3.5 h-3.5" />{' '}{tx("Fechar Turno")}
+                        </button>
+                    </div>
                 </div>
-            )}
 
-            {/* BARRA DE NAVEGAÇÃO / ABAS */}
-            <div className="flex bg-slate-200 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-300/60 dark:border-slate-700 shadow-inner w-full max-w-6xl mx-auto overflow-x-auto custom-scrollbar">
-                <button onClick={() => setVisaoAtiva('kanban')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'kanban' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <KanbanIcon className="w-4 h-4" />{' '}{tx("Kanban")}
-                </button>
-                {visaoLiberada.lista && <button onClick={() => setVisaoAtiva('lista')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'lista' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <List className="w-4 h-4" />{' '}{tx("Lista")}
-                </button>}
-                {visaoLiberada.hoje && <button onClick={() => setVisaoAtiva('hoje')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'hoje' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`} title={tx("Contatos com o próximo contato marcado para hoje ou atrasado")}>
-                    <CalendarClock className="w-4 h-4" />{' '}{tx("Hoje")}
-                    {pendentesProximo > 0 && <span className={`min-w-[20px] px-1.5 py-0.5 rounded-full text-[10px] font-black ${visaoMostrada === 'hoje' ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{pendentesProximo}</span>}
-                </button>}
-                {visaoLiberada.geladeira && <button onClick={() => setVisaoAtiva('geladeira')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'geladeira' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Snowflake className="w-4 h-4" />{' '}{tx("Geladeira (")}{meusLeadsGeladeira.length})
-                </button>}
-                {visaoLiberada.migracao && <button onClick={() => setVisaoAtiva('migracao')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'migracao' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Repeat className="w-4 h-4" />{' '}{tx("Migração")}
-                </button>}
-                {visaoLiberada.naocontatar && <button onClick={() => setVisaoAtiva('naocontatar')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'naocontatar' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Ban className="w-4 h-4" />{' '}{tx("Não contatar")}
-                </button>}
-                {visaoLiberada.dashboard && <button onClick={() => setVisaoAtiva('dashboard')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'dashboard' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <PieChart className="w-4 h-4" />{' '}{tx("Métricas")}
-                </button>}
-                {/* ✅ ABA RELATÓRIO INSERIDA NA BARRA DE NAVEGAÇÃO */}
-                {visaoLiberada.relatorio && <button onClick={() => setVisaoAtiva('relatorio')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${visaoMostrada === 'relatorio' ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
-                    <Table className="w-4 h-4" />{' '}{tx("Relatório")}
-                </button>}
+                {/* ABAS: Conversa | Kanban | Lista · Hoje · Migração · Mais ▾ (Geladeira, Não contatar, Métricas, Relatório) */}
+                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap">
+                    <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 gap-0.5">
+                        {[
+                            visaoLiberada.conversa && ['conversa', MessagesSquare, tx("Conversa")],
+                            ['kanban', KanbanIcon, tx("Kanban")],
+                            visaoLiberada.lista && ['lista', List, tx("Lista")],
+                        ].filter(Boolean).map(([chave, Icone, rotulo]) => (
+                            <button key={chave} onClick={() => setVisaoAtiva(chave)} className={`h-8 px-3 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visaoMostrada === chave ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                                <Icone className="w-3.5 h-3.5" />{rotulo}
+                            </button>
+                        ))}
+                    </div>
+                    {[
+                        visaoLiberada.hoje && ['hoje', CalendarClock, tx("Hoje"), totalHoje, tx("Tudo para fazer hoje: agendados, visitantes 24h/48h, atrasados e aniversariantes")],
+                        visaoLiberada.migracao && ['migracao', Repeat, tx("Migração"), 0, ''],
+                    ].filter(Boolean).map(([chave, Icone, rotulo, qtd, dica]) => (
+                        <button key={chave} onClick={() => setVisaoAtiva(chave)} title={dica || undefined} className={`h-8 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visaoMostrada === chave ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
+                            <Icone className="w-3.5 h-3.5" />{rotulo}
+                            {qtd > 0 && <span className={`min-w-[18px] px-1.5 py-px rounded-full text-[10px] font-black ${visaoMostrada === chave ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{qtd}</span>}
+                        </button>
+                    ))}
+                    {abasMais.length > 0 && (
+                        <div className="relative">
+                            <button onClick={() => setMaisAberto(a => !a)} className={`h-8 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${abaMaisAtiva ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
+                                <MoreHorizontal className="w-3.5 h-3.5" />{abaMaisAtiva ? abaMaisAtiva[2] : tx("Mais")}<ChevronDown className="w-3 h-3" />
+                            </button>
+                            {maisAberto && (
+                                <>
+                                    <div className="fixed inset-0 z-30" onClick={() => setMaisAberto(false)} />
+                                    <div className="absolute left-0 top-full mt-1 z-40 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1">
+                                        {abasMais.map(([chave, Icone, rotulo, dica]) => (
+                                            <button key={chave} onClick={() => { setVisaoAtiva(chave); setMaisAberto(false); }} className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2 transition-colors ${visaoMostrada === chave ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                                <Icone className="w-4 h-4 mt-0.5 shrink-0" />
+                                                <span>
+                                                    <span className="block text-[11px] font-black uppercase tracking-widest">{rotulo}</span>
+                                                    <span className="block text-[10px] font-medium text-slate-400">{dica}</span>
+                                                </span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* ABA GELADEIRA (RECUPERAÇÃO) */}
@@ -1309,6 +1466,25 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
             
+            {visaoMostrada === 'conversa' && (
+                <Conversa
+                    visitantes={meusLeadsAtivos}
+                    registrarHistorico={registrarHistorico}
+                    alterarStatus={alterarStatus}
+                    deletarLead={deletarLead}
+                    podeApagar={podeApagar}
+                    usuarioLogado={usuarioLogado}
+                    onProximoContato={abrirProximoContato}
+                    aoEnviarWhatsApp={perguntarProximoSeMarcado}
+                    onNaoContatar={setNaoContatarAlvo}
+                    abrirFicha={(lead) => { setModalDetalhe({ show: true, lead }); carregarHistoricoLead(lead.id); }}
+                    versao={versaoDados}
+                    todosLeads={visitantes}
+                    contatosDoDia={contatosDoDia}
+                    unidade={unidadeOperacao}
+                />
+            )}
+
             {visaoMostrada === 'lista' && (
                 <Lista 
                     visitantes={meusLeadsAtivos} 
@@ -1347,6 +1523,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     naoContatar={naoContatar}
                     onNaoContatar={aoColocarNaoContatar}
                     onContatoFeito={somarNaMeta}
+                    onInteressado={levarAlunoParaFunil}
                 />
             )}
 
@@ -1404,18 +1581,21 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 />
             )}
 
+            {/* Fica sempre montado (conta os pendentes); com a aba Hoje, aparece dentro dela, logo abaixo dos agendados */}
             <ContatosDeHoje
+                embutido={visaoLiberada.hoje}
                 unidade={unidadeOperacao}
                 operador={consultorLogado}
                 leads={visitantes}
                 usuarioLogado={usuarioLogado}
-                aberto={contatosHojeAberto}
+                aberto={visaoLiberada.hoje ? visaoMostrada === 'hoje' : contatosHojeAberto}
                 onFechar={() => setContatosHojeAberto(false)}
                 onPendentes={aoAtualizarPendentes}
                 registrarHistorico={registrarHistorico}
                 onNaoContatar={aoColocarNaoContatar}
                 onContatoFeito={somarNaMeta}
                 versao={versaoDados + versaoNaoContatar}
+                onDados={setContatosDoDia}
             />
 
         </div>
