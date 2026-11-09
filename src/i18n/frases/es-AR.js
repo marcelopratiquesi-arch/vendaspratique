@@ -3274,4 +3274,15 @@ export default {
     "Leitura automática do exame": "Lectura automática del estudio",
     "Anexe o PDF do exame InBody ou Superbio: o sistema lê e preenche as medidas. Foto também pode ser anexada (sem leitura automática).": "Adjuntá el PDF del estudio InBody o Superbio: el sistema lo lee y completa las medidas. También se puede adjuntar una foto (sin lectura automática).",
     "Não foi possível abrir a avaliação para editar. Tente de novo.": "No se pudo abrir la evaluación para editar. Probá de nuevo.",
+    // Evaluación física — pantalla inicial con cara de gimnasio (09/11/2026)
+    "Avaliadores que avaliaram": "Evaluadores que evaluaron",
+    "de {qtd}": "de {qtd}",
+    "Incompletas": "Incompletas",
+    "Mais avaliações no mês": "Más evaluaciones en el mes",
+    "Avaliações no mês": "Evaluaciones en el mes",
+    "Saúde": "Salud",
+    "Junta pressão, gordura visceral, RCQ, SMI e hidratação. Alerta = algum resultado ruim; Atenção = algum no limite; Saudável = todos bons.": "Combina presión, grasa visceral, ICC, SMI e hidratación. Alerta = algún resultado malo; Atención = alguno en el límite; Saludable = todos bien.",
+    "Saudável": "Saludable",
+    "Atenção": "Atención",
+    "Alerta": "Alerta",
 };
