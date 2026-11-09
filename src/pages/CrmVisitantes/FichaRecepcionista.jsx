@@ -33,15 +33,16 @@ const Barra = ({ valor, total, cor }) => (
     </span>
 );
 
-const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, periodoRotulo, tempoRelativo, formatarDataHora, onAbrirCrm, onVerRelatorio, onAbrirContato, onFechar }) => {
+const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, periodoRotulo, tempoRelativo, formatarDataHora, onAbrirCrm, onVerRelatorio, onAbrirContato, onFechar, bloquearEsc = false }) => {
     const [aba, setAba] = useState('resultado');
     const [limite, setLimite] = useState(30);
 
     useEffect(() => {
-        const aoTeclar = (e) => { if (e.key === 'Escape') onFechar(); };
+        // Com a ficha do aluno aberta por cima, o Esc fecha só ela
+        const aoTeclar = (e) => { if (e.key === 'Escape' && !bloquearEsc) onFechar(); };
         window.addEventListener('keydown', aoTeclar);
         return () => window.removeEventListener('keydown', aoTeclar);
-    }, [onFechar]);
+    }, [onFechar, bloquearEsc]);
 
     const turno = String(recepcionista.turno || '').toUpperCase();
     const l = linha;
@@ -70,7 +71,7 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
 
     return (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
-            <div className="w-full max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-ficha-recepcionista">
+            <div className="w-full min-w-0 max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-ficha-recepcionista">
 
                 <div className="mb-5 flex items-center">
                     <button type="button" onClick={onFechar}
@@ -125,7 +126,7 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
                             <Barra valor={l.emAtendimento} total={LIMITE_CARTEIRA} cor={l.emAtendimento > LIMITE_CARTEIRA ? 'bg-rose-500' : 'bg-amber-500'} />
                         </Cartao>
                         <Cartao icone={MessageCircleOff} cor="bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" titulo={tx('Sem WhatsApp')} valor={l.semWhatsApp}
-                            sub={l.semWhatsApp > 5 ? tx('acima do limite de 5 hoje') : tx('feitos sem WhatsApp')} alerta={l.semWhatsApp > 5} />
+                            sub={tx('feitos sem WhatsApp')} alerta={l.semWhatsApp > 0} />
                     </div>
                 )}
 

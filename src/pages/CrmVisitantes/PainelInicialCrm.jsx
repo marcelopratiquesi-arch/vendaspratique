@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText, BarChart3, ArrowRight, MessageCircle, Phone, PenTool } from 'lucide-react';
+import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText, BarChart3 } from 'lucide-react';
 import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO, ehMudancaPorCompra, ehBoasVindas, situacaoProximoContato, LIMITE_CARTEIRA, ocupaVaga, estaEmEspera } from './utils';
 import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar, ehSemWhatsApp } from './contatosFeitos';
 import PainelCrm from './PainelCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
+import FichaRecepcionista from './FichaRecepcionista';
 import RelatorioConsultor from './RelatorioConsultor';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao, dentroDaFaixa } from '../../components/periodoPadrao.js';
@@ -334,13 +335,6 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     }, [recepcionistas]);
     const agruparPorUnidade = visaoGlobal && !chaveFoco && gruposEquipe.length > 1;
 
-    // Esc fecha o resumo lateral
-    useEffect(() => {
-        if (!resumoDe) return undefined;
-        const aoTeclar = (e) => { if (e.key === 'Escape') setResumoDe(null); };
-        window.addEventListener('keydown', aoTeclar);
-        return () => window.removeEventListener('keydown', aoTeclar);
-    }, [resumoDe]);
 
     const nomeUnidade = unidadeFoco?.nome || (visaoGlobal ? tx('Todas as unidades') : usuarioLogado?.unidade);
     const historicoNoLimite = historico.length >= LIMITE_HISTORICO;
@@ -412,7 +406,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     );
 
     const linhaResumo = resumoDe ? linhas.find(l => l.colaborador.id === resumoDe.id) : null;
-    const ultimasDoResumo = resumoDe ? historico.filter(h => mesmoNome(h.consultor, resumoDe.nome)).slice(0, 8) : [];
+    const ultimasDoResumo = resumoDe ? historico.filter(h => mesmoNome(h.consultor, resumoDe.nome)) : [];
 
     return (
         <div className="space-y-5 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto px-1">
@@ -650,89 +644,22 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 </div>
             )}
 
-            {/* RESUMO LATERAL DE UMA RECEPCIONISTA */}
+            {/* FICHA DA RECEPCIONISTA (09/11/2026: janela no meio, no modelo da ficha do aluno; antes era um painel lateral) */}
             {resumoDe && (
-                <div className="fixed inset-0 z-[120] flex justify-end bg-slate-900/40 backdrop-blur-[2px] animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) setResumoDe(null); }}>
-                    <aside className="w-full sm:w-[420px] h-full bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col" role="dialog" aria-modal="true" aria-label={resumoDe.nome}>
-                        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                                <div className="w-11 h-11 shrink-0 bg-blue-600 text-white rounded-full flex items-center justify-center font-black text-lg">{String(resumoDe.nome || '').charAt(0)}</div>
-                                <div className="min-w-0">
-                                    <p className="text-sm font-black uppercase text-slate-800 dark:text-white leading-tight">{resumoDe.nome}</p>
-                                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{resumoDe.unidade || '—'} · {tx(periodo.rotulo)}</p>
-                                </div>
-                            </div>
-                            <button type="button" onClick={() => setResumoDe(null)} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800" aria-label={tx("Fechar")}>
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
-                            {linhaResumo && (
-                                <>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {[
-                                            ['Ações', linhaResumo.acoes, 'text-slate-800 dark:text-white'],
-                                            ['Fechou', linhaResumo.fechados, 'text-emerald-600 dark:text-emerald-400'],
-                                            ['Carteira', linhaResumo.emAtendimento, 'text-blue-600 dark:text-blue-400'],
-                                            ['Visitantes 24h', `${linhaResumo.prazos.noPrazo24}${linhaResumo.prazos.atrasado24 ? ` / ${linhaResumo.prazos.atrasado24}⚠` : ''}`, 'text-emerald-600 dark:text-emerald-400'],
-                                            ['Visitantes 48h', `${linhaResumo.prazos.noPrazo48}${linhaResumo.prazos.atrasado48 ? ` / ${linhaResumo.prazos.atrasado48}⚠` : ''}`, 'text-emerald-600 dark:text-emerald-400'],
-                                            ['Boas-vindas', linhaResumo.boasVindas.total ? `${linhaResumo.boasVindas.enviadas} / ${linhaResumo.boasVindas.total}` : '—', linhaResumo.boasVindas.total && linhaResumo.boasVindas.enviadas < linhaResumo.boasVindas.total ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'],
-                                            ['Migração', linhaResumo.migracao.total, 'text-blue-600 dark:text-blue-400'],
-                                            ['Sem contato', linhaResumo.semContato, 'text-amber-600 dark:text-amber-400'],
-                                            ['Sem WhatsApp', linhaResumo.semWhatsApp, linhaResumo.semWhatsApp > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'],
-                                            ['Perdidos', linhaResumo.perdidos, 'text-rose-500 dark:text-rose-400']
-                                        ].map(([rotulo, valor, cor]) => (
-                                            <div key={rotulo} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 rounded-xl p-2.5 text-center">
-                                                <p className={`text-lg font-black leading-none ${cor}`}>{valor}</p>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mt-1 truncate">{tx(rotulo)}</p>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                        <span className="inline-flex items-center gap-1"><MessageCircle className="w-3.5 h-3.5 text-emerald-500" />{tx("WhatsApp")}: {linhaResumo.whatsapp}</span>
-                                        <span className="inline-flex items-center gap-1"><Phone className="w-3.5 h-3.5 text-blue-500" />{tx("Ligações")}: {linhaResumo.ligacoes}</span>
-                                        <span className="inline-flex items-center gap-1"><PenTool className="w-3.5 h-3.5 text-slate-400" />{tx("Notas")}: {linhaResumo.notas}</span>
-                                        <span className="inline-flex items-center gap-1">{tx("Puxados")}: {linhaResumo.puxados}</span>
-                                        <span className="inline-flex items-center gap-1">{tx("Visitantes trabalhados")}: {linhaResumo.visitantes}</span>
-                                        <span className="inline-flex items-center gap-1">{tx("Cancelados/Inativos trabalhados")}: {linhaResumo.cancelados}</span>
-                                    </div>
-                                </>
-                            )}
-
-                            <div>
-                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{tx("Últimas ações")}</p>
-                                {ultimasDoResumo.length === 0 ? (
-                                    <p className="text-[11px] font-bold text-slate-400">{tx("Sem ação no período")}</p>
-                                ) : (
-                                    <ul className="space-y-2">
-                                        {ultimasDoResumo.map(h => {
-                                            const lead = leadPorId.get(String(h.lead_id));
-                                            return (
-                                                <li key={h.id} className="flex items-start justify-between gap-3 text-[11px]">
-                                                    <span className="min-w-0">
-                                                        <span className="font-black text-slate-700 dark:text-slate-200 uppercase">{tx(h.tipo_acao)}</span>
-                                                        <span className="text-slate-500 dark:text-slate-400"> · {lead?.nome || tx("Contato fora da lista atual")}</span>
-                                                    </span>
-                                                    <span className="shrink-0 font-bold text-slate-400" title={formatarDataHora(h.data_registro)}>{tempoRelativo(h.data_registro)}</span>
-                                                </li>
-                                            );
-                                        })}
-                                    </ul>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="p-4 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2">
-                            <button type="button" onClick={() => abrirRelatorioDe(resumoDe.nome)} className="py-3 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5">
-                                <FileText className="w-4 h-4" />{tx("Ver relatório")}
-                            </button>
-                            <button type="button" onClick={() => { const c = resumoDe; setResumoDe(null); onEscolher(c); }} className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5">
-                                {tx("Abrir o CRM dela")}<ArrowRight className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </aside>
-                </div>
+                <FichaRecepcionista
+                    recepcionista={resumoDe}
+                    linha={linhaResumo}
+                    acoes={ultimasDoResumo}
+                    leadPorId={leadPorId}
+                    periodoRotulo={periodo.rotulo}
+                    tempoRelativo={tempoRelativo}
+                    formatarDataHora={formatarDataHora}
+                    onVerRelatorio={() => abrirRelatorioDe(resumoDe.nome)}
+                    onAbrirCrm={() => { const c = resumoDe; setResumoDe(null); onEscolher(c); }}
+                    onAbrirContato={setContatoFicha}
+                    bloquearEsc={!!contatoFicha}
+                    onFechar={() => setResumoDe(null)}
+                />
             )}
 
             {contatoFicha && (

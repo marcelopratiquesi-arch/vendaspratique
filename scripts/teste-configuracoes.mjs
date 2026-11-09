@@ -153,5 +153,32 @@ teste('funções antigas continuam (unidade_definir_ativa, unidade_uso, mentor_u
     tab.includes("rpc('unidade_definir_ativa'") && tab.includes("rpc('unidade_uso'") && tab.includes("from('unidades').insert")
     && cfg.includes('auth.signUp') && cfg.includes("from('mentor_unidades')") && cfg.includes("from('usuarios_sistema').delete()"));
 
+// ---------- Rodada 3 (09/11/2026): fichas no modelo da ficha do aluno (janela no meio, sem painel lateral) ----------
+const fichaU = fs.readFileSync('src/pages/CadastroGeral/FichaUnidade.jsx', 'utf8');
+const fichaR = fs.readFileSync('src/pages/CrmVisitantes/FichaRecepcionista.jsx', 'utf8');
+const painelCrm = fs.readFileSync('src/pages/CrmVisitantes/PainelInicialCrm.jsx', 'utf8');
+const janelaNoMeio = (s) => s.includes('items-start justify-center') && s.includes('overflow-y-auto') && s.includes('max-w-6xl') && !s.includes('flex justify-end');
+
+// 21) Central da Unidade: janela no meio com rolagem (o topo não some com o zoom) e as 5 abas
+teste('Central da Unidade em janela no meio, com as 5 abas',
+    janelaNoMeio(fichaU) && ["'geral'", "'equipe'", "'logins'", "'mentor'", "'config'"].every(a => fichaU.includes(`[${a}`)));
+
+// 22) Central da Unidade mantém tudo o que a ficha antiga fazia
+teste('Central da Unidade mantém Mentores, Personal Class, Desativar e Excluir',
+    ['onSalvarMentores(', 'onMarcarPersonal(', 'onAtivar(unidade', 'onExcluir(unidade', 'Voltar para Unidades'].every(t => fichaU.includes(t)));
+
+// 23) Ficha da recepcionista: janela no meio, e o CRM não tem mais o painel lateral
+teste('ficha da recepcionista em janela no meio; painel lateral removido',
+    janelaNoMeio(fichaR) && painelCrm.includes('<FichaRecepcionista') && !painelCrm.includes('<aside className="w-full sm:w-[420px]'));
+
+// 24) Nenhum número da ficha antiga sumiu (regra 2)
+const camposAntigos = ['acoes', 'fechados', 'emAtendimento', 'prazos', 'boasVindas', 'migracao', 'semContato', 'semWhatsApp', 'perdidos', 'whatsapp', 'ligacoes', 'notas', 'puxados', 'visitantes', 'cancelados'];
+teste('todos os números da ficha antiga continuam na nova', camposAntigos.every(c => fichaR.includes(`l.${c}`) || fichaR.includes(`l?.${c}`)));
+
+// 25) Botões antigos continuam: Ver relatório e Abrir o CRM dela; Esc não fecha as duas janelas juntas
+teste('Ver relatório, Abrir o CRM dela e Esc respeitando a ficha do aluno',
+    painelCrm.includes('onVerRelatorio={() => abrirRelatorioDe(resumoDe.nome)}') && painelCrm.includes('onEscolher(c)')
+    && painelCrm.includes('bloquearEsc={!!contatoFicha}') && fichaR.includes('!bloquearEsc'));
+
 console.log(falhas === 0 ? `\nTudo certo: ${n} de ${n} testes passaram.` : `\n${falhas} de ${n} testes FALHARAM.`);
 process.exit(falhas ? 1 : 0);

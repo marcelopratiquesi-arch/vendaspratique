@@ -125,7 +125,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
 
     return (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !salvando) onFechar(); }}>
-            <div className="w-full max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-central-unidade">
+            <div className="w-full min-w-0 max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-central-unidade">
 
                 <div className="mb-5 flex items-center">
                     <button type="button" onClick={onFechar} disabled={salvando}
@@ -164,8 +164,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                                         ? <>{telefoneBonito(telefoneLider)}<CopyButton textToCopy={soNumeros(telefoneLider)} label={tx('Copiar telefone')} /></>
                                         : <span className="text-rose-600 dark:text-rose-400">{tx('Líder sem telefone na Equipe')}</span>}
                                 </span>
-                                {separador}
-                                <span className="flex items-center gap-1.5 lowercase">
+                                <span className="flex items-center gap-1.5 lowercase basis-full sm:basis-auto">
                                     <Monitor className="w-3.5 h-3.5 text-blue-500" />
                                     {loginsRecepcao[0]
                                         ? <>{loginsRecepcao[0].email}<CopyButton textToCopy={loginsRecepcao[0].email} label={tx('Copiar e-mail')} /></>
