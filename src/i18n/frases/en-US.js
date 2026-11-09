@@ -3349,4 +3349,8 @@ export default {
     "Admin e Mentor": "Admin and Mentor",
     "Perguntas do questionário da avaliação": "Assessment questionnaire questions",
     "Perguntas ativas": "Active questions",
+    // Avaliação física — janela Evolução com a faixa (09/11/2026)
+    "CPF: {v1}": "CPF: {v1}",
+    "{qtd} avaliações no período": "{qtd} assessments in the period",
+    "Evolução do aluno": "Student progress",
 };

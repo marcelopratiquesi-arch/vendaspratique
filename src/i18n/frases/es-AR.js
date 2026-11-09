@@ -3349,4 +3349,8 @@ export default {
     "Admin e Mentor": "Admin y Mentor",
     "Perguntas do questionário da avaliação": "Preguntas del cuestionario de la evaluación",
     "Perguntas ativas": "Preguntas activas",
+    // Evaluación física — ventana Evolución con la franja (09/11/2026)
+    "CPF: {v1}": "CPF: {v1}",
+    "{qtd} avaliações no período": "{qtd} evaluaciones en el período",
+    "Evolução do aluno": "Evolución del socio",
 };

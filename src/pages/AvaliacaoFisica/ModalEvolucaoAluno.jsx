@@ -4,6 +4,8 @@ import { consultaSeguraOuDireta } from '../../components/consultaSegura.js';
 import { X, TrendingUp, TrendingDown, Minus, Calendar, Dumbbell, Percent, Scale, Clock, Activity, AlertCircle, RefreshCw, Info } from 'lucide-react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { tx } from '../../i18n/traduzir.js';
+import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
+import { FaixaAvaliacao, BotaoFaixa } from './FaixaAvaliacao.jsx';
 
 // 🔥 P0: Parsing numérico seguro
 const parseNumber = (val) => {
@@ -58,28 +60,21 @@ const CustomTooltip = ({ active, payload, label }) => {
     return null;
 };
 
-// 🔥 P1: Interpretação visual neutra e inteligente
-const IndicadorVariacao = ({ valor, tipo = 'padrao', sufixo = '' }) => {
-    if (valor === null || valor === undefined || isNaN(valor)) return <span className="text-slate-400 text-[10px] font-bold">{tx("Sem dados comparativos")}</span>;
-    
+// Evolução do período dentro da faixa (09/11/2026). Mesma regra de antes: músculo subir = verde,
+// gordura subir = vermelho, peso = neutro (só mostra a direção).
+const VariacaoNaFaixa = ({ valor, tipo = 'padrao', sufixo = '' }) => {
+    if (valor === null || valor === undefined || isNaN(valor)) return <span className="block text-[10px] font-bold text-blue-100/60 uppercase tracking-widest">{tx("Sem dados comparativos")}</span>;
     const num = parseFloat(valor);
-    if (num === 0) return <div className="flex items-center gap-1 px-2 py-1 bg-slate-100 rounded-md text-slate-500 w-fit dark:bg-slate-800 dark:text-slate-400"><Minus className="w-3 h-3"/> <span className="text-[10px] font-black uppercase tracking-widest">{tx("Estável")}</span></div>;
-
-    let isPositivo = num > 0;
-    
-    // Semântica correta: MME alto é bom (verde). PGC alto é ruim (vermelho). Peso depende, deixamos neutro/cinza, mas indicamos direção.
-    let corClass = 'text-slate-600 bg-slate-100 dark:text-slate-300 dark:bg-slate-800'; 
-    if (tipo === 'musculo') corClass = isPositivo ? 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10' : 'text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-500/10';
-    if (tipo === 'gordura') corClass = isPositivo ? 'text-rose-600 bg-rose-50 dark:text-rose-400 dark:bg-rose-500/10' : 'text-emerald-600 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10';
-
-    const Icone = isPositivo ? TrendingUp : TrendingDown;
-    const sinal = isPositivo ? '+' : '';
-
+    if (num === 0) return <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-blue-100/80"><Minus className="w-3 h-3" />{tx("Estável")}</span>;
+    const subiu = num > 0;
+    let cor = 'text-white/90';
+    if (tipo === 'musculo') cor = subiu ? 'text-emerald-300' : 'text-rose-300';
+    if (tipo === 'gordura') cor = subiu ? 'text-rose-300' : 'text-emerald-300';
+    const Icone = subiu ? TrendingUp : TrendingDown;
     return (
-        <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${corClass} w-fit`}>
-            <Icone className="w-3 h-3"/>
-            <span className="text-[11px] font-black tracking-widest">{sinal}{num.toFixed(1).replace('.', ',')}{sufixo}</span>
-        </div>
+        <span className={`flex items-center gap-1 text-[11px] font-black tracking-widest ${cor}`}>
+            <Icone className="w-3 h-3" />{subiu ? '+' : ''}{num.toFixed(1).replace('.', ',')}{sufixo}
+        </span>
     );
 };
 
@@ -189,32 +184,45 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
 
     return (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 md:p-6 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-slate-50 w-full max-w-[95vw] lg:max-w-5xl h-full max-h-[90vh] md:max-h-[85vh] rounded-[24px] shadow-2xl flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-slate-800/60">
-                
-                {/* HEADER */}
-                <div className="bg-white px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0 relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-                    <div className="absolute right-0 top-0 w-64 h-full bg-gradient-to-l from-blue-50 to-transparent pointer-events-none"></div>
-                    
-                    <div className="flex items-center gap-4 relative z-10 min-w-0">
-                        <div className="w-10 h-10 md:w-12 md:h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center shadow-inner shrink-0 dark:bg-blue-500/20 dark:text-blue-400">
-                            <Activity className="w-5 h-5 md:w-6 md:h-6"/>
-                        </div>
-                        <div className="min-w-0 truncate pr-4">
-                            <h2 className="text-lg md:text-xl font-black text-slate-800 tracking-tight leading-tight truncate dark:text-white">{aluno.nome}</h2>
-                            <div className="flex items-center gap-2 text-[10px] md:text-[11px] font-bold text-slate-400 mt-0.5 uppercase tracking-widest truncate">
-                                {aluno.cpf && <span>{tx("CPF:")}{' '}{mascaraCPF(aluno.cpf)}</span>}
-                                {metricas && <span className="hidden sm:inline">{tx("• Avaliações:")}{' '}{metricas.qtd}</span>}
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <button onClick={onClose} aria-label={tx("Fechar painel")} className="w-8 h-8 bg-transparent hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-full flex items-center justify-center transition-colors relative z-10 shrink-0 border border-transparent hover:border-slate-200 dark:hover:bg-slate-800 dark:hover:text-slate-200 dark:hover:border-slate-800">
-                        <X className="w-4 h-4"/>
-                    </button>
+            <div className="bg-slate-50 w-full max-w-[95vw] lg:max-w-5xl h-full max-h-[90vh] md:max-h-[85vh] rounded-[24px] shadow-2xl flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-[#0a0f1c]">
+
+                {/* FAIXA DE DESTAQUE da Avaliação (peça única, 09/11/2026): aluno, período e os 3 números com a evolução */}
+                <div className="p-3 md:p-4 shrink-0">
+                    <FaixaAvaliacao
+                        icone={<Activity className="w-6 h-6 text-orange-300" />}
+                        titulo={aluno.nome}
+                        subtitulo={[
+                            aluno.cpf ? tx("CPF: {v1}", { v1: mascaraCPF(aluno.cpf) }) : null,
+                            metricas ? tx("{qtd} avaliações no período", { qtd: metricas.qtd }) : null,
+                        ].filter(Boolean).join(' · ') || tx("Evolução do aluno")}
+                        acoes={<>
+                            {historicoTotal.length > 0 && (
+                                <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/20 p-1">
+                                    {[3, 6, 12, 'TODO'].map(meses => (
+                                        periodo === meses ? (
+                                            <span key={meses} className="px-3 py-1.5 rounded-lg bg-white text-[#0B1F4B] text-[10px] font-black uppercase tracking-widest">
+                                                {meses === 'TODO' ? tx("Todo o Histórico") : tx("{meses} Meses", { meses })}
+                                            </span>
+                                        ) : (
+                                            <button key={meses} type="button" onClick={() => setPeriodo(meses)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">
+                                                {meses === 'TODO' ? tx("Todo o Histórico") : tx("{meses} Meses", { meses })}
+                                            </button>
+                                        )
+                                    ))}
+                                </div>
+                            )}
+                            <BotaoFaixa onClick={onClose} aria-label={tx("Fechar painel")} className="w-10 justify-center !px-0"><X className="w-4 h-4" /></BotaoFaixa>
+                        </>}
+                        numeros={metricas ? [
+                            { rotulo: tx("Massa Muscular (MME)"), valor: metricas.mmeAtual != null ? tx("{mmeAtual} kg", { mmeAtual: metricas.mmeAtual }) : '-', extra: <VariacaoNaFaixa valor={metricas.varMmeKg} tipo="musculo" sufixo=" kg" /> },
+                            { rotulo: tx("Gordura Corporal (PGC)"), valor: metricas.pgcAtual != null ? `${metricas.pgcAtual}%` : '-', extra: <VariacaoNaFaixa valor={metricas.varPgcPP} tipo="gordura" sufixo=" p.p." /> },
+                            { rotulo: tx("Peso Total"), valor: metricas.pesoAtual != null ? tx("{pesoAtual} kg", { pesoAtual: metricas.pesoAtual }) : '-', extra: <VariacaoNaFaixa valor={metricas.varPesoKg} tipo="padrao" sufixo=" kg" /> },
+                        ] : []}
+                    />
                 </div>
 
                 {/* CONTEÚDO SCROLLÁVEL */}
-                <div className="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar p-4 md:p-6">
+                <div className="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar px-3 pb-4 md:px-4 md:pb-6">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64">
                             <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-4"/>
@@ -227,23 +235,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                             <p className="text-xs font-bold text-slate-500 mt-1 dark:text-slate-400">{tx("Este aluno ainda não possui avaliações no sistema.")}</p>
                         </div>
                     ) : (
-                        <div className="space-y-6">
-                            
-                            {/* CONTROLE DE PERÍODO */}
-                            <div className="flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex-wrap gap-4 dark:bg-slate-900 dark:border-slate-800">
-                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-4 hidden sm:block">{tx("Janela Temporal")}</span>
-                                <div className="flex gap-1 w-full sm:w-auto">
-                                    {[3, 6, 12, 'TODO'].map(meses => (
-                                        <button 
-                                            key={meses} 
-                                            onClick={() => setPeriodo(meses)}
-                                            className={`flex-1 sm:flex-none px-4 py-2 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${periodo === meses ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}
-                                        >
-                                            {meses === 'TODO' ? tx("Todo o Histórico") : tx("{meses} Meses", { meses: meses })}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
+                        <div className="space-y-4">
 
                             {/* ESTADO: 1 AVALIAÇÃO */}
                             {avaliacoesFiltradas.length === 1 && (
@@ -252,53 +244,6 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                     <div>
                                         <h4 className="text-sm font-black text-blue-900 dark:text-blue-300">{tx("Apenas uma avaliação no período")}</h4>
                                         <p className="text-xs font-medium text-blue-700 mt-1 dark:text-blue-400">{tx("Ainda não há dados suficientes para gerar a linha do tempo comparativa. Os indicadores atuais estão detalhados abaixo.")}</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* CARDS DE RESUMO BI (Limpos e semânticos) */}
-                            {metricas && (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="bg-white rounded-[20px] p-5 border border-slate-200 shadow-sm relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-                                        <div className="absolute right-0 top-0 w-16 h-16 bg-blue-50 rounded-bl-[40px] flex items-center justify-center dark:bg-blue-500/10">
-                                            <Dumbbell className="w-6 h-6 text-blue-400 translate-x-2 -translate-y-2"/>
-                                        </div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{tx("Massa Muscular (MME)")}</h3>
-                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.mmeAtual != null ? tx("{mmeAtual} kg", { mmeAtual: metricas.mmeAtual }) : '-'}</p>
-                                        <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Evolução")}</span>
-                                                <IndicadorVariacao sufixo=" kg" tipo="musculo" valor={metricas.varMmeKg}/>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-[20px] p-5 border border-slate-200 shadow-sm relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-                                        <div className="absolute right-0 top-0 w-16 h-16 bg-orange-50 rounded-bl-[40px] flex items-center justify-center dark:bg-orange-500/10">
-                                            <Percent className="w-6 h-6 text-orange-400 translate-x-2 -translate-y-2"/>
-                                        </div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{tx("Gordura Corporal (PGC)")}</h3>
-                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.pgcAtual != null ? `${metricas.pgcAtual}%` : '-'}</p>
-                                        <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Evolução")}</span>
-                                                <IndicadorVariacao sufixo=" p.p." tipo="gordura" valor={metricas.varPgcPP}/>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="bg-white rounded-[20px] p-5 border border-slate-200 shadow-sm relative overflow-hidden dark:bg-slate-900 dark:border-slate-800">
-                                        <div className="absolute right-0 top-0 w-16 h-16 bg-slate-50 rounded-bl-[40px] flex items-center justify-center dark:bg-slate-800/60">
-                                            <Scale className="w-6 h-6 text-slate-400 translate-x-2 -translate-y-2"/>
-                                        </div>
-                                        <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{tx("Peso Total")}</h3>
-                                        <p className="text-3xl font-black text-slate-800 tracking-tighter mb-4 dark:text-white">{metricas.pesoAtual != null ? tx("{pesoAtual} kg", { pesoAtual: metricas.pesoAtual }) : '-'}</p>
-                                        <div className="flex flex-col gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Variação")}</span>
-                                                <IndicadorVariacao sufixo=" kg" tipo="padrao" valor={metricas.varPesoKg}/>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -313,13 +258,13 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                         <div className="h-[250px] md:h-[300px] w-full">
                                             <ResponsiveContainer height="100%" width="100%">
                                                 <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
-                                                    <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
+                                                    <CartesianGrid stroke="#94a3b8" strokeOpacity={0.25} strokeDasharray="3 3" vertical={false} />
                                                     <XAxis dataKey="name" stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} dy={10} />
-                                                    <YAxis yAxisId="left" orientation="left" stroke="#818cf8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} dx={-10} domain={['auto', 'auto']} />
+                                                    <YAxis yAxisId="left" orientation="left" stroke="#60a5fa" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} dx={-10} domain={['auto', 'auto']} />
                                                     <YAxis yAxisId="right" orientation="right" stroke="#fb923c" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} dx={10} domain={['auto', 'auto']} />
                                                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '5 5' }} />
                                                     <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 'bold' }} />
-                                                    <Line yAxisId="left" type="monotone" dataKey="MME" name="Massa Muscular (kg)" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls />
+                                                    <Line yAxisId="left" type="monotone" dataKey="MME" name="Massa Muscular (kg)" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls />
                                                     <Line yAxisId="right" type="monotone" dataKey="PGC" name="Gordura Corporal (%)" stroke="#f97316" strokeWidth={3} dot={{ r: 4, fill: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} connectNulls />
                                                 </LineChart>
                                             </ResponsiveContainer>
@@ -333,7 +278,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                                         <div className="h-[150px] md:h-[200px] w-full">
                                             <ResponsiveContainer height="100%" width="100%">
                                                 <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 10 }}>
-                                                    <CartesianGrid stroke="#f1f5f9" strokeDasharray="3 3" vertical={false} />
+                                                    <CartesianGrid stroke="#94a3b8" strokeOpacity={0.25} strokeDasharray="3 3" vertical={false} />
                                                     <XAxis dataKey="name" stroke="#64748b" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} dy={10} />
                                                     <YAxis stroke="#94a3b8" fontSize={10} fontWeight="bold" tickLine={false} axisLine={false} dx={-10} domain={['auto', 'auto']} />
                                                     <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#cbd5e1', strokeWidth: 1, strokeDasharray: '5 5' }} />
