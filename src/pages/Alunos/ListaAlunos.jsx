@@ -115,8 +115,9 @@ const OPCOES_ORDEM = [
     ['unidade|ASC', 'Unidade'], ['situacao|ASC', 'Situação'], ['plano|ASC', 'Plano'],
 ];
 
-// Altura da tabela: acompanha a tela (o sistema inteiro está com zoom 0,8, por isso 125vh = altura da janela)
-const ALTURA_TABELA = 'calc(125vh - 400px)';
+// Altura da tabela: acompanha a tela. O sistema tem zoom (tamanho Pequeno/Médio/Grande, App.jsx), então a altura
+// da janela = 100vh ÷ zoom (no Pequeno, 0,8, dá os 125vh de antes)
+const ALTURA_TABELA = 'calc(100vh / var(--escala-interface, 1) - 400px)';
 
 const ListaAlunos = ({
     alunos = [], totalCount = 0, loading = false, erro = null,

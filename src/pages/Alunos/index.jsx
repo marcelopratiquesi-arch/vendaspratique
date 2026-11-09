@@ -270,17 +270,28 @@ const ModuloAlunos360 = ({
         if (isSearching) carregarBuscaRede();
     }, [carregarBuscaRede, isSearching]);
 
+    // ECONOMIA DE BANCO (09/11/2026): a lista usa a consulta mais pesada do sistema (listar_alunos_360).
+    // Antes ela rodava de novo a CADA aluno alterado na rede (importação de 1.000 alunos = até 1.000 vezes por tela)
+    // e a cada volta para a janela (cada Alt+Tab do WhatsApp). Agora: avisos seguidos viram UMA releitura
+    // (espera 5 s sem aviso novo, no máximo 15 s) e voltar para a janela só relê se a última leitura tem mais de 2 min.
     useEffect(() => {
-        const handleFocus = () => recarregar(true);
+        let ultimaLeitura = Date.now(); // a lista acabou de ser carregada pelos efeitos acima
+        let timer = null;
+        let primeiroAviso = null;
+        const reler = () => { clearTimeout(timer); timer = null; primeiroAviso = null; ultimaLeitura = Date.now(); recarregar(true); };
+        const handleFocus = () => { if (Date.now() - ultimaLeitura > 2 * 60 * 1000) reler(); };
         window.addEventListener('focus', handleFocus);
 
         const channel = supabase.channel('alunos_sincronizacao')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'alunos' }, () => {
-                recarregar(true);
+                if (!primeiroAviso) primeiroAviso = Date.now();
+                clearTimeout(timer);
+                timer = setTimeout(reler, Math.max(0, Math.min(5000, primeiroAviso + 15000 - Date.now())));
             })
             .subscribe();
 
         return () => {
+            clearTimeout(timer);
             window.removeEventListener('focus', handleFocus);
             supabase.removeChannel(channel);
         };

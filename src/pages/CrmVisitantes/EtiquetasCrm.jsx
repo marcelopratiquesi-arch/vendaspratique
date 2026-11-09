@@ -6,7 +6,7 @@ import { tx } from '../../i18n/traduzir.js';
 // ==========================================
 // ETIQUETAS DO KANBAN E DA LISTA (Bloco 4)
 // - EtiquetaParado: "parado há X dias" (amarela de 5 a 9 dias, vermelha a partir de 10)
-// - EtiquetaProximo: data do próximo contato (vermelha se atrasado, azul se for hoje)
+// - EtiquetaProximo: data do próximo contato (vermelha se atrasado, azul se for hoje, azul-claro "Em espera" se for depois)
 // O "lead.ultima_acao_em" é preenchido pelo CRM a partir do histórico (não é campo do banco).
 // ==========================================
 
@@ -31,11 +31,12 @@ export const EtiquetaProximo = ({ lead }) => {
         ? 'bg-rose-600 text-white border-rose-600'
         : situacao === 'hoje'
             ? 'bg-blue-600 text-white border-blue-600'
-            : 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30';
-    const texto = situacao === 'hoje' ? tx('Contatar hoje') : `${situacao === 'atrasado' ? tx('Atrasado') + ' · ' : tx('Próximo:') + ' '}${formatarDiaCurto(lead.proximo_contato)}`;
+            : 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30';
+    // Futuro = Em Espera (09/11/2026): "Em espera · volta 12/11"
+    const texto = situacao === 'hoje' ? tx('Contatar hoje') : `${situacao === 'atrasado' ? tx('Atrasado') + ' · ' : tx('Em espera · volta') + ' '}${formatarDiaCurto(lead.proximo_contato)}`;
     return (
-        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title={tx("Data marcada para o próximo contato")}>
-            <CalendarClock className="w-3 h-3" /> {tx(texto)}
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title={situacao === 'futuro' ? tx("Em espera: já foi contatado e volta para a fila nesta data. Não ocupa vaga na carteira.") : tx("Data marcada para o próximo contato")}>
+            <CalendarClock className="w-3 h-3" /> {texto}
         </span>
     );
 };

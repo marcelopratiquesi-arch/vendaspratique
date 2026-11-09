@@ -328,6 +328,7 @@ export default function Login({ onLogin }) {
             } catch { /* navegador sem acesso ao armazenamento: segue normalmente */ }
 
             onLogin({
+                email: emailLimpo, // necessário para as permissões por login, comunicados e auditoria (faltava até 09/11/2026)
                 nome: perfilData.nome,
                 role: perfilData.role,
                 unidade: perfilData.unidade || 'MATRIZ'

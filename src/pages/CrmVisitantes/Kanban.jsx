@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, classeTipoLead, ordenarContatos } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS_TELA, FASE_ESPERA, faseNaTela, dataDoLead, classeTipoLead, ordenarContatos } from './utils';
 import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import { tx } from '../../i18n/traduzir.js';
@@ -128,12 +128,12 @@ const LeadCard = memo(({
                 </div>
 
                 <select
-                    value={lead.status}
+                    value={faseNaTela(lead)}
                     onChange={(e) => onMoverStatus(lead.id, e.target.value)}
                     className="w-full text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-2 bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-900 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors outline-none shadow-sm"
                 >
                     <option disabled value="">{tx("Mover fase...")}</option>
-                    {COLUNAS.map(c => <option key={c} value={c}>{tx("Para:")}{' '}{tx(c)}</option>)}
+                    {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx("Para:")}{' '}{tx(c)}</option>)}
                 </select>
 
                 <div className="w-full flex items-center gap-1.5 pt-1">
@@ -211,12 +211,19 @@ const Kanban = ({
     };
 
     const leadsPorColuna = useMemo(() => {
-        const grupos = Object.fromEntries(COLUNAS.map(c => [c, []]));
+        // "Em Espera" (09/11/2026): Novo/Em Contato com data de volta depois de hoje ficam na coluna própria
+        const grupos = Object.fromEntries(COLUNAS_TELA.map(c => [c, []]));
         for (const v of visitantes) {
-            if (grupos[v.status]) grupos[v.status].push(v);
+            const fase = faseNaTela(v);
+            if (grupos[fase]) grupos[fase].push(v);
         }
-        // Ordem escolhida no topo do CRM (fila inteligente, mais antigos ou mais novos)
-        for (const coluna of COLUNAS) grupos[coluna] = ordenarContatos(grupos[coluna], ordem);
+        // Ordem escolhida no topo do CRM (fila inteligente, mais antigos ou mais novos).
+        // Na Espera, quem volta primeiro aparece primeiro.
+        for (const coluna of COLUNAS_TELA) {
+            grupos[coluna] = coluna === FASE_ESPERA
+                ? grupos[coluna].slice().sort((a, b) => String(a.proximo_contato || '').localeCompare(String(b.proximo_contato || '')))
+                : ordenarContatos(grupos[coluna], ordem);
+        }
         return grupos;
     }, [visitantes, ordem]);
 
@@ -281,19 +288,22 @@ const Kanban = ({
             onMouseLeave={handleMouseLeaveOrUp}
             onMouseUp={handleMouseLeaveOrUp}
             onMouseMove={handleMouseMove}
-            className="flex gap-5 overflow-x-auto pb-6 custom-scrollbar items-start min-h-[70vh] w-full px-2 cursor-grab"
+            className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar items-start min-h-[70vh] w-full px-2 cursor-grab"
         >
-            {COLUNAS.map(coluna => {
+            {COLUNAS_TELA.map(coluna => {
                 const leadsDaColuna = leadsPorColuna[coluna] || [];
                 const token = STATUS_TOKENS[coluna] || STATUS_TOKENS['Novo'];
 
                 return (
-                    <div key={coluna} className={`rounded-[20px] border ${token.border} bg-slate-50/80 dark:bg-slate-800/60 shadow-sm flex flex-col min-w-[310px] w-[310px] flex-shrink-0 cursor-default`}>
+                    <div key={coluna} className={`rounded-[20px] border ${token.border} bg-slate-50/80 dark:bg-slate-800/60 shadow-sm flex flex-col flex-1 min-w-[250px] max-w-[340px] flex-shrink-0 cursor-default`}>
 
                         <div className={`p-4 border-b ${token.border} ${token.bg} rounded-t-[20px] flex justify-between items-center sticky top-0 backdrop-blur-sm z-10`}>
                             <h3 className={`font-black ${token.text} text-[11px] flex items-center gap-2 uppercase tracking-widest`}>
                                 <span className={`w-2 h-2 rounded-full ${token.accent} shadow-sm`}></span>
                                 {tx(coluna)}
+                                {coluna === FASE_ESPERA && (
+                                    <span className="normal-case tracking-normal font-bold text-[10px] text-sky-600/80 dark:text-sky-300/80 cursor-help" title={tx("Já contatados, com data de volta marcada. Não ocupam vaga na carteira. No dia marcado voltam sozinhos para Em Contato.")}>(?)</span>
+                                )}
                             </h3>
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-md shadow-sm border bg-white dark:bg-slate-900 ${token.text} ${token.border}`}>
                                 {leadsDaColuna.length}

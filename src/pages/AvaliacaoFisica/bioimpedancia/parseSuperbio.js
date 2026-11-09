@@ -73,12 +73,6 @@ export function parseSuperbio(linhas) {
       registrar('aguaTotal', litros, `Calculado: ${percent}% de ${data.peso}kg`);
   }
 
-  // LOG PARA AUDITORIA
-  console.log("\n[SUPERBIO] - RESULTADO DA EXTRAÇÃO (NOVO MODELO)");
-  Object.keys(data).forEach(campo => {
-      console.log(`Campo: ${campo} -> Valor: ${debug[campo] ? debug[campo].value : 'null'}`);
-  });
-  console.log("==================================\n");
 
   return { success: true, reportType: 'SUPERBIO', data, warnings: [] };
 }

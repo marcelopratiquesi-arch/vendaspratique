@@ -37,6 +37,23 @@ export const EVENTO_ABA_ANALISE = 'pedir-aba-analise';
 export const pedirAbaAnalise = (aba) => { abaPedida = aba; window.dispatchEvent(new CustomEvent(EVENTO_ABA_ANALISE, { detail: aba })); };
 export const consumirAbaPedida = () => { const a = abaPedida; abaPedida = null; return a; };
 export const ontemIso = () => { const d = new Date(); d.setDate(d.getDate() - 1); return paraIso(d); };
+// Domingo não tem lançamento de movimentação (decisão do dono, 09/11/2026). Sábado e feriado têm.
+export const ehDomingo = (iso) => new Date(`${iso}T12:00:00`).getDay() === 0;
+// Dia de lançamento anterior a `iso` (pula o domingo): segunda → sábado
+export const diaDeLancamentoAnterior = (iso) => {
+    const d = new Date(`${iso}T12:00:00`);
+    do { d.setDate(d.getDate() - 1); } while (d.getDay() === 0);
+    return paraIso(d);
+};
+// Dia de lançamento de referência: hoje; no domingo, o sábado
+export const diaDeLancamentoAtual = (iso = hojeIso()) => (ehDomingo(iso) ? diaDeLancamentoAnterior(iso) : iso);
+// Dias de lançamento (sem domingos) depois de `de` até `ate` (inclusive)
+export const diasDeLancamentoEntre = (de, ate) => {
+    let n = 0;
+    const d = new Date(`${de}T12:00:00`);
+    for (let i = 0; i < 400; i++) { d.setDate(d.getDate() + 1); const iso = paraIso(d); if (iso > ate) break; if (d.getDay() !== 0) n++; }
+    return n;
+};
 const diasEntre = (a, b) => Math.round((new Date(`${b}T12:00:00`) - new Date(`${a}T12:00:00`)) / 86400000);
 
 // Número digitado com ponto e/ou vírgula: "1.234,56" · "1234,56" · "1234.56" · "250.000" (milhar) → número. Vazio → null.

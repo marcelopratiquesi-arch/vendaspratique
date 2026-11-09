@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas, textoMensagemEnviada, rotuloMensagemDoLead, dataLocalISO, diasParado, DIAS_PARADO_VERMELHO, ehVisitanteRecepcao, dataDaVisita } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS_TELA, faseNaTela, estaEmEspera, dataDoLead, mesmoNome, contarPessoasDaMeta, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp, situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, chaveMensagemDoLead, podeEditarMensagensProntas, textoMensagemEnviada, rotuloMensagemDoLead, dataLocalISO, diasParado, DIAS_PARADO_VERMELHO, ehVisitanteRecepcao, dataDaVisita } from './utils';
 import { carregarResumoDoDia } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
 import { 
@@ -220,13 +220,15 @@ const Modais = ({
         // Foto da carteira: o que ela deixa para amanhã
         const amanha = dataLocalISO(new Date(Date.now() + 86400000));
         const abertos = visitantes.filter(v => mesmoNome(v.puxado_por || v.vendedor, nomeGerador) && ['Novo', 'Em Contato'].includes(v.status));
-        const novos = abertos.filter(v => v.status === 'Novo').length;
-        const emContatoCarteira = abertos.filter(v => v.status === 'Em Contato').length;
+        // "Em espera" (09/11/2026): já contatados com data de volta depois de hoje (não ocupam vaga)
+        const novos = abertos.filter(v => v.status === 'Novo' && !estaEmEspera(v)).length;
+        const emContatoCarteira = abertos.filter(v => v.status === 'Em Contato' && !estaEmEspera(v)).length;
+        const emEspera = abertos.filter(estaEmEspera).length;
         const paraAmanha = abertos.filter(v => String(v.proximo_contato || '').slice(0, 10) === amanha).length;
         const pendentesAgenda = abertos.filter(v => ['atrasado', 'hoje'].includes(situacaoProximoContato(v))).length;
         const parados = abertos.filter(v => (diasParado(v, v.ultima_acao_em) || 0) >= DIAS_PARADO_VERMELHO).length;
         texto += `\n*📸 CARTEIRA*\n`;
-        texto += `Novos *${novos}* · Em contato *${emContatoCarteira}* · Para amanhã *${paraAmanha}*\n`;
+        texto += `Novos *${novos}* · Em contato *${emContatoCarteira}* · Em espera *${emEspera}* (para amanhã *${paraAmanha}*)\n`;
         if (pendentesAgenda || parados) texto += [pendentesAgenda && `⏰ Agendados sem contato: *${pendentesAgenda}*`, parados && `🧊 Parados ${DIAS_PARADO_VERMELHO}+ dias: *${parados}*`].filter(Boolean).join(' · ') + '\n';
         return texto;
     };
@@ -377,12 +379,12 @@ const Modais = ({
                                     {/* MUDAR FASE */}
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><AlignLeft className="w-4 h-4"/>{' '}{tx("Fase Atual no Funil")}</label>
-                                        <select 
-                                            value={modalDetalhe.lead.status} 
+                                        <select
+                                            value={faseNaTela(modalDetalhe.lead)}
                                             onChange={(e) => alterarStatus(modalDetalhe.lead.id, e.target.value)}
-                                            className={`w-full text-xs font-black uppercase tracking-widest border-2 rounded-xl p-4 outline-none cursor-pointer shadow-sm transition-all focus:ring-4 focus:ring-blue-500/20 ${STATUS_TOKENS[modalDetalhe.lead.status]?.bg} ${STATUS_TOKENS[modalDetalhe.lead.status]?.text} ${STATUS_TOKENS[modalDetalhe.lead.status]?.border}`}
+                                            className={`w-full text-xs font-black uppercase tracking-widest border-2 rounded-xl p-4 outline-none cursor-pointer shadow-sm transition-all focus:ring-4 focus:ring-blue-500/20 ${STATUS_TOKENS[faseNaTela(modalDetalhe.lead)]?.bg} ${STATUS_TOKENS[faseNaTela(modalDetalhe.lead)]?.text} ${STATUS_TOKENS[faseNaTela(modalDetalhe.lead)]?.border}`}
                                         >
-                                            {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
+                                            {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                                         </select>
                                         {modalDetalhe.lead.status === 'Perdido' && modalDetalhe.lead.motivo_perda && (
                                             <p className="mt-2 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl px-3 py-2">

@@ -115,6 +115,8 @@ const diasEntre = (isoInicio, isoFim) => {
 // Dias parado (null quando não se aplica). "ultimaAcao" vem do histórico; sem histórico, conta desde que foi puxado/entrou.
 export const diasParado = (lead, ultimaAcao) => {
     if (!lead || !['Novo', 'Em Contato'].includes(lead.status)) return null;
+    // Em Espera (data de volta marcada no futuro) não está parado: está aguardando a data
+    if (estaEmEspera(lead)) return null;
     const desde = dataLocalISO(ultimaAcao || lead.puxado_em || dataDoLead(lead));
     if (!desde) return null;
     return Math.max(0, diasEntre(desde, dataLocalISO(new Date())));
@@ -264,9 +266,26 @@ export const gerarTextoWhatsApp = (lead) => montarMensagem(chaveMensagemDoLead(l
 // Configurações Globais do Funil
 export const COLUNAS = ['Novo', 'Em Contato', 'Fechado', 'Perdido'];
 
+// ==========================================
+// EM ESPERA (decisão do dono, 09/11/2026)
+// Contato já trabalhado que tem data de volta marcada para DEPOIS de hoje (pela janela "Como foi o contato?" ou pelo
+// calendário). NÃO é uma fase gravada no banco: no banco continua "Novo"/"Em Contato" com proximo_contato no futuro.
+// Só a tela separa (coluna própria no Kanban, filtro na Lista e na Conversa). Não ocupa vaga na carteira (300).
+// No dia marcado volta sozinho para "Em Contato" (topo da fila e aba Hoje). Relatórios, meta e Painel não mudam.
+// ==========================================
+export const FASE_ESPERA = 'Em Espera';
+export const estaEmEspera = (lead) => ['Novo', 'Em Contato'].includes(normalizarStatus(lead?.status)) && situacaoProximoContato(lead) === 'futuro';
+export const faseNaTela = (lead) => (estaEmEspera(lead) ? FASE_ESPERA : normalizarStatus(lead?.status));
+export const COLUNAS_TELA = ['Novo', 'Em Contato', FASE_ESPERA, 'Fechado', 'Perdido'];
+// Ocupa uma das vagas da carteira: Novo ou Em Contato que NÃO está em espera
+export const ocupaVaga = (lead) => FASES_EM_ATENDIMENTO.includes(normalizarStatus(lead?.status)) && !estaEmEspera(lead);
+// Sem caminho (sem data de volta e sem WhatsApp/ligação) há este número de dias → volta para o Banco Bruto (decisão do dono, 09/11/2026)
+export const DIAS_SEM_CAMINHO = 3;
+
 export const STATUS_TOKENS = {
     'Novo': { border: 'border-blue-200 dark:border-blue-500/30', text: 'text-blue-700 dark:text-blue-300', bg: 'bg-blue-50/50 dark:bg-blue-500/10', accent: 'bg-blue-500', hex: '#3b82f6', icone: 'star' },
     'Em Contato': { border: 'border-amber-200 dark:border-amber-500/30', text: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50/50 dark:bg-amber-500/10', accent: 'bg-amber-500', hex: '#f59e0b', icone: 'phone-forwarded' },
+    'Em Espera': { border: 'border-sky-200 dark:border-sky-500/30', text: 'text-sky-700 dark:text-sky-300', bg: 'bg-sky-50/50 dark:bg-sky-500/10', accent: 'bg-sky-500', hex: '#0ea5e9', icone: 'pause' },
     'Fechado': { border: 'border-emerald-200 dark:border-emerald-500/30', text: 'text-emerald-700 dark:text-emerald-300', bg: 'bg-emerald-50/50 dark:bg-emerald-500/10', accent: 'bg-emerald-500', hex: '#10b981', icone: 'check-circle' },
     'Perdido': { border: 'border-rose-200 dark:border-rose-500/30', text: 'text-rose-700 dark:text-rose-300', bg: 'bg-rose-50/50 dark:bg-rose-500/10', accent: 'bg-rose-500', hex: '#f43f5e', icone: 'x-circle' }
 };

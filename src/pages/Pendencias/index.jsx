@@ -20,7 +20,7 @@ import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
 import { liderDaUnidade } from '../FechamentoCaixa/cobrancaAuditoria.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
-import { mensagemPendenciasGrupo, mensagemPendenciasUnidade, DIA_PRAZO_METAS, agruparDiasMovimento, TIPOS_PENDENCIA } from './pendencias.js';
+import { mensagemPendenciasGrupo, mensagemPendenciasUnidade, DIA_PRAZO_METAS, TIPOS_PENDENCIA } from './pendencias.js';
 
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
@@ -39,7 +39,7 @@ const FILTROS = [
     { id: 'relatorio', rotulo: 'Relatório', tem: TIPOS_PENDENCIA.relatorio },
 ];
 
-const TEXTO_PRAZOS = 'Movimentação: todo dia a partir das 7h. Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.';
+const TEXTO_PRAZOS = 'Movimentação: de segunda a sábado (feriado também), a partir das 7h; domingo não tem. Aqui aparece só o dia atual (os dias antigos ficam na tabela Movimentação por dia). Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.';
 
 // Cor e texto de cada situação do relatório (ontem e hoje)
 const SITUACAO_RELATORIO = {
@@ -93,13 +93,15 @@ const RelatorioCompacto = ({ lista }) => {
 const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TODAS', ehMentor }) => {
     const { lista = [], carregando, carregado, recarregar } = pendencias || {};
     const filtrada = unidadeGlobal && unidadeGlobal !== 'TODAS' ? lista.filter(u => normalizeString(u.unidade) === normalizeString(unidadeGlobal)) : lista;
-    const comPendencia = filtrada.filter(u => u.total > 0);
-    const emDia = filtrada.filter(u => u.total === 0);
-    const totalPendencias = comPendencia.reduce((t, u) => t + u.total, 0);
+    const comPendencia = filtrada.filter(u => u.totalDia > 0);
+    const totalPendencias = comPendencia.reduce((t, u) => t + u.totalDia, 0);
 
     const [filtro, setFiltro] = useState('todas');
     const filtroAtual = FILTROS.find(f => f.id === filtro) || FILTROS[0];
-    const linhas = filtroAtual.tem ? comPendencia.filter(filtroAtual.tem) : comPendencia;
+    const linhasPendentes = filtroAtual.tem ? comPendencia.filter(filtroAtual.tem) : comPendencia;
+    // Unidades em dia (ou em dia no tipo escolhido) também aparecem na tabela, embaixo, tudo verde (decisão do dono, 09/11/2026)
+    const linhasOk = filtrada.filter(u => !linhasPendentes.includes(u)).sort((a, b) => a.unidade.localeCompare(b.unidade));
+    const linhas = [...linhasPendentes, ...linhasOk];
     const qtdPorFiltro = (f) => (f.tem ? comPendencia.filter(f.tem).length : comPendencia.length);
 
     const [modal, setModal] = useState(null); // { titulo, texto, telefone }
@@ -175,7 +177,7 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                 })}
             </div>
 
-            {/* TABELA POR UNIDADE (só as que têm pendência; as em dia ficam numa linha embaixo) */}
+            {/* TABELA POR UNIDADE (primeiro as com pendência; embaixo as em dia, tudo verde) */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className={`w-full text-left border-collapse ${filtro === 'todas' ? 'min-w-[1040px]' : 'min-w-[640px]'}`}>
@@ -195,16 +197,31 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                                 <tr><td colSpan={qtdColunas} className="py-16 text-center text-[12px] font-bold text-slate-400"><Loader2 className="inline w-4 h-4 mr-2 animate-spin" />{tx('Carregando pendências...')}</td></tr>
                             ) : filtrada.length === 0 ? (
                                 <tr><td colSpan={qtdColunas} className="py-16 text-center text-[12px] font-bold text-slate-400">{tx('Nenhuma unidade para mostrar.')}</td></tr>
-                            ) : linhas.length === 0 ? (
-                                <tr><td colSpan={qtdColunas} className="py-12 text-center text-[12px] font-bold text-emerald-600 dark:text-emerald-400">✅ {filtroAtual.tem ? tx('Nenhuma unidade com pendência deste tipo.') : tx('Todas as unidades estão em dia.')}</td></tr>
-                            ) : linhas.map(u => {
+                            ) : linhas.map((u, i) => {
                                 const lider = liderDaUnidade(colaboradores, u.unidade);
                                 const c = u.conferencia;
+                                const ok = i >= linhasPendentes.length; // linha de unidade em dia (no tipo escolhido)
                                 return (
-                                    <tr key={u.unidade} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                                    <React.Fragment key={u.unidade}>
+                                    {/* Faixa que separa: "Nenhuma pendência" (quando não há) e o título "Em dia" */}
+                                    {i === 0 && !linhasPendentes.length && (
+                                        <tr><td colSpan={qtdColunas} className="py-4 text-center text-[12px] font-bold text-emerald-600 dark:text-emerald-400">✅ {filtroAtual.tem ? tx('Nenhuma unidade com pendência deste tipo.') : tx('Todas as unidades estão em dia.')}</td></tr>
+                                    )}
+                                    {i === linhasPendentes.length && (
+                                        <tr className="bg-emerald-50/70 dark:bg-emerald-500/10">
+                                            <td colSpan={qtdColunas} className="px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+                                                ✅ {tx('Em dia')} ({linhasOk.length})
+                                            </td>
+                                        </tr>
+                                    )}
+                                    <tr className={ok ? 'bg-emerald-50/30 hover:bg-emerald-50/60 dark:bg-emerald-500/5 dark:hover:bg-emerald-500/10' : 'hover:bg-slate-50/60 dark:hover:bg-slate-800/30'}>
                                         <td className="px-4 py-2.5 align-top">
                                             <p className="text-[13px] font-black uppercase tracking-tight text-slate-800 dark:text-white">{u.unidade}</p>
-                                            <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${cor(u.atrasado)}`}>{u.total === 1 ? tx('1 pendência') : tx('{qtd} pendências', { qtd: u.total })}</p>
+                                            {u.totalDia === 0 ? (
+                                                <p className="text-[10px] font-black uppercase tracking-widest mt-0.5 text-emerald-600 dark:text-emerald-400">✅ {tx('Em dia')}</p>
+                                            ) : (
+                                                <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${ok ? 'text-slate-400' : cor(u.atrasadoDia)}`}>{u.totalDia === 1 ? tx('1 pendência') : tx('{qtd} pendências', { qtd: u.totalDia })}</p>
+                                            )}
                                         </td>
                                         {mostra('conferencia') && <td className="px-4 py-2.5 align-top">
                                             {c?.atrasado ? (
@@ -215,15 +232,18 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                                             ) : c?.semanaAtual ? <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">{tx('Vence hoje: {qtd} vendas', { qtd: c.semanaAtual.qtd })}</span> : <Ok />}
                                         </td>}
                                         {mostra('movimento') && <td className="px-4 py-2.5 align-top">
-                                            {u.movimento.length ? (
+                                            {/* Só o dia atual (decisão do dono, 09/11/2026): lançou hoje completo = OK; dias antigos ficam na tabela Movimentação por dia */}
+                                            {u.movimentoDia?.length ? (
                                                 <ul className="space-y-0.5">
-                                                    {agruparDiasMovimento(u.movimento).map(b => (
-                                                        <li key={b.inicio} className={`text-[11px] font-bold ${cor(!b.hoje)}`}>
-                                                            <span className="text-[10px] font-black uppercase text-slate-400 mr-1">
-                                                                {b.hoje ? tx('Hoje') : b.qtd > 1 ? tx('{inicio} a {fim}', { inicio: ddmm(b.inicio), fim: ddmm(b.fim) }) : ddmm(b.inicio)}
-                                                            </span>
-                                                            {b.semLancamento ? tx('não lançou') : tx('falta {campos}', { campos: juntarCampos(b.falta) })}
-                                                            {b.qtd > 1 && <span className="text-[10px] font-bold text-slate-400 ml-1">({tx('{qtd} dias', { qtd: b.qtd })})</span>}
+                                                    {u.movimentoDia.map(d => (
+                                                        <li key={d.data} className={`text-[11px] font-bold ${cor(!d.hoje)}`}>
+                                                            <span className="text-[10px] font-black uppercase text-slate-400 mr-1">{d.hoje ? tx('Hoje') : ddmm(d.data)}</span>
+                                                            {d.semLancamento ? tx('não lançou') : tx('falta {campos}', { campos: juntarCampos(d.falta) })}
+                                                            {d.semLancamento && (
+                                                                <span className="block text-[10px] font-bold text-slate-400">
+                                                                    {u.ultimoLancamento ? tx('último lançamento: {data}', { data: ddmm(u.ultimoLancamento) }) : tx('nenhum lançamento')}
+                                                                </span>
+                                                            )}
                                                         </li>
                                                     ))}
                                                 </ul>
@@ -249,22 +269,21 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                                             ) : <span className="text-[11px] font-bold text-slate-400">{tx('Sem Líder cadastrado')}</span>}
                                         </td>
                                         <td className="px-4 py-2.5 align-top text-center">
+                                            {/* Em dia: nada para cobrar */}
+                                            {ok ? <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400" aria-label={tx('Em dia')}>✓</span> : (
                                             <button type="button" onClick={() => cobrarLider(u)} title={tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={tx('Cobrar o Líder desta unidade no WhatsApp')}
                                                 className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
                                                 <MessageCircle className="w-4 h-4" />
                                             </button>
+                                            )}
                                         </td>
                                     </tr>
+                                    </React.Fragment>
                                 );
                             })}
                         </tbody>
                     </table>
                 </div>
-                {carregado && emDia.length > 0 && filtro === 'todas' && (
-                    <div className="px-4 py-3 border-t border-slate-200 bg-emerald-50/40 text-[11px] font-bold text-emerald-700 dark:border-slate-800 dark:bg-emerald-500/5 dark:text-emerald-400">
-                        ✅ {tx('Em dia')} ({emDia.length}): <span className="font-black uppercase">{emDia.map(u => u.unidade).join(' · ')}</span>
-                    </div>
-                )}
             </div>
 
             <ModalTextoWhatsapp

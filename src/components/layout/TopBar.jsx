@@ -126,11 +126,20 @@ function SeletorUnidadeTopo({ unidadeGlobal, setUnidadeGlobal, unidades, tr, rot
     );
 }
 
+// Tamanho da tela (o zoom fica no App.jsx): o "A" cresce de um botão para o outro
+const TAMANHOS_TELA = [
+    { id: 'pequeno', rotulo: 'Pequeno', letra: 'text-[10px]' },
+    { id: 'medio', rotulo: 'Médio', letra: 'text-xs' },
+    { id: 'grande', rotulo: 'Grande', letra: 'text-sm' },
+];
+
 // ---------- TopBar ----------
 export default function TopBar({
     usuarioLogado,
     theme,
     setTheme,
+    tamanhoTela, // Pequeno/Médio/Grande (App.jsx, guardado no computador; 09/11/2026)
+    setTamanhoTela,
     onAbrirMenuMobile,
     onSelecionarAlunoGlobal,
     pendentesTotais = 0,
@@ -249,6 +258,30 @@ export default function TopBar({
                     <div className="flex items-center justify-center">
                         <LanguageSwitcher compact={true} posicao="abaixo-direita" />
                     </div>
+
+                    {setTamanhoTela && (
+                        <div role="group" aria-label={tx('Tamanho da tela')} className="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-full border border-slate-200 dark:border-slate-700">
+                            {TAMANHOS_TELA.map(({ id, rotulo, letra }) => {
+                                const ativo = tamanhoTela === id;
+                                const titulo = `${tx('Tamanho da tela')}: ${tx(rotulo)}`;
+                                return (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        onClick={() => setTamanhoTela(id)}
+                                        aria-pressed={ativo}
+                                        title={titulo}
+                                        aria-label={titulo}
+                                        className={`w-7 h-7 flex items-center justify-center rounded-full font-black leading-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${letra} ${ativo
+                                            ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                                    >
+                                        A
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
 
                     <div role="group" aria-label={rotuloTema} className="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-full border border-slate-200 dark:border-slate-700">
                         {TEMAS.map(({ id, icone: Icone, chave, padrao }) => {

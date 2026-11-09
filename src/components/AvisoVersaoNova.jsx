@@ -4,13 +4,14 @@
 // arquivo principal (/assets/index-XXXX.js, que muda a cada publicação no Vercel) com o que está rodando.
 // Se mudou, aparece um aviso grande no topo: "Sistema atualizado — Recarregar". Com a pessoa usando, NÃO
 // recarrega sozinho (para não apagar o que ela está digitando). Com o sistema PAUSADO por inatividade
-// (pausaSistema.js), recarrega sozinho: ninguém está digitando e o computador já fica na versão nova.
+// (pausaSistema.js) não confere nem recarrega (09/11/2026; de 07/11 a 09/11 recarregava sozinho): a cortina já abre
+// na versão mais nova quando a pessoa volta, e recarregar com o login guardado baixaria tudo sem ninguém usando.
 // No modo de desenvolvimento (npm run dev) não há arquivo com código, então nunca avisa.
 // ==========================================
 import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { tx } from '../i18n/traduzir.js';
-import { EVENTO_PAUSA, sistemaPausado, recarregarNaVersaoMaisNova } from './pausaSistema.js';
+import { sistemaPausado, recarregarNaVersaoMaisNova } from './pausaSistema.js';
 
 const CINCO_MIN = 5 * 60 * 1000;
 const scriptPrincipal = (html) => (String(html).match(/\/assets\/index-[\w-]+\.js/) || [])[0] || null;
@@ -28,28 +29,26 @@ const AvisoVersaoNova = () => {
         const atual = scriptAtual();
         if (!atual) return undefined; // desenvolvimento: nada a comparar
         let parar = false;
-        const recarregarSozinho = () => { parar = true; setRecarregando(true); recarregarNaVersaoMaisNova(); };
         const conferir = async () => {
-            if (parar) return;
-            if (temNovaRef.current) { if (sistemaPausado()) recarregarSozinho(); return; }
-            // Aba escondida só confere se o sistema estiver pausado (aí recarrega sozinho)
-            if (document.hidden && !sistemaPausado()) return;
+            if (parar || temNovaRef.current) return;
+            // Pausado ou aba escondida: não confere. O computador pausado NÃO recarrega sozinho (09/11/2026): com o
+            // login guardado, recarregar entraria baixando tudo sem ninguém na frente, a cada publicação. Quem volta
+            // clica "Continuar" na cortina e já abre na versão mais nova.
+            if (document.hidden || sistemaPausado()) return;
             try {
                 const resp = await fetch(`/index.html?v=${Date.now()}`, { cache: 'no-store' });
                 if (!resp.ok) return;
                 const publicado = scriptPrincipal(await resp.text());
                 if (publicado && publicado !== atual) {
                     temNovaRef.current = true;
-                    if (sistemaPausado()) recarregarSozinho();
-                    else setTemNova(true);
+                    setTemNova(true);
                 }
             } catch { /* sem internet: tenta de novo depois */ }
         };
         const id = setInterval(conferir, CINCO_MIN);
         window.addEventListener('focus', conferir);
         document.addEventListener('visibilitychange', conferir);
-        window.addEventListener(EVENTO_PAUSA, conferir);
-        return () => { parar = true; clearInterval(id); window.removeEventListener('focus', conferir); document.removeEventListener('visibilitychange', conferir); window.removeEventListener(EVENTO_PAUSA, conferir); };
+        return () => { parar = true; clearInterval(id); window.removeEventListener('focus', conferir); document.removeEventListener('visibilitychange', conferir); };
     }, []);
 
     if (!temNova) return null;

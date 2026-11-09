@@ -30,7 +30,10 @@ export function pausarSistema() {
  * Recarrega garantindo a versão mais nova: limpa caches do navegador (se houver), força o navegador a baixar de
  * novo a página inicial e abre o endereço com uma marca de tempo (o navegador não pode reaproveitar a antiga).
  */
+let recarregando = false;
 export async function recarregarNaVersaoMaisNova() {
+    if (recarregando) return; // já está recarregando (ex.: "Sair" e o aviso de login encerrado juntos)
+    recarregando = true;
     try {
         if (window.caches?.keys) {
             const chaves = await window.caches.keys();

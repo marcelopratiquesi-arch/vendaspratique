@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
+import { esquecerPerguntasAvaliacao } from './carregarAvaliacoes.js';
 import { Plus, Trash2, Save, ArrowUp, ArrowDown, Type, ListChecks, CheckSquare, AlignLeft, Loader2, X, Eye, Check } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { avisar } from '../../components/avisar.js';
@@ -157,6 +158,7 @@ const TabPerguntasAvaliacao = ({ usuarioLogado }) => {
 
             avisar(t('students.paste.success', {defaultValue: 'Formulário atualizado com sucesso!'}));
             setPerguntasRemovidas([]);
+            esquecerPerguntasAvaliacao(); // as outras telas da Avaliação leem as perguntas novas
             carregarPerguntas(); // Atualiza a tela para sumir com os IDs "temp" e mostrar os oficiais
 
         } catch (error) {

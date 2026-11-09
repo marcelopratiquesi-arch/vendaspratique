@@ -86,7 +86,7 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
     const th = 'px-4 py-3 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-left';
 
     return (
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 pt-6 relative z-10 space-y-4">
+        <div className="max-w-[1400px] mx-auto relative z-10 space-y-4">
             {/* Faixa do topo no modelo compacto: voltar + título à esquerda; período · unidade e filtro à direita */}
             <div className="relative z-30 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">

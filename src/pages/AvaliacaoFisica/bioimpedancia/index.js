@@ -11,9 +11,6 @@ export async function processarExameBioimpedancia(file) {
     const linhasFisicas = await extrairLinhasPDF(file);
     const textoBase = linhasFisicas.join(' ').toUpperCase();
 
-    console.log("===== TEXTO BRUTO EXTRAÍDO (LINHAS FÍSICAS RECONSTRUÍDAS) =====");
-    linhasFisicas.forEach((linha, index) => console.log(`Linha ${index}: ${linha}`));
-    console.log("===== FIM TEXTO BRUTO =====");
 
     // 🔥 ATUALIZADO: Adicionado 'VIS-GORDURA' e 'ESCANEAR CÓDIGO' para garantir a leitura do novo modelo
     if (

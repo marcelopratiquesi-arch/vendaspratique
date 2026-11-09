@@ -107,13 +107,13 @@ insert into public.permissoes_padrao (codigo, padrao, travada, rede, mudavel_par
   ('805', array['ADMIN'], true, false, null),
   ('806', array['ADMIN'], true, false, null),
   ('807', array['ADMIN', 'MENTOR', 'LIDER'], false, false, null),
+  ('808', array['ADMIN'], true, false, null),
   ('901', array['ADMIN', 'MENTOR'], false, false, null),
   ('902', array['MENTOR', 'LIDER'], false, false, array['MENTOR', 'LIDER']),
   ('903', array['RECEPCAO'], false, false, array['RECEPCAO']),
   ('904', array['LIDER'], false, false, array['LIDER']),
   ('909', array['RECEPCAO'], false, false, array['RECEPCAO']),
   ('905', array['ADMIN'], true, false, null),
-  ('906', array['ADMIN'], true, false, null),
   ('907', array['ADMIN'], true, false, null),
   ('908', array['ADMIN'], true, false, null)
 on conflict (codigo) do update

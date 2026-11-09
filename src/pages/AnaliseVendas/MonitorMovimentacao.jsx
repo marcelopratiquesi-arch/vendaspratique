@@ -7,7 +7,7 @@ import { Activity, Send, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { contarPlanosDoCard } from './utils.js';
-import { useMovimentoDiario, somarMovimentoNoPeriodo, hojeIso, ontemIso } from './movimentoDiario.js';
+import { useMovimentoDiario, somarMovimentoNoPeriodo, hojeIso, ontemIso, ehDomingo, diaDeLancamentoAtual, diaDeLancamentoAnterior, diasDeLancamentoEntre } from './movimentoDiario.js';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -25,15 +25,18 @@ const camposFaltando = (linha, temCampoAtivos) => {
     if (linha.faturamento === null || linha.faturamento === undefined) falta.push('Faturamento');
     return falta;
 };
-// Situação: hoje completo = em dia; hoje com falta = incompleto; ontem = atenção; 2+ dias ou nunca = atrasada
+// Situação: hoje completo = em dia; hoje com falta = incompleto; dia de lançamento anterior = atenção; mais ou nunca = atrasada.
+// Domingo não tem lançamento (decisão do dono, 09/11/2026): no domingo vale o sábado; na segunda, quem lançou no sábado
+// está no dia anterior (não 'atrasada'); os dias de atraso não contam o domingo.
 const situacaoDe = (ultimo, temCampoAtivos) => {
     if (!ultimo) return { nivel: 4, rotulo: tx('Sem lançamento'), cor: 'rose', falta: [] };
-    if (ultimo.data >= hojeIso()) {
+    const ref = diaDeLancamentoAtual(hojeIso());
+    if (ultimo.data >= ref) {
         const falta = camposFaltando(ultimo, temCampoAtivos);
         return falta.length ? { nivel: 1, rotulo: tx('Incompleto'), cor: 'amber', falta } : { nivel: 0, rotulo: tx('Em dia'), cor: 'emerald', falta: [] };
     }
-    if (ultimo.data === ontemIso()) return { nivel: 2, rotulo: tx('Ontem'), cor: 'amber', falta: [] };
-    return { nivel: 3, rotulo: tx('Atrasada ({dias} d)', { dias: diasDesde(ultimo.data) }), cor: 'rose', falta: [] };
+    if (ultimo.data === diaDeLancamentoAnterior(ref)) return { nivel: 2, rotulo: ultimo.data === ontemIso() ? tx('Ontem') : tx('Sábado'), cor: 'amber', falta: [] };
+    return { nivel: 3, rotulo: tx('Atrasada ({dias} d)', { dias: diasDeLancamentoEntre(ultimo.data, ref) }), cor: 'rose', falta: [] };
 };
 const CORES = {
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30',
@@ -94,6 +97,11 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
 
     // Mensagem de COBRANÇA do dia (decisão do dono, 04/11/2026): "detalhado" ou "resumo". Sem números da rede e sem faturamento.
     const enviarWhatsApp = (tipo) => {
+        // Domingo não tem lançamento nem cobrança (decisão do dono, 09/11/2026)
+        if (ehDomingo(hojeIso())) {
+            abrirModalWhatsapp?.(`📊 *MOVIMENTAÇÃO – ${ddmm(hojeIso())}*\n\nDomingo não tem lançamento de movimentação. A cobrança volta na segunda-feira.`, { titulo: tipo === 'resumo' ? 'Movimentação – resumo' : 'Movimentação – detalhado', icone: 'target', cor: 'blue' });
+            return;
+        }
         const numero = (n) => Number(n).toLocaleString('pt-BR');
         const lancaram = linhas.filter(l => l.situacao.nivel === 0);
         const incompletos = linhas.filter(l => l.situacao.nivel === 1);

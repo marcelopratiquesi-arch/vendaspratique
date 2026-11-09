@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import {
-    COLUNAS, STATUS_TOKENS, dataDoLead, classeTipoLead, contatoCombinaComBusca, situacaoProximoContato, formatarDiaCurto,
+    COLUNAS_TELA, FASE_ESPERA, faseNaTela, STATUS_TOKENS, dataDoLead, classeTipoLead, contatoCombinaComBusca, situacaoProximoContato, formatarDiaCurto,
     gerarTextoWhatsApp, chaveMensagemDoLead, abrirNoWhatsApp, destinoWhatsApp, definirDestinoWhatsApp, podeEscolherDestinoWhatsApp,
     podeEditarMensagensProntas, formatarDataHora, textoMensagemEnviada, rotuloMensagemDoLead,
     ordenarContatos, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos
@@ -27,7 +27,7 @@ import { tx, localeAtual } from '../../i18n/traduzir.js';
 // O sistema NÃO recebe as respostas do aluno (não está ligado ao WhatsApp): a conversa mostra o que a equipe fez.
 // ==========================================
 
-const FILTROS = ['Todos', 'Hoje', 'Novo', 'Em Contato', 'Fechado'];
+const FILTROS = ['Todos', 'Hoje', 'Novo', 'Em Contato', 'Em Espera', 'Fechado'];
 
 // Botão "Hoje" da Conversa (06/11/2026, decisão do dono): tudo o que é do dia, FEITO e NÃO FEITO, por grupo.
 // Agendados = carteira da recepcionista; os outros vêm do "Contatos de hoje" (unidade inteira, quem fizer primeiro tira).
@@ -241,16 +241,19 @@ const Conversa = ({
     const contagem = useMemo(() => ({
         'Todos': visitantes.length,
         'Hoje': pendentesDoDia,
-        ...Object.fromEntries(COLUNAS.map(c => [c, visitantes.filter(v => v.status === c).length]))
+        ...Object.fromEntries(COLUNAS_TELA.map(c => [c, visitantes.filter(v => faseNaTela(v) === c).length]))
     }), [visitantes, pendentesDoDia]);
+    // "Em Espera" (09/11/2026): Novo/Em Contato com data de volta depois de hoje. Na espera, quem volta primeiro vem primeiro.
     const listaFiltrada = useMemo(() => visitantes
-        .filter(v => filtro === 'Todos' || filtro === 'Hoje' || v.status === filtro)
+        .filter(v => filtro === 'Todos' || filtro === 'Hoje' || faseNaTela(v) === filtro)
         .filter(v => contatoCombinaComBusca(v, busca))
         // Ordem: fila inteligente (padrão), mais antigos ou mais novos (07/11/2026)
         , [visitantes, filtro, busca]);
     const [ordem, setOrdemEstado] = useState(lerOrdemContatos);
     const setOrdem = (v) => { setOrdemEstado(v); salvarOrdemContatos(v); };
-    const lista = useMemo(() => ordenarContatos(listaFiltrada, ordem), [listaFiltrada, ordem]);
+    const lista = useMemo(() => (filtro === FASE_ESPERA
+        ? listaFiltrada.slice().sort((a, b) => String(a.proximo_contato || '').localeCompare(String(b.proximo_contato || '')))
+        : ordenarContatos(listaFiltrada, ordem)), [listaFiltrada, ordem, filtro]);
 
     // Itens da lista da esquerda (para as setas do teclado)
     const itensNav = useMemo(() => (modoHoje
@@ -424,9 +427,9 @@ const Conversa = ({
         <div className="space-y-4">
             <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx('Fase')}</label>
-                <select value={lead.status} onChange={(e) => mudarFase(e.target.value)}
+                <select value={faseNaTela(lead)} onChange={(e) => mudarFase(e.target.value)}
                     className="mt-1 w-full text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-2 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
-                    {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
+                    {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                 </select>
             </div>
             <div>
@@ -558,7 +561,7 @@ const Conversa = ({
                                         <span className="text-[10px] font-bold text-slate-400 shrink-0">{haQuanto(momento(v))}</span>
                                     </div>
                                     <div className="mt-1 flex flex-wrap items-center gap-1">
-                                        <EtiquetaFase status={v.status} />
+                                        <EtiquetaFase status={faseNaTela(v)} />
                                         <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{v.tipo_lead ? tx(v.tipo_lead) : tx('Não Informado')}</span>
                                     </div>
                                     <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
@@ -647,7 +650,7 @@ const Conversa = ({
                             <button type="button" onClick={() => abrirFicha?.(lead)} className="block max-w-full text-left text-sm font-black uppercase text-slate-800 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400" title={tx('Ver Ficha e Histórico Completo')}>{lead.nome}</button>
                             <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-400">
                                 <span>{lead.telefone || tx('sem telefone')}</span>
-                                <EtiquetaFase status={lead.status} />
+                                <EtiquetaFase status={faseNaTela(lead)} />
                                 <EtiquetaParado lead={lead} />
                                 {pessoaDiaAtual && pessoaDiaAtual.lead && (
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${pessoaDiaAtual.feito ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>

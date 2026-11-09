@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { formatarDataHora, STATUS_TOKENS, COLUNAS, dataDoLead, contatoCombinaComBusca, classeTipoLead, diasParado, DIAS_PARADO_AMARELO } from './utils';
+import { formatarDataHora, STATUS_TOKENS, COLUNAS_TELA, faseNaTela, dataDoLead, contatoCombinaComBusca, classeTipoLead, diasParado, DIAS_PARADO_AMARELO } from './utils';
 import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus, Search, X, Ban, CalendarPlus, Hourglass } from 'lucide-react';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
@@ -57,7 +57,7 @@ const Lista = ({
     let leadsExibidos = [...visitantes];
 
     if (filtroStatus) {
-        leadsExibidos = leadsExibidos.filter(v => v.status === filtroStatus);
+        leadsExibidos = leadsExibidos.filter(v => faseNaTela(v) === filtroStatus);
     }
     if (busca.trim()) {
         leadsExibidos = leadsExibidos.filter(v => contatoCombinaComBusca(v, busca));
@@ -156,7 +156,7 @@ const Lista = ({
                         <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{tx("Filtrar:")}</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
                             <option value="">{tx("TODOS OS STATUS")}</option>
-                            {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
+                            {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                         </select>
                     </div>
                 </div>
@@ -195,7 +195,8 @@ const Lista = ({
                         ) : (
                             leadsExibidos.map(v => {
                                 const isSelected = selecionados.includes(v.id);
-                                const token = STATUS_TOKENS[v.status] || STATUS_TOKENS['Novo'];
+                                const fase = faseNaTela(v);
+                                const token = STATUS_TOKENS[fase] || STATUS_TOKENS['Novo'];
 
                                 return (
                                     <tr key={v.id} className={`transition-colors cursor-pointer ${isSelected ? 'bg-blue-50/50 dark:bg-blue-500/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'}`} onClick={() => toggleSelectRow(v.id)}>
@@ -229,11 +230,11 @@ const Lista = ({
                                         </td>
                                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                                             <select 
-                                                value={v.status} 
-                                                onChange={(e) => alterarStatus(v.id, e.target.value)} 
+                                                value={fase}
+                                                onChange={(e) => alterarStatus(v.id, e.target.value)}
                                                 className={`text-[10px] font-black uppercase tracking-widest border rounded-lg h-8 px-2 outline-none cursor-pointer shadow-sm transition-colors ${token.bg} ${token.text} ${token.border} focus:ring-2 focus:ring-blue-500`}
                                             >
-                                                {COLUNAS.map(c => <option key={c} value={c}>{tx(c)}</option>)}
+                                                {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                                             </select>
                                         </td>
                                         <td className="px-6 py-3 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">

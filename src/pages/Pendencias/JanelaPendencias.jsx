@@ -163,7 +163,7 @@ const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, o
                         </button>
                     )}
                     <p className="text-[11px] font-semibold text-slate-500 leading-snug dark:text-slate-400">
-                        {tx('Movimentação: todo dia a partir das 7h. Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.')}
+                        {tx('Movimentação: de segunda a sábado (feriado também), a partir das 7h; domingo não tem. Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.')}
                     </p>
                 </div>
 

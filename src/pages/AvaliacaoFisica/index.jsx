@@ -76,11 +76,11 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], a
         return (
             <div className="min-h-screen relative pb-12 font-sans animate-[fadeIn_0.3s_ease-out]">
                 <FundoGlobalComFotos />
-                <div className="space-y-6 max-w-[1400px] mx-auto relative pt-6 pb-10 z-10">
-                    <div className="flex items-center justify-between bg-slate-900 dark:bg-slate-800/90 dark:backdrop-blur-xl dark:border dark:border-slate-700/50 rounded-[24px] p-6 shadow-md transition-colors">
+                <div className="space-y-4 max-w-[1400px] mx-auto relative pb-10 z-10">
+                    <div className="flex items-center justify-between bg-slate-900 dark:bg-slate-800 dark:border dark:border-slate-700/50 rounded-2xl px-5 py-3 shadow-sm transition-colors">
                         <div>
-                            <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-3">
-                                <ListChecks className="w-6 h-6 text-blue-400" />{' '}{tx("Construtor de Anamnese")}
+                            <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                                <ListChecks className="w-4 h-4 text-blue-400" />{' '}{tx("Construtor de Anamnese")}
                             </h2>
                         </div>
                         <button type="button" onClick={() => setAbaAtiva('relatorio')} className="bg-white/10 hover:bg-white/20 dark:bg-slate-700/50 dark:hover:bg-slate-600/60 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors border border-white/5 dark:border-white/10">

@@ -52,7 +52,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '008', nome: 'Cadastros', tipo: 'ver', padrao: GESTAO },
     { codigo: '009', nome: 'Comunicados', tipo: 'ver', padrao: TODOS },
     { codigo: '010', nome: 'Pendências', tipo: 'ver', padrao: GLOBAL, rede: true },
-    { codigo: '011', nome: 'Configurações', tipo: 'ver', padrao: SO_ADMIN, travada: true, descricao: 'Logins, unidades e permissões: só o Admin.' },
+    { codigo: '011', nome: 'Configurações', tipo: 'ver', padrao: SO_ADMIN, travada: true, descricao: 'Logins e permissões: só o Admin (as unidades ficam em Cadastros desde 09/11/2026).' },
     { codigo: '012', nome: 'Trocar a unidade no topo', tipo: 'fazer', padrao: GLOBAL, travada: true, descricao: 'Regra das unidades (Admin e Mentor).' },
 
     // ---------- 1xx NOVA VENDA ----------
@@ -142,6 +142,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '805', nome: 'Alterar o catálogo (valor da comissão)', tipo: 'fazer', padrao: SO_ADMIN, travada: true, descricao: 'É o valor da comissão: só o Admin.' },
     { codigo: '806', nome: 'Alterar setores', tipo: 'fazer', padrao: SO_ADMIN, travada: true, descricao: 'Só o Admin.' },
     { codigo: '807', nome: 'Editar a equipe (Líder só a unidade dele)', tipo: 'fazer', padrao: GESTAO, banco: true, descricao: 'Inclui marcar o turno das recepcionistas.' },
+    { codigo: '808', nome: 'Aba Unidades', tipo: 'ver', padrao: SO_ADMIN, travada: true, descricao: 'Cadastrar, desativar e excluir unidades: só o Admin. Até 09/11/2026 ficava em Configurações (o antigo 906 deixou de existir).' },
 
     // ---------- 9xx COMUNICADOS, COBRANÇAS E CONFIGURAÇÕES ----------
     { codigo: '901', nome: 'Criar comunicado', tipo: 'fazer', padrao: GLOBAL },
@@ -150,7 +151,6 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '904', nome: 'Janela para marcar o turno das recepcionistas', tipo: 'fazer', padrao: ['LIDER'], mudavelPara: ['LIDER'], descricao: 'Só o Líder (da unidade dele); dá para desligar.' },
     { codigo: '909', nome: 'Lembrete para fazer o CRM', tipo: 'fazer', padrao: ['RECEPCAO'], mudavelPara: ['RECEPCAO'], descricao: 'Só a Recepção: janela nos horários do CRM (seg-sex 8h, 10h, 12h, 14h30, 15h30, 17h30, 19h30; sáb/dom/feriado 9h e 11h).' },
     { codigo: '905', nome: 'Configurações: Logins', tipo: 'ver', padrao: SO_ADMIN, travada: true },
-    { codigo: '906', nome: 'Configurações: Unidades', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '907', nome: 'Configurações: Permissões', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '908', nome: 'Marcar as unidades de cada Mentor', tipo: 'fazer', padrao: SO_ADMIN, travada: true, descricao: 'Só o Admin.' },
 ];

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Database, Users, LayoutGrid, Layers, UserCircle } from 'lucide-react';
+import { Database, Users, LayoutGrid, Layers, UserCircle, Building } from 'lucide-react';
 
 import TabEquipe from './TabEquipe.jsx';
 import ModalColaborador from './ModalColaborador.jsx';
@@ -8,14 +8,16 @@ import TabCatalogo from './TabCatalogo.jsx';
 import ModalCatalogo from './ModalCatalogo.jsx';
 import TabSetores from './TabSetores.jsx';
 import ModalSetor from './ModalSetor.jsx';
-import AlunosTab from './AlunosTab.jsx'; 
+import AlunosTab from './AlunosTab.jsx';
+import TabUnidades from './TabUnidades.jsx';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
-const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
+// todasUnidades/setUnidades (09/11/2026): a aba Unidades mostra também as desativadas (o "unidades" daqui são só as visíveis)
+const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnidades, setUnidades, planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
     const { t } = useI18n(); 
     const [abaAtiva, setAbaAtiva] = useState('alunos'); 
     const [listaSetores, setListaSetores] = useState([]);
@@ -46,7 +48,16 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
         equipe: podeVer(usuarioLogado, '802'),
         catalogo: podeVer(usuarioLogado, '803'),
         setores: podeVer(usuarioLogado, '804'),
+        // Unidades (09/11/2026, veio de Configurações): só o Admin de verdade, mesmo com uma unidade no topo
+        unidades: ehAdmin && podeVer(usuarioLogado, '808') && typeof setUnidades === 'function',
     };
+    const ABAS = [
+        ['alunos', t('management.tabs.students', { defaultValue: 'Alunos' }), UserCircle],
+        ['equipe', tx("Equipe"), Users],
+        ['catalogo', tx("Catálogo Geral"), Layers],
+        ['setores', tx("Setores"), LayoutGrid],
+        ['unidades', tx("Unidades"), Building],
+    ];
     const abaMostrada = abaLiberada[abaAtiva] ? abaAtiva : (Object.keys(abaLiberada).find(id => abaLiberada[id]) || null);
 
     const catalogoCompleto = [...(planos || []), ...(produtos || []), ...(servicos || [])];
@@ -216,35 +227,24 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
     };
 
     return (
-        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative pb-10">
+        <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative pb-10">
             <ModalColaborador isOpen={modalColabAberto} onClose={() => setModalColabAberto(false)} onSave={handleSaveColaborador} isSubmitting={isSubmitting} dadosEdicao={colabEditando} listaSetores={listaSetores} unidades={unidades} temVisaoGlobal={temVisaoGlobal} />
             <ModalCatalogo isOpen={modalCatAberto} onClose={() => setModalCatAberto(false)} onSave={handleSaveCatalogo} isSubmitting={isSubmitting} dadosEdicao={catEditando} />
             <ModalSetor isOpen={modalSetorAberto} onClose={() => setModalSetorAberto(false)} onSave={handleSaveSetor} isSubmitting={isSubmitting} dadosEdicao={setorEditando} />
 
-            <div className="bg-white rounded-[24px] shadow-sm border border-slate-200 p-6 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 dark:bg-slate-900 dark:border-slate-800">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner border border-blue-100 flex-shrink-0 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">
-                        <Database className="w-7 h-7" />
-                    </div>
-                    <div>
-                        <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Gestão de Cadastros")}</h2>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{tx("Configuração Modular do Sistema")}</p>
-                    </div>
+            {/* Topo compacto (09/11/2026): título + abas pequenas; a aba Unidades veio de Configurações (só o Admin) */}
+            <div className="bg-white rounded-[20px] border border-slate-200 p-4 flex flex-wrap items-center gap-x-5 gap-y-3 dark:bg-slate-900 dark:border-slate-800">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"><Database className="w-4 h-4" /></span>
+                    <h2 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Gestão de Cadastros")}</h2>
                 </div>
-
-                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 w-full xl:w-auto overflow-x-auto custom-scrollbar dark:bg-slate-800 dark:border-slate-800">
-                    {abaLiberada.alunos && <button onClick={() => setAbaAtiva('alunos')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'alunos' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <UserCircle className="w-4 h-4" /> {t('management.tabs.students', {defaultValue: 'Alunos'})}
-                    </button>}
-                    {abaLiberada.equipe && <button onClick={() => setAbaAtiva('equipe')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'equipe' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <Users className="w-4 h-4" />{' '}{tx("Equipe")}
-                    </button>}
-                    {abaLiberada.catalogo && <button onClick={() => setAbaAtiva('catalogo')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'catalogo' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <Layers className="w-4 h-4" />{' '}{tx("Catálogo Geral")}
-                    </button>}
-                    {abaLiberada.setores && <button onClick={() => setAbaAtiva('setores')} className={`flex-1 min-w-[120px] px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${abaMostrada === 'setores' ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                        <LayoutGrid className="w-4 h-4" />{' '}{tx("Setores")}
-                    </button>}
+                <div className="flex bg-slate-100 p-1 rounded-xl gap-1 max-w-full overflow-x-auto custom-scrollbar dark:bg-slate-800" role="tablist" aria-label={tx("Gestão de Cadastros")}>
+                    {ABAS.filter(([id]) => abaLiberada[id]).map(([id, rotulo, Icone]) => (
+                        <button key={id} type="button" role="tab" aria-selected={abaMostrada === id} onClick={() => setAbaAtiva(id)}
+                            className={`h-8 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${abaMostrada === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                            <Icone className="w-3.5 h-3.5" />{rotulo}
+                        </button>
+                    ))}
                 </div>
             </div>
 
@@ -277,6 +277,10 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], planos, s
                         onToggleStatus={handleToggleStatusCatalogo} 
                         onOpenModal={() => { setCatEditando(null); setModalCatAberto(true); }}
                     />
+                )}
+
+                {abaMostrada === 'unidades' && (
+                    <TabUnidades unidades={todasUnidades || unidades} setUnidades={setUnidades} nomeUsuario={usuarioLogado?.nome} />
                 )}
 
                 {abaMostrada === 'setores' && (

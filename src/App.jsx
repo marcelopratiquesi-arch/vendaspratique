@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from './supabaseClient.js';
 import { useI18n } from './i18n/I18nContext.jsx'; 
 
@@ -10,7 +10,11 @@ import {
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
 import TopBar from './components/layout/TopBar.jsx';
 import IdleCurtain from './components/layout/IdleCurtain.jsx';
-import { MINUTOS_PARA_PAUSAR, SEGUNDOS_DE_AVISO, pausarSistema, sistemaPausado } from './components/pausaSistema.js';
+import { MINUTOS_PARA_PAUSAR, SEGUNDOS_DE_AVISO, pausarSistema, sistemaPausado, recarregarNaVersaoMaisNova } from './components/pausaSistema.js';
+import { buscarPerfilDoLogin, lerLugarSalvo, salvarLugar, esquecerLugar, lerLocal, gravarLocal } from './components/sessaoLogin.js';
+import ProtecaoTela from './components/ProtecaoTela.jsx';
+import AvisoConexao from './components/AvisoConexao.jsx';
+import { avisarContatos, pedirRecargaContatos, ehContatoDeLista, ORIGENS_DE_LISTA } from './components/aoVivoContatos.js';
 import BlockingGate from './components/BlockingGate/index.jsx';
 
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
@@ -20,7 +24,7 @@ import AnaliseDashboard from './pages/AnaliseVendas';
 import CrmVisitantes from './pages/CrmVisitantes/index.jsx'; 
 import ModuloAlunos360 from './pages/Alunos/index.jsx';
 import CadastroGeral from './pages/CadastroGeral'; 
-import Configuracoes from './pages/Configuracoes.jsx';
+import Configuracoes from './pages/Configuracoes/index.jsx';
 import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
@@ -37,8 +41,32 @@ import PopupTurnoRecepcao from './pages/Pendencias/PopupTurnoRecepcao.jsx';
 import { tx } from './i18n/traduzir.js';
 import { usePermissoes } from './permissoes/usePermissoes.js';
 
-// 📐 Tamanho geral da interface (veja o useEffect "Escala da interface")
-const ESCALA_INTERFACE = 0.8; // 20% menor (decisão do dono, 30/10/2026; antes 0.9)
+// 📐 Tamanho geral da interface (veja o useEffect "Escala da interface").
+// Desde 09/11/2026 cada computador escolhe na barra do topo (guardado no computador). Pequeno = 0.8, o tamanho
+// que valia para todos desde 30/10/2026 (decisão do dono), continua sendo o padrão.
+const TAMANHOS_INTERFACE = { pequeno: 0.8, medio: 0.9, grande: 1 };
+const TAMANHO_PADRAO = 'pequeno';
+
+// Link de "esqueci minha senha": entra com um login temporário que NÃO pode abrir o sistema direto
+// (a tela de login precisa pedir a senha nova). Guardado ao abrir, antes de o Supabase limpar o endereço.
+const VEIO_DO_LINK_DE_SENHA = typeof window !== 'undefined' && /type=recovery/.test(window.location.hash || '');
+
+// As buscas aceitam "ainda vale?" como função (desistem se a tela trocou de unidade no meio) ou true/false
+const aindaVale = (ativo) => (typeof ativo === 'function' ? ativo() : ativo !== false);
+
+// Muitos avisos seguidos do tempo real viram UMA recarga: espera 3 s sem aviso novo (no máximo 10 s desde o
+// primeiro). Proteção de 29/10/2026 (correção em massa no banco entupiu o login); não tirar.
+const criarAgendador = (estaAtivo) => {
+    const pendentes = {};
+    const agendar = (nome, recarregar) => () => {
+        const p = pendentes[nome] || (pendentes[nome] = { primeiro: Date.now(), timer: null });
+        clearTimeout(p.timer);
+        const espera = Math.max(0, Math.min(3000, p.primeiro + 10000 - Date.now()));
+        p.timer = setTimeout(() => { delete pendentes[nome]; if (estaAtivo()) recarregar(estaAtivo); }, espera);
+    };
+    agendar.parar = () => Object.values(pendentes).forEach(p => clearTimeout(p.timer));
+    return agendar;
+};
 
 // 🔥 FUNÇÃO BLINDADA: Remove acentos e espaços duplos
 const normalizarNomeBusca = (nome) => {
@@ -55,6 +83,7 @@ export default function App() {
     const { t } = useI18n(); 
 
     const [usuarioLogado, setUsuarioLogado] = useState(null);
+    const [verificandoLogin, setVerificandoLogin] = useState(!VEIO_DO_LINK_DE_SENHA); // conferindo o login guardado
     const [activeTab, setActiveTab] = useState('lancamento');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false); 
     const [unidadeGlobal, setUnidadeGlobal] = useState('TODAS');
@@ -66,15 +95,21 @@ export default function App() {
     const [alunoGlobalPreSelecionado, setAlunoGlobalPreSelecionado] = useState(null);
     
     const [triggerSync, setTriggerSync] = useState(0);
-    const [isCollapsed, setIsCollapsed] = useState(() => localStorage.getItem('pratique_sidebar') === 'true');
+    const [isCollapsed, setIsCollapsed] = useState(() => lerLocal('pratique_sidebar') === 'true');
+    const [tamanhoTela, setTamanhoTela] = useState(() => {
+        const salvo = lerLocal('pratique_tamanho');
+        return TAMANHOS_INTERFACE[salvo] ? salvo : TAMANHO_PADRAO;
+    });
     const [theme, setTheme] = useState(() => {
-        const salvo = localStorage.getItem('pratique_theme');
+        const salvo = lerLocal('pratique_theme');
         if (salvo) return salvo;
         if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
         return 'light';
     });
 
-    const [statusConexao, setStatusConexao] = useState('conectando');
+    // Conexão (aviso no topo, AvisoConexao.jsx; 09/11/2026): sem internet pelo navegador; "ao vivo" pelo canal de dados
+    const [semInternet, setSemInternet] = useState(() => typeof navigator !== 'undefined' && navigator.onLine === false);
+    const [aoVivoOk, setAoVivoOk] = useState(true);
 
     const [dadosAssinaturas, setDadosAssinaturas] = useState([]);
     const [dadosVisitantes, setDadosVisitantes] = useState([]);
@@ -98,10 +133,7 @@ export default function App() {
 
     // Motor de Status de Conexão
     useEffect(() => {
-        const updateOnlineStatus = () => {
-            if (navigator.onLine) setStatusConexao('conectando');
-            else setStatusConexao('offline');
-        };
+        const updateOnlineStatus = () => setSemInternet(navigator.onLine === false);
         window.addEventListener('online', updateOnlineStatus);
         window.addEventListener('offline', updateOnlineStatus);
         updateOnlineStatus();
@@ -176,10 +208,55 @@ export default function App() {
         handleNavigation('alunos');
     };
 
-    useEffect(() => { if (usuarioLogado) setUnidadeGlobal('TODAS'); }, [usuarioLogado]);
-    
+    // ENTRAR (pela senha ou pelo login guardado, 09/11/2026): volta para a tela e a unidade em que a pessoa
+    // estava nesta aba (sessionStorage); sem lugar guardado, abre como antes (Nova Venda e "Todas").
+    // Só Admin/Mentor trocam de unidade; unidade que não existe mais ou foi desativada volta para "Todas" (efeitos abaixo).
+    const entrar = useCallback((perfil) => {
+        const lugar = lerLugarSalvo(perfil?.email);
+        const podeTrocar = perfil?.role === 'ADMIN' || perfil?.role === 'MENTOR';
+        setUnidadeGlobal(podeTrocar && lugar?.unidade ? lugar.unidade : 'TODAS');
+        if (lugar?.tela) setActiveTab(lugar.tela);
+        setUsuarioLogado(perfil);
+    }, []);
+
+    // Ao abrir/recarregar: se o navegador ainda tem o login (só "Sair" apaga), entra direto, sem pedir a senha
     useEffect(() => {
-        localStorage.setItem('pratique_theme', theme);
+        if (VEIO_DO_LINK_DE_SENHA) return undefined;
+        let ativo = true;
+        (async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                const email = data?.session?.user?.email;
+                if (!email) return;
+                const { perfil, erro } = await buscarPerfilDoLogin(email);
+                if (!ativo) return;
+                if (perfil) entrar(perfil);
+                else if (erro?.code === 'PGRST116') await supabase.auth.signOut(); // login sem cadastro no sistema
+            } catch (err) {
+                console.error('Não foi possível reabrir o login guardado:', err);
+            } finally {
+                if (ativo) setVerificandoLogin(false);
+            }
+        })();
+        return () => { ativo = false; };
+    }, [entrar]);
+
+    // Login encerrado em outra aba ("Sair") ou expirado: recarrega e mostra a tela de login
+    useEffect(() => {
+        if (!usuarioLogado) return undefined;
+        const { data } = supabase.auth.onAuthStateChange((evento) => {
+            if (evento === 'SIGNED_OUT') { esquecerLugar(); recarregarNaVersaoMaisNova(); }
+        });
+        return () => data?.subscription?.unsubscribe();
+    }, [usuarioLogado]);
+
+    // Guarda a tela e a unidade desta aba para voltar nelas depois de recarregar
+    useEffect(() => {
+        if (usuarioLogado?.email) salvarLugar(usuarioLogado.email, activeTab, unidadeGlobal);
+    }, [usuarioLogado, activeTab, unidadeGlobal]);
+
+    useEffect(() => {
+        gravarLocal('pratique_theme', theme);
         const applyTheme = (mode) => {
             if (mode === 'dark') document.documentElement.classList.add('dark');
             else document.documentElement.classList.remove('dark');
@@ -195,27 +272,33 @@ export default function App() {
         }
     }, [theme]);
     
-    useEffect(() => { localStorage.setItem('pratique_sidebar', isCollapsed); }, [isCollapsed]);
+    useEffect(() => { gravarLocal('pratique_sidebar', isCollapsed); }, [isCollapsed]);
+    useEffect(() => { gravarLocal('pratique_tamanho', tamanhoTela); }, [tamanhoTela]);
 
-    // 📐 Escala da interface: deixa o sistema inteiro um pouco menor, como um "zoom" fixo.
-    // 1 = tamanho original | 0.9 = 10% menor | 0.85 = 15% menor | 0.8 = 20% menor
+    // 📐 Escala da interface: deixa o sistema inteiro menor, como um "zoom" (Pequeno 0.8 · Médio 0.9 · Grande 1).
     // Só vale com alguém logado: a tela de login fica no tamanho normal e ocupa a tela inteira
     // (com a escala ligada, telas de altura "100% da tela" deixavam uma faixa branca embaixo).
+    // A variável --escala-interface deixa as telas calcularem a altura da janela (ex.: lista de Alunos).
     useEffect(() => {
         const raiz = document.documentElement;
         if (!usuarioLogado) {
             raiz.style.zoom = '';
+            raiz.style.setProperty('--escala-interface', '1');
             return undefined;
         }
-        raiz.style.zoom = String(ESCALA_INTERFACE);
-        return () => { raiz.style.zoom = ''; };
-    }, [usuarioLogado]);
+        const escala = TAMANHOS_INTERFACE[tamanhoTela] || TAMANHOS_INTERFACE[TAMANHO_PADRAO];
+        raiz.style.zoom = String(escala);
+        raiz.style.setProperty('--escala-interface', String(escala));
+        return () => { raiz.style.zoom = ''; raiz.style.setProperty('--escala-interface', '1'); };
+    }, [usuarioLogado, tamanhoTela]);
 
     // Inatividade (decisão do dono, 07/11/2026): 30 min sem uso = PAUSA de verdade (desliga o "ao vivo" e as
     // releituras do banco). No último minuto aparece o cartão com contagem regressiva; mexer cancela.
     // Conta pelo relógio (e confere ao voltar para a aba), porque aba minimizada atrasa os temporizadores.
+    // Só conta com alguém logado: a tela de login esquecida aberta não pausa o sistema de quem entrar depois.
+    const temLogin = Boolean(usuarioLogado);
     useEffect(() => {
-        if (isIdle) return undefined;
+        if (isIdle || !temLogin) return undefined;
         const LIMITE = MINUTOS_PARA_PAUSAR * 60 * 1000;
         const AVISO = SEGUNDOS_DE_AVISO * 1000;
         let ultimaAtividade = Date.now();
@@ -246,18 +329,27 @@ export default function App() {
             document.removeEventListener('visibilitychange', conferir);
             eventos.forEach(evento => window.removeEventListener(evento, marcarAtividade));
         };
-    }, [isIdle]);
+    }, [isIdle, temLogin]);
 
+    // Comunicados (revisado em 09/11/2026 para gastar menos banco): usa o e-mail do login que já está na memória
+    // (antes perguntava ao servidor de login a cada aviso), escuta só a caixa de entrada desta pessoa, junta os
+    // avisos seguidos numa leitura só (1 s) e mantém um único "despertador" para o próximo comunicado agendado.
+    const emailLogado = usuarioLogado?.email || '';
     useEffect(() => {
         if (!usuarioLogado) return;
         let isMounted = true;
         let timerAgenda = null;
+        let timerAviso = null;
 
         const syncComunicados = async () => {
             if (sistemaPausado()) return; // pausado por inatividade: não vai ao banco
             try {
-                const { data: authData, error: authError } = await supabase.auth.getUser();
-                if (authError || !authData?.user?.email || !isMounted) return;
+                let email = emailLogado;
+                if (!email) {
+                    const { data: sessao } = await supabase.auth.getSession();
+                    email = sessao?.session?.user?.email || '';
+                }
+                if (!email || !isMounted) return;
 
                 const { data, error } = await supabase
                     .from('comunicado_inbox')
@@ -265,7 +357,7 @@ export default function App() {
                         id, status_leitura,
                         comunicados!inner (*)
                     `)
-                    .eq('email_usuario', authData.user.email)
+                    .eq('email_usuario', email)
                     .in('status_leitura', ['NAO_LIDO', 'PENDENTE'])
                     .eq('comunicados.status', 'ATIVO')
                     .is('comunicados.deleted_at', null);
@@ -298,6 +390,8 @@ export default function App() {
 
                 setComunicadosGlobais({ pendentesTotais: ativosPendentes, comunicadoBloqueante: maisAntigoBloqueante });
 
+                clearTimeout(timerAgenda); // um despertador só (antes cada leitura criava mais um)
+                timerAgenda = null;
                 if (proximoAgendamento) {
                     const delay = proximoAgendamento.getTime() - Date.now() + 1000;
                     if (delay > 0 && delay < 2147483647) timerAgenda = setTimeout(syncComunicados, delay);
@@ -305,21 +399,21 @@ export default function App() {
             } catch (err) { console.error("Erro sync comunicados:", err); }
         };
 
+        const aoAviso = () => { clearTimeout(timerAviso); timerAviso = setTimeout(syncComunicados, 1000); };
         syncComunicados();
+        const filtroInbox = emailLogado ? { filter: `email_usuario=eq.${emailLogado}` } : {};
         const channel = supabase.channel('central-sync-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicado_inbox' }, syncComunicados)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicados' }, syncComunicados)
-            .subscribe((status) => {
-                if (status === 'SUBSCRIBED') setStatusConexao('online');
-                if (status === 'CHANNEL_ERROR' || status === 'CLOSED') setStatusConexao('offline');
-            });
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicado_inbox', ...filtroInbox }, aoAviso)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'comunicados' }, aoAviso)
+            .subscribe();
 
         return () => {
             isMounted = false;
-            if (timerAgenda) clearTimeout(timerAgenda);
+            clearTimeout(timerAgenda);
+            clearTimeout(timerAviso);
             supabase.removeChannel(channel);
         };
-    }, [usuarioLogado, triggerSync]); 
+    }, [usuarioLogado, emailLogado, triggerSync]);
 
     const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
@@ -362,7 +456,7 @@ export default function App() {
                 if (data) dataResult.push(...data);
             }
 
-            if (isMounted && dataResult.length > 0) {
+            if (aindaVale(isMounted) && dataResult.length > 0) {
                 setAlunosMap(prev => {
                     const novoNomeMap = new Map(prev.porNome);
                     const novoMatMap = new Map(prev.porMatricula);
@@ -381,9 +475,9 @@ export default function App() {
         }
     }, []);
 
-    const fetchUnidades = useCallback(async (isMounted = true) => { const { data } = await supabase.from('unidades').select('*').order('nome', { ascending: true }); if (isMounted && data) setUnidades(data); }, []);
-    const fetchColaboradores = useCallback(async (isMounted = true) => { let query = supabase.from('colaboradores').select('*'); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (isMounted && data) setColaboradores(data); }, [deveFiltrar, unidadeFiltro]);
-    const fetchCatalogo = useCallback(async (isMounted = true) => { const { data } = await supabase.from('catalogo').select('*'); if (isMounted && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); } }, []);
+    const fetchUnidades = useCallback(async (isMounted = true) => { const { data } = await supabase.from('unidades').select('*').order('nome', { ascending: true }); if (aindaVale(isMounted) && data) setUnidades(data); }, []);
+    const fetchColaboradores = useCallback(async (isMounted = true) => { let query = supabase.from('colaboradores').select('*'); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (aindaVale(isMounted) && data) setColaboradores(data); }, [deveFiltrar, unidadeFiltro]);
+    const fetchCatalogo = useCallback(async (isMounted = true) => { const { data } = await supabase.from('catalogo').select('*'); if (aindaVale(isMounted) && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); } }, []);
     
     const getDataCorte = () => {
         const d = new Date();
@@ -405,24 +499,29 @@ export default function App() {
                 .range(inicio, inicio + TAMANHO_PAGINA - 1);
             if (deveFiltrar) query = query.eq('unidade', unidadeFiltro);
             const { data: pagina, error } = await query;
+            if (!aindaVale(isMounted)) return; // trocou de unidade no meio: não continua baixando
             if (error) { console.error('Erro ao carregar vendas:', error); data = null; break; }
             data = data.concat(pagina || []);
             if (!pagina || pagina.length < TAMANHO_PAGINA) break;
         }
-        if (isMounted && data) {
+        if (aindaVale(isMounted) && data) {
             setDadosAssinaturas(data);
             fetchAlunosEspecificos(data, isMounted);
         }
     }, [deveFiltrar, unidadeFiltro, fetchAlunosEspecificos]);
 
-    const fetchLeads = useCallback(async (isMounted = true) => { 
+    // Contatos: desde 09/11/2026 o App baixa só os que NÃO são de lista (visitantes e afins), que é o que as telas
+    // fora do CRM usam (o Dashboard já descartava os de lista). Antes baixava até 3.000 contatos de qualquer tipo
+    // para todo mundo; a rede tinha 26.890 em 90 dias, quase todos de lista. O CRM carrega a lista completa dele.
+    const fetchLeads = useCallback(async (isMounted = true) => {
         let query = supabase.from('leads').select('*')
+            .or(`origem.is.null,origem.not.in.(${ORIGENS_DE_LISTA.join(',')})`)
             .gte('created_at', getDataCorte())
             .order('id', { ascending: false })
             .limit(3000); 
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
         const { data } = await query; 
-        if (isMounted && data) setDadosVisitantes(data); 
+        if (aindaVale(isMounted) && data) setDadosVisitantes(data); 
     }, [deveFiltrar, unidadeFiltro]);
     
     const fetchAvaliacoes = useCallback(async (isMounted = true) => { 
@@ -432,43 +531,120 @@ export default function App() {
             .limit(3000); 
         if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); 
         const { data } = await query; 
-        if (isMounted && data) {
+        if (aindaVale(isMounted) && data) {
             setDadosAvaliacoes(data);
             fetchAlunosEspecificos(data, isMounted);
         }
     }, [deveFiltrar, unidadeFiltro, fetchAlunosEspecificos]);
 
+    // Unidades e catálogo não dependem da unidade do topo: carregam ao entrar e só recarregam quando mudam no banco
+    // (antes recarregavam a cada troca de unidade; separado em 09/11/2026).
+    useEffect(() => {
+        if (!usuarioLogado) return undefined;
+        let ativo = true;
+        const estaAtivo = () => ativo;
+        fetchUnidades(estaAtivo); fetchCatalogo(estaAtivo);
+        const agendar = criarAgendador(estaAtivo);
+        const canal = supabase.channel('sistema-pratique-cadastros')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, agendar('catalogo', fetchCatalogo))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, agendar('unidades', fetchUnidades))
+            .subscribe();
+        return () => { ativo = false; agendar.parar(); supabase.removeChannel(canal); };
+    }, [usuarioLogado, fetchUnidades, fetchCatalogo]);
+
+    // Dados que dependem da unidade do topo (equipe, vendas, contatos, avaliações): recarregam ao trocar de unidade.
+    // Busca que ainda estava a caminho da unidade anterior é descartada (estaAtivo), para não trocar a lista errada.
     useEffect(() => {
         if (!usuarioLogado) return;
-        let isMounted = true; 
-        fetchUnidades(isMounted); fetchColaboradores(isMounted); fetchCatalogo(isMounted); fetchVendas(isMounted); fetchLeads(isMounted); fetchAvaliacoes(isMounted);
+        let isMounted = true;
+        const estaAtivo = () => isMounted;
+        fetchColaboradores(estaAtivo); fetchVendas(estaAtivo); fetchLeads(estaAtivo); fetchAvaliacoes(estaAtivo);
 
         // Muitos avisos seguidos (ex.: correção de milhares de vendas no banco) viram UMA recarga só:
         // espera 3 s sem aviso novo (no máximo 10 s desde o primeiro) e recarrega uma vez.
         // Sem isso, cada tela aberta recarregava tudo a cada aviso e entupia o banco (29/10/2026).
-        const pendentes = {};
-        const agendar = (nome, recarregar) => () => {
-            const p = pendentes[nome] || (pendentes[nome] = { primeiro: Date.now(), timer: null });
-            clearTimeout(p.timer);
-            const espera = Math.max(0, Math.min(3000, p.primeiro + 10000 - Date.now()));
-            p.timer = setTimeout(() => { delete pendentes[nome]; if (isMounted) recarregar(isMounted); }, espera);
+        const agendar = criarAgendador(estaAtivo);
+
+        // ECONOMIA DE BANCO (decisão do dono, 09/11/2026): vendas, contatos do CRM e avaliações NÃO baixam mais a
+        // lista inteira (90 dias) a cada mudança. O aviso do tempo real já traz a linha que mudou: ela é encaixada
+        // na lista (entra, troca ou sai). Avisos de 300 ms são aplicados de uma vez. Segurança: muitos avisos
+        // seguidos (correção em massa), aviso sem a linha ou reconexão depois de queda = recarga inteira, como antes.
+        const corteMs = Date.parse(getDataCorte());
+        const dentroDoFiltro = (linha) => {
+            if (!linha) return false;
+            if (deveFiltrar && linha.unidade !== unidadeFiltro) return false;
+            const criada = Date.parse(linha.created_at || '');
+            return !Number.isFinite(criada) || criada >= corteMs;
         };
+        const LIMITE_AVISOS_SEGUIDOS = 100;
+        const filas = {};
+        // filtroExtra: quais linhas esta lista guarda (contatos: só os que não são de lista)
+        // aoLote: recebe TODOS os avisos do lote, antes do filtro (contatos: repassa ao CRM)
+        const encaixar = (nome, setLista, recarregar, aoEntrar, filtroExtra, aoLote) => (aviso) => {
+            const f = filas[nome] || (filas[nome] = { eventos: [], timer: null, cheia: false });
+            if (f.cheia) return; // já vai recarregar tudo
+            const semLinha = aviso?.errors || (aviso?.eventType !== 'DELETE' && !aviso?.new?.id) || (aviso?.eventType === 'DELETE' && !aviso?.old?.id);
+            f.eventos.push(aviso);
+            if (semLinha || f.eventos.length > LIMITE_AVISOS_SEGUIDOS) {
+                f.cheia = true; clearTimeout(f.timer); delete filas[nome];
+                agendar(nome, recarregar)();
+                return;
+            }
+            clearTimeout(f.timer);
+            f.timer = setTimeout(() => {
+                delete filas[nome];
+                if (!isMounted) return;
+                // Linhas que entram/mudam (calculadas fora da atualização da lista, para nunca chegarem vazias)
+                const guarda = (linha) => dentroDoFiltro(linha) && (!filtroExtra || filtroExtra(linha));
+                const entraram = f.eventos.filter(ev => ev.eventType !== 'DELETE' && guarda(ev.new)).map(ev => ev.new);
+                setLista(lista => {
+                    const porId = new Map(lista.map(l => [l.id, l]));
+                    f.eventos.forEach(ev => {
+                        if (ev.eventType === 'DELETE') { porId.delete(ev.old.id); return; }
+                        const linha = ev.new;
+                        if (guarda(linha)) porId.set(linha.id, { ...(porId.get(linha.id) || {}), ...linha });
+                        else porId.delete(linha.id);
+                    });
+                    return [...porId.values()].sort((a, b) => (b.id > a.id ? 1 : b.id < a.id ? -1 : 0));
+                });
+                if (aoEntrar && entraram.length) aoEntrar(entraram, estaAtivo); // completa o CPF de venda antiga sem CPF
+                if (aoLote) aoLote(f.eventos);
+            }, 300);
+        };
+        let jaConectou = false;
+        // Contatos: recarregar tudo = a lista do App e a do CRM (aoVivoContatos.js)
+        const recarregarLeads = (ativo) => { fetchLeads(ativo); pedirRecargaContatos(); };
 
         const realtimeChannel = supabase.channel('sistema-pratique-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, agendar('vendas', fetchVendas))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, agendar('leads', fetchLeads))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'avaliacoes_realizadas' }, agendar('avaliacoes', fetchAvaliacoes))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, encaixar('vendas', setDadosAssinaturas, fetchVendas, fetchAlunosEspecificos))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, encaixar('leads', setDadosVisitantes, recarregarLeads, null, (l) => !ehContatoDeLista(l), avisarContatos))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'avaliacoes_realizadas' }, encaixar('avaliacoes', setDadosAvaliacoes, fetchAvaliacoes, fetchAlunosEspecificos))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, agendar('colaboradores', fetchColaboradores))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, agendar('catalogo', fetchCatalogo))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, agendar('unidades', fetchUnidades))
-            .subscribe();
+            .subscribe((status) => {
+                // Aviso de conexão: o "ao vivo" caiu (o Supabase tenta voltar sozinho). CLOSED não conta: é a própria
+                // tela fechando o canal (troca de unidade, pausa).
+                if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') { setAoVivoOk(false); return; }
+                if (status !== 'SUBSCRIBED') return;
+                setAoVivoOk(true);
+                // Reconectou depois de uma queda: pode ter perdido avisos, então recarrega uma vez
+                if (jaConectou) { agendar('vendas', fetchVendas)(); agendar('leads', recarregarLeads)(); agendar('avaliacoes', fetchAvaliacoes)(); }
+                jaConectou = true;
+            });
 
         return () => {
             isMounted = false;
-            Object.values(pendentes).forEach(p => clearTimeout(p.timer));
+            agendar.parar();
+            Object.values(filas).forEach(f => clearTimeout(f.timer));
             supabase.removeChannel(realtimeChannel);
         };
-    }, [usuarioLogado, unidadeGlobal, fetchUnidades, fetchColaboradores, fetchCatalogo, fetchVendas, fetchLeads, fetchAvaliacoes]);
+    }, [usuarioLogado, fetchColaboradores, fetchVendas, fetchLeads, fetchAvaliacoes, fetchAlunosEspecificos, deveFiltrar, unidadeFiltro]);
+
+    // Recarregar tudo (usado quando o Admin muda as unidades do Mentor). Guardado numa referência para a escuta
+    // do Mentor não reiniciar a cada troca de unidade (antes reiniciava e piscava "Carregando suas unidades...").
+    const recarregarTudoRef = useRef(null);
+    useEffect(() => {
+        recarregarTudoRef.current = () => { fetchUnidades(); fetchVendas(); fetchLeads(); fetchAvaliacoes(); fetchColaboradores(); };
+    });
 
     // ==========================================
     // MENTOR ↔ UNIDADES: o Mentor só vê as unidades que o Admin marcou para ele (Configurações → Acessos).
@@ -500,13 +676,13 @@ export default function App() {
                 timer = setTimeout(() => {
                     if (!ativo) return;
                     carregar();
-                    fetchUnidades(true); fetchVendas(true); fetchLeads(true); fetchAvaliacoes(true); fetchColaboradores(true);
+                    recarregarTudoRef.current?.();
                 }, 1500);
             })
             .subscribe();
 
         return () => { ativo = false; clearTimeout(timer); supabase.removeChannel(canal); setUnidadesMentor(null); };
-    }, [ehMentor, fetchUnidades, fetchVendas, fetchLeads, fetchAvaliacoes, fetchColaboradores]);
+    }, [ehMentor]);
 
     // Lista de unidades que as telas mostram (seletor, filtros, cadastros): para o Mentor, só as dele.
     // Unidade DESATIVADA (Configurações, 04/11/2026) não aparece; os dados dela continuam no banco.
@@ -547,11 +723,12 @@ export default function App() {
         }
     };
 
-    // Se a unidade escolhida no topo foi desativada, volta para a visão de todas
+    // Se a unidade escolhida no topo foi desativada (ou não existe mais, ex.: lembrada de antes de recarregar),
+    // volta para a visão de todas
     useEffect(() => {
-        if (unidadeGlobal === 'TODAS') return;
+        if (unidadeGlobal === 'TODAS' || unidades.length === 0) return;
         const escolhida = unidades.find(u => normalizarNomeBusca(u.nome) === normalizarNomeBusca(unidadeGlobal));
-        if (escolhida && escolhida.ativa === false) setUnidadeGlobal('TODAS');
+        if (!escolhida || escolhida.ativa === false) setUnidadeGlobal('TODAS');
     }, [unidades, unidadeGlobal]);
 
     // Se o Admin tirou a unidade que o Mentor estava vendo, volta para "Todas as minhas unidades"
@@ -562,7 +739,8 @@ export default function App() {
 
     const vendasEnriquecidas = useMemo(() => {
         return dadosAssinaturas.map(v => {
-            let cpfAchado = v.cpf || v.cpf_aluno || '';
+            if (v.cpf) return v; // já tem CPF: usa a mesma linha (não copia milhares de vendas a cada mudança)
+            let cpfAchado = v.cpf_aluno || '';
             if (!cpfAchado && alunosMap) {
                 if (v.matricula && alunosMap.porMatricula.has(String(v.matricula).trim())) {
                     cpfAchado = alunosMap.porMatricula.get(String(v.matricula).trim());
@@ -577,7 +755,8 @@ export default function App() {
 
     const avaliacoesEnriquecidas = useMemo(() => {
         return dadosAvaliacoes.map(a => {
-            let cpfAchado = a.cpf || a.cpf_aluno || '';
+            if (a.cpf) return a; // já tem CPF: usa a mesma linha
+            let cpfAchado = a.cpf_aluno || '';
             if (!cpfAchado && alunosMap) {
                 if (a.matricula && alunosMap.porMatricula.has(String(a.matricula).trim())) {
                     cpfAchado = alunosMap.porMatricula.get(String(a.matricula).trim());
@@ -590,23 +769,42 @@ export default function App() {
         });
     }, [dadosAvaliacoes, alunosMap]);
 
-    const handleAddLancamentos = (novos) => setDadosAssinaturas([...novos, ...dadosAssinaturas]);
-    const handleLogout = async () => { 
-        try { await supabase.auth.signOut(); } catch(e) {}
-        setUsuarioLogado(null); 
-        setIsMobileMenuOpen(false); 
+    // Venda nova da própria tela: entra na lista sem repetir a que já chegou pelo tempo real (mesmo número)
+    const handleAddLancamentos = (novos) => setDadosAssinaturas(lista => {
+        const ids = new Set((novos || []).map(n => n.id));
+        return [...(novos || []), ...lista.filter(v => !ids.has(v.id))];
+    });
+    // SAIR (09/11/2026): encerra o login e RECARREGA a página. Assim nada do login anterior fica na memória
+    // (antes, quem entrava em seguida no mesmo computador via por um instante os dados de quem saiu) e o
+    // sistema já abre na versão mais nova. Esquece a tela/unidade guardadas desta aba.
+    const handleLogout = async () => {
+        esquecerLugar();
+        setIsMobileMenuOpen(false);
+        try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
+        recarregarNaVersaoMaisNova();
     };
 
-    if (!usuarioLogado) return <Login onLogin={setUsuarioLogado} />;
-
     // 🔥 CORREÇÃO DA VISÃO GLOBAL APLICADA AQUI
-    const usuarioVirtual = {
+    // Guardado (useMemo): o mesmo usuário enquanto nada muda de verdade. Antes era recriado a cada atualização
+    // (cada venda que chegava, cada segundo da contagem da pausa) e as telas que dependem do usuário iam ao banco à toa.
+    const usuarioVirtual = useMemo(() => (usuarioLogado ? {
         ...usuarioLogado,
         role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
         roleReal: usuarioLogado.role, // papel verdadeiro (o "role" acima vira LIDER quando ADMIN/MENTOR escolhe uma unidade)
         unidade: ehChefe ? unidadeGlobal : usuarioLogado.unidade,
         pode, // permissões (catalogoPermissoes.js): as telas usam podeVer(usuario, 'codigo')
-    };
+    } : null), [usuarioLogado, ehChefe, unidadeGlobal, pode]);
+
+    if (!usuarioLogado) {
+        if (verificandoLogin) {
+            return (
+                <div className="fixed inset-0 flex items-center justify-center bg-slate-50 dark:bg-[#0a0f1c]">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest animate-pulse">{tx('Abrindo o sistema...')}</p>
+                </div>
+            );
+        }
+        return <Login onLogin={entrar} />;
+    }
 
     // Cada item do menu tem o número da permissão (Configurações → Permissões; padrão = como era antes)
     const todasAbas = [
@@ -619,7 +817,7 @@ export default function App() {
         { id: 'avaliacao', label: t('navigation.assessment'), icon: Dumbbell, codigo: '007' },
         { id: 'cadastros', label: t('navigation.management'), icon: Database, codigo: '008' },
         { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, codigo: '009', badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
-        { id: 'pendencias', label: tx('Pendências'), icon: BellRing, codigo: '010', badge: pendencias.total > 0 ? pendencias.total : null },
+        { id: 'pendencias', label: tx('Pendências'), icon: BellRing, codigo: '010', badge: pendencias.totalDia > 0 ? pendencias.totalDia : null }, // movimentação só do dia atual (09/11/2026)
         { id: 'config', label: t('navigation.settings'), icon: Settings, codigo: '011' }
     ];
 
@@ -636,6 +834,7 @@ export default function App() {
         <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
             
             <IdleCurtain isIdle={isIdle} segundosParaPausar={segundosParaPausar} />
+            <AvisoConexao semInternet={semInternet} aoVivoOk={aoVivoOk} pausado={isIdle} />
 
             {/* Central de cobranças (decisão do dono, 05/11/2026): Líder e Mentor ganham a janela ao entrar e o cartão
                 do canto (Conferência, Movimentação e Metas). O Admin cobra pela aba Pendências. */}
@@ -681,6 +880,8 @@ export default function App() {
                     usuarioLogado={usuarioVirtual}
                     theme={theme}
                     setTheme={setTheme}
+                    tamanhoTela={tamanhoTela}
+                    setTamanhoTela={setTamanhoTela}
                     onAbrirMenuMobile={() => setIsMobileMenuOpen(true)}
                     onSelecionarAlunoGlobal={handleSelecionarAlunoGlobal}
                     pendentesTotais={comunicadosGlobais.pendentesTotais}
@@ -698,6 +899,8 @@ export default function App() {
                 />
 
                 <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-5 relative z-0 h-full w-full">
+                    {/* Rede de segurança: erro numa tela mostra o aviso só nela; o menu continua (zera ao trocar de tela) */}
+                    <ProtecaoTela key={telaAtual || 'nenhuma'}>
                     {(mentorCarregando || mentorSemUnidade) ? (
                         <div className="h-full flex items-center justify-center p-4">
                             {mentorCarregando ? (
@@ -731,7 +934,7 @@ export default function App() {
                     {telaAtual === 'assinaturas' && <AssinaturasPratique usuarioLogado={usuarioVirtual} data={vendasEnriquecidas} setData={setDadosAssinaturas} colaboradores={colaboradores} onAbrirAluno={(aluno) => abrirAlunoVindoDe(aluno, 'assinaturas')} />}
                     {telaAtual === 'analise' && <AnaliseDashboard usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} planos={planos} produtos={produtos} colaboradores={colaboradores} unidades={unidadesVisiveis} setUnidadeGlobal={ehChefe ? setUnidadeGlobal : undefined} />}
                     {telaAtual === 'fechamento' && <FechamentoCaixa usuarioLogado={usuarioVirtual} vendas={vendasEnriquecidas} visitantes={dadosVisitantes} avaliacoes={avaliacoesEnriquecidas} setVendas={setDadosAssinaturas} colaboradores={colaboradores} />}
-                    {telaAtual === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} visitantes={dadosVisitantes} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
+                    {telaAtual === 'crm' && <CrmVisitantes usuarioLogado={usuarioVirtual} setVisitantes={setDadosVisitantes} colaboradores={colaboradores} />}
                     {telaAtual === 'alunos' && (
                         <ModuloAlunos360
                             usuarioLogado={usuarioVirtual}
@@ -768,11 +971,12 @@ export default function App() {
                             onVoltarParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
-                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} />}
+                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} todasUnidades={unidades} setUnidades={setUnidades} />}
                     {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} />}
-                    {telaAtual === 'config' && <Configuracoes unidades={unidades} setUnidades={setUnidades} />}
+                    {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} />}
                     </>)}
+                    </ProtecaoTela>
                 </main>
             </div>
         </div>

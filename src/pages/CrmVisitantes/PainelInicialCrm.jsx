@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Activity, Loader2, AlertTriangle, Clock, ChevronDown, RefreshCw, Search, X, UserX, FileText, BarChart3, ArrowRight, MessageCircle, Phone, PenTool } from 'lucide-react';
-import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO, ehMudancaPorCompra, ehBoasVindas, situacaoProximoContato, LIMITE_CARTEIRA } from './utils';
+import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO, ehMudancaPorCompra, ehBoasVindas, situacaoProximoContato, LIMITE_CARTEIRA, ocupaVaga, estaEmEspera } from './utils';
 import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar, ehSemWhatsApp } from './contatosFeitos';
 import PainelCrm from './PainelCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
@@ -280,7 +280,9 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                 fechados: new Set(acoes.filter(h => moveuPara(h, 'Fechado')).map(h => String(h.lead_id))).size,
                 perdidos: new Set(acoes.filter(h => moveuPara(h, 'Perdido')).map(h => String(h.lead_id))).size,
                 acoes: contatos.length + feitosDaPessoa.length,
-                emAtendimento: carteira.length,
+                // Em trabalho (ocupa vaga) × Em Espera (data de volta depois de hoje, não ocupa vaga; 09/11/2026)
+                emAtendimento: carteira.filter(ocupaVaga).length,
+                emEspera: carteira.filter(estaEmEspera).length,
                 paraHoje: carteira.filter(l => ['hoje', 'atrasado'].includes(situacaoProximoContato(l))).length,
                 atrasadosAgenda: carteira.filter(l => situacaoProximoContato(l) === 'atrasado').length,
                 pessoasHoje,
@@ -376,9 +378,9 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                             <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 tabular-nums whitespace-nowrap">{l.pessoasHoje}/150 {tx('hoje')}</span>
                         </div>
                         {/* Carteira × limite */}
-                        <div className="flex items-center gap-2" title={tx('Carteira: contatos em atendimento (Novo + Em Contato). Limite de {limite}.', { limite: LIMITE_CARTEIRA })}>
+                        <div className="flex items-center gap-2" title={tx('Em trabalho: Novo + Em Contato (sem os que estão Em Espera). Limite de {limite}. Em espera: {espera}.', { limite: LIMITE_CARTEIRA, espera: l.emEspera })}>
                             <span className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.emAtendimento > LIMITE_CARTEIRA ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (l.emAtendimento / LIMITE_CARTEIRA) * 100)}%` }} /></span>
-                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${l.emAtendimento > LIMITE_CARTEIRA ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{l.emAtendimento.toLocaleString(localeAtual())}/{LIMITE_CARTEIRA}{l.emAtendimento > LIMITE_CARTEIRA ? ' ⚠️' : ''}</span>
+                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${l.emAtendimento > LIMITE_CARTEIRA ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{l.emAtendimento.toLocaleString(localeAtual())}/{LIMITE_CARTEIRA}{l.emAtendimento > LIMITE_CARTEIRA ? ' ⚠️' : ''}{l.emEspera ? <span className="text-sky-600 dark:text-sky-400"> · {tx('espera')} {l.emEspera.toLocaleString(localeAtual())}</span> : null}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-1 text-center bg-slate-50 dark:bg-slate-800/60 rounded-xl py-1.5">
                             <div title={tx('Agendados para hoje ou atrasados')}><p className={`text-sm font-black leading-none ${l.atrasadosAgenda ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'}`}>{l.paraHoje}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Para hoje')}</p></div>

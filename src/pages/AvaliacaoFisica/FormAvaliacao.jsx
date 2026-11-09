@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { usePerguntasAvaliacao } from './carregarAvaliacoes.js';
 import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import { calcularSMI, calcularHidratacao, classificarRCQ, classificarGV, classificarPressao } from './utils.js';
 import { mascaraCPF, validarCPF, formatarTelefone, calcularIdade } from '../CadastroGeral/utilsAlunos.js'; 
 import { processarExameBioimpedancia } from './bioimpedancia/index.js';
-import { Activity, HeartPulse, CheckSquare, Send, Loader2, CheckCircle2, AlertCircle, Search, UserRoundPen, UserPlus, CreditCard, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
+import { Activity, HeartPulse, Send, Loader2, CheckCircle2, AlertCircle, UserRoundPen, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
 import { pendenciasCadastroAluno } from '../Alunos/utils.js';
@@ -50,7 +51,7 @@ const anamneseIcons = [
 
 const labelClass = "block text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest mb-2 ml-1";
 const inputClass = "w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 dark:text-white outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all shadow-sm";
-const sectionClass = "bg-white dark:bg-slate-900/50 p-6 md:p-8 rounded-[24px] border border-slate-200 dark:border-slate-700 shadow-sm relative";
+const sectionClass = "bg-white dark:bg-slate-900 p-4 md:p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm relative";
 
 const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, disabled, req, example }) => (
     <div className="flex flex-col relative">
@@ -73,7 +74,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
     const fileInputRef = useRef(null);
     const [isImportingIA, setIsImportingIA] = useState(false);
     const [iaProgress, setIaProgress] = useState(0);
-    const [iaStatusText, setIaStatusText] = useState('A ler documento...');
+    const [iaStatusText, setIaStatusText] = useState(tx('Lendo o PDF...'));
     const [arquivoInBody, setArquivoInBody] = useState(null);
 
     const [cpfBusca, setCpfBusca] = useState(''); const [cpfErro, setCpfErro] = useState(false); const [buscandoCpf, setBuscandoCpf] = useState(false);
@@ -94,26 +95,19 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         checklist: { diagnose: false, email: false, treino: false, apenasAvaliacao: false }
     });
 
-    const [perguntasDinamicas, setPerguntasDinamicas] = useState([]);
+    // Perguntas da anamnese: lidas uma vez para as 3 telas da Avaliação (pacote 2, 09/11/2026); aqui só as ativas
+    const { perguntas: todasPerguntas, carregando: loadingPerguntas } = usePerguntasAvaliacao();
+    const perguntasDinamicas = useMemo(() => todasPerguntas.filter(p => p.ativo === true), [todasPerguntas]);
     const [respostasDinamicas, setRespostasDinamicas] = useState({});
-    const [respostasOutros, setRespostasOutros] = useState({}); 
-    const [loadingPerguntas, setLoadingPerguntas] = useState(true);
+    const [respostasOutros, setRespostasOutros] = useState({});
     const debounceRef = useRef(null);
 
-    useEffect(() => {
-        const carregarPerguntas = async () => {
-            try {
-                const { data, error } = await supabase.from('avaliacao_perguntas').select('*').eq('ativo', true).order('ordem', { ascending: true });
-                if (error) throw error;
-                setPerguntasDinamicas(data || []);
-            } catch (err) { console.error(err); } finally { setLoadingPerguntas(false); }
-        };
-        carregarPerguntas();
-        return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-    }, []);
+    useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
+    // Editar: carrega a avaliação assim que as perguntas terminam de chegar
+    // (antes esperava ter pelo menos 1 pergunta ativa; sem nenhuma, a edição abria em branco)
     useEffect(() => {
-        if (avaliacaoEditando && perguntasDinamicas.length > 0) {
+        if (avaliacaoEditando && !loadingPerguntas) {
             const fetchAluno = async () => {
                 const { data } = await supabase.from('alunos').select('*').eq('id', avaliacaoEditando.aluno_id).maybeSingle();
                 if (data) {
@@ -157,7 +151,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             
             if(avaliacaoEditando.arquivo_inbody_url) { setArquivoInBody({ name: 'Exame Anterior Anexado' }); }
         }
-    }, [avaliacaoEditando, perguntasDinamicas]);
+    }, [avaliacaoEditando, perguntasDinamicas, loadingPerguntas]);
 
     // ⚡ Aluno vindo da ficha: já chega localizado (busca o cadastro completo pelo id)
     useEffect(() => {
@@ -198,10 +192,15 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         } else { setCpfErro(false); }
     };
 
-    // Com unidade definida (fluxo da ficha), mostra só os avaliadores daquela unidade
+    // Unidade onde a avaliação fica. Editar MANTÉM a unidade da avaliação (correção de 09/11/2026: antes
+    // trocava pela unidade de quem editava e, com o topo em "Todas", dava "Unidade não identificada").
+    const unidadeDaAvaliacao = avaliacaoEditando?.unidade || unidadeDestino || usuarioLogado?.unidade || '';
+
+    // Com unidade definida (fluxo da ficha ou edição), mostra só os avaliadores daquela unidade
     const colaboradoresDoSelect = (() => {
-        if (!unidadeDestino) return colaboradores;
-        const daUnidade = colaboradores.filter(c => String(c.unidade || '').toUpperCase().trim() === String(unidadeDestino).toUpperCase().trim());
+        const unidadeFiltro = avaliacaoEditando?.unidade || unidadeDestino;
+        if (!unidadeFiltro) return colaboradores;
+        const daUnidade = colaboradores.filter(c => String(c.unidade || '').toUpperCase().trim() === String(unidadeFiltro).toUpperCase().trim());
         return daUnidade.length > 0 ? daUnidade : colaboradores;
     })();
 
@@ -223,10 +222,22 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         const file = e.target.files[0];
         if (!file) return;
 
-        setArquivoInBody(file); 
+        // Foto do exame (correção de 09/11/2026): fica anexada; a leitura automática só funciona com PDF
+        if (file.type !== 'application/pdf') {
+            if (String(file.type || '').startsWith('image/')) {
+                setArquivoInBody(file);
+                avisar(tx("Foto do exame anexada. A leitura automática só funciona com PDF: digite as medidas nos campos."), 'atencao');
+            } else {
+                avisar(tx("Formato não aceito. Anexe o PDF do exame ou uma foto."), 'erro');
+                if (fileInputRef.current) fileInputRef.current.value = '';
+            }
+            return;
+        }
+
+        setArquivoInBody(file);
         setIsImportingIA(true); 
         setIaProgress(20); 
-        setIaStatusText('A ler estrutura do ficheiro PDF...');
+        setIaStatusText(tx('Lendo o PDF...'));
 
         try {
             const resultado = await processarExameBioimpedancia(file);
@@ -240,7 +251,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 return;
             }
 
-            setIaStatusText(`Layout ${resultado.reportType} identificado. A extrair métricas...`);
+            setIaStatusText(tx('Exame {v1} reconhecido. Pegando as medidas...', { v1: resultado.reportType }));
             setIaProgress(90);
 
             setForm(prev => {
@@ -254,11 +265,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             });
 
             setIaProgress(100);
-            setIaStatusText('Extração concluída com sucesso!');
+            setIaStatusText(tx('Pronto! Medidas preenchidas. Confira os números antes de salvar.'));
 
         } catch (error) {
             console.error("Erro na leitura do arquivo:", error);
-            avisar(tx("Falha inesperada ao ler o documento. Verifique a consola."));
+            avisar(tx("Não foi possível ler o documento. Tente de novo ou digite as medidas."));
             setArquivoInBody(null);
         } finally {
             setTimeout(() => { 
@@ -297,14 +308,22 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
         
         if (!alunoEncontrado) return avisar(t('assessment.form.alertFindStudent', {defaultValue: 'Você precisa localizar ou cadastrar o aluno primeiro!'}));
         if (pendenciasCadastro.length > 0) return avisar(tx("Cadastro incompleto. Falta: {v1}. Clique em \"Completar cadastro\" antes de lançar a avaliação.", { v1: pendenciasCadastro.join(', ') }));
-        const unidadeFinal = unidadeDestino || usuarioLogado?.unidade;
+        const unidadeFinal = unidadeDaAvaliacao;
         if (!unidadeFinal || unidadeFinal === 'TODAS') return avisar(t('assessment.form.alertUnit', {defaultValue: 'Erro de sessão: Unidade não identificada.'}));
         if (!avaliadorResponsavel) return avisar(tx("Selecione o Avaliador Responsável.")); // 🔥 Validação do avaliador
 
         if (p === null || p <= 0 || p > 300) return avisar(t('assessment.form.alertWeight', {defaultValue: 'Peso inválido ou não informado.'}));
         if (alt === null || alt < 0.5 || alt > 2.5) return avisar(t('assessment.form.alertHeight', {defaultValue: 'Altura inválida ou não informada.'}));
+        // Pressão é opcional, mas se preencher um número precisa do outro (09/11/2026)
+        const temSist = String(form.sistolica || '').trim() !== '';
+        const temDiast = String(form.diastolica || '').trim() !== '';
+        if (temSist !== temDiast) return avisar(tx("Pressão arterial: preencha a sistólica e a diastólica (ou deixe as duas em branco)."), 'atencao');
 
-        const respostasFinais = { ...respostasDinamicas };
+        // Editar guarda também as respostas de perguntas que saíram do formulário (correção de 09/11/2026:
+        // antes elas eram apagadas). As perguntas ativas usam o que está na tela.
+        const salvasAntes = avaliacaoEditando?.respostas_dinamicas && typeof avaliacaoEditando.respostas_dinamicas === 'object' && !Array.isArray(avaliacaoEditando.respostas_dinamicas)
+            ? avaliacaoEditando.respostas_dinamicas : {};
+        const respostasFinais = { ...salvasAntes, ...respostasDinamicas };
         for (const p of perguntasDinamicas) {
             if (p.tipo === 'SELECT') {
                 const resp = respostasFinais[p.id];
@@ -343,9 +362,12 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             }
 
             const novaAvaliacao = {
-                aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: unidadeDestino || usuarioLogado.unidade,
+                aluno_id: alunoEncontrado.id, aluno: alunoEncontrado.nome, unidade: unidadeFinal,
+                // CPF do aluno (09/11/2026): a busca por CPF das telas da Avaliação passa a achar
+                cpf: alunoEncontrado.cpf ? String(alunoEncontrado.cpf).replace(/\D/g, '') : (avaliacaoEditando?.cpf || null),
                 professor: avaliadorResponsavel || professorAtivo.nome, // 🔥 Atribuição do avaliador
-                usuario_responsavel: usuarioLogado?.nome || user?.email || 'SISTEMA',
+                // Quem registrou continua o mesmo ao editar
+                usuario_responsavel: avaliacaoEditando?.usuario_responsavel || usuarioLogado?.nome || user?.email || 'SISTEMA',
                 sexo: sexoAluno, peso: p, altura: alt, 
                 sistolica: parseInt(form.sistolica || 0, 10), diastolica: parseInt(form.diastolica || 0, 10),
                 braco_esq: parseVal(form.bracoEsq), braco_dir: parseVal(form.bracoDir), 
@@ -359,13 +381,18 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 arquivo_inbody_url: urlArquivoInBody
             };
             
-            if (avaliacaoEditando) {
-                const { error } = await supabase.from('avaliacoes_realizadas').update(novaAvaliacao).eq('id', avaliacaoEditando.id);
-                if (error) throw error;
-            } else {
-                const { error } = await supabase.from('avaliacoes_realizadas').insert([novaAvaliacao]);
-                if (error) throw error;
+            const gravar = (dados) => avaliacaoEditando
+                ? supabase.from('avaliacoes_realizadas').update(dados).eq('id', avaliacaoEditando.id)
+                : supabase.from('avaliacoes_realizadas').insert([dados]);
+            let { error } = await gravar(novaAvaliacao);
+            // Banco ainda sem o campo cpf (SQL de 09/11/2026 não rodado): grava sem ele, como antes
+            if (error && /cpf/i.test(String(error.message || '')) && (error.code === 'PGRST204' || /column/i.test(String(error.message || '')))) {
+                console.warn('avaliacoes_realizadas sem o campo cpf: rode o SQL sql/2026-11-09-avaliacoes-cpf. Gravando sem o CPF.');
+                const semCpf = { ...novaAvaliacao };
+                delete semCpf.cpf;
+                ({ error } = await gravar(semCpf));
             }
+            if (error) throw error;
             
             setSucesso(true); setTimeout(() => { setSucesso(false); voltar(); }, 2000);
         } catch (err) { console.error(err); avisar(t('assessment.form.errorSave', {defaultValue: 'Erro ao salvar avaliação.'})); } finally { setIsSubmitting(false); }
@@ -384,13 +411,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         <div className="w-20 h-20 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 rounded-full flex items-center justify-center mb-6 shadow-inner border border-blue-100 dark:border-blue-800">
                             <Sparkles className="w-10 h-10 animate-pulse" />
                         </div>
-                        <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">{tx("Análise IA Multi-Escala")}</h3>
+                        <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight mb-2">{tx("Leitura automática do exame")}</h3>
                         <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-relaxed min-h-[32px]">{iaStatusText}</p>
                     </div>
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
+            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-4 animate-[fadeIn_0.3s_ease-out] pb-10">
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] z-[9999]">
                         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200 dark:border-slate-700">
@@ -402,9 +429,9 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
                 )}
 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700/50 rounded-[24px] p-6 shadow-md gap-4">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700/50 rounded-2xl px-5 py-4 shadow-sm gap-3">
                     <div>
-                        <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                        <h2 className="text-base font-black text-white uppercase tracking-widest flex items-center gap-2">
                             {avaliacaoEditando ? tx("Editar Avaliação Física") : t('assessment.form.title')}
                         </h2>
                         <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('assessment.prof')}: {avaliadorResponsavel || (professorAtivo?.avaliadorAberto ? tx("A definir") : professorAtivo.nome)}</p>
@@ -413,12 +440,12 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 </div>
 
                 <div className={sectionClass}>
-                    <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 pb-5 mb-6">
-                        <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                            <User className="w-6 h-6" />
+                    <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 pb-3 mb-4">
+                        <div className="w-9 h-9 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0">
+                            <User className="w-5 h-5" />
                         </div>
                         <div>
-                            <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Dados do Aluno")}</h3>
+                            <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{tx("Dados do Aluno")}</h3>
                             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Localize o aluno e defina o responsável")}</p>
                         </div>
                     </div>
@@ -554,19 +581,19 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                 <div className={`transition-all duration-500 ${!avaliacaoLiberada ? 'opacity-30 pointer-events-none grayscale-[50%]' : 'opacity-100'}`}>
                     
-                    <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 border-2 border-blue-200/60 dark:border-blue-900/50 p-6 md:p-8 rounded-[24px] shadow-sm flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+                    <div className="bg-gradient-to-r from-blue-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 border border-blue-200 dark:border-blue-900/50 p-4 md:p-5 rounded-2xl shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 relative overflow-hidden">
                         <div className="absolute -right-10 -top-10 w-40 h-40 bg-blue-200/20 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
                         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-200/20 dark:bg-blue-600/10 rounded-full blur-3xl"></div>
                         
                         <div className="flex items-center gap-5 relative z-10">
-                            <div className="w-14 h-14 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center shadow-sm shrink-0 border border-blue-100 dark:border-slate-700">
-                                <Sparkles className="w-7 h-7 animate-pulse" />
+                            <div className="w-10 h-10 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-sm shrink-0 border border-blue-100 dark:border-slate-700">
+                                <Sparkles className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                                    {tx("Preenchimento Inteligente")}{' '}<span className="bg-blue-600 dark:bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded uppercase tracking-widest shadow-sm">IA</span>
+                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                                    {tx("Leitura automática do exame")}
                                 </h3>
-                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-lg leading-relaxed">{tx("Faça o upload do exame InBody ou Superbio. A IA extrairá as medidas automaticamente.")}</p>
+                                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mt-1 max-w-lg leading-relaxed">{tx("Anexe o PDF do exame InBody ou Superbio: o sistema lê e preenche as medidas. Foto também pode ser anexada (sem leitura automática).")}</p>
                             </div>
                         </div>
                         
@@ -592,14 +619,14 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
                         <div className={sectionClass}>
-                            <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
-                                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                                    <Ruler className="w-6 h-6" />
+                            <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                                <div className="w-9 h-9 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0">
+                                    <Ruler className="w-5 h-5" />
                                 </div>
                                 <div>
-                                    <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Medidas Iniciais")}</h3>
+                                    <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{tx("Medidas Iniciais")}</h3>
                                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Registre o peso e a altura atual do aluno.")}</p>
                                 </div>
                             </div>
@@ -610,13 +637,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         </div>
 
                         <div className={sectionClass}>
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
+                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                                        <HeartPulse className="w-6 h-6" />
+                                    <div className="w-9 h-9 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 rounded-xl flex items-center justify-center shrink-0">
+                                        <HeartPulse className="w-5 h-5" />
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Pressão Arterial")}</h3>
+                                        <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{tx("Pressão Arterial")}</h3>
                                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Registre a pressão arterial.")}</p>
                                     </div>
                                 </div>
@@ -627,19 +654,19 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                 )}
                             </div>
                             <div className="grid grid-cols-2 gap-5">
-                                <InputComIcone label={tx("Sistólica (mmHg)")} name="sistolica" value={form.sistolica} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={HeartPulse} example="Ex.: 120" />
-                                <InputComIcone label={tx("Diastólica (mmHg)")} name="diastolica" value={form.diastolica} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={HeartPulse} example="Ex.: 80" />
+                                <InputComIcone label={tx("Sistólica (mmHg)")} name="sistolica" value={form.sistolica} onChange={handleChange} disabled={!alunoEncontrado} icon={HeartPulse} example="Ex.: 120" />
+                                <InputComIcone label={tx("Diastólica (mmHg)")} name="diastolica" value={form.diastolica} onChange={handleChange} disabled={!alunoEncontrado} icon={HeartPulse} example="Ex.: 80" />
                             </div>
                         </div>
                     </div>
 
-                    <div className={`${sectionClass} mt-6`}>
-                        <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-8">
-                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                                <Activity className="w-6 h-6" />
+                    <div className={`${sectionClass} mt-4`}>
+                        <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                            <div className="w-9 h-9 bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0">
+                                <Activity className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Bioimpedância (Massa e Gordura)")}</h3>
+                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{tx("Bioimpedância (Massa e Gordura)")}</h3>
                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Preencha os valores obtidos na avaliação.")}</p>
                             </div>
                         </div>
@@ -754,13 +781,13 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         </div>
                     </div>
 
-                    <div className={`${sectionClass} mt-6 !p-8`}>
-                        <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-5 mb-6">
-                            <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shadow-inner shrink-0">
-                                <ListChecks className="w-6 h-6" />
+                    <div className={`${sectionClass} mt-4`}>
+                        <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                            <div className="w-9 h-9 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0">
+                                <ListChecks className="w-5 h-5" />
                             </div>
                             <div>
-                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{tx("Questionário de Anamnese")}</h3>
+                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">{tx("Questionário de Anamnese")}</h3>
                                 <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Responda as perguntas abaixo.")}</p>
                             </div>
                         </div>
@@ -824,7 +851,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         )}
                     </div>
 
-                    <button type="submit" disabled={isSubmitting || !avaliacaoLiberada} className="w-full mt-6 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-5 rounded-[20px] shadow-[0_4px_15px_rgba(249,115,22,0.3)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
+                    <button type="submit" disabled={isSubmitting || !avaliacaoLiberada} className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl shadow-[0_4px_15px_rgba(37,99,235,0.25)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
                         {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('assessment.form.savingBtn', {defaultValue: 'Salvando...'})}</> : <><Send className="w-5 h-5" /> {avaliacaoEditando ? tx("Atualizar Avaliação Física") : t('assessment.form.saveBtn', {defaultValue: 'Salvar Avaliação Física'})}</>}
                     </button>
                 </div>

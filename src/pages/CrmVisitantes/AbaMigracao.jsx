@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, Star, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine, ClipboardCheck } from 'lucide-react';
+import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine } from 'lucide-react';
 import { decomporPlano } from '../AnaliseVendas/utils.js';
 import { MENSAGENS_PADRAO, abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
 import { montarMensagem } from './embaralhador.js';
@@ -10,6 +10,7 @@ import {
 import { JanelaNaoContatar } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import JanelaResultadoContato from './JanelaResultadoContato';
+import BotoesResultadoLinha from './BotoesResultadoLinha';
 import {
     ANDAMENTOS_BASE, VISOES_FILA as VISOES, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
     semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato
@@ -47,6 +48,9 @@ import { tx } from '../../i18n/traduzir.js';
 // Contatado sem data marcada (os antigos, de antes desta mudança) volta 2 dias depois do último contato.
 // Topo: Para hoje · Aguardando · Interessados · Migraram no mês · Desistiram (clicar filtra).
 // Campos no banco: crm_migracao.volta_em / tentativas / resultado (sql/2026-11-06-crm-migracao-resultado).
+// 09/11/2026 (decisão do dono): botões Não respondeu · Vai pensar · Interessado direto na linha (+ "Mais" = janela,
+// onde fica o "Não quer"); a janela que abre depois do WhatsApp/Ligar é obrigatória (sem "Decidir depois");
+// "Pegar para mim" na linha dos Disponíveis/Todos; puxado e não contatado volta em 3 dias (DIAS_PARA_DEVOLVER).
 // ==========================================
 
 // Etapa mostrada na linha (regras em resultadoContato.js, as mesmas do Resgate)
@@ -134,7 +138,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 } else {
                     situacao = !registro || registro.status === 'NA_FILA' ? 'NAO_CONTATADO' : registro.status;
                 }
-                // Puxado e ainda não contatado: devolve se passou de 7 dias, se a dona foi desligada ou se não tem dono
+                // Puxado e ainda não contatado: devolve se passou de DIAS_PARA_DEVOLVER dias, se a dona foi desligada ou se não tem dono
                 const naFilaSemContato = registro?.status === 'NA_FILA';
                 const filaVencida = naFilaSemContato && (
                     !registro.puxado_por
@@ -200,9 +204,10 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         return novo;
     });
 
-    // Puxa os N mais recentes (pela data da compra) do plano escolhido para a minha fila
-    const puxar = async () => {
-        const candidatos = linhas
+    // Puxa os N mais recentes (pela data da compra) do plano escolhido para a minha fila.
+    // "Pegar para mim" (09/11/2026): passa um aluno só (escolhido na linha dos Disponíveis/Todos).
+    const puxar = async (umAluno) => {
+        const candidatos = umAluno ? [umAluno] : linhas
             .filter(l => l.disponivel && (!planoPuxar || l.ultimo_plano === planoPuxar))
             .sort((a, b) => String(b.data_compra || '').localeCompare(String(a.data_compra || '')))
             .slice(0, qtdPuxar);
@@ -213,6 +218,11 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
             // Recarrega o andamento do banco: a tela mostra exatamente quem ficou com cada aluno
             const mapa = await carregarAndamentoMigracao();
             if (mapa) setAndamento(mapa);
+            if (umAluno) {
+                if (confirmados.length) avisar(tx("{nome} foi para a sua fila.", { nome: umAluno.nome }), 'sucesso');
+                else avisar(tx("Este aluno já foi pego por outra pessoa. A lista foi atualizada."));
+                return;
+            }
             setVisao('FILA');
             setFiltroAndamento('HOJE');
             const perdidos = candidatos.length - confirmados.length;
@@ -258,7 +268,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         // Cada clique monta uma versão nova da mensagem de migração (embaralhador)
         abrirNoWhatsApp(linha.telefone, montarMensagem('MIGRACAO', { nome: linha.nome, unidade: unidadeChave }, { MIGRACAO: mensagem }));
         await registrarContato(linha, { canal: 'WHATSAPP' });
-        setResultadoPara(linha);
+        setResultadoPara({ ...linha, _obrigatorio: true });
     };
 
     // Ligar pelo MicroSIP: registra o contato de migração (canal LIGACAO, não fica vermelho)
@@ -266,7 +276,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         if (!linha.telefone) return avisar(tx("Este aluno está sem telefone cadastrado."));
         ligarPeloSip(linha.telefone);
         await registrarContato(linha, { canal: 'LIGACAO' });
-        setResultadoPara(linha);
+        setResultadoPara({ ...linha, _obrigatorio: true });
     };
 
     // Resultado do contato (1 clique). "Não respondeu" marcado de novo no mesmo dia não soma outra tentativa.
@@ -361,7 +371,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 <select value={qtdPuxar} onChange={(e) => setQtdPuxar(Number(e.target.value))} className={seletor}>
                     {QUANTIDADES_PUXAR.map(q => <option key={q} value={q}>{q}{' '}{tx("alunos")}</option>)}
                 </select>
-                <button type="button" onClick={puxar} disabled={puxando || totalDisponiveis === 0} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                <button type="button" onClick={() => puxar()} disabled={puxando || totalDisponiveis === 0} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}{' '}{tx("Puxar")}
                 </button>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis}{' '}{tx("disponível(is)")}{planoPuxar ? " " + tx("em {planoPuxar}", { planoPuxar: planoPuxar }) + "" : ''}{' '}{tx("· os que compraram mais recentemente vêm primeiro")}</span>
@@ -464,15 +474,15 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                                             <Check className="w-3.5 h-3.5" />{' '}{tx("Contatado hoje")}
                                                         </span>
                                                     )}
-                                                    {l.situacao !== 'NAO_CONTATADO' && l.situacao !== 'INTERESSADO' && (
-                                                        <button type="button" onClick={() => setResultadoPara(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title={tx("Marcar como foi o contato (respondeu, não respondeu, não quer)")}>
-                                                            <ClipboardCheck className="w-3.5 h-3.5" />{' '}{tx("Resultado")}
-                                                        </button>
-                                                    )}
+                                                    {/* Resultado direto na linha (09/11/2026): Não respondeu · Vai pensar · Interessado · Mais */}
                                                     {l.situacao !== 'NAO_CONTATADO' && (
-                                                        <button type="button" onClick={() => mudarInteresse(l)} disabled={ocupado} className={`px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-1 border disabled:opacity-60 ${l.situacao === 'INTERESSADO' ? 'bg-amber-500 text-white border-amber-600' : 'border-amber-200 dark:border-amber-500/30 text-amber-700 dark:text-amber-300'}`} title={tx("Marcar como interessado: o aluno vai para o seu Kanban/Conversa em \"Em Contato\" para continuar a conversa")}>
-                                                            <Star className="w-3.5 h-3.5" />{' '}{tx("Interessado")}
-                                                        </button>
+                                                        <BotoesResultadoLinha
+                                                            linha={l}
+                                                            ocupado={ocupado}
+                                                            onEscolher={(tipo) => aplicarResultado(l, tipo)}
+                                                            onMais={() => setResultadoPara(l)}
+                                                            onDesmarcarInteressado={() => mudarInteresse(l)}
+                                                        />
                                                     )}
                                                     {l.situacao === 'NAO_CONTATADO' && (
                                                         <button type="button" onClick={() => devolver(l)} disabled={ocupado} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 dark:hover:text-blue-400" title={tx("Devolver para os Disponíveis")}>
@@ -480,6 +490,12 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                                         </button>
                                                     )}
                                                 </>
+                                            )}
+                                            {/* Pegar para mim (09/11/2026): aluno disponível vai direto para a minha fila */}
+                                            {l.disponivel && visao !== 'FILA' && (
+                                                <button type="button" onClick={() => puxar(l)} disabled={puxando} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Passa este aluno para a sua fila (Minha fila)")}>
+                                                    <ArrowRightCircle className="w-3.5 h-3.5" />{' '}{tx("Pegar para mim")}
+                                                </button>
                                             )}
                                             {l.situacao !== 'MIGROU' && (
                                                 <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title={tx("Não contatar")}>
@@ -504,8 +520,9 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 <JanelaResultadoContato
                     aluno={resultadoPara}
                     hoje={hoje}
-                    textoInteressado={tx('Vai para o seu funil em "Em Contato".')}
+                    textoInteressado={tx('Vai para o seu funil (Em Espera, volta amanhã).')}
                     textoNaoQuer={tx('Vai para a geladeira da Migração e volta em {dias} dias. Não entra no "Não contatar".', { dias: DIAS_GELADEIRA })}
+                    obrigatorio={!!resultadoPara._obrigatorio}
                     onEscolher={(tipo) => aplicarResultado(resultadoPara, tipo)}
                     onFechar={() => setResultadoPara(null)}
                 />

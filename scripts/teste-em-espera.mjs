@@ -1,0 +1,27 @@
+// Teste da coluna "Em Espera" do CRM (09/11/2026): node scripts/teste-em-espera.mjs
+import { estaEmEspera, faseNaTela, ocupaVaga, diasParado, prioridadeContato } from '../src/pages/CrmVisitantes/utils.js';
+const iso = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+let falhas = 0;
+const confere = (nome, obtido, esperado) => { const ok = obtido === esperado; if (!ok) falhas++; console.log(`${ok ? 'OK   ' : 'FALHA'} ${nome}: ${obtido} (esperado ${esperado})`); };
+const seis = new Date(Date.now() - 6 * 86400000).toISOString();
+const amanha = { status: 'Em Contato', proximo_contato: iso(1), puxado_em: seis };
+const hoje = { status: 'Em Contato', proximo_contato: iso(0), puxado_em: seis };
+const atrasado = { status: 'Em Contato', proximo_contato: iso(-2), puxado_em: seis };
+const semData = { status: 'Em Contato', puxado_em: seis };
+const novoComData = { status: 'Novo', proximo_contato: iso(3) };
+const fechado = { status: 'Fechado', proximo_contato: iso(3) };
+confere('data amanhã → Em Espera', faseNaTela(amanha), 'Em Espera');
+confere('data hoje → Em Contato', faseNaTela(hoje), 'Em Contato');
+confere('data vencida → Em Contato', faseNaTela(atrasado), 'Em Contato');
+confere('sem data → Em Contato', faseNaTela(semData), 'Em Contato');
+confere('Novo com data futura → Em Espera', faseNaTela(novoComData), 'Em Espera');
+confere('Fechado com data → Fechado', faseNaTela(fechado), 'Fechado');
+confere('espera não ocupa vaga', ocupaVaga(amanha), false);
+confere('hoje ocupa vaga', ocupaVaga(hoje), true);
+confere('fechado não ocupa vaga', ocupaVaga(fechado), false);
+confere('espera não fica "parado"', diasParado(amanha, seis), null);
+confere('sem data fica parado 6 dias', diasParado(semData, seis), 6);
+confere('espera vai para o fim da fila (nível 8)', prioridadeContato(amanha).nivel, 8);
+confere('estaEmEspera(sem data)', estaEmEspera(semData), false);
+console.log(falhas ? `\n${falhas} falha(s)` : '\nTudo certo.');
+process.exit(falhas ? 1 : 0);

@@ -5,8 +5,11 @@
 //     (regras em FechamentoCaixa/cobrancaAuditoria.js). Desde 06/11/2026 (decisão do dono: a comissão é paga todo dia 15):
 //     até o dia 15 cobra o MÊS ANTERIOR + o atual; do dia 16 em diante, só o mês atual (`inicioCobrancaConferencia`).
 //     Isso também diminui muito o que é baixado do banco.
-//  2. MOVIMENTAÇÃO — Ativos, Cancelamentos e Faturamento de CADA DIA (inclusive domingo e feriado), desde 05/11/2026.
-//     O dia de hoje só é cobrado a partir das 7h. Dia que ficou para trás continua sendo cobrado.
+//  2. MOVIMENTAÇÃO — Ativos, Cancelamentos e Faturamento de cada dia de SEGUNDA A SÁBADO (feriado também), desde 05/11/2026.
+//     DOMINGO NÃO É COBRADO (decisão do dono, 09/11/2026). O dia de hoje só é cobrado a partir das 7h.
+//     O Líder (janela e cartão) continua vendo os dias que ficaram para trás (`movimento`). A aba Pendências do
+//     Admin/Mentor, o número vermelho do menu e as mensagens de WhatsApp olham SÓ O DIA ATUAL (`movimentoDia`):
+//     lançou hoje completo = OK, mesmo com dias antigos faltando (decisão do dono, 09/11/2026).
 //  3. METAS DO MÊS — Meta Start e Meta Mensal do mês atual. Dias 1 a 3: lembrete (amarelo); do dia 4 em diante: atrasado.
 // Quem é cobrado: Líder (a unidade dele) e Mentor (as unidades dele) com janela ao entrar + cartão no canto;
 // Admin e Mentor têm a aba "Pendências" com WhatsApp. Só leitura: nada aqui grava.
@@ -17,6 +20,7 @@ import { supabase } from '../../supabaseClient.js';
 import { sistemaPausado } from '../../components/pausaSistema.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
 import { INICIO_COBRANCA_CONFERENCIA, semanaDaVenda, ultimaSextaVencida } from '../FechamentoCaixa/cobrancaAuditoria.js';
+import { ehDomingo, diaDeLancamentoAnterior } from '../AnaliseVendas/movimentoDiario.js';
 import { buscarEnviosRelatorio, buscarConferenciasRelatorio, pendenciasRelatorio, nomesDoTurno, situacaoRelatorioDias } from './relatorioFechamento.js';
 
 export const INICIO_COBRANCA_MOVIMENTO = '2026-11-05';
@@ -139,6 +143,7 @@ const movimentoDaUnidade = (linhas, temAtivos, agora) => {
         const iso = paraIso(d);
         if (iso > hojeIso) break;
         if (iso === hojeIso && agora.getHours() < HORA_COBRANCA_MOVIMENTO) break; // hoje só a partir das 7h
+        if (ehDomingo(iso)) { d.setDate(d.getDate() + 1); continue; } // domingo não tem lançamento
         const l = porDia[iso];
         const vazio = (v) => v === null || v === undefined;
         const falta = [];
@@ -154,7 +159,24 @@ const movimentoDaUnidade = (linhas, temAtivos, agora) => {
     return dias;
 };
 
-const metasDaUnidade = (linha, semPersonal, agora) => {
+// Dia atual da cobrança (aba Pendências / WhatsApp): hoje a partir das 7h; antes das 7h, o último dia de lançamento
+// (segunda de madrugada → sábado). Domingo = nenhum (não tem cobrança). Nunca antes do início da cobrança.
+export const diaAtualDaCobranca = (agora = new Date()) => {
+    const hojeIso = paraIso(agora);
+    if (ehDomingo(hojeIso)) return null;
+    const dia = agora.getHours() < HORA_COBRANCA_MOVIMENTO ? diaDeLancamentoAnterior(hojeIso) : hojeIso;
+    return dia >= INICIO_COBRANCA_MOVIMENTO ? dia : null;
+};
+// Só o dia atual: [] se lançou completo (ou já lançou um dia depois dele); senão [o dia] (mesma forma de `movimentoDaUnidade`)
+const movimentoDoDia = (dias, agora, ultimoLancamento) => {
+    const dia = diaAtualDaCobranca(agora);
+    if (!dia || (ultimoLancamento && ultimoLancamento > dia)) return [];
+    return dias.filter(d => d.data === dia);
+};
+// Último dia com algum lançamento (para "último lançamento: há X dias")
+const ultimoLancamentoDe = (linhas, hojeIso) => linhas.map(l => String(l.data).slice(0, 10)).filter(d => d <= hojeIso).sort().pop() || null;
+
+export const metasDaUnidade = (linha, semPersonal, agora) => {
     const vazio = (v) => v === null || v === undefined || v === '';
     const faltando = (campos) => {
         const usados = campos.filter(([col]) => !(semPersonal && (col === 'meta_personal' || col === 'meta_pers_mensal')));
@@ -191,6 +213,8 @@ export const montarPendencias = (dados, unidades = [], agora = new Date(), colab
         const k = chave(nome);
         const conferencia = dados.vendas ? conferenciaDaUnidade(vendasPorUnidade[k] || [], agora) : null;
         const movimento = dados.movimento ? movimentoDaUnidade(movPorUnidade[k] || [], dados.movimento.temAtivos, agora) : [];
+        const ultimoLancamento = ultimoLancamentoDe(movPorUnidade[k] || [], paraIso(agora));
+        const movimentoDia = movimentoDoDia(movimento, agora, ultimoLancamento);
         const metas = dados.metas ? metasDaUnidade(metasPorUnidade[k], semPersonal.has(k), agora) : null;
         // Relatório de fechamento da recepção (hoje e ontem), com o nome de quem devia enviar (turno no cadastro da Equipe)
         const relatorio = dados.envios ? pendenciasRelatorio(dados.envios, nome, agora, dados.conferenciasRelatorio || []).map(r => ({ ...r, nomes: nomesDoTurno(colaboradores, nome, r.turno) })) : [];
@@ -201,7 +225,10 @@ export const montarPendencias = (dados, unidades = [], agora = new Date(), colab
         const total = (conferencia?.atrasado ? 1 : 0) + movimento.length + (metas?.start ? 1 : 0) + (metas?.mensal ? 1 : 0) + relatorio.length;
         const lembretes = (conferencia && !conferencia.atrasado ? 1 : 0);
         const atrasado = !!(conferencia?.atrasado || movimento.some(d => !d.hoje) || (metas && metas.atrasado) || relatorio.some(r => r.situacao !== 'cobrando'));
-        return { unidade: nome, conferencia, movimento, metas, relatorio, relatorioDias, total, lembretes, atrasado };
+        // Visão do Admin/Mentor (aba Pendências, número do menu, WhatsApp): movimentação só do dia atual
+        const totalDia = total - movimento.length + movimentoDia.length;
+        const atrasadoDia = !!(conferencia?.atrasado || movimentoDia.some(d => !d.hoje) || (metas && metas.atrasado) || relatorio.some(r => r.situacao !== 'cobrando'));
+        return { unidade: nome, conferencia, movimento, movimentoDia, ultimoLancamento, metas, relatorio, relatorioDias, total, totalDia, lembretes, atrasado, atrasadoDia };
     }).sort((a, b) => b.total - a.total || Number(b.atrasado) - Number(a.atrasado) || a.unidade.localeCompare(b.unidade));
 };
 
@@ -225,10 +252,30 @@ export const usePendencias = ({ ativo, unidades = [], colaboradores = [] }) => {
         recarregar();
         // Gravou movimentação, meta ou conferiu venda: recarrega (juntando avisos seguidos, espera 3 s)
         const agendar = () => { clearTimeout(timer.current); timer.current = setTimeout(recarregar, 3000); };
+        // ECONOMIA DE BANCO (09/11/2026): venda conferida, editada, lançada ou excluída NÃO relê a central inteira
+        // (antes, cada venda conferida em qualquer unidade fazia toda tela de Líder/Mentor/Admin reler tudo).
+        // O aviso do tempo real já traz a venda: ela entra, muda ou sai da lista de "sem conferir" aqui mesmo.
+        // Aviso sem a venda = releitura completa, como antes. A releitura de 10 em 10 minutos continua de segurança.
+        const aplicarVenda = (aviso) => {
+            const excluida = aviso?.eventType === 'DELETE';
+            const linha = excluida ? aviso?.old : aviso?.new;
+            if (aviso?.errors || !linha?.id) { agendar(); return; }
+            const agora = new Date();
+            const hojeIso = paraIso(agora);
+            const inicio = inicioCobrancaConferencia(agora);
+            const dia = String(linha.data || '').slice(0, 10);
+            const pendente = !excluida && linha.conferiu !== true && dia >= inicio && dia <= hojeIso;
+            setDados(d => {
+                if (!d?.vendas) return d; // a lista não carregou: a releitura de segurança resolve
+                const sem = d.vendas.filter(v => v.id !== linha.id);
+                if (!pendente && sem.length === d.vendas.length) return d; // não era pendente e continua não sendo
+                return { ...d, vendas: pendente ? [...sem, { id: linha.id, unidade: linha.unidade, data: linha.data, valor: linha.valor }] : sem };
+            });
+        };
         const canal = supabase.channel(`pendencias-${Math.random().toString(36).slice(2, 8)}`)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'movimento_diario' }, agendar)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'metas_unidades' }, agendar)
-            .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'vendas' }, agendar)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, aplicarVenda)
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'relatorios_fechamento_envios' }, agendar)
             .on('postgres_changes', { event: '*', schema: 'public', table: 'relatorios_fechamento_conferencia' }, agendar)
             .subscribe();
@@ -243,13 +290,21 @@ export const usePendencias = ({ ativo, unidades = [], colaboradores = [] }) => {
     const chaveUnidades = unidades.join('|');
     const lista = useMemo(() => montarPendencias(dados, chaveUnidades ? chaveUnidades.split('|') : [], agora, colaboradores), [dados, chaveUnidades, agora, colaboradores]);
     const total = lista.reduce((t, u) => t + u.total, 0);
-    return { lista, total, carregando, carregado: !!dados, recarregar };
+    const totalDia = lista.reduce((t, u) => t + u.totalDia, 0); // número vermelho do menu Pendências (movimentação só do dia)
+    return { lista, total, totalDia, carregando, carregado: !!dados, recarregar };
 };
 
 // ---------- TEXTOS (tela e WhatsApp) ----------
 const juntar = (lista) => (lista.length > 1 ? `${lista.slice(0, -1).join(', ')} e ${lista[lista.length - 1]}` : lista[0] || '');
 const dinheiro = (v) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 
+// "ontem (08/11)" / "há 3 dias (06/11)" / "nenhum lançamento"
+export const textoUltimoLancamento = (ultimo, agora = new Date()) => {
+    if (!ultimo) return 'nenhum lançamento';
+    const dias = Math.round((new Date(`${paraIso(agora)}T12:00:00`) - new Date(`${ultimo}T12:00:00`)) / 86400000);
+    if (dias <= 0) return `hoje (${ddmm(ultimo)})`;
+    return dias === 1 ? `ontem (${ddmm(ultimo)})` : `há ${dias} dias (${ddmm(ultimo)})`;
+};
 export const textoMovimentoDia = (d) => (d.semLancamento ? `${ddmm(d.data)} não lançou` : `${ddmm(d.data)} falta ${juntar(d.falta)}`);
 
 // Movimentação: dias seguidos com a MESMA falta viram um bloco só ("05/11 a 07/11 · falta Cancelamentos"),
@@ -279,13 +334,13 @@ export const textoRelatorioTurno = (r) => `${r.hoje ? 'hoje' : ddmm(r.data)} ${r
 // Tipos de pendência (o filtro da aba Pendências escolhe qual vai na mensagem)
 export const TIPOS_PENDENCIA = {
     conferencia: (u) => !!u.conferencia?.atrasado,
-    movimento: (u) => u.movimento.length > 0,
+    movimento: (u) => (u.movimentoDia || []).length > 0, // só o dia atual
     metas: (u) => !!u.metas,
     relatorio: (u) => (u.relatorio || []).length > 0,
 };
 const PRAZO_POR_TIPO = {
     conferencia: `Conferência: toda sexta-feira (o mês anterior até o dia ${DIA_LIMITE_MES_ANTERIOR}, dia do pagamento).`,
-    movimento: 'Movimentação: todo dia a partir das 7h.',
+    movimento: 'Movimentação: de segunda a sábado (feriado também), a partir das 7h. Domingo não tem.',
     metas: 'Metas: até o dia 03 de cada mês.',
     relatorio: 'Relatório de fechamento: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.',
 };
@@ -299,7 +354,12 @@ const linhasDaUnidade = (u, tipo = null) => {
         const c = u.conferencia;
         l.push(`🧾 Conferência: ${c.qtd} venda${c.qtd === 1 ? '' : 's'} sem conferir (${dinheiro(c.valor)} em comissão) · desde a semana ${ddmm(c.atrasadas[0].inicio)} a ${ddmm(c.atrasadas[0].fim)}`);
     }
-    if (quer('movimento') && u.movimento.length) l.push(`📊 Movimentação: ${agruparDiasMovimento(u.movimento).map(textoBlocoMovimento).join(' · ')}`);
+    // Só o dia atual (decisão do dono, 09/11/2026): dias que ficaram para trás não entram na mensagem
+    if (quer('movimento') && u.movimentoDia?.length) {
+        const d = u.movimentoDia[0];
+        const ultimo = d.semLancamento ? ` · último lançamento: ${textoUltimoLancamento(u.ultimoLancamento)}` : '';
+        l.push(`📊 Movimentação: ${textoBlocoMovimento({ ...d, inicio: d.data, fim: d.data, qtd: 1 })}${ultimo}`);
+    }
     if (quer('metas') && u.metas) {
         const partes = [];
         if (u.metas.start) partes.push(`Meta Start ${textoMetaCard(u.metas.start)}`);
@@ -312,7 +372,7 @@ const linhasDaUnidade = (u, tipo = null) => {
 
 // tipo = null: todas as pendências; ou só um tipo (o que está escolhido no filtro da aba Pendências)
 export const mensagemPendenciasGrupo = (lista, agora = new Date(), tipo = null) => {
-    const tem = tipo ? TIPOS_PENDENCIA[tipo] : (u) => u.total > 0;
+    const tem = tipo ? TIPOS_PENDENCIA[tipo] : (u) => u.totalDia > 0;
     const comPendencia = lista.filter(tem);
     const emDia = lista.filter(u => !tem(u));
     const hora = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });

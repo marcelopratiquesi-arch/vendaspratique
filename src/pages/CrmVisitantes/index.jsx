@@ -19,11 +19,12 @@ import { buscarComprasDePlano, decidirPelasCompras, aplicarDecisoes } from './co
 import { JanelaNaoContatar, JanelaMotivoPerda, JanelaProximoContato } from './JanelasContato';
 import JanelaResultadoContato from './JanelaResultadoContato';
 import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas } from './contatosFeitos';
-import { diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO } from './utils';
+import { FASE_ESPERA, estaEmEspera, ocupaVaga, DIAS_SEM_CAMINHO, diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
 import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy } from 'lucide-react';
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR } from '../../components/aoVivoContatos.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
@@ -45,68 +46,134 @@ const DIAS_RECICLAGEM = 7;
 const faltaCampoBloco4 = (error) => CAMPOS_BLOCO4.some(c => String(error?.message || '').includes(c));
 
 
-const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], setVisitantes: setVisitantesRecentes, colaboradores = [] }) => {
-    const [leadsAntigos, setLeadsAntigos] = useState([]);
+const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, colaboradores = [] }) => {
     const unidadeTopo = usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? usuarioLogado.unidade : '';
 
     // "Versão" dos dados: sobe quando chegam mudanças em tempo real (no máximo 1 vez por minuto)
-    // ou quando alguém clica em "Atualizar". As buscas pesadas (antigos, planilha, Painel da Rede) seguem ela.
+    // ou quando alguém clica em "Atualizar". As buscas dos números (planilha, Painel, Hoje) seguem ela.
     const [versaoDados, setVersaoDados] = useState(0);
     const ultimaAtualizacao = useRef(0);
-    const primeiraCarga = useRef(true);
-    useEffect(() => {
-        if (primeiraCarga.current) { primeiraCarga.current = false; ultimaAtualizacao.current = Date.now(); return; }
-        // Espera pelo menos 1,5s (para o banco terminar de gravar) e respeita o intervalo de 1 minuto
+    const timerVersao = useRef(null);
+    const marcarMudancaDeFora = useCallback(() => {
+        if (timerVersao.current) return; // já tem atualização marcada
         const espera = Math.max(1500, ultimaAtualizacao.current + INTERVALO_ATUALIZACAO - Date.now());
-        const timer = setTimeout(() => { ultimaAtualizacao.current = Date.now(); setVersaoDados(v => v + 1); }, espera);
-        return () => clearTimeout(timer);
-    }, [visitantesRecentes]);
-    const atualizarAgora = useCallback(() => { ultimaAtualizacao.current = Date.now(); setVersaoDados(v => v + 1); }, []);
+        timerVersao.current = setTimeout(() => { timerVersao.current = null; ultimaAtualizacao.current = Date.now(); setVersaoDados(v => v + 1); }, espera);
+    }, []);
+    useEffect(() => {
+        ultimaAtualizacao.current = Date.now(); // abriu agora: a primeira atualização por mudanças de fora espera 1 minuto
+        return () => clearTimeout(timerVersao.current);
+    }, []);
+
+    // ==========================================
+    // LISTA DE CONTATOS DO CRM (economia de dados e correção, 09/11/2026)
+    // Antes: o App trazia os 3.000 contatos mais novos dos últimos 90 dias e o CRM buscava à parte os antigos em
+    // aberto, DE NOVO A CADA MINUTO com movimento (na Prado, 4.165 contatos por minuto). Quem passava dos 3.000 não
+    // aparecia para ninguém: em 09/11/2026 eram 16.623 contatos em aberto escondidos (Prado 7.809, Castelinho 6.476,
+    // Gutierrez 2.338).
+    // Agora: o CRM baixa UMA VEZ, ao abrir, todos os contatos da unidade (dos últimos 90 dias + os mais antigos ainda
+    // em aberto), de 1.000 em 1.000, sem corte. Depois só encaixa o contato que mudou (avisos do tempo real que o App
+    // repassa, aoVivoContatos.js). Recarrega tudo só no "Atualizar" ou quando o App pede (queda de internet etc.).
+    // A lista só é entregue às telas quando está COMPLETA: as rotinas automáticas (reciclagem, carteira que se renova)
+    // rodam quando os contatos chegam e nunca podem trabalhar com metade da lista.
+    // ==========================================
+    const [leadsCrm, setLeadsCrm] = useState([]);
+    const [contatosCarregados, setContatosCarregados] = useState(false);
+    const [versaoRecarga, setVersaoRecarga] = useState(0);
+    const carregadoRef = useRef(false);
+    // Barra de progresso da primeira carga (09/11/2026): quantos já chegaram de quantos (o total vem na 1ª página)
+    const [progressoCarga, setProgressoCarga] = useState({ feitos: 0, total: null });
+    const atualizarAgora = useCallback(() => {
+        ultimaAtualizacao.current = Date.now();
+        setVersaoDados(v => v + 1);
+        setVersaoRecarga(v => v + 1);
+    }, []);
 
     // Mensagens prontas do WhatsApp (versões do embaralhador): carrega ao abrir o CRM para o Kanban/Lista/Hoje usarem
     useEffect(() => { carregarMensagensProntas(); }, [versaoDados]);
 
     useEffect(() => {
         let cancelado = false;
-        const buscarAntigos = async () => {
+        (async () => {
             const corte = new Date();
             corte.setDate(corte.getDate() - DIAS_CORTE_APP);
+            const encerrados = `(${STATUS_ENCERRADOS.map(s => `"${s}"`).join(',')})`;
             const encontrados = [];
-            // Busca em páginas de 1000 (limite do Supabase), até 10 mil contatos antigos em aberto
-            for (let pagina = 0; pagina < 10; pagina++) {
-                let query = supabase.from('leads').select('*')
-                    .lt('created_at', corte.toISOString())
-                    .not('status', 'in', `(${STATUS_ENCERRADOS.map(s => `"${s}"`).join(',')})`)
+            for (let pagina = 0; pagina < 200; pagina++) { // até 200 mil contatos (só uma trava de segurança)
+                // Só a 1ª página pede o total (para a barra de progresso); as outras vêm sem contar de novo
+                let query = supabase.from('leads').select('*', pagina === 0 ? { count: 'exact' } : undefined)
+                    .or(`created_at.gte."${corte.toISOString()}",status.not.in.${encerrados}`)
                     .order('id', { ascending: false })
                     .range(pagina * 1000, pagina * 1000 + 999);
                 if (unidadeTopo) query = query.eq('unidade', unidadeTopo);
-                const { data, error } = await query;
+                const { data, error, count } = await query;
                 if (cancelado) return;
-                if (error) { console.error('Erro ao buscar contatos antigos em aberto do CRM:', error); break; }
+                if (!error && !carregadoRef.current) {
+                    setProgressoCarga(p => ({ feitos: encontrados.length + (data?.length || 0), total: pagina === 0 && Number.isFinite(count) ? count : p.total }));
+                }
+                if (error) {
+                    console.error('Erro ao carregar os contatos do CRM:', error);
+                    avisar(tx('Não foi possível carregar os contatos do CRM. Clique em "Atualizar" para tentar de novo.'), 'erro');
+                    // Não troca a lista que já estava na tela por uma pela metade
+                    if (!carregadoRef.current) { carregadoRef.current = true; setContatosCarregados(true); }
+                    return;
+                }
                 encontrados.push(...(data || []));
                 if (!data || data.length < 1000) break;
             }
-            if (!cancelado) setLeadsAntigos(encontrados);
-        };
-        buscarAntigos();
+            if (cancelado) return;
+            setLeadsCrm(encontrados);
+            carregadoRef.current = true;
+            setContatosCarregados(true);
+        })();
         return () => { cancelado = true; };
-    }, [unidadeTopo, versaoDados]);
+    }, [unidadeTopo, versaoRecarga]);
 
-    // Lista única: recentes (do App) + antigos em aberto, sem repetir.
-    // Quem ainda estiver na fase antiga "Day Use (3 Dias)" aparece como "Em Contato".
-    const visitantes = useMemo(() => {
-        const ids = new Set(visitantesRecentes.map(v => v.id));
-        return [...visitantesRecentes, ...leadsAntigos.filter(v => !ids.has(v.id))]
-            .map(v => (normalizarStatus(v.status) !== v.status ? { ...v, status: normalizarStatus(v.status) } : v));
-    }, [visitantesRecentes, leadsAntigos]);
+    // Avisos do tempo real (repassados pelo App): encaixa só o contato que mudou, com a mesma regra da carga
+    useEffect(() => {
+        const fica = (l) => {
+            if (!l) return false;
+            if (unidadeTopo && l.unidade !== unidadeTopo) return false;
+            const criado = Date.parse(l.created_at || '');
+            const recente = !Number.isFinite(criado) || criado >= Date.now() - DIAS_CORTE_APP * 86400000;
+            return recente || !STATUS_ENCERRADOS.includes(l.status);
+        };
+        const aoAviso = (e) => {
+            if (!carregadoRef.current) return; // a carga completa ainda vai trazer
+            const eventos = Array.isArray(e?.detail) ? e.detail : [];
+            if (!eventos.length) return;
+            setLeadsCrm(lista => {
+                const porId = new Map(lista.map(l => [l.id, l]));
+                eventos.forEach(ev => {
+                    if (ev?.eventType === 'DELETE') { if (ev.old?.id != null) porId.delete(ev.old.id); return; }
+                    const linha = ev?.new;
+                    if (!linha || linha.id == null) return;
+                    if (fica(linha)) porId.set(linha.id, { ...(porId.get(linha.id) || {}), ...linha });
+                    else porId.delete(linha.id);
+                });
+                return [...porId.values()].sort((a, b) => (b.id > a.id ? 1 : b.id < a.id ? -1 : 0));
+            });
+            marcarMudancaDeFora();
+        };
+        const aoRecarregar = () => setVersaoRecarga(v => v + 1);
+        window.addEventListener(EVENTO_CONTATOS, aoAviso);
+        window.addEventListener(EVENTO_CONTATOS_RECARREGAR, aoRecarregar);
+        return () => {
+            window.removeEventListener(EVENTO_CONTATOS, aoAviso);
+            window.removeEventListener(EVENTO_CONTATOS_RECARREGAR, aoRecarregar);
+        };
+    }, [unidadeTopo, marcarMudancaDeFora]);
 
-    // Atualiza nas duas listas (o lead pode estar em qualquer uma). Sempre recebe uma função (prev => ...).
+    // Lista única do CRM. Quem ainda estiver na fase antiga "Day Use (3 Dias)" aparece como "Em Contato".
+    const visitantes = useMemo(() => leadsCrm
+        .map(v => (normalizarStatus(v.status) !== v.status ? { ...v, status: normalizarStatus(v.status) } : v)), [leadsCrm]);
+
+    // Atualiza a lista do CRM (e a do App, que guarda os visitantes para o Dashboard). Sempre recebe uma função (prev => ...).
     const setVisitantes = useCallback((atualizar) => {
-        setVisitantesRecentes(atualizar);
-        setLeadsAntigos(atualizar);
+        setLeadsCrm(atualizar);
+        setVisitantesRecentes?.(atualizar);
     }, [setVisitantesRecentes]);
-    // Contato novo entra só na lista de recentes
-    const adicionarLeads = (novos) => setVisitantesRecentes(prev => [...novos, ...prev]);
+    // Contato novo entra na lista do CRM (o tempo real leva ao App os que forem visitantes); sem repetir o que já chegou
+    const adicionarLeads = (novos) => setLeadsCrm(prev => { const ids = new Set(novos.map(n => n.id)); return [...novos, ...prev.filter(v => !ids.has(v.id))]; });
 
     const podeApagar = podeApagarLeads(usuarioLogado);
 
@@ -682,7 +749,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
 
     // LIMITE DE CARTEIRA (07/11/2026): 300 contatos em atendimento (Novo + Em Contato) por recepcionista
-    const carteiraDe = (nome) => visitantes.filter(v => mesmoNome(v.puxado_por, nome) && FASES_EM_ATENDIMENTO.includes(normalizarStatus(v.status)) && daUnidadeOperacao(v));
+    // Carteira = contatos que ocupam vaga: Novo/Em Contato que NÃO estão em espera (data de volta depois de hoje; 09/11/2026)
+    const carteiraDe = (nome) => visitantes.filter(v => mesmoNome(v.puxado_por, nome) && ocupaVaga(v) && daUnidadeOperacao(v));
+    const emEsperaDe = (nome) => visitantes.filter(v => mesmoNome(v.puxado_por, nome) && estaEmEspera(v) && daUnidadeOperacao(v)).length;
     const vagaDe = (nome) => Math.max(0, LIMITE_CARTEIRA - carteiraDe(nome).length);
     // Quem passou do limite e quais contatos voltam (só "Novo" de lista, os enviados há mais tempo primeiro)
     const excedentesCarteira = (ignorar = new Set()) => recepcionistas.filter(c => c.ativo !== false).map(c => {
@@ -791,14 +860,15 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         // eslint-disable-next-line react-hooks/exhaustive-deps -- roda quando os contatos chegam (uma vez por dia por unidade)
     }, [unidadeOperacao, visitantes.length]);
 
-    // CARTEIRA QUE SE RENOVA SOZINHA (decisão do dono, 07/11/2026). Uma vez por dia por unidade, quando alguém abre o CRM.
-    // "Respondeu/está sendo trabalhado" = tem próximo contato marcado para ontem, hoje ou depois (fica como está).
-    // VISITANTE do Cadastro de Visitante: dia 0 boas-vindas · dia 1 24h · dia 2 48h · sem agenda depois do 48h →
-    //   próximo contato marcado sozinho para o DIA 9 · passou o dia 9 sem nada marcado → Geladeira ("Não respondeu", 30 dias).
-    // LISTA (cancelados/inativos) em "Em Contato": 3 tentativas (WhatsApp/ligação) sem agenda e a última há 2+ dias →
-    //   Geladeira ("Não respondeu"); sem ação há 7 dias e sem agenda → volta para o Banco Bruto (fase Novo, sem dona).
-    // Feito em nome de "Sistema": não conta na meta nem no "Perdido" de ninguém. No máximo 500 de cada tipo por dia.
-    const DIAS_SEM_ACAO_EM_CONTATO = 7;
+    // CARTEIRA QUE SE RENOVA SOZINHA (decisão do dono, 07/11/2026; revisada em 09/11/2026 com a coluna "Em Espera").
+    // Todo contato tem um caminho: data de volta (Em Espera, ou hoje = na vez), Fechado, Geladeira ou Banco Bruto.
+    //   - Data de volta HOJE ou depois: fica como está (é o caminho dele).
+    //   - SEM CAMINHO (sem data, ou com a data já vencida) e sem WhatsApp/ligação há DIAS_SEM_CAMINHO (3) dias →
+    //     volta para o Banco Bruto (fase Novo, sem dona). Vale para lista E para visitante (decisão do dono, 09/11/2026:
+    //     antes o visitante ganhava o "dia 9" e ia para a Geladeira). O visitante só fica protegido até o 48h.
+    //   - Lista em "Em Contato" com 3 tentativas (WhatsApp/ligação), a última há 2+ dias → Geladeira ("Não respondeu").
+    // Conta a partir do mais recente entre: último WhatsApp/ligação, data de volta vencida, entrada na carteira e visita.
+    // Feito em nome de "Sistema": não conta na meta nem no "Perdido" de ninguém. Grava em lotes de 500.
     const ultimaCarteiraAuto = useRef({});
     const MAX_TENTATIVAS_FUNIL = 3;
     useEffect(() => {
@@ -808,34 +878,30 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         ultimaCarteiraAuto.current[unidadeOperacao] = agoraMs;
         (async () => {
             const hoje = diaISO(0);
-            const ontem = diaISO(-1);
+            const limiteSemCaminho = diaISO(-DIAS_SEM_CAMINHO);
             const proxDe = (v) => String(v.proximo_contato || '').slice(0, 10);
-            const abertos = visitantes.filter(v => daUnidadeOperacao(v) && v.puxado_por && FASES_EM_ATENDIMENTO.includes(normalizarStatus(v.status)) && !(proxDe(v) && proxDe(v) >= ontem));
-            const paraGeladeira = [];
-            const agendarDia9 = new Map(); // data -> ids
-            abertos.filter(ehVisitanteRecepcao).forEach(v => {
-                const visita = dataDaVisita(v);
-                if (!visita) return;
-                const dia9 = somarDiasISO(visita, 9);
-                if (hoje > dia9) paraGeladeira.push({ v, motivo: 'visitante sem resposta até o 9º dia' });
-                else if (hoje >= somarDiasISO(visita, 3) && !proxDe(v)) { if (!agendarDia9.has(dia9)) agendarDia9.set(dia9, []); agendarDia9.get(dia9).push(v.id); }
+            const abertos = visitantes.filter(v => {
+                if (!daUnidadeOperacao(v) || !v.puxado_por || !FASES_EM_ATENDIMENTO.includes(normalizarStatus(v.status))) return false;
+                if (proxDe(v) && proxDe(v) >= hoje) return false; // tem caminho (Em Espera ou na vez hoje)
+                if (ehVisitanteRecepcao(v)) { const visita = dataDaVisita(v); if (visita && visita >= diaISO(-2)) return false; } // ainda no 24h/48h
+                return true;
             });
-            // Lista em "Em Contato": tentativas e última ação pelo histórico
-            // Contatos de lista (não visitantes) em Novo ou Em Contato, sem agenda: parados há 7+ dias voltam para o Banco Bruto
-            const lista = abertos.filter(v => !ehVisitanteRecepcao(v));
+            const paraGeladeira = [];
             const paraBanco = [];
+            // Tentativas e último WhatsApp/ligação pelo histórico
             const info = new Map();
-            for (let i = 0; i < lista.length; i += 100) {
-                const ids = lista.slice(i, i + 100).map(v => String(v.id));
+            for (let i = 0; i < abertos.length; i += 100) {
+                const ids = abertos.slice(i, i + 100).map(v => String(v.id));
                 const { data, error } = await supabase.from('historico_leads').select('lead_id, data_registro').in('lead_id', ids).in('tipo_acao', ['WhatsApp', 'Ligação']).limit(5000);
                 if (error) { console.error('Carteira automática: erro ao ler o histórico', error); return; }
                 (data || []).forEach(h => { const k = String(h.lead_id); const a = info.get(k) || { qtd: 0, ultima: '' }; a.qtd++; const d = dataLocalISO(h.data_registro); if (d > a.ultima) a.ultima = d; info.set(k, a); });
             }
-            lista.forEach(v => {
+            abertos.forEach(v => {
                 const a = info.get(String(v.id)) || { qtd: 0, ultima: '' };
-                const ultima = a.ultima || dataLocalISO(v.puxado_em) || '';
-                if (normalizarStatus(v.status) === 'Em Contato' && a.qtd >= MAX_TENTATIVAS_FUNIL && ultima && ultima <= diaISO(-2)) paraGeladeira.push({ v, motivo: `${a.qtd} tentativas sem resposta` });
-                else if (ultima && ultima <= diaISO(-DIAS_SEM_ACAO_EM_CONTATO)) paraBanco.push(v);
+                const visitante = ehVisitanteRecepcao(v);
+                const referencia = [a.ultima, proxDe(v), dataLocalISO(v.puxado_em), visitante ? dataDaVisita(v) : ''].filter(Boolean).sort().pop() || '';
+                if (!visitante && normalizarStatus(v.status) === 'Em Contato' && a.qtd >= MAX_TENTATIVAS_FUNIL && a.ultima && a.ultima <= diaISO(-2)) paraGeladeira.push({ v, motivo: `${a.qtd} tentativas sem resposta` });
+                else if (referencia && referencia <= limiteSemCaminho) paraBanco.push(v);
             });
 
             // Grava (em nome de "Sistema")
@@ -845,13 +911,6 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     if (error) console.error('Carteira automática: erro no histórico', error);
                 }
             };
-            for (const [dia, ids] of agendarDia9) {
-                const lote = ids.slice(0, 500);
-                const { error } = await atualizarLeads(lote, { proximo_contato: dia });
-                if (error) { console.error('Carteira automática: erro ao agendar o dia 9', error); continue; }
-                setVisitantes(prev => prev.map(v => lote.includes(v.id) ? { ...v, proximo_contato: dia } : v));
-                await historicoSistema(lote.map(id => ({ lead_id: String(id), tipo_acao: 'Agendamento', consultor: 'Sistema', observacao: `Próximo contato marcado sozinho para ${dia.split('-').reverse().join('/')} (visitante: 7 dias depois do 48h).` })));
-            }
             let qtdGeladeira = 0;
             let qtdBanco = 0;
             for (let g = 0; g < paraGeladeira.length; g += 500) {
@@ -865,15 +924,21 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     qtdGeladeira += ids.length;
                 } else { console.error('Carteira automática: erro ao mandar para a Geladeira', error); break; }
             }
-            for (let b = 0; b < paraBanco.length; b += 500) {
-                const banco = paraBanco.slice(b, b + 500).map(v => v.id);
-                const campos = { status: 'Novo', puxado_em: null, puxado_por: null, vendedor: 'Importação', proximo_contato: null };
-                const { error } = await atualizarLeads(banco, campos);
-                if (!error) {
-                    setVisitantes(prev => prev.map(v => banco.includes(v.id) ? { ...v, ...campos } : v));
-                    await historicoSistema(banco.map(id => ({ lead_id: String(id), tipo_acao: 'Reciclagem', consultor: 'Sistema', observacao: `Voltou para o Banco Bruto: parado há ${DIAS_SEM_ACAO_EM_CONTATO}+ dias, sem ação e sem próximo contato.` })));
-                    qtdBanco += banco.length;
-                } else { console.error('Carteira automática: erro ao devolver para o Banco Bruto', error); break; }
+            // Visitante volta mantendo o "vendedor" (quem atendeu a visita, usado nas colunas 24h/48h); lista volta como "Importação"
+            const gruposBanco = [
+                { itens: paraBanco.filter(v => !ehVisitanteRecepcao(v)), campos: { status: 'Novo', puxado_em: null, puxado_por: null, vendedor: 'Importação', proximo_contato: null } },
+                { itens: paraBanco.filter(ehVisitanteRecepcao), campos: { status: 'Novo', puxado_em: null, puxado_por: null, proximo_contato: null } }
+            ];
+            for (const grupo of gruposBanco) {
+                for (let b = 0; b < grupo.itens.length; b += 500) {
+                    const banco = grupo.itens.slice(b, b + 500).map(v => v.id);
+                    const { error } = await atualizarLeads(banco, grupo.campos);
+                    if (!error) {
+                        setVisitantes(prev => prev.map(v => banco.includes(v.id) ? { ...v, ...grupo.campos } : v));
+                        await historicoSistema(banco.map(id => ({ lead_id: String(id), tipo_acao: 'Reciclagem', consultor: 'Sistema', observacao: `Voltou para o Banco Bruto: sem caminho há ${DIAS_SEM_CAMINHO}+ dias (sem data de volta e sem WhatsApp/ligação).` })));
+                        qtdBanco += banco.length;
+                    } else { console.error('Carteira automática: erro ao devolver para o Banco Bruto', error); break; }
+                }
             }
             // Depois de arrumar os parados: o que ainda passar de 300 volta para o Banco Bruto (limite de carteira)
             const movidos = new Set([...paraBanco.map(v => v.id), ...paraGeladeira.map(x => x.v.id)]);
@@ -1001,22 +1066,49 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         }
     };
 
+    // Fase escolhida na TELA (Kanban, Lista, Conversa, ficha do contato). "Em Espera" não é fase do banco (09/11/2026):
+    // escolher "Em Espera" abre a janela da data de volta; tirar da espera (voltar para Novo/Em Contato) apaga a data.
+    const moverFase = async (id, fase, ...resto) => {
+        // Mudança automática (com motivo/origem, ex.: "copiou a mensagem"): segue direto, sem mexer na espera
+        if (resto.length) return alterarStatus(id, fase, ...resto);
+        const lead = visitantes.find(v => v.id === id);
+        if (!lead) return;
+        if (fase === FASE_ESPERA) {
+            if (!estaEmEspera(lead)) setProximoPendente({ lead, posContato: false });
+            return;
+        }
+        if (estaEmEspera(lead) && FASES_EM_ATENDIMENTO.includes(fase)) {
+            const ok = await salvarProximoContato(lead, null);
+            if (ok && normalizarStatus(lead.status) !== fase) await alterarStatus(id, fase);
+            return;
+        }
+        return alterarStatus(id, fase);
+    };
+
     // Migração: aluno marcado como "Interessado" vai para o funil da recepcionista em "Em Contato" (decisão do dono, 06/11/2026).
     // Se o CPF já tem um contato no CRM da unidade, reaproveita (passa para a carteira dela e para "Em Contato");
     // senão cria o contato (tipo MIGRACAO). Grava "Fila de Trabalho" no histórico: não soma de novo na meta
     // (o contato de migração já contou para o aluno).
-    const levarAlunoParaFunil = async (aluno) => {
+    // Resgate (09/11/2026, decisão do dono): o Interessado do Resgate também vem para o funil (origem 'RESGATE':
+    // tipo do contato = CANCELADO/INATIVO pela situação do cadastro).
+    const levarAlunoParaFunil = async (aluno, origemAba = 'MIGRACAO') => {
         const operador = consultorAtivo?.nome;
         if (!operador || !unidadeOperacao || !aluno) return;
         const cpf = apenasDigitos(aluno.cpf);
         const agora = new Date().toISOString();
-        const obs = `Interessado na migração para plano com nutricionista (último plano: ${aluno.ultimo_plano || '—'}). Veio da aba Migração.`;
+        const doResgate = origemAba === 'RESGATE';
+        const obs = doResgate
+            ? `Interessado em voltar a treinar (situação no cadastro: ${aluno.status_aluno || '—'}). Veio da aba Resgate.`
+            : `Interessado na migração para plano com nutricionista (último plano: ${aluno.ultimo_plano || '—'}). Veio da aba Migração.`;
         const existente = cpf ? visitantes.find(v => apenasDigitos(v.cpf) === cpf && v.status !== 'Arquivado') : null;
+        // Interessado = Em Espera, volta amanhã (09/11/2026): assim já entra com caminho e não volta para o Banco Bruto
+        const amanha = somarDiasISO(diaISO(0), 1);
         if (existente) {
             const campos = {
                 ...(existente.status === 'Em Contato' ? {} : camposDaFase('Em Contato')),
                 puxado_por: operador,
                 puxado_em: existente.puxado_em && mesmoNome(existente.puxado_por, operador) ? existente.puxado_em : agora,
+                proximo_contato: amanha,
             };
             const anteriores = Object.fromEntries(Object.keys(campos).map(k => [k, existente[k] ?? null]));
             setVisitantes(prev => prev.map(v => v.id === existente.id ? { ...v, ...campos } : v));
@@ -1027,7 +1119,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 return;
             }
             await registrarHistoricoLote([existente.id], 'Fila de Trabalho', existente.status === 'Em Contato' ? obs : `${obs} Movido de "${existente.status}" para "Em Contato" (automático).`);
-            avisar(tx("{nome} foi para o seu funil em \"Em Contato\".", { nome: aluno.nome }), 'sucesso');
+            avisar(tx("{nome} foi para o seu funil (Em Espera, volta amanhã).", { nome: aluno.nome }), 'sucesso');
             return;
         }
         const novo = {
@@ -1035,7 +1127,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             nome: aluno.nome,
             telefone: apenasDigitos(aluno.telefone) || aluno.telefone || null,
             cpf: cpf || null,
-            tipo_lead: 'MIGRACAO',
+            tipo_lead: doResgate ? (aluno.tipo === 'INATIVO' ? 'INATIVO' : 'CANCELADO') : 'MIGRACAO',
             origem: 'CRM',
             vendedor: operador,
             status: 'Em Contato',
@@ -1044,6 +1136,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             puxado_em: agora,
             puxado_por: operador,
             perdido_em: null,
+            proximo_contato: amanha,
         };
         let { data, error } = await supabase.from('leads').insert([novo]).select();
         // Se o banco tiver trava nos tipos, grava sem o tipo (o histórico diz que veio da Migração)
@@ -1056,7 +1149,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         }
         adicionarLeads(data);
         await registrarHistoricoLote([data[0].id], 'Fila de Trabalho', obs);
-        avisar(tx("{nome} foi para o seu funil em \"Em Contato\".", { nome: aluno.nome }), 'sucesso');
+        avisar(tx("{nome} foi para o seu funil (Em Espera, volta amanhã).", { nome: aluno.nome }), 'sucesso');
     };
 
     // Próximo contato (Bloco 4): data AAAA-MM-DD ou null para tirar. Não conta na meta nem tira do "parado".
@@ -1151,7 +1244,9 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
     // RESULTADO DO CONTATO NO FUNIL (decisão do dono, 07/11/2026):
     //   Respondeu, vai pensar → próximo contato em 3 dias · Não respondeu → em 2 dias; na 3ª vez → Geladeira ("Não respondeu")
-    //   Interessado → próximo contato amanhã · Não quer → Geladeira ("Sem interesse / mudou de ideia") · Decidir depois → nada.
+    //   Interessado → próximo contato amanhã · Não quer → Geladeira ("Sem interesse / mudou de ideia") · Comprou → Fechado.
+    // Com data de volta depois de hoje, o contato vai para a coluna "Em Espera" (09/11/2026). No funil a janela é
+    // obrigatória (sem "Decidir depois", decisão do dono 09/11/2026): todo contato sai com um caminho.
     // O resultado fica no histórico como "Agendamento" ("Resultado: ..."), que não conta na meta.
     const TEXTO_SEM_RESPOSTA = 'Resultado: não respondeu';
     const abrirResultadoFunil = (leadId) => {
@@ -1170,6 +1265,11 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
         if (!atual) return;
         const lead = visitantes.find(v => v.id === atual.lead.id) || atual.lead;
         const hoje = diaISO(0);
+        if (tipo === 'FECHOU') {
+            await registrarHistorico(lead.id, 'Agendamento', 'Resultado: comprou / fechou.', true);
+            await alterarStatus(lead.id, 'Fechado');
+            return;
+        }
         if (tipo === 'NAO_QUER') {
             await registrarHistorico(lead.id, 'Agendamento', 'Resultado: não quer.', true);
             await alterarStatus(lead.id, 'Perdido', 'Sem interesse / mudou de ideia');
@@ -1530,6 +1630,29 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 </div>
     );
 
+    // Primeira carga dos contatos da unidade (completa, de 1.000 em 1.000): até terminar, mostra só o aviso
+    if (!contatosCarregados) {
+        const { feitos, total } = progressoCarga;
+        const pct = total ? Math.min(100, Math.round((feitos / total) * 100)) : null;
+        return (
+            <div className="h-full flex items-center justify-center p-6">
+                <div className="w-[min(420px,100%)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5">
+                    <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
+                        <Loader2 className="w-5 h-5 shrink-0 animate-spin text-blue-600 dark:text-blue-400" />
+                        <p className="text-xs font-black uppercase tracking-widest">{tx("Carregando os contatos do CRM...")}</p>
+                    </div>
+                    <div className="mt-4 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? undefined}>
+                        <div className={`h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-300 ${pct === null ? 'w-1/4 animate-pulse' : ''}`} style={pct === null ? undefined : { width: `${Math.max(pct, 3)}%` }} />
+                    </div>
+                    <div className="mt-2 flex items-center justify-between text-[11px] font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+                        <span>{total ? tx('{feitos} de {total} contatos', { feitos: feitos.toLocaleString(localeAtual()), total: total.toLocaleString(localeAtual()) }) : tx('Conferindo quantos contatos são...')}</span>
+                        {pct !== null && <span className="text-blue-600 dark:text-blue-400 font-black">{pct}%</span>}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (!consultorAtivo) {
         return (
             <PainelInicialCrm
@@ -1708,7 +1831,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             )}
             
             {visaoMostrada === 'kanban' && (
-                <div className="flex items-center justify-end gap-2 -mb-2">
+                <div className="relative z-20 flex items-center justify-end gap-2 mb-3">
+                    <span className="mr-auto text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {tx('Em trabalho {qtd}/{limite} · Em espera {espera}', { qtd: carteiraDe(consultorAtivo?.nome || '').length, limite: LIMITE_CARTEIRA, espera: emEsperaDe(consultorAtivo?.nome || '') })}
+                    </span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx('Ordem')}</span>
                     <select value={ordemContatos} onChange={(e) => { setOrdemContatos(e.target.value); salvarOrdemContatos(e.target.value); }} className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
                         {ORDENS_CONTATOS.map(o => <option key={o.val} value={o.val}>{tx(o.label)}</option>)}
@@ -1719,7 +1845,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 <Kanban 
                     ordem={ordemContatos}
                     visitantes={meusLeadsAtivos} 
-                    alterarStatus={alterarStatus} 
+                    alterarStatus={moverFase} 
                     deletarLead={deletarLead} 
                     setModalWpp={setModalWpp} 
                     setModalDetalhe={setModalDetalhe} 
@@ -1740,7 +1866,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 const puxar = (qtd) => enviarPara(leadsNaBase.slice().sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, qtd).map(l => l.id), consultorAtivo.nome);
                 return (
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 px-4 py-3">
-                        <span className="text-[12px] font-bold text-blue-800 dark:text-blue-300">📥 {tx('Sua carteira está acabando: {qtd} contato(s) para trabalhar. Há {base} no Banco Bruto.', { qtd: paraTrabalhar, base: naBase })}</span>
+                        <span className="text-[12px] font-bold text-blue-800 dark:text-blue-300">
+                            📥 {tx('Sua carteira está acabando: {qtd} contato(s) para trabalhar. Há {base} no Banco Bruto.', { qtd: paraTrabalhar, base: naBase })}
+                            {vaga <= 0 && <span className="block text-rose-600 dark:text-rose-400">{tx('Carteira cheia ({limite} em trabalho). Responda "Como foi o contato?" ou coloque em Em Espera quem já foi contatado para liberar vagas.', { limite: LIMITE_CARTEIRA })}</span>}
+                        </span>
                         <span className="flex items-center gap-2">
                             {[25, 50, 100].map(q => (
                                 <button key={q} type="button" onClick={() => puxar(q)} disabled={vaga <= 0} className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest">{tx('Puxar {qtd}', { qtd: q })}</button>
@@ -1754,7 +1883,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 <Conversa
                     visitantes={meusLeadsAtivos}
                     registrarHistorico={registrarHistorico}
-                    alterarStatus={alterarStatus}
+                    alterarStatus={moverFase}
                     deletarLead={deletarLead}
                     podeApagar={podeApagar}
                     usuarioLogado={usuarioLogado}
@@ -1772,7 +1901,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
             {visaoMostrada === 'lista' && (
                 <Lista 
                     visitantes={meusLeadsAtivos} 
-                    alterarStatus={alterarStatus} 
+                    alterarStatus={moverFase} 
                     deletarLead={deletarLead} 
                     alterarStatusEmLote={alterarStatusEmLote}
                     deletarLeadsEmLote={deletarLeadsEmLote}
@@ -1821,6 +1950,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                     leads={visitantes}
                     onNaoContatar={aoColocarNaoContatar}
                     onContatoFeito={somarNaMeta}
+                    onInteressado={(aluno) => levarAlunoParaFunil(aluno, 'RESGATE')}
                 />
             )}
 
@@ -1836,7 +1966,7 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
 
             <Modais
                 modalWpp={modalWpp} setModalWpp={setModalWpp} modalDetalhe={modalDetalhe} setModalDetalhe={setModalDetalhe}
-                historicoLead={historicoLead} loadingHistorico={loadingHistorico} registrarHistorico={registrarHistorico} alterarStatus={alterarStatus}
+                historicoLead={historicoLead} loadingHistorico={loadingHistorico} registrarHistorico={registrarHistorico} alterarStatus={moverFase}
                 mostrarRelatorio={mostrarRelatorio} setMostrarRelatorio={setMostrarRelatorio} progressoHoje={progressoHoje} consultorAtivo={consultorAtivo}
                 usuarioLogado={usuarioLogado} META_DIARIA={META_DIARIA} visitantes={meusLeads.map(comUltimaAcao)} setConsultorAtivo={setConsultorAtivo}
                 contatosDoDia={contatosDoDia}
@@ -1860,8 +1990,10 @@ const CrmVisitantes = ({ usuarioLogado, visitantes: visitantesRecentes = [], set
                 <JanelaResultadoContato
                     aluno={{ nome: resultadoFunil.lead.nome, registro: { tentativas: resultadoFunil.tentativas } }}
                     hoje={diaISO(0)}
-                    textoInteressado={tx('Fica com você e o próximo contato é amanhã.')}
+                    textoInteressado={tx('Vai para Em Espera e volta para você amanhã.')}
                     textoNaoQuer={tx('Vai para a Geladeira (sem interesse) e volta em 30 dias. Não entra no "Não contatar".')}
+                    textoFechou={tx('Vai para Fechado.')}
+                    obrigatorio
                     onEscolher={aplicarResultadoFunil}
                     onFechar={fecharResultadoFunil}
                 />

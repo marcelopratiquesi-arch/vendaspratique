@@ -2,12 +2,10 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { 
     ArrowLeft, Building2, BarChart3, LogOut, PlusCircle, Filter, 
-    RefreshCw, FileDigit, TrendingUp, ArrowUpDown, CalendarDays, Trophy, MousePointerClick, 
-    ClipboardSignature, ListChecks, Activity, Search, Download, Scale, Ruler, LineChart, 
+    RefreshCw, ArrowUpDown, Trophy, ClipboardSignature, ListChecks, Activity, Search, Download, Scale, Ruler, LineChart, 
     FileText, Eye, Edit3, Trash2, Send, Check, Copy, X, UserRoundPen
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
-import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
 import FormAvaliacao from './FormAvaliacao';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -17,6 +15,15 @@ import { excluirAvaliacaoComMotivo } from './lixeira.js';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { MESES_FILTRO, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { carregarTodasAvaliacoes, carregarAvaliacaoCompleta, cpfCombina, soNumerosCpf, COLUNAS_LISTA, usePerguntasAvaliacao } from './carregarAvaliacoes.js';
+import { ModalVerAvaliacao } from './PainelInicial.jsx';
+
+// Planilha (CSV) que o Excel abre direto: separador ";" e acentos certos
+const celulaCsv = (v) => {
+    const texto = v === null || v === undefined ? '' : (Array.isArray(v) ? v.join(', ') : String(v));
+    return /[;"\n\r]/.test(texto) ? `"${texto.replace(/"/g, '""')}"` : texto;
+};
+const numeroCsv = (v) => (v === null || v === undefined || v === '' ? '' : String(v).replace('.', ','));
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -42,7 +49,8 @@ const PainelAvaliador = ({
     const langAtual = locale || language || 'pt-BR';
 
     const [modoExibicao, setModoExibicao] = useState('resumo');
-    const [perguntasBase, setPerguntasBase] = useState([]);
+    // Perguntas da anamnese lidas uma vez para as 3 telas (pacote 2, 09/11/2026)
+    const { perguntas: perguntasBase } = usePerguntasAvaliacao();
 
     // Filtro de período padrão do sistema (o mesmo do Histórico): o atalho escolhido + os campos de data de sempre
     const [presetPeriodo, setPresetPeriodo] = useState('hoje');
@@ -94,13 +102,6 @@ const PainelAvaliador = ({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    useEffect(() => {
-        const fetchPerguntas = async () => {
-            const { data } = await supabase.from('avaliacao_perguntas').select('id, pergunta, ordem').order('ordem', { ascending: true });
-            if (data) setPerguntasBase(data);
-        };
-        fetchPerguntas();
-    }, []);
 
     useEffect(() => {
         if (abaAtiva === 'nova') return; 
@@ -108,7 +109,10 @@ const PainelAvaliador = ({
         const fetchDados = async () => {
             setLoading(true);
             try {
-                let query = supabase.from('avaliacoes_realizadas').select('*').order('created_at', { ascending: false });
+                // Sem o corte escondido de 1.000 linhas do banco (correção de 09/11/2026): de 1.000 em 1.000
+                // Pacote 2: só as colunas que a tela mostra (a completa é lida ao abrir a folha ou Editar)
+                const montar = (colunas) => {
+                let query = supabase.from('avaliacoes_realizadas').select(colunas).order('created_at', { ascending: false }).order('id', { ascending: false });
 
                 if (professorAtivo?.id !== 'GLOBAL') {
                     query = query.eq('unidade', professorAtivo?.unidade || usuarioLogado?.unidade);
@@ -132,8 +136,10 @@ const PainelAvaliador = ({
                     const end = new Date(`${filtroAno}-${filtroMes}-${ultimoDia}T23:59:59-03:00`).toISOString();
                     query = query.gte('created_at', start).lte('created_at', end);
                 }
+                return query;
+                };
 
-                const { data, error } = await query;
+                const { data, error } = await carregarTodasAvaliacoes(montar, COLUNAS_LISTA);
                 if (error) throw error;
                 
                 const dadosLimpos = (data || []).filter(a => a.professor !== 'VISÃO GERAL DA UNIDADE' && a.professor !== 'VISÃO GLOBAL DA REDE');
@@ -168,7 +174,12 @@ const PainelAvaliador = ({
         if (await excluirAvaliacaoComMotivo(id)) setDadosFiltrados(prev => prev.filter(item => item.id !== id));
     };
 
-    const handleEditar = (avaliacao) => { setAvaliacaoEditando(avaliacao); setAbaAtiva('nova'); };
+    // Editar: lê a avaliação COMPLETA antes de abrir o formulário (a lista tem só o que mostra)
+    const handleEditar = async (avaliacao) => {
+        const completa = await carregarAvaliacaoCompleta(avaliacao);
+        if (!completa) return avisar(tx("Não foi possível abrir a avaliação para editar. Tente de novo."), 'erro');
+        setAvaliacaoEditando(completa); setAbaAtiva('nova');
+    };
 
     // 🔥 NOVA FUNÇÃO: Salvar a edição inline do Avaliador
     const handleSalvarNovoAvaliador = async (avaliacaoId, novoAvaliadorNome) => {
@@ -301,11 +312,12 @@ const PainelAvaliador = ({
 
         if (busca) {
             const b = busca.toLowerCase();
-            const bNumeros = busca.replace(/\D/g, ''); 
-            filtrados = filtrados.filter(a => (a.aluno || '').toLowerCase().includes(b) || (a.professor || '').toLowerCase().includes(b) || (a.cpf && a.cpf.includes(bNumeros)));
+            // CPF só conta com 3 números ou mais (antes, digitar um nome casava com toda avaliação que tinha CPF)
+            filtrados = filtrados.filter(a => (a.aluno || '').toLowerCase().includes(b) || (a.professor || '').toLowerCase().includes(b) || cpfCombina(a.cpf, busca));
         }
 
-        if (modoExibicao === 'detalhado') {
+        // Filtros do botão "Filtros" (09/11/2026: valem nos dois modos, Resumo e Avançado)
+        {
             if (filtroSexo !== 'TODOS') filtrados = filtrados.filter(a => a.sexo === filtroSexo);
             if (filtroAltura.min) filtrados = filtrados.filter(a => parseFloat(a.altura || 0) >= parseFloat(filtroAltura.min));
             if (filtroAltura.max) filtrados = filtrados.filter(a => parseFloat(a.altura || 0) <= parseFloat(filtroAltura.max));
@@ -328,7 +340,7 @@ const PainelAvaliador = ({
             }
         }
         return filtrados;
-    }, [dadosFiltrados, busca, modoExibicao, filtroUnidadeTabela, filtroProfTabela, filtroSexo, filtroAltura, filtroPeso, filtroSmi, buscaAnamnese, perguntasBase, soIncompletas]);
+    }, [dadosFiltrados, busca, filtroUnidadeTabela, filtroProfTabela, filtroSexo, filtroAltura, filtroPeso, filtroSmi, buscaAnamnese, perguntasBase, soIncompletas]);
 
     const handleSort = (key) => {
         let direction = 'asc';
@@ -355,6 +367,59 @@ const PainelAvaliador = ({
         });
         return itemsSort;
     }, [tabelaFiltrada, sortConfig]);
+
+    // Botão "Filtros" (09/11/2026): abre os filtros que já existiam no código mas não apareciam na tela
+    const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+    const filtrosAtivos = [
+        filtroSexo !== 'TODOS', filtroProfTabela !== 'TODOS', filtroUnidadeTabela !== 'TODOS',
+        Boolean(filtroAltura.min || filtroAltura.max), Boolean(filtroPeso.min || filtroPeso.max), Boolean(filtroSmi.min || filtroSmi.max),
+        Boolean(buscaAnamnese.trim()),
+    ].filter(Boolean).length;
+    const limparFiltrosDoPainel = () => {
+        setFiltroSexo('TODOS'); setFiltroProfTabela('TODOS'); setFiltroUnidadeTabela('TODOS');
+        setFiltroAltura({ min: '', max: '' }); setFiltroPeso({ min: '', max: '' }); setFiltroSmi({ min: '', max: '' }); setBuscaAnamnese('');
+        setPaginaAtual(1);
+    };
+    const opcoesAvaliador = useMemo(() => [...new Set(dadosFiltrados.map(a => a.professor).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [dadosFiltrados]);
+    const opcoesUnidade = useMemo(() => [...new Set(dadosFiltrados.map(a => a.unidade).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [dadosFiltrados]);
+
+    // Olho = abre a folha da avaliação (a mesma da tela inicial), andando pela lista que está na tela
+    const [verIndice, setVerIndice] = useState(null);
+    const perguntasPorId = useMemo(() => {
+        const mapa = {};
+        perguntasBase.forEach(p => { mapa[p.id] = p; });
+        return mapa;
+    }, [perguntasBase]);
+
+    // Exportar (09/11/2026): planilha com TODAS as avaliações da lista (com busca e filtros), não só a página
+    const exportarPlanilha = () => {
+        if (dadosOrdenados.length === 0) return avisar(tx("Nenhuma avaliação para exportar."), 'atencao');
+        const cabecalho = ['Data', 'Hora', 'Aluno', 'CPF', 'Unidade', 'Avaliador', 'Sexo', 'Peso (kg)', 'Altura (m)', 'Massa muscular (kg)', '% Gordura', 'RCQ', 'Gordura visceral', 'SMI', 'SMI situação', 'Hidratação (%)', 'Pressão', 'Pressão situação', 'Falta', ...perguntasBase.map(p => p.pergunta)];
+        const linhas = dadosOrdenados.map(a => {
+            const d = new Date(a.created_at || a.criado_em);
+            const respostas = a.respostas_dinamicas && typeof a.respostas_dinamicas === 'object' ? a.respostas_dinamicas : {};
+            return [
+                d.toLocaleDateString('pt-BR'), d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                a.aluno || '', soNumerosCpf(a.cpf), a.unidade || '', a.professor || '', a.sexo || '',
+                numeroCsv(a.peso), numeroCsv(a.altura), numeroCsv(a.mme), numeroCsv(a.pgc), numeroCsv(a.rcq), numeroCsv(a.gv),
+                numeroCsv(a.smi_resultado), a.smi_status || '', numeroCsv(a.hidratacao_resultado),
+                a.sistolica && a.diastolica ? `${a.sistolica}/${a.diastolica}` : '', a.pressao_status || '',
+                pendenciasAvaliacao(a).join(' · '),
+                ...perguntasBase.map(p => respostas[p.id] ?? ''),
+            ].map(celulaCsv).join(';');
+        });
+        const csv = '﻿' + [cabecalho.map(celulaCsv).join(';'), ...linhas].join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `avaliacoes_${getLocalISODate()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        avisar(tx("Planilha baixada com {qtd} avaliações.", { qtd: dadosOrdenados.length }), 'sucesso');
+    };
 
     const totalPaginas = Math.ceil(dadosOrdenados.length / ITENS_POR_PAGINA);
     const dadosPaginados = dadosOrdenados.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
@@ -447,19 +512,22 @@ const PainelAvaliador = ({
                 </div>
             )}
 
-            {/* CABEÇALHO DO AVALIADOR */}
-            <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/60 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
-                <div className="flex items-center w-full xl:w-auto gap-4">
-                    <button onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="px-3 py-2 border border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 shadow-sm transition-all shrink-0">
+            {/* Folha da avaliação (olho da tabela) */}
+            {verIndice !== null && dadosOrdenados[verIndice] && (
+                <ModalVerAvaliacao avaliacoes={dadosOrdenados} initialIndex={verIndice} onClose={() => setVerIndice(null)} perguntasPorId={perguntasPorId} />
+            )}
+
+            {/* FAIXA DO TOPO (visual compacto, 09/11/2026): cabeçalho + período juntos */}
+            <div className="relative z-30 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm px-3 py-2 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                    <button type="button" onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="h-9 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 transition-colors shrink-0">
                         <ArrowLeft className="w-3.5 h-3.5"/>{' '}{tx("Voltar")}
                     </button>
-                    
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-50 dark:from-blue-900/40 dark:to-blue-900/40 text-blue-600 dark:text-blue-400 rounded-[14px] flex items-center justify-center text-lg font-black shrink-0 border border-blue-100 dark:border-blue-800/50 shadow-inner">
-                        {professorAtivo.id === 'GLOBAL' ? <Building2 className="w-5 h-5"/> : professorAtivo.id === 'GERAL' ? <BarChart3 className="w-5 h-5"/> : professorAtivo.nome.charAt(0)}
+                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center text-sm font-black shrink-0">
+                        {professorAtivo.id === 'GLOBAL' ? <Building2 className="w-4 h-4"/> : professorAtivo.id === 'GERAL' ? <BarChart3 className="w-4 h-4"/> : professorAtivo.nome.charAt(0)}
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                        <h2 className="text-lg md:text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight leading-none truncate">
+                    <div className="min-w-0">
+                        <h2 className="text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none truncate">
                             {professorAtivo.nome}
                         </h2>
                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1 truncate">
@@ -468,38 +536,9 @@ const PainelAvaliador = ({
                     </div>
                 </div>
 
-                <div className="flex w-full xl:w-auto items-center gap-3 justify-end shrink-0">
-                    <button onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="px-4 py-2.5 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-blue-50/80 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-100 dark:border-blue-800 shadow-sm whitespace-nowrap">
-                        <LogOut className="w-3.5 h-3.5" />{' '}{tx("Trocar Professor")}
-                    </button>
-                    
-                    {abaAtiva !== 'nova' && professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
-                        <button onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }} className="px-6 py-2.5 text-xs font-black uppercase tracking-widest rounded-xl transition-all shadow-[0_4px_15px_rgba(249,115,22,0.3)] flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:shadow-[0_6px_20px_rgba(249,115,22,0.4)] hover:-translate-y-0.5 border border-orange-400 dark:border-orange-500/50 whitespace-nowrap">
-                            <PlusCircle className="w-4 h-4" />{' '}{tx("Nova Avaliação")}
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            {abaAtiva === 'nova' ? (
-                <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-sm border border-white/50 dark:border-slate-700/50 p-4 lg:p-6">
-                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} alunoInicial={alunoParaAvaliar} unidadeDestino={unidadeAvaliacao} />
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {/* BARRA DE FILTROS (relative z-30: o menu de período abre na frente dos cartões) */}
-                    <div className="relative z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm p-4 flex flex-col xl:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 shrink-0">
-                            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-400">
-                                <Filter className="w-4 h-4" />
-                            </div>
-                            <div>
-                                <h2 className="text-base font-black text-slate-800 dark:text-white tracking-tight leading-none">{tx("Filtros de Histórico")}</h2>
-                                <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{tx("Ajuste a visualização dos dados")}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col lg:flex-row items-center gap-3 w-full xl:w-auto">
+                <div className="flex flex-wrap items-center gap-2 justify-end">
+                    {abaAtiva !== 'nova' && (
+                        <>
                             <SeletorPeriodo
                                 rotulo={rotuloDoFiltro({ preset: presetPeriodo, dia: diaEspecifico, inicio: dataInicio, fim: dataFim, mes: filtroMes, ano: filtroAno })}
                                 preset={presetPeriodo}
@@ -513,84 +552,64 @@ const PainelAvaliador = ({
                                 anos={anosUnicos}
                                 onAplicar={aplicarPeriodo}
                             />
+                            <button type="button" onClick={limparFiltros} className="h-9 w-9 flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-colors" title={tx("Limpar Filtros")}><RefreshCw className="w-3.5 h-3.5" /></button>
+                        </>
+                    )}
+                    <button type="button" onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="h-9 px-3 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-100 dark:border-blue-800 whitespace-nowrap">
+                        <LogOut className="w-3.5 h-3.5" />{' '}{tx("Trocar Professor")}
+                    </button>
+                    {abaAtiva !== 'nova' && professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
+                        <button type="button" onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm whitespace-nowrap">
+                            <PlusCircle className="w-4 h-4" />{' '}{tx("Nova Avaliação")}
+                        </button>
+                    )}
+                </div>
+            </div>
 
-                            <div className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-1 py-1 shadow-sm">
-                                <button onClick={limparFiltros} className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg transition-colors" title={tx("Limpar Filtros")}><RefreshCw className="w-3.5 h-3.5" /></button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* INDICADORES */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-                        <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-white/50 dark:border-slate-700/50 flex items-center justify-between relative overflow-hidden group hover:border-blue-200 dark:hover:border-blue-700 transition-colors">
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center shrink-0 border border-blue-100 dark:border-blue-800">
-                                    <FileDigit className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest mb-0.5">{tx("Total Avaliações")}</span>
-                                    <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none">{metricasDashboard.total}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-white/50 dark:border-slate-700/50 flex items-center justify-between relative overflow-hidden group hover:border-emerald-200 dark:hover:border-emerald-700 transition-colors">
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-400 rounded-xl flex items-center justify-center shrink-0 border border-emerald-100 dark:border-emerald-800">
-                                    <TrendingUp className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">{tx("Peso Médio")}</span>
-                                    <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-baseline gap-1">
-                                        {metricasDashboard.pesoMedio} <span className="text-xs font-bold text-slate-400">{tx("kg")}</span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-white/50 dark:border-slate-700/50 flex items-center justify-between relative overflow-hidden group hover:border-purple-200 dark:hover:border-purple-700 transition-colors">
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/30 text-purple-500 dark:text-purple-400 rounded-xl flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-800">
-                                    <ArrowUpDown className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">{tx("Altura Média")}</span>
-                                    <span className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-none flex items-baseline gap-1">
-                                        {metricasDashboard.alturaMedia} <span className="text-xs font-bold text-slate-400">m</span>
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl p-5 shadow-sm border border-white/50 dark:border-slate-700/50 flex items-center justify-between relative overflow-hidden group hover:border-orange-200 dark:hover:border-orange-700 transition-colors">
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-orange-50 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 rounded-xl flex items-center justify-center shrink-0 border border-orange-100 dark:border-orange-800">
-                                    <CalendarDays className="w-5 h-5" />
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">{tx("Última Avaliação")}</span>
-                                    {metricasDashboard.ultimaAvaliacao ? (
-                                        <>
-                                            <span className="text-lg md:text-xl font-black text-slate-900 dark:text-white tracking-tight leading-none mt-0.5">
-                                                {metricasDashboard.ultimaAvaliacao.toLocaleDateString(langAtual, {day:'2-digit', month:'2-digit', year:'numeric'})}
-                                            </span>
-                                            {metricasDashboard.diasAtras !== null && (
-                                                <span className="text-[10px] font-bold text-slate-400 mt-1">
-                                                    {metricasDashboard.diasAtras === 0 ? tx("Feita Hoje") : tx("{diasAtras} dias atrás", { diasAtras: metricasDashboard.diasAtras })}
-                                                </span>
-                                            )}
-                                        </>
-                                    ) : (
-                                        <span className="text-lg font-black text-slate-400 mt-0.5">-</span>
+            {abaAtiva === 'nova' ? (
+                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-3 lg:p-4">
+                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} alunoInicial={alunoParaAvaliar} unidadeDestino={unidadeAvaliacao} />
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {/* RESUMO EM FAIXA FINA (antes eram 4 cartões com números gigantes) */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-2">
+                        <span className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Total Avaliações")}</span>
+                            <strong className="text-lg font-black text-blue-600 dark:text-blue-400 leading-none">{metricasDashboard.total}</strong>
+                        </span>
+                        <span className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Peso Médio")}</span>
+                            <strong className="text-base font-black text-slate-900 dark:text-white leading-none">{metricasDashboard.pesoMedio}</strong>
+                            <span className="text-[10px] font-bold text-slate-400">{tx("kg")}</span>
+                        </span>
+                        <span className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Altura Média")}</span>
+                            <strong className="text-base font-black text-slate-900 dark:text-white leading-none">{metricasDashboard.alturaMedia}</strong>
+                            <span className="text-[10px] font-bold text-slate-400">m</span>
+                        </span>
+                        <span className="flex items-baseline gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Última Avaliação")}</span>
+                            {metricasDashboard.ultimaAvaliacao ? (
+                                <>
+                                    <strong className="text-base font-black text-slate-900 dark:text-white leading-none">
+                                        {metricasDashboard.ultimaAvaliacao.toLocaleDateString(langAtual, { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                    </strong>
+                                    {metricasDashboard.diasAtras !== null && (
+                                        <span className="text-[10px] font-bold text-slate-400">
+                                            {metricasDashboard.diasAtras === 0 ? tx("Feita Hoje") : tx("{diasAtras} dias atrás", { diasAtras: metricasDashboard.diasAtras })}
+                                        </span>
                                     )}
-                                </div>
-                            </div>
-                        </div>
+                                </>
+                            ) : (
+                                <strong className="text-base font-black text-slate-400 leading-none">-</strong>
+                            )}
+                        </span>
                     </div>
 
                     {/* RANKING GLOBAL */}
                     {(professorAtivo.id === 'GERAL' || professorAtivo.id === 'GLOBAL') && metricas.ranking.length > 0 && (
-                        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm overflow-hidden">
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
                             <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
                                 <div>
                                     <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
@@ -644,7 +663,7 @@ const PainelAvaliador = ({
                     )}
 
                     {/* HISTÓRICO E TABELA */}
-                    <div id="tabela-historico" className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl border border-white/50 dark:border-slate-700/50 shadow-sm overflow-hidden flex flex-col relative">
+                    <div id="tabela-historico" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col relative">
                         <div className="px-5 py-5 border-b border-slate-100 dark:border-slate-800/50 flex flex-col gap-5 shrink-0">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
@@ -673,21 +692,77 @@ const PainelAvaliador = ({
                                     </button>
                                 )}
                                 <div className="flex gap-2 w-full lg:w-auto">
-                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><Filter className="w-3.5 h-3.5" />{' '}{tx("Filtros")}</button>
-                                    <button className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}</button>
+                                    <button type="button" onClick={() => setFiltrosAbertos(v => !v)} aria-expanded={filtrosAbertos}
+                                        className={`flex-1 lg:flex-none px-4 py-2.5 border rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${filtrosAbertos || filtrosAtivos > 0 ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                                        <Filter className="w-3.5 h-3.5" />{' '}{tx("Filtros")}
+                                        {filtrosAtivos > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-blue-700 text-[10px] font-black flex items-center justify-center">{filtrosAtivos}</span>}
+                                    </button>
+                                    <button type="button" onClick={exportarPlanilha} title={tx("Baixa uma planilha com todas as avaliações da lista (com a busca e os filtros)")} className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}</button>
                                 </div>
                             </div>
+                            {filtrosAbertos && (
+                                <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
+                                    {professorAtivo.id === 'GLOBAL' && (
+                                        <label className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Unidade")}</span>
+                                            <select value={filtroUnidadeTabela} onChange={(e) => { setFiltroUnidadeTabela(e.target.value); setPaginaAtual(1); }} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="TODOS">{tx("Todas")}</option>
+                                                {opcoesUnidade.map(u => <option key={u} value={u}>{u}</option>)}
+                                            </select>
+                                        </label>
+                                    )}
+                                    {(professorAtivo.id === 'GLOBAL' || professorAtivo.id === 'GERAL') && (
+                                        <label className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Avaliador")}</span>
+                                            <select value={filtroProfTabela} onChange={(e) => { setFiltroProfTabela(e.target.value); setPaginaAtual(1); }} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                                                <option value="TODOS">{tx("Todos")}</option>
+                                                {opcoesAvaliador.map(n => <option key={n} value={n}>{n}</option>)}
+                                            </select>
+                                        </label>
+                                    )}
+                                    <label className="flex flex-col gap-1">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Sexo")}</span>
+                                        <select value={filtroSexo} onChange={(e) => { setFiltroSexo(e.target.value); setPaginaAtual(1); }} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                                            <option value="TODOS">{tx("Todos")}</option>
+                                            <option value="M">{tx("Masculino")}</option>
+                                            <option value="F">{tx("Feminino")}</option>
+                                        </select>
+                                    </label>
+                                    {[
+                                        { rotulo: 'Altura (m)', valor: filtroAltura, mudar: setFiltroAltura, ex: ['1.50', '1.90'] },
+                                        { rotulo: 'Peso (kg)', valor: filtroPeso, mudar: setFiltroPeso, ex: ['50', '120'] },
+                                        { rotulo: 'SMI', valor: filtroSmi, mudar: setFiltroSmi, ex: ['5', '9'] },
+                                    ].map(({ rotulo, valor, mudar, ex }) => (
+                                        <div key={rotulo} className="flex flex-col gap-1">
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx(rotulo)}</span>
+                                            <div className="flex items-center gap-1">
+                                                <input type="text" inputMode="decimal" value={valor.min} onChange={(e) => { mudar(v => ({ ...v, min: e.target.value.replace(',', '.') })); setPaginaAtual(1); }} placeholder={tx("de {v1}", { v1: ex[0] })} aria-label={tx("{v1} mínimo", { v1: tx(rotulo) })} className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <input type="text" inputMode="decimal" value={valor.max} onChange={(e) => { mudar(v => ({ ...v, max: e.target.value.replace(',', '.') })); setPaginaAtual(1); }} placeholder={tx("até {v1}", { v1: ex[1] })} aria-label={tx("{v1} máximo", { v1: tx(rotulo) })} className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <label className="flex flex-col gap-1 col-span-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Busca na anamnese")}</span>
+                                        <input type="text" value={buscaAnamnese} onChange={(e) => { setBuscaAnamnese(e.target.value); setPaginaAtual(1); }} placeholder={tx("Ex.: joelho, hipertensão")} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                    </label>
+                                    {filtrosAtivos > 0 && (
+                                        <div className="flex items-end">
+                                            <button type="button" onClick={limparFiltrosDoPainel} className="h-9 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline">{tx("Limpar filtros")}</button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         <div ref={tableScrollRef} className="flex-1 overflow-x-auto custom-scrollbar relative min-h-[350px]">
                             {loading ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm z-10">
+                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 z-10">
                                     <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-3" />
                                     <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tx("Carregando...")}</p>
                                 </div>
                             ) : (
                                 <table className={`w-full text-left border-collapse ${modoExibicao === 'detalhado' ? 'min-w-[max-content]' : 'min-w-[900px]'}`}>
-                                    <thead className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
+                                    <thead className="bg-white dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                                         <tr>
                                             <th onClick={() => handleSort('data')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">{tx("Data")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'data' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
@@ -695,6 +770,11 @@ const PainelAvaliador = ({
                                             <th onClick={() => handleSort('aluno')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">{tx("Aluno(a)")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'aluno' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
+                                            {professorAtivo.id === 'GLOBAL' && (
+                                                <th onClick={() => handleSort('unidade')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                                                    <div className="flex items-center gap-1.5">{tx("Unidade")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'unidade' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                </th>
+                                            )}
                                             <th onClick={() => handleSort('estrutura')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">{tx("Física")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'estrutura' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
@@ -716,7 +796,7 @@ const PainelAvaliador = ({
                                                 <div className="flex items-center gap-1.5">{tx("Avaliador")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'avaliador' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">{tx("Exame")}</th>
-                                            {podeEditar && <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">{tx("Ações")}</th>}
+                                            <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap text-center">{tx("Ações")}</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800/50 bg-white dark:bg-slate-900">
@@ -736,7 +816,7 @@ const PainelAvaliador = ({
                                                         </td>
                                                         <td className="px-4 py-3 whitespace-nowrap align-middle">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 bg-pink-50 dark:bg-pink-900/30 text-pink-600 dark:text-pink-400 rounded-full flex items-center justify-center font-black text-sm border border-pink-100 dark:border-pink-800 shrink-0">
+                                                                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center font-black text-sm border border-blue-100 dark:border-blue-800 shrink-0">
                                                                     {(a.aluno || 'U').charAt(0)}
                                                                 </div>
                                                                 <div className="flex flex-col items-start gap-1">
@@ -752,6 +832,11 @@ const PainelAvaliador = ({
                                                                 </div>
                                                             </div>
                                                         </td>
+                                                        {professorAtivo.id === 'GLOBAL' && (
+                                                            <td className="px-4 py-3 whitespace-nowrap align-middle">
+                                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:text-slate-400">{a.unidade || '—'}</span>
+                                                            </td>
+                                                        )}
                                                         <td className="px-4 py-3 whitespace-nowrap align-middle">
                                                             <div className="flex flex-col gap-1.5">
                                                                 <div className="flex items-center gap-2">
@@ -853,27 +938,27 @@ const PainelAvaliador = ({
                                                             )}
                                                         </td>
                                                         
-                                                        {podeEditar && (
                                                             <td className="px-4 py-3 text-center whitespace-nowrap align-middle">
                                                                 <div className="flex items-center justify-center gap-1.5 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
-                                                                    <button className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Visualizar Detalhes")}>
+                                                                    <button type="button" onClick={() => setVerIndice((paginaAtual - 1) * ITENS_POR_PAGINA + idx)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Visualizar Detalhes")}>
                                                                         <Eye className="w-3.5 h-3.5" />
                                                                     </button>
+                                                                    {podeEditar && (<>
                                                                     <button onClick={() => handleEditar(a)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Editar Avaliação")}>
                                                                         <Edit3 className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     <button onClick={() => removerAvaliacao(a.id)} className="p-2 text-rose-400 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-300 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-700" title={tx("Excluir Permanentemente")}>
                                                                         <Trash2 className="w-3.5 h-3.5" />
                                                                     </button>
+                                                                    </>)}
                                                                 </div>
                                                             </td>
-                                                        )}
                                                     </tr>
                                                 )
                                             })
                                         ) : (
                                             <tr>
-                                                <td colSpan={modoExibicao === 'detalhado' ? (professorAtivo.id === 'GLOBAL' ? (10 + perguntasBase.length + (podeEditar?1:0)) : (9 + perguntasBase.length + (podeEditar?1:0))) : (professorAtivo.id === 'GLOBAL' ? (podeEditar ? "8" : "7") : (podeEditar ? "7" : "6"))} className="text-center py-16">
+                                                <td colSpan={100} className="text-center py-16">
                                                     <div className="flex flex-col items-center">
                                                         <Search className="w-8 h-8 text-slate-200 dark:text-slate-600 mb-3" />
                                                         <p className="text-slate-500 dark:text-slate-400 font-bold text-xs">{tx("Nenhum registro encontrado neste período.")}</p>

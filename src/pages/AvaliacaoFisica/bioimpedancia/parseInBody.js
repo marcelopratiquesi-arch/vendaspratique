@@ -110,12 +110,6 @@ export function parseInBody(linhas) {
      }
   }
 
-  // --- LOG DE AUDITORIA EXIGIDO ---
-  console.log("\n[INBODY] - FASE 2: AUDITORIA DE EXTRAÇÃO DEFINITIVA");
-  Object.keys(data).forEach(campo => {
-     console.log(`Campo: ${campo} -> Valor: ${debug[campo] ? debug[campo].value : 'null'} (Origem: ${debug[campo] ? debug[campo].source : 'Não encontrado'})`);
-  });
-  console.log("==================================\n");
 
   return { success: true, reportType: 'INBODY', data, warnings: [] };
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Lock, Check, Minus, RotateCcw, UserCog, Layers, AlertTriangle, Loader2, Info, Database, History } from 'lucide-react';
+import { Search, Lock, Check, Minus, RotateCcw, UserCog, Layers, AlertTriangle, Loader2, Info, Database, History, ListChecks, Copy } from 'lucide-react';
 import { supabase } from '../supabaseClient.js';
 import { avisar } from '../components/avisar.js';
 import { tx } from '../i18n/traduzir.js';
@@ -8,6 +8,7 @@ import {
 } from './catalogoPermissoes.js';
 import { verificarBancoPronto } from './usePermissoes.js';
 import HistoricoPermissoes from './HistoricoPermissoes.jsx';
+import DiferencasPadrao from './DiferencasPadrao.jsx';
 
 // ==========================================
 // CONFIGURAÇÕES → PERMISSÕES (só o Admin; decisão do dono, 06/11/2026)
@@ -44,8 +45,10 @@ const motivoTrava = (p, papel, bancoPronto) => {
     return '';
 };
 
-const AbaPermissoes = ({ usuarios = [] }) => {
-    const [modo, setModo] = useState('nivel'); // 'nivel' | 'login'
+// loginInicial (09/11/2026): o botão "Permissões deste login" da aba Logins abre já em "Exceções por login" com ele
+const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
+    const [modo, setModo] = useState(loginInicial ? 'login' : 'nivel'); // 'nivel' | 'login' | 'diferencas' (09/11/2026)
+    const [origemCopia, setOrigemCopia] = useState(''); // Copiar exceções de outro login (09/11/2026)
     const [busca, setBusca] = useState('');
     const [tipoFiltro, setTipoFiltro] = useState('todas'); // 'todas' | 'ver' | 'fazer'
     const [regras, setRegras] = useState(() => new Map()); // 'PAPEL|codigo' -> bool
@@ -53,7 +56,7 @@ const AbaPermissoes = ({ usuarios = [] }) => {
     const [carregando, setCarregando] = useState(true);
     const [semTabelas, setSemTabelas] = useState(false);
     const [gravando, setGravando] = useState('');
-    const [loginEscolhido, setLoginEscolhido] = useState('');
+    const [loginEscolhido, setLoginEscolhido] = useState(String(loginInicial || '').toLowerCase().trim());
     const [bancoPronto, setBancoPronto] = useState(true);
     const [historicoAberto, setHistoricoAberto] = useState(false);
 
@@ -153,6 +156,60 @@ const AbaPermissoes = ({ usuarios = [] }) => {
         }
     };
 
+    // "O que está diferente do padrão" (09/11/2026): voltar UMA mudança ao padrão = apagar a linha
+    const voltarNivelPadrao = async (papel, codigo) => {
+        const k = `${papel}|${codigo}`;
+        setGravando(k);
+        const { error } = await supabase.from('permissoes_papel').delete().eq('papel', papel).eq('codigo', codigo);
+        setGravando('');
+        if (error) { avisar(tx('Não foi possível voltar ao padrão: {erro}', { erro: error.message }), 'erro'); return; }
+        setRegras(atual => { const n = new Map(atual); n.delete(k); return n; });
+        avisar(tx('{codigo} voltou ao padrão para {papel}.', { codigo, papel: tx(NOME_PAPEL[papel] || papel) }), 'sucesso');
+    };
+    const voltarExcecaoPadrao = async (email, codigo) => {
+        const k = `${email}|${codigo}`;
+        setGravando(k);
+        const { error } = await supabase.from('permissoes_excecao').delete().eq('email', email).eq('codigo', codigo);
+        setGravando('');
+        if (error) { avisar(tx('Não foi possível voltar ao padrão: {erro}', { erro: error.message }), 'erro'); return; }
+        setExcecoes(atual => { const n = new Map(atual); n.delete(k); return n; });
+        avisar(tx('{codigo} voltou ao padrão para {email}.', { codigo, email }), 'sucesso');
+    };
+
+    // Copiar as exceções de um login para outro (09/11/2026): o login escolhido fica com as MESMAS exceções da origem
+    // (as que ele tinha antes são trocadas). Útil quando um Líder novo entra no lugar de outro.
+    const copiarExcecoes = async () => {
+        if (!login || !origemCopia) return;
+        if (semTabelas) { avisar(tx('Rode o SQL das permissões no Supabase antes de mudar (sql/2026-11-06-permissoes).'), 'erro'); return; }
+        const destino = emailDe(login);
+        const origem = logins.find(u => emailDe(u) === origemCopia);
+        const daOrigem = [...excecoes.entries()]
+            .filter(([k]) => k.startsWith(`${origemCopia}|`))
+            .map(([k, v]) => ({ codigo: k.slice(origemCopia.length + 1), permitido: v }));
+        if (daOrigem.length === 0) return;
+        const qtdHoje = qtdExcecoes(destino);
+        const nivelDiferente = origem && papelDe(origem) !== papelDe(login);
+        const partes = [tx('Copiar as {qtd} exceções de {origem} para {destino}?', { qtd: daOrigem.length, origem: origem?.nome || origemCopia, destino: login.nome || destino })];
+        if (qtdHoje > 0) partes.push(tx('As {qtd} exceções que {destino} tem hoje serão trocadas.', { qtd: qtdHoje, destino: login.nome || destino }));
+        if (nivelDiferente) partes.push(tx('Atenção: os níveis são diferentes ({de} → {para}). O que não vale para o nível de quem recebe fica sem efeito.', { de: tx(NOME_PAPEL[papelDe(origem)] || ''), para: tx(NOME_PAPEL[papelDe(login)] || '') }));
+        if (!window.confirm(partes.join('\n\n'))) return;
+        setGravando('copia');
+        const agora = new Date().toISOString();
+        const { error: erroApagar } = await supabase.from('permissoes_excecao').delete().eq('email', destino);
+        const { error: erroGravar } = erroApagar
+            ? { error: null }
+            : await supabase.from('permissoes_excecao').insert(daOrigem.map(l => ({ email: destino, codigo: l.codigo, permitido: l.permitido, atualizado_em: agora })));
+        // Relê do banco para a tela mostrar exatamente o que ficou gravado
+        const { data } = await supabase.from('permissoes_excecao').select('email, codigo, permitido');
+        if (data) setExcecoes(new Map(data.map(l => [`${String(l.email).toLowerCase()}|${l.codigo}`, !!l.permitido])));
+        setGravando('');
+        const erro = erroApagar || erroGravar;
+        if (erro) { avisar(tx('Não foi possível copiar as exceções: {erro}', { erro: erro.message }), 'erro'); return; }
+        setOrigemCopia('');
+        avisar(tx('{qtd} exceções copiadas para {destino}.', { qtd: daOrigem.length, destino: login.nome || destino }), 'sucesso');
+    };
+
+    const qtdDiferencas = regras.size + excecoes.size;
     const th = 'px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap dark:text-slate-400';
     const qtdMudancas = regras.size;
     const qtdExcecoesTotal = excecoes.size;
@@ -162,10 +219,11 @@ const AbaPermissoes = ({ usuarios = [] }) => {
             {/* Faixa do topo: modo, busca e filtro */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center gap-3 justify-between dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="tablist" aria-label={tx('Modo')}>
-                    {[['nivel', tx('Por nível'), Layers], ['login', tx('Exceções por login'), UserCog]].map(([id, rotulo, Icone]) => (
+                    {[['nivel', tx('Por nível'), Layers], ['login', tx('Exceções por login'), UserCog], ['diferencas', tx('O que está diferente'), ListChecks]].map(([id, rotulo, Icone]) => (
                         <button key={id} type="button" role="tab" aria-selected={modo === id} onClick={() => setModo(id)}
                             className={`h-9 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-2 transition-colors ${modo === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                             <Icone className="w-4 h-4" />{rotulo}
+                            {id === 'diferencas' && qtdDiferencas > 0 && <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center ${modo === id ? 'bg-white text-blue-700' : 'bg-amber-500 text-white'}`}>{qtdDiferencas}</span>}
                             {id === 'login' && qtdExcecoesTotal > 0 && <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center ${modo === id ? 'bg-white text-blue-700' : 'bg-amber-500 text-white'}`}>{qtdExcecoesTotal}</span>}
                         </button>
                     ))}
@@ -214,7 +272,9 @@ const AbaPermissoes = ({ usuarios = [] }) => {
             <div className="rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-[12px] font-semibold text-slate-600 flex items-start gap-2 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-slate-300">
                 <Info className="w-4 h-4 shrink-0 mt-0.5 text-blue-600 dark:text-blue-400" />
                 <span>
-                    {modo === 'nivel'
+                    {modo === 'diferencas'
+                        ? tx('Tudo o que foi mudado em relação ao padrão do sistema, por nível e por login. "Voltar ao padrão" desfaz só aquela mudança.')
+                        : modo === 'nivel'
                         ? tx('Ligue ou desligue o que cada nível vê e faz. A permissão diz O QUE a pessoa pode; a unidade continua dizendo ONDE (o Mentor só nas unidades dele, o Líder e a Recepção só na deles). Bolinha amarela = mudado em relação ao padrão. O cadeado = travado. Ícone de banco = o banco também confere.')
                         : tx('Escolha um login para liberar ou bloquear uma permissão só para ele, sem mudar o nível inteiro. "Padrão" segue o que está marcado para o nível dele.')}
                 </span>
@@ -236,11 +296,30 @@ const AbaPermissoes = ({ usuarios = [] }) => {
                         })}
                     </select>
                     {login && <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{login.email}</span>}
+                    {login && (
+                        <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
+                            <Copy className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
+                            <select value={origemCopia} onChange={(e) => setOrigemCopia(e.target.value)} aria-label={tx('Copiar exceções de outro login')}
+                                className="h-9 min-w-[min(260px,100%)] px-3 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                                <option value="">{tx('Copiar exceções de outro login...')}</option>
+                                {logins.filter(u => emailDe(u) !== emailDe(login) && qtdExcecoes(emailDe(u)) > 0).map(u => (
+                                    <option key={emailDe(u)} value={emailDe(u)}>{(u.nome || u.email)} · {tx(NOME_PAPEL[papelDe(u)] || papelDe(u))} · {tx('{qtd} exceções', { qtd: qtdExcecoes(emailDe(u)) })}</option>
+                                ))}
+                            </select>
+                            <button type="button" onClick={copiarExcecoes} disabled={!origemCopia || gravando === 'copia'}
+                                className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-40">
+                                {gravando === 'copia' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}{tx('Copiar')}
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
             {carregando ? (
                 <div className="py-16 flex items-center justify-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin" /></div>
+            ) : modo === 'diferencas' ? (
+                <DiferencasPadrao regras={regras} excecoes={excecoes} usuarios={usuarios} termo={termo} bancoPronto={bancoPronto} gravando={gravando}
+                    onVoltarNivel={voltarNivelPadrao} onVoltarExcecao={voltarExcecaoPadrao} />
             ) : modo === 'login' && !login ? (
                 <p className="py-10 text-center text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('Escolha um login acima.')}</p>
             ) : (

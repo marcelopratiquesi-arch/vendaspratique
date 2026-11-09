@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { 
-    Dumbbell, Building2, ChevronRight, BarChart3, ListChecks, Users, BarChart2, 
-    CalendarDays, Activity, Scale, Percent, FileText, Search, Loader2,
+    Dumbbell, ChevronRight, ListChecks, Activity, Scale, Percent, FileText, Search, Loader2,
     Eye, X, ChevronLeft, TrendingUp, TrendingDown, Minus, HeartPulse, Droplet, CheckSquare, AlertCircle, User, Trash2
 } from 'lucide-react';
 import { useTotalLixeiraAvaliacoes } from './lixeira.js';
@@ -12,14 +11,9 @@ import { SeletorPeriodo, isoLocal } from '../HistoricoVendas/FiltrosCompactos.js
 import { pendenciasAvaliacao } from './utils.js';
 import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 import { MESES_FILTRO, faixaDoFiltro, rotuloDoFiltro } from '../../components/periodoPadrao.js';
+import { consultaSeguraOuDireta } from '../../components/consultaSegura.js';
+import { carregarTodasAvaliacoes, cpfCombina, COLUNAS_LISTA, usePerguntasAvaliacao } from './carregarAvaliacoes.js';
 
-const colorThemes = [
-    { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50/70 dark:bg-blue-900/50', border: 'hover:border-blue-400 dark:hover:border-blue-600', shadow: 'hover:shadow-[0_8px_25px_rgba(59,130,246,0.12)]' },
-    { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', iconBg: 'bg-blue-50/70 dark:bg-blue-900/50', border: 'hover:border-blue-400 dark:hover:border-blue-600', shadow: 'hover:shadow-[0_8px_25px_rgba(99,102,241,0.12)]' },
-    { bg: 'bg-orange-50 dark:bg-orange-900/30', text: 'text-orange-600 dark:text-orange-400', iconBg: 'bg-orange-50/70 dark:bg-orange-900/50', border: 'hover:border-orange-400 dark:hover:border-orange-600', shadow: 'hover:shadow-[0_8px_25px_rgba(249,115,22,0.12)]' },
-    { bg: 'bg-emerald-50 dark:bg-emerald-900/30', text: 'text-emerald-600 dark:text-emerald-400', iconBg: 'bg-emerald-50/70 dark:bg-emerald-900/50', border: 'hover:border-emerald-400 dark:hover:border-emerald-600', shadow: 'hover:shadow-[0_8px_25px_rgba(16,185,129,0.12)]' },
-    { bg: 'bg-rose-50 dark:bg-rose-900/30', text: 'text-rose-600 dark:text-rose-400', iconBg: 'bg-rose-50/70 dark:bg-rose-900/50', border: 'hover:border-rose-400 dark:hover:border-rose-600', shadow: 'hover:shadow-[0_8px_25px_rgba(244,63,94,0.12)]' }
-];
 
 // ==========================================
 // FUNÇÕES AUXILIARES E DE FORMATAÇÃO
@@ -215,11 +209,50 @@ const Variacao = ({ atual, anterior, tipo }) => {
 // ==========================================
 // COMPONENTE: MODAL VER AVALIAÇÃO
 // ==========================================
-const ModalVerAvaliacao = ({ avaliacoes, initialIndex, onClose, perguntasPorId }) => {
+// Momento da avaliação (para achar a anterior do mesmo aluno)
+const momentoAvaliacao = (a) => new Date(a?.created_at || a?.data || 0).getTime();
+const SEM_HISTORICO = [];
+
+export const ModalVerAvaliacao = ({ avaliacoes, initialIndex, onClose, perguntasPorId }) => {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const fecharRef = useRef(null);
-    const av = avaliacoes[currentIndex];
-    const anterior = currentIndex > 0 ? avaliacoes[currentIndex - 1] : null;
+    const avDaLista = avaliacoes[currentIndex];
+    // "vs anterior" = avaliação anterior DO MESMO ALUNO (correção de 09/11/2026: antes comparava com a
+    // linha de cima da lista, que era de outro aluno). Lê o histórico do aluno na rede inteira
+    // (consulta segura avaliacoes_do_aluno) uma vez por aluno. Esse histórico já vem COMPLETO, então a folha
+    // usa ele para mostrar braços, pernas, checklist... (pacote 2: a lista baixa só o que mostra).
+    // Sem aluno ligado, lê só aquela avaliação.
+    const [historicos, setHistoricos] = useState({});
+    const chaveAluno = avDaLista?.aluno_id ? String(avDaLista.aluno_id) : '';
+    const chaveBusca = chaveAluno ? `aluno:${chaveAluno}` : (avDaLista?.id ? `id:${avDaLista.id}` : '');
+    useEffect(() => {
+        if (!chaveBusca || historicos[chaveBusca]) return undefined;
+        let ativo = true;
+        const pedido = chaveAluno
+            ? consultaSeguraOuDireta('avaliacoes_do_aluno', { p_aluno_id: chaveAluno },
+                () => supabase.from('avaliacoes_realizadas').select('*').eq('aluno_id', chaveAluno))
+            : supabase.from('avaliacoes_realizadas').select('*').eq('id', avDaLista.id);
+        pedido.then(({ data, error }) => {
+            if (!ativo) return;
+            if (error) console.error('Erro ao ler as avaliações do aluno:', error);
+            setHistoricos(h => ({ ...h, [chaveBusca]: data || [] }));
+        });
+        return () => { ativo = false; };
+    }, [chaveBusca, chaveAluno, avDaLista, historicos]);
+    const historicoAluno = chaveBusca ? historicos[chaveBusca] : SEM_HISTORICO;
+    const av = useMemo(() => {
+        if (!avDaLista) return avDaLista;
+        const completa = (historicoAluno || []).find(a => String(a.id) === String(avDaLista.id));
+        return completa ? { ...avDaLista, ...completa } : avDaLista;
+    }, [avDaLista, historicoAluno]);
+    const anterior = useMemo(() => {
+        if (!avDaLista || !chaveAluno || !historicoAluno) return null;
+        const quando = momentoAvaliacao(avDaLista);
+        return historicoAluno
+            .filter(a => String(a.id) !== String(avDaLista.id) && momentoAvaliacao(a) < quando)
+            .sort((a, b) => momentoAvaliacao(b) - momentoAvaliacao(a))[0] || null;
+    }, [avDaLista, chaveAluno, historicoAluno]);
+    const carregandoAnterior = Boolean(chaveBusca) && !historicoAluno;
 
     useEffect(() => {
         const handleKey = (e) => {
@@ -330,6 +363,11 @@ const ModalVerAvaliacao = ({ avaliacoes, initialIndex, onClose, perguntasPorId }
                             </div>
                         ))}
                     </div>
+                    {chaveAluno && <p className="-mt-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 text-center">
+                        {carregandoAnterior ? tx("Buscando a avaliação anterior do aluno...")
+                            : anterior ? tx("Comparado com a avaliação anterior deste aluno, de {data}", { data: formatarDataBR(anterior.data || anterior.created_at) })
+                            : tx("Primeira avaliação deste aluno: sem comparação")}
+                    </p>}
 
                     <Secao icone={User} titulo={tx("Dados do aluno")}>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -421,8 +459,14 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     const [metricasCards, setMetricasCards] = useState({});
     const [avaliacoesRecentes, setAvaliacoesRecentes] = useState([]);
     const [loadingTabela, setLoadingTabela] = useState(false);
-    const [perguntasPorId, setPerguntasPorId] = useState({});
-    
+    // Perguntas da anamnese lidas uma vez para as 3 telas (pacote 2, 09/11/2026)
+    const { perguntas: perguntasAvaliacao } = usePerguntasAvaliacao();
+    const perguntasPorId = useMemo(() => {
+        const map = {};
+        perguntasAvaliacao.forEach(p => { map[p.id] = p; });
+        return map;
+    }, [perguntasAvaliacao]);
+
     const [modalOpen, setModalOpen] = useState(false);
     const [currentIndex, setCurrentIndex] = useState(0);
     
@@ -439,23 +483,15 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     const ITENS_POR_PAGINA = 10;
 
     useEffect(() => {
-        const fetchPerguntas = async () => {
-            const { data } = await supabase.from('avaliacao_perguntas').select('id, pergunta, ordem, descricao');
-            if (data) {
-                const map = {};
-                data.forEach(p => { map[p.id] = p; });
-                setPerguntasPorId(map);
-            }
-        };
-        fetchPerguntas();
-    }, []);
-
-    useEffect(() => {
+        // Com o topo em "Todas" não há cartões de avaliador: não pergunta nada ao banco (pacote 2, 09/11/2026)
+        const unidadeCartoes = usuarioLogado?.unidade;
+        if (!unidadeCartoes || unidadeCartoes === 'TODAS') return;
         const fetchMetricasCards = async () => {
             try {
                 // Mais leve (04/11/2026): só os últimos 90 dias (bastam para "este mês" e para a última avaliação de cada avaliador)
                 const desde90 = new Date(); desde90.setDate(desde90.getDate() - 90);
-                const { data, error } = await supabase.from('avaliacoes_realizadas').select('professor, created_at, data').eq('unidade', usuarioLogado?.unidade).gte('created_at', desde90.toISOString());
+                const { data, error } = await carregarTodasAvaliacoes((colunas) => supabase.from('avaliacoes_realizadas').select(colunas)
+                    .eq('unidade', unidadeCartoes).gte('created_at', desde90.toISOString()).order('id', { ascending: true }), ['professor', 'created_at', 'data']);
                 if (error) throw error;
                 const now = new Date();
                 const currentMonth = now.getMonth();
@@ -479,16 +515,19 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
         const fetchTabelaRecentes = async () => {
             setLoadingTabela(true);
             try {
-                let query = supabase.from('avaliacoes_realizadas').select('*').order('created_at', { ascending: false });
-                
-                if (!temVisaoGlobal) query = query.eq('unidade', usuarioLogado?.unidade);
-                if (filtroPeriodo !== 'todo' && dataInicio && dataFim) {
-                    const start = new Date(`${dataInicio}T00:00:00-03:00`).toISOString();
-                    const end = new Date(`${dataFim}T23:59:59-03:00`).toISOString();
-                    query = query.gte('created_at', start).lte('created_at', end);
-                }
-
-                const { data, error } = await query.limit(100); 
+                // Sem o corte de 100 (correção de 09/11/2026): traz todas do período, de 1.000 em 1.000
+                // Pacote 2: só as colunas que a tabela mostra (a folha completa é lida ao clicar em Ver)
+                const montar = (colunas) => {
+                    let query = supabase.from('avaliacoes_realizadas').select(colunas).order('created_at', { ascending: false }).order('id', { ascending: false });
+                    if (!temVisaoGlobal) query = query.eq('unidade', usuarioLogado?.unidade);
+                    if (filtroPeriodo !== 'todo' && dataInicio && dataFim) {
+                        const start = new Date(`${dataInicio}T00:00:00-03:00`).toISOString();
+                        const end = new Date(`${dataFim}T23:59:59-03:00`).toISOString();
+                        query = query.gte('created_at', start).lte('created_at', end);
+                    }
+                    return query;
+                };
+                const { data, error } = await carregarTodasAvaliacoes(montar, COLUNAS_LISTA);
                 if (error) throw error;
                 
                 setAvaliacoesRecentes(data || []);
@@ -514,142 +553,95 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
     const filtroAtual = { preset: filtroPeriodo, tipo: filtroPeriodo === 'mes' ? 'mes' : 'periodo', dia: dataInicio, inicio: dataInicio, fim: dataFim, ...mesAno };
     const anosFiltro = [String(new Date().getFullYear()), String(new Date().getFullYear() - 1), String(new Date().getFullYear() - 2)];
 
+    const termoBusca = buscaTabela.trim().toLowerCase();
+    const listaTabela = termoBusca ? avaliacoesRecentes.filter(a => String(a.aluno || '').toLowerCase().includes(termoBusca) || String(a.professor || '').toLowerCase().includes(termoBusca) || cpfCombina(a.cpf, buscaTabela)) : avaliacoesRecentes;
+
+    // A janela anda (setas) pela lista que está na tela (com a busca aplicada)
     const openModal = (id) => {
-        const idx = avaliacoesRecentes.findIndex(a => a.id === id);
+        const idx = listaTabela.findIndex(a => a.id === id);
         if (idx >= 0) { setCurrentIndex(idx); setModalOpen(true); }
     };
-
-    const termoBusca = buscaTabela.trim().toLowerCase();
-    const numerosBusca = buscaTabela.replace(/\D/g, '');
-    const listaTabela = termoBusca ? avaliacoesRecentes.filter(a => String(a.aluno || '').toLowerCase().includes(termoBusca) || String(a.professor || '').toLowerCase().includes(termoBusca) || (numerosBusca.length >= 3 && String(a.cpf || '').replace(/\D/g, '').includes(numerosBusca))) : avaliacoesRecentes;
     const totalPaginas = Math.ceil(listaTabela.length / ITENS_POR_PAGINA);
     const dadosPaginados = listaTabela.slice((paginaAtual - 1) * ITENS_POR_PAGINA, paginaAtual * ITENS_POR_PAGINA);
 
     return (
-        <div className="w-full relative pb-20 animate-[fadeIn_0.5s_ease-out]">
-            <div className="relative w-full max-w-[1440px] mx-auto pt-4 md:pt-6 pb-6 px-4 flex flex-col items-center z-10">
-                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-[16px] flex items-center justify-center mb-3 shadow-[0_8px_25px_rgba(37,99,235,0.4)] border border-blue-400/50 dark:border-blue-500/20">
-                    <Dumbbell className="w-7 h-7" />
+        <div className="w-full max-w-[1440px] mx-auto space-y-4 pb-10 animate-[fadeIn_0.3s_ease-out]">
+            {/* Faixa do topo (visual compacto, 09/11/2026): abas à esquerda; período, Lixeira e formulário à direita */}
+            <div className="relative z-30 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-3 py-2 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex items-center gap-2 pr-1 text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white">
+                        <Dumbbell className="w-4 h-4 text-blue-600 dark:text-blue-400" />{tx("Avaliação Física")}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                        <span className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest">{tx("Avaliadores")}</span>
+                        {verDashUnidade && (
+                            <button type="button" onClick={() => setProfessorAtivo({ id: 'GERAL', nome: `DASHBOARD - ${usuarioLogado?.unidade}`, unidade: usuarioLogado?.unidade })} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors">
+                                {tx("Dashboard da Unidade")}
+                            </button>
+                        )}
+                        {verDashGlobal && (
+                            <button type="button" onClick={() => setProfessorAtivo({ id: 'GLOBAL', nome: 'VISÃO GLOBAL DA REDE' })} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition-colors">
+                                {tx("Dashboard Global")}
+                            </button>
+                        )}
+                    </div>
                 </div>
-                <h1 className="text-2xl md:text-3xl font-black text-slate-800 dark:text-white tracking-tight text-center max-w-2xl leading-tight">
-                    {tx("Painel de")}{' '}<span className="text-blue-600 dark:text-blue-400 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-blue-600 dark:from-blue-400 dark:to-blue-400">{tx("Avaliação Física")}</span>
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-3 font-medium text-center text-sm max-w-lg mb-5">
-                    {tx("Acesse a gestão estratégica ou selecione o perfil de um avaliador.")}
-                </p>
-                
-                <div className="w-full flex flex-col md:flex-row justify-center gap-4 max-w-3xl mx-auto">
-                    {verDashGlobal && (
-                        <button onClick={() => setProfessorAtivo({ id: 'GLOBAL', nome: 'VISÃO GLOBAL DA REDE' })} className="flex-1 bg-gradient-to-r from-blue-600 to-blue-500 p-5 rounded-[20px] shadow-[0_8px_30px_rgba(59,130,246,0.25)] flex items-center justify-between transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(59,130,246,0.35)] border border-blue-400 dark:border-blue-500/30 group relative overflow-hidden">
-                            <svg className="absolute bottom-0 right-10 w-24 h-12 opacity-30 group-hover:opacity-60 transition-opacity" viewBox="0 0 100 30" fill="none">
-                                <path d="M0 30L20 15L40 20L60 5L80 15L100 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-white/20">
-                                    <Building2 className="w-6 h-6 text-white" />
-                                </div>
-                                <div className="text-left">
-                                    <span className="font-black uppercase tracking-widest text-xs text-white block mb-0.5">{tx("Dashboard Global")}</span>
-                                    <span className="text-[10px] text-blue-100 font-bold uppercase tracking-widest block">{tx("Desempenho de todas as unidades")}</span>
-                                </div>
-                            </div>
-                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-white/30 transition-colors relative z-10">
-                                <ChevronRight className="w-5 h-5 text-white" />
-                            </div>
-                        </button>
-                    )}
-
-                    {verDashUnidade && (
-                        <button onClick={() => setProfessorAtivo({ id: 'GERAL', nome: `DASHBOARD - ${usuarioLogado?.unidade}`, unidade: usuarioLogado?.unidade })} className="flex-1 bg-gradient-to-r from-slate-900 to-slate-800 dark:from-slate-800 dark:to-slate-900 p-5 rounded-[20px] shadow-[0_8px_30px_rgba(15,23,42,0.25)] flex items-center justify-between transition-all hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(15,23,42,0.35)] border border-slate-700 dark:border-slate-700/50 group relative overflow-hidden">
-                            <div className="absolute right-0 top-0 w-32 h-full bg-gradient-to-l from-orange-500/20 to-transparent pointer-events-none"></div>
-                            <svg className="absolute bottom-0 right-10 w-24 h-12 opacity-30 group-hover:opacity-60 transition-opacity" viewBox="0 0 100 30" fill="none">
-                                <path d="M0 30L20 15L40 20L60 5L80 15L100 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            <div className="flex items-center gap-4 relative z-10">
-                                <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center backdrop-blur-sm border border-orange-500/30">
-                                    <BarChart3 className="w-6 h-6 text-orange-400" />
-                                </div>
-                                <div className="text-left">
-                                    <span className="font-black uppercase tracking-widest text-xs text-white block mb-0.5">{tx("Dashboard da Unidade")}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest block">{tx("Métricas da Unidade")}{' '}{usuarioLogado?.unidade}</span>
-                                </div>
-                            </div>
-                            <div className="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center shadow-lg shadow-orange-500/30 group-hover:bg-orange-400 transition-colors relative z-10">
-                                <ChevronRight className="w-5 h-5 text-white" />
-                            </div>
-                        </button>
-                    )}
-                </div>
-
-                <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="hidden md:inline text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                        {rotuloDoFiltro(filtroAtual)} · {!usuarioLogado?.unidade || usuarioLogado.unidade === 'TODAS' ? tx("Todas as unidades") : usuarioLogado.unidade}
+                    </span>
                     {isAdmin && (
-                        <button onClick={() => setAbaAtiva('construtor')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-blue-200 dark:hover:border-blue-800">
-                            <ListChecks className="w-3.5 h-3.5" />{' '}{tx("Configurar Formulário")}
+                        <button type="button" onClick={() => setAbaAtiva('construtor')} className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-700 transition-colors">
+                            <ListChecks className="w-3.5 h-3.5" />{tx("Configurar Formulário")}
                         </button>
                     )}
-                    {verLixeira && <button onClick={() => setAbaAtiva('lixeira')} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md px-5 py-2.5 rounded-full border border-slate-200 dark:border-slate-700 shadow-sm transition-all hover:bg-white dark:hover:bg-slate-800 hover:border-rose-200 dark:hover:border-rose-800">
-                        <Trash2 className="w-3.5 h-3.5" />{' '}{tx("Lixeira")}
-                        {totalLixeira > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalLixeira}</span>}
-                    </button>}
+                    {verLixeira && (
+                        <button type="button" onClick={() => setAbaAtiva('lixeira')} className="flex items-center gap-1.5 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-300 dark:hover:border-rose-700 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />{tx("Lixeira")}
+                            {totalLixeira > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalLixeira}</span>}
+                        </button>
+                    )}
+                    <SeletorPeriodo
+                        rotulo={rotuloDoFiltro(filtroAtual)}
+                        preset={filtroPeriodo}
+                        tipo={filtroAtual.tipo}
+                        dia={dataInicio}
+                        inicio={dataInicio}
+                        fim={dataFim}
+                        mes={mesAno.mes}
+                        ano={mesAno.ano}
+                        meses={MESES_FILTRO}
+                        anos={anosFiltro}
+                        onAplicar={aplicarPeriodo}
+                    />
                 </div>
             </div>
 
-            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 relative z-20 mb-8">
-                <div className="w-full flex items-center gap-4 mb-6">
-                    <div className="h-px bg-slate-300/40 dark:bg-slate-700/50 flex-1"></div>
-                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-700/50">
-                        <Users className="w-4 h-4 text-blue-500 dark:text-blue-400"/>{' '}{tx("Avaliadores - Unidade")}{' '}{usuarioLogado?.unidade}
-                    </span>
-                    <div className="h-px bg-slate-300/40 dark:bg-slate-700/50 flex-1"></div>
-                </div>
-
+            {/* Avaliadores da unidade: cartões pequenos (como a aba Equipe do CRM) */}
+            <div>
+                <h3 className="mb-2 px-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                    {tx("Avaliadores")}{usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? ` · ${usuarioLogado.unidade}` : ''}
+                </h3>
                 {profsDaUnidade.length === 0 ? (
-                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-white/50 dark:border-slate-800 p-6 rounded-[24px] text-center w-full max-w-sm mx-auto shadow-[0_4px_20px_rgba(0,0,0,0.03)]">
-                        <Users className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-                        <p className="text-slate-500 dark:text-slate-400 font-bold text-sm">{!usuarioLogado?.unidade || usuarioLogado.unidade === 'TODAS' ? tx("Escolha uma unidade no seletor do topo para ver os avaliadores.") : tx("Nenhum avaliador cadastrado nesta unidade.")}</p>
+                    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-[12px] font-bold text-slate-500 dark:text-slate-400">
+                        {!usuarioLogado?.unidade || usuarioLogado.unidade === 'TODAS' ? tx("Escolha uma unidade no seletor do topo para ver os avaliadores.") : tx("Nenhum avaliador cadastrado nesta unidade.")}
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 w-full">
-                        {profsDaUnidade.map((c, index) => {
-                            const theme = colorThemes[index % colorThemes.length];
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+                        {profsDaUnidade.map((c) => {
                             const metrica = metricasCards[c.nome] || { mes: 0, ultima: null };
-                            
+                            const partes = String(c.nome || '').trim().split(/\s+/);
                             return (
-                                <button key={c.id} onClick={() => setProfessorAtivo({ ...c, unidade: usuarioLogado?.unidade })} className={`bg-white/95 dark:bg-slate-900/90 backdrop-blur-xl border border-white/60 dark:border-slate-800 p-4 rounded-[20px] shadow-[0_4px_15px_rgba(0,0,0,0.03)] transition-all group flex flex-col justify-between min-h-[118px] relative overflow-hidden ${theme.border} ${theme.shadow} hover:-translate-y-1 outline-none text-left`}>
-                                    <div className="flex items-center gap-3 w-full pr-6">
-                                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base transition-colors shadow-inner shrink-0 border border-white/50 dark:border-white/10 ${theme.bg} ${theme.text}`}>
-                                            {c.nome.charAt(0)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <span className="font-extrabold text-slate-800 dark:text-white block leading-tight text-sm truncate" title={c.nome}>{c.nome.split(' ')[0]}</span>
-                                            <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5 block truncate" title={c.nome.split(' ').slice(1).join(' ')}>
-                                                {c.nome.split(' ').slice(1).join(' ') || tx("Avaliador")}
-                                            </span>
-                                        </div>
+                                <button key={c.id} type="button" onClick={() => setProfessorAtivo({ ...c, unidade: usuarioLogado?.unidade })} className="group bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 rounded-xl p-3 flex items-center gap-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500">
+                                    <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-black text-sm shrink-0">{partes[0]?.charAt(0)}</div>
+                                    <div className="min-w-0 flex-1">
+                                        <span className="block text-[12px] font-black text-slate-800 dark:text-white uppercase truncate" title={c.nome}>{partes.slice(0, 2).join(' ')}</span>
+                                        <span className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-0.5 truncate">
+                                            <strong className="text-slate-800 dark:text-white">{metrica.mes}</strong> {tx("no mês")}
+                                            {' · '}{metrica.ultima ? tx("última {v1}", { v1: new Date(metrica.ultima).toLocaleDateString(langAtual, { day: '2-digit', month: '2-digit' }) }) : tx("sem avaliação em 90 dias")}
+                                        </span>
                                     </div>
-                                    <div className="absolute top-5 right-4 w-7 h-7 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 group-hover:bg-blue-50 dark:group-hover:bg-blue-900/40 group-hover:text-blue-500 dark:group-hover:text-blue-400">
-                                        <ChevronRight className="w-4 h-4" />
-                                    </div>
-                                    <div className="mt-3 pt-2.5 border-t border-slate-100/60 dark:border-slate-800 flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${theme.iconBg} ${theme.text}`}><BarChart2 className="w-4 h-4" /></div>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-black text-slate-800 dark:text-white leading-none">{metrica.mes}</span>
-                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">{tx("Avaliações")}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2 text-right">
-                                            <div className="flex flex-col">
-                                                <span className="text-[11px] font-black text-slate-800 dark:text-white leading-none">
-                                                    {metrica.ultima ? new Date(metrica.ultima).toLocaleDateString(langAtual, {day:'2-digit', month:'2-digit', year:'2-digit'}) : '-'}
-                                                </span>
-                                                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">{tx("Última")}</span>
-                                            </div>
-                                            <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 text-slate-400 dark:text-slate-500 group-hover:bg-slate-100 dark:group-hover:bg-slate-700 transition-colors">
-                                                <CalendarDays className="w-4 h-4" />
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <ChevronRight className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover:text-blue-500 shrink-0" />
                                 </button>
                             );
                         })}
@@ -657,41 +649,18 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                 )}
             </div>
 
-            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 relative z-20">
-                <div className="w-full flex items-center gap-4 mb-6">
-                    <div className="h-px bg-slate-300/40 dark:bg-slate-700/50 flex-1"></div>
-                    <span className="text-[10px] font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest flex items-center gap-2 bg-white/60 dark:bg-slate-800/60 backdrop-blur-sm px-4 py-1.5 rounded-full border border-slate-200/50 dark:border-slate-700/50">
-                        <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400"/>{' '}{tx("Acompanhamento Geral")}
-                    </span>
-                    <div className="h-px bg-slate-300/40 dark:bg-slate-700/50 flex-1"></div>
-                </div>
-
-                <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-[24px] border border-white/50 dark:border-slate-700/50 shadow-sm flex flex-col overflow-hidden">
-                    <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800/50 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col overflow-hidden">
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
                         <div>
-                            <h2 className="text-lg font-black text-slate-800 dark:text-white tracking-tight leading-none">{tx("Últimas Avaliações")}</h2>
-                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5">
+                            <h2 className="text-[12px] font-black text-slate-800 dark:text-white uppercase tracking-widest leading-none">{tx("Últimas Avaliações")}</h2>
+                            <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">
                                 {listaTabela.length}{' '}{tx("registros encontrados")}
                             </p>
                         </div>
-                        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                         <div className="relative w-full sm:w-64">
                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            <input type="text" value={buscaTabela} onChange={(e) => { setBuscaTabela(e.target.value); setPaginaAtual(1); }} placeholder={tx("Buscar aluno, CPF ou avaliador")} className="w-full h-10 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 text-[12px] font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
-                        </div>
-                        <SeletorPeriodo
-                            rotulo={rotuloDoFiltro(filtroAtual)}
-                            preset={filtroPeriodo}
-                            tipo={filtroAtual.tipo}
-                            dia={dataInicio}
-                            inicio={dataInicio}
-                            fim={dataFim}
-                            mes={mesAno.mes}
-                            ano={mesAno.ano}
-                            meses={MESES_FILTRO}
-                            anos={anosFiltro}
-                            onAplicar={aplicarPeriodo}
-                        />
+                            <input type="text" value={buscaTabela} onChange={(e) => { setBuscaTabela(e.target.value); setPaginaAtual(1); }} placeholder={tx("Buscar aluno, CPF ou avaliador")} className="w-full h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 text-[12px] font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
                         </div>
                     </div>
 
@@ -801,7 +770,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
             {/* RENDERIZA O MODAL SE ESTIVER ABERTO */}
             {modalOpen && (
                 <ModalVerAvaliacao 
-                    avaliacoes={avaliacoesRecentes} 
+                    avaliacoes={listaTabela}
                     initialIndex={currentIndex} 
                     onClose={() => setModalOpen(false)}
                     perguntasPorId={perguntasPorId}

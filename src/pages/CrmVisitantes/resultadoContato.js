@@ -3,7 +3,7 @@
 // Depois do WhatsApp/Ligar a recepcionista marca "Como foi o contato?":
 //   PENSANDO     → Respondeu, vai pensar: volta para a lista dela em 3 dias
 //   SEM_RESPOSTA → Não respondeu / não atendeu: volta em 2 dias; na 3ª tentativa vai para a GELADEIRA (30 dias)
-//   INTERESSADO  → Migração: vai para o funil; Resgate: fica na aba e volta amanhã
+//   INTERESSADO  → vai para o funil da recepcionista (Em Espera, volta amanhã) — Migração e, desde 09/11/2026, Resgate
 //   NAO_QUER     → GELADEIRA por 30 dias (NÃO vai para o "Não contatar")
 // Da geladeira, depois de 30 dias, volta em "Para hoje". Contatado sem data volta 2 dias depois do último contato.
 // ==========================================
@@ -35,7 +35,9 @@ export const VISOES_FILA = [
     { val: 'SEM_TELEFONE', label: 'Sem telefone' }
 ];
 export const QUANTIDADES_PUXAR = [10, 15, 20, 50];
-export const DIAS_PARA_DEVOLVER = 7;
+// Puxado e NÃO contatado volta para os Disponíveis depois destes dias (09/11/2026: era 7, o dono decidiu 3, igual ao
+// funil). O banco tem a mesma regra nas funções crm_puxar_migracao / crm_puxar_resgate: sql/2026-11-09-crm-fila-3-dias.
+export const DIAS_PARA_DEVOLVER = 3;
 
 export const dataBR = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '');
 

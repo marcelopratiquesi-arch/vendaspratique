@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { LifeBuoy, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine, ClipboardCheck } from 'lucide-react';
+import { LifeBuoy, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine } from 'lucide-react';
 import { abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, somarDiasISO, mesmoNome, normalizarNome, marcaFeitoPor, apenasDigitos } from './utils';
 import { montarMensagem } from './embaralhador.js';
 import {
@@ -11,8 +11,9 @@ import { buscarComprasDePlano } from './compraDePlano.js';
 import { JanelaNaoContatar } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import JanelaResultadoContato from './JanelaResultadoContato';
+import BotoesResultadoLinha from './BotoesResultadoLinha';
 import {
-    ANDAMENTOS_BASE, VISOES_FILA, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS, DIAS_VOLTA_INTERESSADO,
+    ANDAMENTOS_BASE, VISOES_FILA, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
     semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR
 } from './resultadoContato.js';
 import { avisar } from '../../components/avisar.js';
@@ -25,7 +26,10 @@ import { tx } from '../../i18n/traduzir.js';
 //   - a recepcionista PUXA 10/15/20/50 (cadastrados mais recentemente primeiro) para a "Minha fila";
 //   - WhatsApp (mensagem "Cancelado / inativo" do embaralhador) · Ligar (MicroSIP) · Resultado;
 //   - "Como foi o contato?" (resultadoContato.js): vai pensar 3 dias · não respondeu 2 dias, na 3ª tentativa geladeira ·
-//     Interessado fica aqui e volta AMANHÃ · Não quer = geladeira 30 dias (não vai para o "Não contatar");
+//     Interessado vai para o FUNIL da recepcionista em "Em Contato", igual à Migração (decisão do dono, 09/11/2026;
+//     antes ficava aqui e voltava amanhã) · Não quer = geladeira 30 dias (não vai para o "Não contatar");
+//   - 09/11/2026: botões Não respondeu · Vai pensar · Interessado na linha (+ "Mais" = janela); janela obrigatória
+//     depois do WhatsApp/Ligar; "Pegar para mim" nos Disponíveis/Todos; puxado e não contatado volta em 3 dias;
 //   - VOLTOU (automático): comprou plano depois de entrar no Resgate (consulta segura crm_compras_de_plano).
 // Ficam de fora: Não contatar, quem comprou plano nos últimos 30 dias e quem já está em aberto no funil do CRM.
 // Contato conta na meta (crm_contatos_feitos tipo RESGATE; sem o SQL grava com o tipo CANCELADO/INATIVO).
@@ -63,7 +67,7 @@ const ETIQUETA_TIPO = {
 const DIAS_SEM_COMPRA = 30;
 const POR_PAGINA = 50;
 
-const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), leads = [], onNaoContatar, onContatoFeito }) => {
+const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), leads = [], onNaoContatar, onContatoFeito, onInteressado }) => {
     const [alunos, setAlunos] = useState(null);
     const [andamento, setAndamento] = useState(new Map());
     const [compras, setCompras] = useState(new Map()); // cpf -> compra de plano mais recente
@@ -192,8 +196,9 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         return novo;
     });
 
-    const puxar = async () => {
-        const candidatos = linhas
+    // umAluno = "Pegar para mim" na linha (09/11/2026)
+    const puxar = async (umAluno) => {
+        const candidatos = umAluno ? [umAluno] : linhas
             .filter(l => l.disponivel && (!tipoPuxar || l.tipo === tipoPuxar))
             .sort((a, b) => String(b.data_cadastro || '').localeCompare(String(a.data_cadastro || '')))
             .slice(0, qtdPuxar);
@@ -203,6 +208,11 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
             const confirmados = await puxarParaFilaResgate({ alunoIds: candidatos.map(c => c.aluno_id), unidade: unidadeChave, operador });
             const mapa = await carregarAndamentoResgate();
             if (mapa) setAndamento(mapa);
+            if (umAluno) {
+                if (confirmados.length) avisar(tx("{nome} foi para a sua fila.", { nome: umAluno.nome }), 'sucesso');
+                else avisar(tx("Este aluno já foi pego por outra pessoa. A lista foi atualizada."));
+                return;
+            }
             setVisao('FILA');
             setFiltroAndamento('HOJE');
             const perdidos = candidatos.length - confirmados.length;
@@ -254,20 +264,21 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         if (linha.semTel) return avisar(tx("Este aluno está sem telefone cadastrado."));
         abrirNoWhatsApp(linha.telefone, montarMensagem('FASE_NOVO_INATIVO', { nome: linha.nome, unidade: unidadeChave }, mensagens || undefined));
         await registrarContato(linha, { canal: 'WHATSAPP' });
-        setResultadoPara(linha);
+        setResultadoPara({ ...linha, _obrigatorio: true });
     };
 
     const ligar = async (linha) => {
         if (linha.semTel) return avisar(tx("Este aluno está sem telefone cadastrado."));
         ligarPeloSip(linha.telefone);
         await registrarContato(linha, { canal: 'LIGACAO' });
-        setResultadoPara(linha);
+        setResultadoPara({ ...linha, _obrigatorio: true });
     };
 
     const aplicarResultado = async (linha, tipo) => {
         setResultadoPara(null);
         const reg = andamento.get(linha.aluno_id) || linha.registro || {};
-        const { status, extras, foiParaGeladeira } = camposDoResultado(tipo, reg, hoje, { interessadoVolta: DIAS_VOLTA_INTERESSADO });
+        // Interessado vai para o funil (sem data de volta aqui), igual à Migração (09/11/2026)
+        const { status, extras, foiParaGeladeira } = camposDoResultado(tipo, reg, hoje);
         const dono = reg.puxado_por ? undefined : (linha.dono || operador);
         setSalvando(linha.aluno_id);
         try {
@@ -275,6 +286,20 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
             registrarResultadoContato({ unidade: unidadeChave, consultor: operador, origem: 'RESGATE', aluno_id: linha.aluno_id, resultado: tipo });
             atualizarLocal(linha.aluno_id, { status, ...extras, atualizado_em: new Date().toISOString(), ...(dono ? { puxado_por: dono } : {}) });
             if (foiParaGeladeira) avisar(tx("{nome}: {qtd} tentativas sem resposta. Foi para a geladeira e volta em {dias} dias.", { nome: linha.nome, qtd: MAX_TENTATIVAS, dias: DIAS_GELADEIRA }));
+            if (tipo === 'INTERESSADO' && onInteressado) await onInteressado(linha);
+        } catch (err) {
+            avisar(tx("Não foi possível salvar.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setSalvando('');
+        }
+    };
+
+    // Desmarcar o Interessado (clicar de novo no botão): volta para "Contatado", sem data
+    const desmarcarInteresse = async (linha) => {
+        setSalvando(linha.aluno_id);
+        try {
+            await salvarAndamentoResgate({ aluno_id: linha.aluno_id, unidade: unidadeChave, status: 'CONTATADO', quem: operador, extras: { volta_em: null } });
+            atualizarLocal(linha.aluno_id, { status: 'CONTATADO', volta_em: null, atualizado_em: new Date().toISOString() });
         } catch (err) {
             avisar(tx("Não foi possível salvar.\n\n{v1}", { v1: err?.message || '' }), 'erro');
         } finally {
@@ -344,7 +369,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 <select value={qtdPuxar} onChange={(e) => setQtdPuxar(Number(e.target.value))} className={seletor}>
                     {QUANTIDADES_PUXAR.map(q => <option key={q} value={q}>{q}{' '}{tx("alunos")}</option>)}
                 </select>
-                <button type="button" onClick={puxar} disabled={puxando || totalDisponiveis === 0 || faltaSql === 'RESGATE'} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                <button type="button" onClick={() => puxar()} disabled={puxando || totalDisponiveis === 0 || faltaSql === 'RESGATE'} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}{' '}{tx("Puxar")}
                 </button>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis}{' '}{tx("disponível(is)")}{' '}{tx("· os cadastrados mais recentemente vêm primeiro")}</span>
@@ -445,10 +470,15 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                                                             <Check className="w-3.5 h-3.5" />{' '}{tx("Contatado hoje")}
                                                         </span>
                                                     )}
+                                                    {/* Resultado direto na linha (09/11/2026): Não respondeu · Vai pensar · Interessado · Mais */}
                                                     {l.situacao !== 'NAO_CONTATADO' && (
-                                                        <button type="button" onClick={() => setResultadoPara(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title={tx("Marcar como foi o contato (respondeu, não respondeu, não quer)")}>
-                                                            <ClipboardCheck className="w-3.5 h-3.5" />{' '}{tx("Resultado")}
-                                                        </button>
+                                                        <BotoesResultadoLinha
+                                                            linha={l}
+                                                            ocupado={ocupado}
+                                                            onEscolher={(tipo) => aplicarResultado(l, tipo)}
+                                                            onMais={() => setResultadoPara(l)}
+                                                            onDesmarcarInteressado={() => desmarcarInteresse(l)}
+                                                        />
                                                     )}
                                                     {l.situacao === 'NAO_CONTATADO' && (
                                                         <button type="button" onClick={() => devolver(l)} disabled={ocupado} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-60 dark:hover:text-blue-400" title={tx("Devolver para os Disponíveis")}>
@@ -456,6 +486,12 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                                                         </button>
                                                     )}
                                                 </>
+                                            )}
+                                            {/* Pegar para mim (09/11/2026): aluno disponível vai direto para a minha fila */}
+                                            {l.disponivel && visao !== 'FILA' && (
+                                                <button type="button" onClick={() => puxar(l)} disabled={puxando || faltaSql === 'RESGATE'} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Passa este aluno para a sua fila (Minha fila)")}>
+                                                    <ArrowRightCircle className="w-3.5 h-3.5" />{' '}{tx("Pegar para mim")}
+                                                </button>
                                             )}
                                             {l.situacao !== 'VOLTOU' && (
                                                 <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title={tx("Não contatar")}>
@@ -480,7 +516,8 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 <JanelaResultadoContato
                     aluno={{ ...resultadoPara, registro: andamento.get(resultadoPara.aluno_id) || resultadoPara.registro }}
                     hoje={hoje}
-                    textoInteressado={tx('Fica no Resgate e volta para a sua lista amanhã.')}
+                    textoInteressado={tx('Vai para o seu funil (Em Espera, volta amanhã).')}
+                    obrigatorio={!!resultadoPara._obrigatorio}
                     textoNaoQuer={tx('Vai para a geladeira do Resgate e volta em {dias} dias. Não entra no "Não contatar".', { dias: DIAS_GELADEIRA })}
                     onEscolher={(tipo) => aplicarResultado(resultadoPara, tipo)}
                     onFechar={() => setResultadoPara(null)}
