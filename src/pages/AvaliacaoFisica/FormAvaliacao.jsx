@@ -5,8 +5,9 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { calcularSMI, calcularHidratacao, classificarRCQ, classificarGV, classificarPressao } from './utils.js';
 import { mascaraCPF, validarCPF, formatarTelefone, calcularIdade } from '../CadastroGeral/utilsAlunos.js'; 
 import { processarExameBioimpedancia } from './bioimpedancia/index.js';
-import { Activity, HeartPulse, Send, Loader2, CheckCircle2, AlertCircle, UserRoundPen, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
+import { ArrowLeft, LogOut, Activity, HeartPulse, Send, Loader2, CheckCircle2, AlertCircle, UserRoundPen, AlertTriangle, ListChecks, Check, Ruler, User, Mail, Phone, CalendarDays, Copy, IdCard, Info, Droplet, Apple, Dumbbell, MessageCircle, Smartphone, Users, Zap, Scale, PersonStanding, BarChart3, Percent, Sparkles, UploadCloud, FileText } from 'lucide-react';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
+import { FaixaAvaliacao, BotaoFaixa } from './FaixaAvaliacao.jsx';
 import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
 import { pendenciasCadastroAluno } from '../Alunos/utils.js';
 import { avisar } from '../../components/avisar.js';
@@ -67,7 +68,7 @@ const InputComIcone = ({ label, name, value, onChange, icon: Icon, placeholder, 
 );
 
 // alunoInicial: aluno vindo da ficha (botão "Avaliação"). unidadeDestino: unidade em que a avaliação será gravada.
-const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando, colaboradores = [], alunoInicial = null, unidadeDestino = '' }) => {
+const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditando, colaboradores = [], alunoInicial = null, unidadeDestino = '', onTrocarProfessor = null }) => {
     const { t, locale, language } = useI18n(); const langAtual = locale || language || 'pt-BR';
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [sucesso, setSucesso] = useState(false);
@@ -417,7 +418,16 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                 </div>
             )}
 
-            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-4 animate-[fadeIn_0.3s_ease-out] pb-10">
+            {/* Faixa de destaque da Avaliação (peça única, 09/11/2026): título, avaliador e unidade, Cancelar */}
+            <FaixaAvaliacao
+                antes={<BotaoFaixa onClick={voltar}><ArrowLeft className="w-3.5 h-3.5" />{t('assessment.form.cancel')}</BotaoFaixa>}
+                icone={avaliacaoEditando ? <UserRoundPen className="w-6 h-6 text-orange-300" /> : undefined}
+                titulo={avaliacaoEditando ? tx("Editar Avaliação Física") : t('assessment.form.title')}
+                subtitulo={`${t('assessment.prof')}: ${avaliadorResponsavel || (professorAtivo?.avaliadorAberto ? tx("A definir") : professorAtivo?.nome || '')}${unidadeDaAvaliacao && unidadeDaAvaliacao !== 'TODAS' ? ` · ${unidadeDaAvaliacao}` : ''}`}
+                acoes={onTrocarProfessor ? <BotaoFaixa onClick={onTrocarProfessor}><LogOut className="w-3.5 h-3.5" />{tx("Trocar Professor")}</BotaoFaixa> : null}
+            />
+
+            <form onSubmit={handleSubmit} className="max-w-5xl mx-auto space-y-4 animate-[fadeIn_0.3s_ease-out] pb-10 mt-4">
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out] z-[9999]">
                         <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200 dark:border-slate-700">
@@ -429,15 +439,6 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                     </div>
                 )}
 
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-slate-900 dark:bg-slate-800 border border-transparent dark:border-slate-700/50 rounded-2xl px-5 py-4 shadow-sm gap-3">
-                    <div>
-                        <h2 className="text-base font-black text-white uppercase tracking-widest flex items-center gap-2">
-                            {avaliacaoEditando ? tx("Editar Avaliação Física") : t('assessment.form.title')}
-                        </h2>
-                        <p className="text-xs font-bold text-slate-400 mt-1 uppercase tracking-widest">{t('assessment.prof')}: {avaliadorResponsavel || (professorAtivo?.avaliadorAberto ? tx("A definir") : professorAtivo.nome)}</p>
-                    </div>
-                    <button type="button" onClick={voltar} className="bg-white/10 hover:bg-white/20 text-white border border-white/10 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors w-full md:w-auto">{t('assessment.form.cancel')}</button>
-                </div>
 
                 <div className={sectionClass}>
                     <div className="flex items-center gap-4 border-b border-slate-100 dark:border-slate-800/50 pb-3 mb-4">

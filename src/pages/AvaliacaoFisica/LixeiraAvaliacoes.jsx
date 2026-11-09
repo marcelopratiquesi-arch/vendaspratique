@@ -7,6 +7,7 @@ import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao } from '../../components/periodoPadrao.js';
 import { mascaraCPF } from '../CadastroGeral/utilsAlunos.js';
 import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { FaixaAvaliacao, BotaoFaixa } from './FaixaAvaliacao.jsx';
 
 // ==========================================
 // LIXEIRA DAS AVALIAÇÕES FÍSICAS (decisão do dono, 04/11/2026)
@@ -87,24 +88,18 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
 
     return (
         <div className="max-w-[1400px] mx-auto relative z-10 space-y-4">
-            {/* Faixa do topo no modelo compacto: voltar + título à esquerda; período · unidade e filtro à direita */}
-            <div className="relative z-30 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <button type="button" onClick={onVoltar} className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
-                        <ArrowLeft className="w-4 h-4" />{tx("Voltar")}
-                    </button>
-                    <h2 className="text-[13px] font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
-                        <Trash2 className="w-4 h-4 text-rose-500" />{tx("Lixeira de avaliações")}
-                        <span className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200 text-[10px] dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30">{visiveis.length}</span>
-                    </h2>
-                </div>
-                <div className="flex flex-wrap items-center gap-3">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
-                        {tx(periodo.rotulo)} · {unidade || tx("Todas as unidades")}
-                    </span>
-                    <SeletorPeriodo {...periodo.propsSeletor} />
-                </div>
-            </div>
+            {/* Faixa de destaque da Avaliação (peça única, 09/11/2026) */}
+            <FaixaAvaliacao
+                antes={<BotaoFaixa onClick={onVoltar}><ArrowLeft className="w-3.5 h-3.5" />{tx("Voltar")}</BotaoFaixa>}
+                icone={<Trash2 className="w-6 h-6 text-rose-300" />}
+                titulo={tx("Lixeira de avaliações")}
+                subtitulo={`${unidade || tx("Todas as unidades")} · ${tx(periodo.rotulo)}`}
+                acoes={<SeletorPeriodo {...periodo.propsSeletor} />}
+                numeros={[
+                    { rotulo: tx("Na lixeira"), valor: carregando ? '…' : visiveis.length },
+                    { rotulo: tx("Restaurar"), valor: podeRestaurar ? tx("Liberado") : tx("Admin e Mentor") },
+                ]}
+            />
 
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden">
                 <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">

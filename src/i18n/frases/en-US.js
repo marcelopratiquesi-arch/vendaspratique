@@ -3344,4 +3344,9 @@ export default {
     "Saudável": "Healthy",
     "Atenção": "Attention",
     "Alerta": "Alert",
+    // Avaliação física — mesma faixa em todas as telas (09/11/2026)
+    "Na lixeira": "In the bin",
+    "Admin e Mentor": "Admin and Mentor",
+    "Perguntas do questionário da avaliação": "Assessment questionnaire questions",
+    "Perguntas ativas": "Active questions",
 };

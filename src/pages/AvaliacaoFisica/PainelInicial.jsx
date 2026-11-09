@@ -9,6 +9,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js'; 
 import { SeletorPeriodo, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { pendenciasAvaliacao } from './utils.js';
+import { FaixaAvaliacao, AbasAvaliacao, BotaoFaixa, EtiquetaSaude, TituloSaude } from './FaixaAvaliacao.jsx';
 import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 import { MESES_FILTRO, faixaDoFiltro, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 import { consultaSeguraOuDireta } from '../../components/consultaSegura.js';
@@ -108,50 +109,7 @@ const classeStatus = (status) => {
     return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:border-slate-600';
 };
 
-// 🔥 Indicador de Saúde (Semáforo). Mesma regra de antes; desde 09/11/2026 vira etiqueta com texto na tabela.
-// Situações "Aguardando..."/"Preencha..." não são medida: avaliação só com elas fica sem etiqueta.
-const NIVEIS_SAUDE = {
-    alerta: { rotulo: 'Alerta', classe: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30', bolinha: 'bg-rose-500' },
-    atencao: { rotulo: 'Atenção', classe: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30', bolinha: 'bg-amber-500' },
-    ok: { rotulo: 'Saudável', classe: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30', bolinha: 'bg-emerald-500' },
-};
-const nivelSaude = (av) => {
-    const statuses = [av.smi_status, av.rcq_status, av.gv_status, av.pressao_status, av.hidratacao_status]
-        .filter(Boolean).map(s => semAcento(String(s).toUpperCase()))
-        .filter(s => !/AGUARDANDO|PREENCHA|INSUFICIENTES|INVALIDOS/.test(s));
-    if (statuses.length === 0) return null;
 
-    let hasAlert = false;
-    let hasWarning = false;
-
-    statuses.forEach(s => {
-        if (/BAIXO|ALTO|RUIM|ALERTA|ESTAGIO 2|ESTAGIO 3|GRAU II|SARCOPENIA|ACIMA/.test(s)) hasAlert = true;
-        else if (/LIMITROFE|MODERADO|ESTAGIO 1|ABAIXO|GRAU I|ATENCAO/.test(s)) hasWarning = true;
-    });
-
-    if (hasAlert) return NIVEIS_SAUDE.alerta;
-    if (hasWarning) return NIVEIS_SAUDE.atencao;
-    return NIVEIS_SAUDE.ok;
-};
-
-// Desenho leve de academia para a faixa do topo (feito no próprio sistema: não baixa nada de fora)
-const DesenhoAcademia = ({ className }) => (
-    <svg className={className} viewBox="0 0 260 120" fill="currentColor" aria-hidden="true">
-        {/* haltere */}
-        <rect x="8" y="58" width="9" height="32" rx="3" />
-        <rect x="19" y="50" width="12" height="48" rx="3" />
-        <rect x="31" y="70" width="72" height="8" rx="4" />
-        <rect x="103" y="50" width="12" height="48" rx="3" />
-        <rect x="117" y="58" width="9" height="32" rx="3" />
-        {/* pessoa levantando a barra */}
-        <rect x="150" y="14" width="100" height="5" rx="2.5" />
-        <rect x="144" y="4" width="9" height="25" rx="2" />
-        <rect x="247" y="4" width="9" height="25" rx="2" />
-        <circle cx="200" cy="34" r="9" />
-        <path d="M168 17 l20 26 h4 l-16 -26 z M232 17 l-20 26 h-4 l16 -26 z" />
-        <path d="M191 45 h18 c4 0 7 3 7 7 v26 l-6 0 l6 40 h-10 l-6 -34 h-2 l-6 34 h-10 l6 -40 l-6 0 v-26 c0 -4 3 -7 7 -7 z" />
-    </svg>
-);
 
 const pareceId = (k) => /^[0-9a-f-]{16,}$/i.test(k) || /^\d+$/.test(k) || /^q\d+$/i.test(k);
 
@@ -604,89 +562,43 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
 
     return (
         <div className="w-full max-w-[1440px] mx-auto space-y-4 pb-10 animate-[fadeIn_0.3s_ease-out]">
-            {/* Faixa de destaque com cara de academia (decisão do dono, 09/11/2026: exceção ao visual compacto nesta tela).
-                Azul-marinho → laranja, desenho leve feito no sistema, título, 3 números do período, abas e botões. */}
-            <div className="relative z-30 rounded-2xl bg-gradient-to-r from-[#0B1F4B] via-[#14336f] to-orange-500 dark:from-[#071530] dark:via-[#0e2552] dark:to-orange-600 text-white shadow-md">
-                <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-2xl">
-                    <DesenhoAcademia className="absolute -bottom-2 right-3 h-[115%] w-auto text-white opacity-[0.16]" />
-                    <div className="absolute -left-16 -top-20 w-64 h-64 rounded-full bg-white/5" />
-                </div>
-                <div className="relative px-4 py-4 sm:px-5 flex flex-col gap-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="flex items-center gap-3 min-w-0">
-                            <div className="w-11 h-11 rounded-xl bg-white/15 border border-white/20 flex items-center justify-center shrink-0">
-                                <Dumbbell className="w-6 h-6 text-orange-300" />
-                            </div>
-                            <div className="min-w-0">
-                                <h1 className="text-xl font-black uppercase tracking-tight leading-none truncate">{tx("Avaliação Física")}</h1>
-                                <p className="mt-1 text-[11px] font-bold uppercase tracking-widest text-blue-100/80 truncate">{unidadeNome} · {rotuloDoFiltro(filtroAtual)}</p>
-                            </div>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {isAdmin && (
-                                <button type="button" onClick={() => setAbaAtiva('construtor')} className="flex items-center gap-1.5 h-10 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-[10px] font-black uppercase tracking-widest text-white transition-colors">
-                                    <ListChecks className="w-3.5 h-3.5" />{tx("Configurar Formulário")}
-                                </button>
-                            )}
-                            {verLixeira && (
-                                <button type="button" onClick={() => setAbaAtiva('lixeira')} className="flex items-center gap-1.5 h-10 px-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-[10px] font-black uppercase tracking-widest text-white transition-colors">
-                                    <Trash2 className="w-3.5 h-3.5" />{tx("Lixeira")}
-                                    {totalLixeira > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalLixeira}</span>}
-                                </button>
-                            )}
-                            <SeletorPeriodo
-                                rotulo={rotuloDoFiltro(filtroAtual)}
-                                preset={filtroPeriodo}
-                                tipo={filtroAtual.tipo}
-                                dia={dataInicio}
-                                inicio={dataInicio}
-                                fim={dataFim}
-                                mes={mesAno.mes}
-                                ano={mesAno.ano}
-                                meses={MESES_FILTRO}
-                                anos={anosFiltro}
-                                onAplicar={aplicarPeriodo}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-end justify-between gap-3">
-                        {/* 3 números do período escolhido */}
-                        <div className="flex flex-wrap items-stretch gap-2">
-                            <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2 min-w-[120px]">
-                                <span className="block text-[10px] font-black uppercase tracking-widest text-blue-100/80">{tx("Avaliações no período")}</span>
-                                <strong className="block text-xl font-black leading-tight">{loadingTabela ? '…' : resumoTopo.total}</strong>
-                            </div>
-                            <div className="rounded-xl bg-white/10 border border-white/15 px-3 py-2 min-w-[120px]">
-                                <span className="block text-[10px] font-black uppercase tracking-widest text-blue-100/80">{tx("Avaliadores que avaliaram")}</span>
-                                <strong className="block text-xl font-black leading-tight">
-                                    {loadingTabela ? '…' : resumoTopo.avaliadores}
-                                    {!loadingTabela && profsDaUnidade.length > 0 && <span className="text-[12px] font-bold text-blue-100/70"> {tx("de {qtd}", { qtd: profsDaUnidade.length })}</span>}
-                                </strong>
-                            </div>
-                            <div className={`rounded-xl border px-3 py-2 min-w-[120px] ${resumoTopo.incompletas > 0 ? 'bg-amber-400/20 border-amber-300/50' : 'bg-white/10 border-white/15'}`}>
-                                <span className={`block text-[10px] font-black uppercase tracking-widest ${resumoTopo.incompletas > 0 ? 'text-amber-200' : 'text-blue-100/80'}`}>{tx("Incompletas")}</span>
-                                <strong className={`block text-xl font-black leading-tight ${resumoTopo.incompletas > 0 ? 'text-amber-200' : ''}`}>{loadingTabela ? '…' : resumoTopo.incompletas}</strong>
-                            </div>
-                        </div>
-
-                        {/* Abas */}
-                        <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/20 p-1">
-                            <span className="px-3 py-1.5 rounded-lg bg-white text-[#0B1F4B] text-[10px] font-black uppercase tracking-widest">{tx("Avaliadores")}</span>
-                            {verDashUnidade && (
-                                <button type="button" onClick={() => setProfessorAtivo({ id: 'GERAL', nome: `DASHBOARD - ${usuarioLogado?.unidade}`, unidade: usuarioLogado?.unidade })} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">
-                                    {tx("Dashboard da Unidade")}
-                                </button>
-                            )}
-                            {verDashGlobal && (
-                                <button type="button" onClick={() => setProfessorAtivo({ id: 'GLOBAL', nome: 'VISÃO GLOBAL DA REDE' })} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">
-                                    {tx("Dashboard Global")}
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            {/* Faixa de destaque com cara de academia (peça única FaixaAvaliacao, usada em toda a área da Avaliação) */}
+            <FaixaAvaliacao
+                titulo={tx("Avaliação Física")}
+                subtitulo={`${unidadeNome} · ${rotuloDoFiltro(filtroAtual)}`}
+                acoes={<>
+                    {isAdmin && <BotaoFaixa onClick={() => setAbaAtiva('construtor')}><ListChecks className="w-3.5 h-3.5" />{tx("Configurar Formulário")}</BotaoFaixa>}
+                    {verLixeira && (
+                        <BotaoFaixa onClick={() => setAbaAtiva('lixeira')}>
+                            <Trash2 className="w-3.5 h-3.5" />{tx("Lixeira")}
+                            {totalLixeira > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalLixeira}</span>}
+                        </BotaoFaixa>
+                    )}
+                    <SeletorPeriodo
+                        rotulo={rotuloDoFiltro(filtroAtual)}
+                        preset={filtroPeriodo}
+                        tipo={filtroAtual.tipo}
+                        dia={dataInicio}
+                        inicio={dataInicio}
+                        fim={dataFim}
+                        mes={mesAno.mes}
+                        ano={mesAno.ano}
+                        meses={MESES_FILTRO}
+                        anos={anosFiltro}
+                        onAplicar={aplicarPeriodo}
+                    />
+                </>}
+                numeros={[
+                    { rotulo: tx("Avaliações no período"), valor: loadingTabela ? '…' : resumoTopo.total },
+                    { rotulo: tx("Avaliadores que avaliaram"), valor: loadingTabela ? '…' : resumoTopo.avaliadores, extra: !loadingTabela && profsDaUnidade.length > 0 ? tx("de {qtd}", { qtd: profsDaUnidade.length }) : null },
+                    { rotulo: tx("Incompletas"), valor: loadingTabela ? '…' : resumoTopo.incompletas, amarelo: resumoTopo.incompletas > 0 },
+                ]}
+                abas={<AbasAvaliacao
+                    ativa="avaliadores"
+                    onUnidade={verDashUnidade ? () => setProfessorAtivo({ id: 'GERAL', nome: `DASHBOARD - ${usuarioLogado?.unidade}`, unidade: usuarioLogado?.unidade }) : null}
+                    onGlobal={verDashGlobal ? () => setProfessorAtivo({ id: 'GLOBAL', nome: 'VISÃO GLOBAL DA REDE' }) : null}
+                />}
+            />
 
             {/* Avaliadores da unidade: cartões com cor própria, barra do mês, 🏆 e atalho laranja "Nova avaliação" */}
             <div>
@@ -772,10 +684,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                     <tr>
                                         <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Aluno(a)")}</th>
                                         <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                            <span className="inline-flex items-center gap-1">
-                                                <HeartPulse className="w-3.5 h-3.5 text-rose-500" />{tx("Saúde")}
-                                                <span title={tx("Junta pressão, gordura visceral, RCQ, SMI e hidratação. Alerta = algum resultado ruim; Atenção = algum no limite; Saudável = todos bons.")} className="cursor-help w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] font-black flex items-center justify-center">?</span>
-                                            </span>
+                                            <TituloSaude />
                                         </th>
                                         <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Data e Hora")}</th>
                                         <th className="px-5 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Avaliador")}</th>
@@ -792,7 +701,6 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                         const p = av.peso ? parseFloat(String(av.peso).replace(',', '.')) : null;
                                         const m = av.mme ? parseFloat(String(av.mme).replace(',', '.')) : null;
                                         const g = av.pgc ? parseFloat(String(av.pgc).replace(',', '.')) : null;
-                                        const saude = nivelSaude(av);
 
                                         return (
                                             <tr key={av.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer" onClick={() => openModal(av.id)}>
@@ -813,11 +721,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                                     </div>
                                                 </td>
                                                 <td className="px-5 py-3">
-                                                    {saude ? (
-                                                        <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg border text-[10px] font-black uppercase tracking-widest ${saude.classe}`}>
-                                                            <span className={`w-2 h-2 rounded-full ${saude.bolinha}`} />{tx(saude.rotulo)}
-                                                        </span>
-                                                    ) : <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600">—</span>}
+                                                    <EtiquetaSaude avaliacao={av} />
                                                 </td>
                                                 <td className="px-5 py-3 flex flex-col justify-center min-h-[56px]">
                                                     <span className="text-[13px] font-bold text-slate-700 dark:text-slate-300">{formatarDataBR(av.data || av.created_at)}</span>

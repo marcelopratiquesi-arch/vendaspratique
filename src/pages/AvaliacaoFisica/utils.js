@@ -171,3 +171,28 @@ export const pendenciasAvaliacao = (av) => {
     if (!respostas.some(temResposta)) faltas.push('Anamnese');
     return faltas;
 };
+
+// Nível de saúde da avaliação (etiqueta Saudável / Atenção / Alerta nas tabelas; antes era uma bolinha).
+// Mesma regra da bolinha antiga. Situações "Aguardando..."/"Preencha..." não são medida: só elas = sem etiqueta.
+const semAcentoSaude = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+export const NIVEIS_SAUDE = {
+    alerta: { rotulo: 'Alerta', classe: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30', bolinha: 'bg-rose-500' },
+    atencao: { rotulo: 'Atenção', classe: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30', bolinha: 'bg-amber-500' },
+    ok: { rotulo: 'Saudável', classe: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30', bolinha: 'bg-emerald-500' },
+};
+export const nivelSaude = (av) => {
+    if (!av) return null;
+    const statuses = [av.smi_status, av.rcq_status, av.gv_status, av.pressao_status, av.hidratacao_status]
+        .filter(Boolean).map(semAcentoSaude)
+        .filter(s => !/AGUARDANDO|PREENCHA|INSUFICIENTES|INVALIDOS/.test(s));
+    if (statuses.length === 0) return null;
+    let alerta = false;
+    let atencao = false;
+    statuses.forEach(s => {
+        if (/BAIXO|ALTO|RUIM|ALERTA|ESTAGIO 2|ESTAGIO 3|GRAU II|SARCOPENIA|ACIMA/.test(s)) alerta = true;
+        else if (/LIMITROFE|MODERADO|ESTAGIO 1|ABAIXO|GRAU I|ATENCAO/.test(s)) atencao = true;
+    });
+    if (alerta) return NIVEIS_SAUDE.alerta;
+    if (atencao) return NIVEIS_SAUDE.atencao;
+    return NIVEIS_SAUDE.ok;
+};

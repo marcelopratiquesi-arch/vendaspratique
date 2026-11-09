@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ListChecks } from 'lucide-react';
+import { ListChecks, ArrowLeft } from 'lucide-react';
+import { FaixaAvaliacao, BotaoFaixa } from './FaixaAvaliacao.jsx';
+import { usePerguntasAvaliacao } from './carregarAvaliacoes.js';
 import TabPerguntasAvaliacao from './TabPerguntasAvaliacao.jsx';
 import ModalEvolucaoAluno from './ModalEvolucaoAluno.jsx';
 import { FundoGlobalComFotos } from './FundoGlobal.jsx';
@@ -13,6 +15,9 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], a
     const [abaAtiva, setAbaAtiva] = useState('relatorio');
     const [avaliacaoEditando, setAvaliacaoEditando] = useState(null);
     const [alunoEvolucaoModal, setAlunoEvolucaoModal] = useState(null);
+    // Número de perguntas ativas na faixa do Configurar Formulário (mesma lista lida uma vez para a Avaliação)
+    const { perguntas: perguntasAvaliacao, carregando: carregandoPerguntas } = usePerguntasAvaliacao();
+    const perguntasAtivas = perguntasAvaliacao.filter(p => p.ativo === true).length;
 
     // ⚡ Caminho rápido: aluno vindo da ficha (botão "Avaliação")
     const [alunoParaAvaliar, setAlunoParaAvaliar] = useState(null);
@@ -77,16 +82,14 @@ const AvaliacaoFisica = ({ usuarioLogado, avaliacoes = [], colaboradores = [], a
             <div className="min-h-screen relative pb-12 font-sans animate-[fadeIn_0.3s_ease-out]">
                 <FundoGlobalComFotos />
                 <div className="space-y-4 max-w-[1400px] mx-auto relative pb-10 z-10">
-                    <div className="flex items-center justify-between bg-slate-900 dark:bg-slate-800 dark:border dark:border-slate-700/50 rounded-2xl px-5 py-3 shadow-sm transition-colors">
-                        <div>
-                            <h2 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
-                                <ListChecks className="w-4 h-4 text-blue-400" />{' '}{tx("Construtor de Anamnese")}
-                            </h2>
-                        </div>
-                        <button type="button" onClick={() => setAbaAtiva('relatorio')} className="bg-white/10 hover:bg-white/20 dark:bg-slate-700/50 dark:hover:bg-slate-600/60 text-white px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors border border-white/5 dark:border-white/10">
-                            {tx("Voltar ao Painel")}
-                        </button>
-                    </div>
+                    {/* Faixa de destaque da Avaliação (peça única, 09/11/2026) */}
+                    <FaixaAvaliacao
+                        antes={<BotaoFaixa onClick={() => setAbaAtiva('relatorio')}><ArrowLeft className="w-3.5 h-3.5" />{tx("Voltar ao Painel")}</BotaoFaixa>}
+                        icone={<ListChecks className="w-6 h-6 text-orange-300" />}
+                        titulo={tx("Construtor de Anamnese")}
+                        subtitulo={tx("Perguntas do questionário da avaliação")}
+                        numeros={[{ rotulo: tx("Perguntas ativas"), valor: carregandoPerguntas ? '…' : perguntasAtivas }]}
+                    />
                     <TabPerguntasAvaliacao usuarioLogado={usuarioLogado} />
                 </div>
             </div>

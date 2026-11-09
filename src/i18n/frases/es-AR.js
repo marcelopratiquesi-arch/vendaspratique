@@ -3344,4 +3344,9 @@ export default {
     "Saudável": "Saludable",
     "Atenção": "Atención",
     "Alerta": "Alerta",
+    // Evaluación física — misma franja en todas las pantallas (09/11/2026)
+    "Na lixeira": "En la papelera",
+    "Admin e Mentor": "Admin y Mentor",
+    "Perguntas do questionário da avaliação": "Preguntas del cuestionario de la evaluación",
+    "Perguntas ativas": "Preguntas activas",
 };

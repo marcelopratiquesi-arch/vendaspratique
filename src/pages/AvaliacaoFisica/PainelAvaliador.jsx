@@ -3,7 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { 
     ArrowLeft, Building2, BarChart3, LogOut, PlusCircle, Filter, 
     RefreshCw, ArrowUpDown, Trophy, ClipboardSignature, ListChecks, Activity, Search, Download, Scale, Ruler, LineChart, 
-    FileText, Eye, Edit3, Trash2, Send, Check, Copy, X, UserRoundPen
+    FileText, Eye, Edit3, Trash2, Send, Check, Copy, X, UserRoundPen, Dumbbell, Percent
 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx'; 
 import FormAvaliacao from './FormAvaliacao';
@@ -14,7 +14,8 @@ import { pendenciasAvaliacao } from './utils.js';
 import { excluirAvaliacaoComMotivo } from './lixeira.js';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { MESES_FILTRO, rotuloDoFiltro } from '../../components/periodoPadrao.js';
-import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { podeFazer, podeVer } from '../../permissoes/catalogoPermissoes.js';
+import { FaixaAvaliacao, AbasAvaliacao, BotaoFaixa, BotaoLaranjaFaixa, EtiquetaSaude, TituloSaude } from './FaixaAvaliacao.jsx';
 import { carregarTodasAvaliacoes, carregarAvaliacaoCompleta, cpfCombina, soNumerosCpf, COLUNAS_LISTA, usePerguntasAvaliacao } from './carregarAvaliacoes.js';
 import { ModalVerAvaliacao } from './PainelInicial.jsx';
 
@@ -88,6 +89,10 @@ const PainelAvaliador = ({
 
     // Editar e excluir avaliação: permissão 704 (Configurações → Permissões; o banco confere a exclusão)
     const podeEditar = podeFazer(usuarioLogado, '704');
+    // Abas da faixa (as mesmas regras da tela inicial: Dashboard Global só Admin/Mentor com o topo em "Todas")
+    const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    const verDashGlobal = temVisaoGlobal && podeVer(usuarioLogado, '702');
+    const verDashUnidade = podeVer(usuarioLogado, '703');
     const anosUnicos = ['TODOS', ...new Set(avaliacoes.map(v => (v.data || v.created_at || '').split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if (anosUnicos.length === 1) anosUnicos.push(new Date().getFullYear().toString());
 
@@ -153,6 +158,8 @@ const PainelAvaliador = ({
         };
         fetchDados();
     }, [tipoFiltro, diaEspecifico, filtroMes, filtroAno, dataInicio, dataFim, abaAtiva, professorAtivo, usuarioLogado?.unidade]);
+
+    const rotuloPeriodo = rotuloDoFiltro({ preset: presetPeriodo, dia: diaEspecifico, inicio: dataInicio, fim: dataFim, mes: filtroMes, ano: filtroAno });
 
     const aplicarPeriodo = (p) => {
         if (!p) return;
@@ -517,96 +524,59 @@ const PainelAvaliador = ({
                 <ModalVerAvaliacao avaliacoes={dadosOrdenados} initialIndex={verIndice} onClose={() => setVerIndice(null)} perguntasPorId={perguntasPorId} />
             )}
 
-            {/* FAIXA DO TOPO (visual compacto, 09/11/2026): cabeçalho + período juntos */}
-            <div className="relative z-30 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm px-3 py-2 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <button type="button" onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="h-9 px-3 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-1.5 transition-colors shrink-0">
-                        <ArrowLeft className="w-3.5 h-3.5"/>{' '}{tx("Voltar")}
-                    </button>
-                    <div className="w-9 h-9 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center text-sm font-black shrink-0">
-                        {professorAtivo.id === 'GLOBAL' ? <Building2 className="w-4 h-4"/> : professorAtivo.id === 'GERAL' ? <BarChart3 className="w-4 h-4"/> : professorAtivo.nome.charAt(0)}
-                    </div>
-                    <div className="min-w-0">
-                        <h2 className="text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-widest leading-none truncate">
-                            {professorAtivo.nome}
-                        </h2>
-                        <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1 truncate">
-                            {professorAtivo.id === 'GLOBAL' ? tx("Painel de Gestão da Rede") : tx("Painel de Avaliação Física • Unidade {v1}", { v1: professorAtivo.unidade || usuarioLogado?.unidade })}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 justify-end">
-                    {abaAtiva !== 'nova' && (
-                        <>
-                            <SeletorPeriodo
-                                rotulo={rotuloDoFiltro({ preset: presetPeriodo, dia: diaEspecifico, inicio: dataInicio, fim: dataFim, mes: filtroMes, ano: filtroAno })}
-                                preset={presetPeriodo}
-                                tipo={tipoFiltro}
-                                dia={diaEspecifico}
-                                inicio={dataInicio}
-                                fim={dataFim}
-                                mes={filtroMes}
-                                ano={filtroAno}
-                                meses={MESES_FILTRO}
-                                anos={anosUnicos}
-                                onAplicar={aplicarPeriodo}
-                            />
-                            <button type="button" onClick={limparFiltros} className="h-9 w-9 flex items-center justify-center border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-xl transition-colors" title={tx("Limpar Filtros")}><RefreshCw className="w-3.5 h-3.5" /></button>
-                        </>
-                    )}
-                    <button type="button" onClick={() => { setProfessorAtivo(null); handleVoltar(); }} className="h-9 px-3 text-[10px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 border border-blue-100 dark:border-blue-800 whitespace-nowrap">
-                        <LogOut className="w-3.5 h-3.5" />{' '}{tx("Trocar Professor")}
-                    </button>
-                    {abaAtiva !== 'nova' && professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
-                        <button type="button" onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white shadow-[0_4px_15px_rgba(249,115,22,0.3)] whitespace-nowrap">
-                            <PlusCircle className="w-4 h-4" />{' '}{tx("Nova Avaliação")}
-                        </button>
-                    )}
-                </div>
-            </div>
+            {/* FAIXA DE DESTAQUE (peça única da Avaliação, 09/11/2026). No formulário quem mostra a faixa é o próprio formulário. */}
+            {abaAtiva !== 'nova' && (
+                <FaixaAvaliacao
+                    antes={<BotaoFaixa onClick={() => { setProfessorAtivo(null); handleVoltar(); }}><ArrowLeft className="w-3.5 h-3.5" />{tx("Voltar")}</BotaoFaixa>}
+                    icone={professorAtivo.id === 'GLOBAL' ? <Building2 className="w-6 h-6 text-orange-300" /> : professorAtivo.id === 'GERAL' ? <BarChart3 className="w-6 h-6 text-orange-300" /> : professorAtivo.nome.charAt(0)}
+                    titulo={professorAtivo.id === 'GLOBAL' ? tx("Dashboard Global") : professorAtivo.id === 'GERAL' ? tx("Dashboard da Unidade") : professorAtivo.nome}
+                    subtitulo={`${professorAtivo.id === 'GLOBAL' ? tx("Todas as unidades") : (professorAtivo.unidade || usuarioLogado?.unidade || '')} · ${rotuloPeriodo}`}
+                    acoes={<>
+                        <SeletorPeriodo
+                            rotulo={rotuloPeriodo}
+                            preset={presetPeriodo}
+                            tipo={tipoFiltro}
+                            dia={diaEspecifico}
+                            inicio={dataInicio}
+                            fim={dataFim}
+                            mes={filtroMes}
+                            ano={filtroAno}
+                            meses={MESES_FILTRO}
+                            anos={anosUnicos}
+                            onAplicar={aplicarPeriodo}
+                        />
+                        <BotaoFaixa onClick={limparFiltros} title={tx("Limpar Filtros")} className="w-10 justify-center !px-0"><RefreshCw className="w-3.5 h-3.5" /></BotaoFaixa>
+                        <BotaoFaixa onClick={() => { setProfessorAtivo(null); handleVoltar(); }}><LogOut className="w-3.5 h-3.5" />{tx("Trocar Professor")}</BotaoFaixa>
+                        {professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
+                            <BotaoLaranjaFaixa onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }}><PlusCircle className="w-4 h-4" />{tx("Nova Avaliação")}</BotaoLaranjaFaixa>
+                        )}
+                    </>}
+                    numeros={[
+                        { rotulo: tx("Total Avaliações"), valor: loading ? '…' : metricasDashboard.total },
+                        { rotulo: tx("Peso Médio"), valor: metricasDashboard.pesoMedio, extra: metricasDashboard.pesoMedio !== '-' ? tx("kg") : null },
+                        { rotulo: tx("Altura Média"), valor: metricasDashboard.alturaMedia, extra: metricasDashboard.alturaMedia !== '-' ? 'm' : null },
+                        {
+                            rotulo: tx("Última Avaliação"),
+                            valor: metricasDashboard.ultimaAvaliacao ? metricasDashboard.ultimaAvaliacao.toLocaleDateString(langAtual, { day: '2-digit', month: '2-digit' }) : '-',
+                            extra: metricasDashboard.ultimaAvaliacao && metricasDashboard.diasAtras !== null
+                                ? (metricasDashboard.diasAtras === 0 ? tx("Feita Hoje") : tx("{diasAtras} dias atrás", { diasAtras: metricasDashboard.diasAtras }))
+                                : null,
+                        },
+                    ]}
+                    abas={<AbasAvaliacao
+                        ativa={professorAtivo.id === 'GLOBAL' ? 'global' : professorAtivo.id === 'GERAL' ? 'unidade' : null}
+                        onAvaliadores={() => { setProfessorAtivo(null); handleVoltar(); }}
+                        onUnidade={verDashUnidade ? () => setProfessorAtivo({ id: 'GERAL', nome: `DASHBOARD - ${usuarioLogado?.unidade}`, unidade: usuarioLogado?.unidade }) : null}
+                        onGlobal={verDashGlobal ? () => setProfessorAtivo({ id: 'GLOBAL', nome: 'VISÃO GLOBAL DA REDE' }) : null}
+                    />}
+                />
+            )}
 
             {abaAtiva === 'nova' ? (
-                <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 p-3 lg:p-4">
-                    <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} alunoInicial={alunoParaAvaliar} unidadeDestino={unidadeAvaliacao} />
-                </div>
+                <FormAvaliacao avaliacaoEditando={avaliacaoEditando} professorAtivo={professorAtivo} usuarioLogado={usuarioLogado} voltar={handleVoltar} colaboradores={colaboradores} alunoInicial={alunoParaAvaliar} unidadeDestino={unidadeAvaliacao}
+                    onTrocarProfessor={professorAtivo.id === 'FICHA' ? null : () => { setProfessorAtivo(null); handleVoltar(); }} />
             ) : (
                 <div className="space-y-4">
-                    {/* RESUMO EM FAIXA FINA (antes eram 4 cartões com números gigantes) */}
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm px-4 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-2">
-                        <span className="flex items-baseline gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Total Avaliações")}</span>
-                            <strong className="text-lg font-black text-blue-600 dark:text-blue-400 leading-none">{metricasDashboard.total}</strong>
-                        </span>
-                        <span className="flex items-baseline gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Peso Médio")}</span>
-                            <strong className="text-base font-black text-slate-900 dark:text-white leading-none">{metricasDashboard.pesoMedio}</strong>
-                            <span className="text-[10px] font-bold text-slate-400">{tx("kg")}</span>
-                        </span>
-                        <span className="flex items-baseline gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Altura Média")}</span>
-                            <strong className="text-base font-black text-slate-900 dark:text-white leading-none">{metricasDashboard.alturaMedia}</strong>
-                            <span className="text-[10px] font-bold text-slate-400">m</span>
-                        </span>
-                        <span className="flex items-baseline gap-1.5">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Última Avaliação")}</span>
-                            {metricasDashboard.ultimaAvaliacao ? (
-                                <>
-                                    <strong className="text-base font-black text-slate-900 dark:text-white leading-none">
-                                        {metricasDashboard.ultimaAvaliacao.toLocaleDateString(langAtual, { day: '2-digit', month: '2-digit', year: 'numeric' })}
-                                    </strong>
-                                    {metricasDashboard.diasAtras !== null && (
-                                        <span className="text-[10px] font-bold text-slate-400">
-                                            {metricasDashboard.diasAtras === 0 ? tx("Feita Hoje") : tx("{diasAtras} dias atrás", { diasAtras: metricasDashboard.diasAtras })}
-                                        </span>
-                                    )}
-                                </>
-                            ) : (
-                                <strong className="text-base font-black text-slate-400 leading-none">-</strong>
-                            )}
-                        </span>
-                    </div>
-
                     {/* RANKING GLOBAL */}
                     {(professorAtivo.id === 'GERAL' || professorAtivo.id === 'GLOBAL') && metricas.ranking.length > 0 && (
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -770,19 +740,20 @@ const PainelAvaliador = ({
                                             <th onClick={() => handleSort('aluno')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">{tx("Aluno(a)")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'aluno' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
+                                            <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap"><TituloSaude /></th>
                                             {professorAtivo.id === 'GLOBAL' && (
                                                 <th onClick={() => handleSort('unidade')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                     <div className="flex items-center gap-1.5">{tx("Unidade")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'unidade' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                                 </th>
                                             )}
                                             <th onClick={() => handleSort('estrutura')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
-                                                <div className="flex items-center gap-1.5">{tx("Física")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'estrutura' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
+                                                <div className="flex items-center gap-1.5"><Scale className="w-3.5 h-3.5 text-slate-500" />{tx("Física")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'estrutura' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             
                                             {modoExibicao === 'detalhado' && (
                                                 <>
-                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">{tx("Bioimpedância")}</th>
-                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10">{tx("Gordura")}</th>
+                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10"><span className="inline-flex items-center gap-1"><Dumbbell className="w-3.5 h-3.5 text-blue-500" />{tx("Bioimpedância")}</span></th>
+                                                    <th className="px-4 py-4 text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest whitespace-nowrap bg-blue-50/30 dark:bg-blue-900/10"><span className="inline-flex items-center gap-1"><Percent className="w-3.5 h-3.5 text-rose-500" />{tx("Gordura")}</span></th>
                                                     {perguntasBase.map(p => (
                                                         <th key={p.id} className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest min-w-[150px] max-w-[250px]">{p.pergunta}</th>
                                                     ))}
@@ -832,6 +803,7 @@ const PainelAvaliador = ({
                                                                 </div>
                                                             </div>
                                                         </td>
+                                                        <td className="px-4 py-3 whitespace-nowrap align-middle"><EtiquetaSaude avaliacao={a} /></td>
                                                         {professorAtivo.id === 'GLOBAL' && (
                                                             <td className="px-4 py-3 whitespace-nowrap align-middle">
                                                                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded border border-slate-200 dark:border-slate-700 dark:text-slate-400">{a.unidade || '—'}</span>
