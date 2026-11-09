@@ -851,7 +851,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                         )}
                     </div>
 
-                    <button type="submit" disabled={isSubmitting || !avaliacaoLiberada} className="w-full mt-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black py-4 rounded-2xl shadow-[0_4px_15px_rgba(37,99,235,0.25)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
+                    <button type="submit" disabled={isSubmitting || !avaliacaoLiberada} className="w-full mt-4 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-black py-4 rounded-2xl shadow-[0_4px_15px_rgba(249,115,22,0.3)] transition-all uppercase tracking-widest flex items-center justify-center gap-2 text-sm">
                         {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> {t('assessment.form.savingBtn', {defaultValue: 'Salvando...'})}</> : <><Send className="w-5 h-5" /> {avaliacaoEditando ? tx("Atualizar Avaliação Física") : t('assessment.form.saveBtn', {defaultValue: 'Salvar Avaliação Física'})}</>}
                     </button>
                 </div>

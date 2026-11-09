@@ -559,7 +559,7 @@ const PainelAvaliador = ({
                         <LogOut className="w-3.5 h-3.5" />{' '}{tx("Trocar Professor")}
                     </button>
                     {abaAtiva !== 'nova' && professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
-                        <button type="button" onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white shadow-sm whitespace-nowrap">
+                        <button type="button" onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }} className="h-9 px-4 text-[10px] font-black uppercase tracking-widest rounded-xl transition-colors flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white shadow-[0_4px_15px_rgba(249,115,22,0.3)] whitespace-nowrap">
                             <PlusCircle className="w-4 h-4" />{' '}{tx("Nova Avaliação")}
                         </button>
                     )}
