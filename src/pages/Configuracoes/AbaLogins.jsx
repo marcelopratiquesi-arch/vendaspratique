@@ -5,12 +5,14 @@ import { NOME_PAPEL } from '../../permissoes/catalogoPermissoes.js';
 import { ORDEM_PAPEIS, ordenarLogins, filtrarLogins, resumoLogins, conferirLogins, unidadesDoMentorEm } from './conferenciaLogins.js';
 import { ORDEM_NORMAL, proximaOrdem, ordenarLinhas } from '../../components/ordenacao.js';
 import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
+import CopyButton from '../HistoricoVendas/CopyButton.jsx';
 
 // ==========================================
 // CONFIGURAÇÕES → LOGINS (visual novo, 09/11/2026, decisão do dono)
 // Faixa fina com os números por nível (clicar filtra) e o "para conferir"; busca + filtros; tabela
 // (no celular vira cartões). Ações por linha: Editar, Unidades (Mentor), Permissões deste login e Revogar.
 // Desde 09/11/2026: etiqueta "🔑 N exceções" (clicar abre as permissões do login) e ordenar clicando no título.
+// Botão de copiar na frente do e-mail (padrão do sistema: CopyButton do Histórico).
 // ==========================================
 
 const MAX_ETIQUETAS_MENTOR = 3;
@@ -207,7 +209,9 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
                                         <span className="text-[13px] font-black text-slate-800 uppercase truncate dark:text-white">{u.nome || '—'}</span>
                                     </div>
                                 </td>
-                                <td className="px-4 py-2.5 text-[12px] font-semibold text-slate-500 lowercase dark:text-slate-400">{u.email}</td>
+                                <td className="px-4 py-2.5 text-[12px] font-semibold text-slate-500 lowercase dark:text-slate-400">
+                                    <span className="inline-flex items-center gap-1">{u.email}<CopyButton textToCopy={u.email} label={tx('Copiar e-mail')} /></span>
+                                </td>
                                 <td className="px-4 py-2.5"><EtiquetaPapel papel={papelDe(u)} /></td>
                                 <td className="px-4 py-2.5">{etiquetaExcecoes(u) || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
                                 <td className="px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">{colunaUnidade(u)}</td>
@@ -225,7 +229,7 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
                         <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
                                 <p className="text-[13px] font-black text-slate-800 uppercase truncate dark:text-white">{u.nome || '—'}</p>
-                                <p className="text-[11px] font-semibold text-slate-500 lowercase truncate dark:text-slate-400">{u.email}</p>
+                                <p className="text-[11px] font-semibold text-slate-500 lowercase dark:text-slate-400 flex items-center gap-1 min-w-0"><span className="truncate">{u.email}</span><CopyButton textToCopy={u.email} label={tx('Copiar e-mail')} /></p>
                             </div>
                             <span className="flex flex-col items-end gap-1"><EtiquetaPapel papel={papelDe(u)} />{etiquetaExcecoes(u)}</span>
                         </div>

@@ -144,7 +144,7 @@ teste('ficha, Pronta?, Mentor, diferenças, cópia e etiqueta ligadas',
 // 19) Tabela de Logins: a ordem dos títulos é a mesma das células (Nome, E-mail, Nível, Exceções, Unidade)
 const ordemTitulos = [...logins.matchAll(/TituloOrdenavel coluna="(\w+)"/g)].map(m => m[1]).join(',');
 const corpo = logins.slice(logins.indexOf('<tbody'));
-const ordemCelulas = ['u.email}</td>', 'EtiquetaPapel papel', 'etiquetaExcecoes(u) ||', 'colunaUnidade(u)}</td>'].map(t => corpo.indexOf(t));
+const ordemCelulas = ['{u.email}', 'EtiquetaPapel papel', 'etiquetaExcecoes(u) ||', 'colunaUnidade(u)}</td>'].map(t => corpo.indexOf(t));
 teste('títulos e células na mesma ordem', ordemTitulos === 'nome,email,nivel,excecoes,unidade' && ordemCelulas.every((pos, i) => pos > 0 && (i === 0 || pos > ordemCelulas[i - 1])));
 
 // 20) Nada foi tirado: cadastrar, desativar/reativar, excluir (unidade_uso) e unidades do Mentor continuam
