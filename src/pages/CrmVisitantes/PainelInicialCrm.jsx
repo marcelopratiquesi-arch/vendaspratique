@@ -10,6 +10,7 @@ import RelatorioConsultor from './RelatorioConsultor';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao, dentroDaFaixa } from '../../components/periodoPadrao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { tipoDoDia } from '../AnaliseVendas/feriados.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // ==========================================
@@ -30,6 +31,20 @@ const ACOES_DE_CONTATO = ['WhatsApp', 'Ligação', 'Observação', 'Mudança de 
 // Teto de registros do histórico lidos de uma vez na planilha
 const LIMITE_HISTORICO = 3000;
 
+// Meta do dia muito abaixo do esperado para a hora (09/11/2026, decisão do dono): fica vermelha quando a pessoa fez
+// menos da METADE do ritmo para chegar a 150 no fim do turno. Só de segunda a sexta (sábado, domingo e feriado não
+// têm turno) e só depois de 1 hora de turno. Manhã 7h–13h, Noite 13h–21h, sem turno 7h–21h.
+const JANELA_TURNO = { MANHA: [7, 13], NOITE: [13, 21] };
+const metaAbaixoDoEsperado = (pessoasHoje, turno) => {
+    const agora = new Date();
+    if (tipoDoDia(dataLocalISO(agora))) return false;
+    const [ini, fim] = JANELA_TURNO[turno] || [7, 21];
+    const hora = agora.getHours() + agora.getMinutes() / 60;
+    if (hora < ini + 1) return false;
+    const esperado = 150 * Math.min(1, (hora - ini) / (fim - ini));
+    return pessoasHoje < esperado * 0.5;
+};
+
 const moveuPara = (h, fase) => h.tipo_acao === 'Mudança de Fase' && String(h.observacao || '').includes(`para "${fase}"`);
 
 // "há 20 min", "há 3 h", "ontem", "há 5 dias"
@@ -47,7 +62,7 @@ const tempoRelativo = (valor) => {
     return tx('há {dias} dias', { dias: Math.round((new Date(a2, m2 - 1, d2) - new Date(a1, m1 - 1, d1)) / 86400000) });
 };
 
-const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas = [], leads: leadsTodos = [], colaboradores = [], versao = 0, onAtualizar, onEscolher, conteudoBase = null }) => {
+const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas = [], leads: leadsTodos = [], colaboradores = [], versao = 0, onAtualizar, onEscolher, conteudoBase = null, onAbrirDistribuir = null }) => {
     // Filtro de período padrão do sistema (vale para a página inteira)
     const periodo = usePeriodoPadrao('hoje');
     const faixa = periodo.faixa;
@@ -348,28 +363,38 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     ].filter(a => !a.codigo || podeVer(usuarioLogado, a.codigo));
     const abaMostrada = ABAS.some(a => a.id === aba) ? aba : 'equipe';
 
-    // Cartão pequeno de uma recepcionista (clique = abrir o CRM dela)
+    // Cartão de uma recepcionista (clique = abrir o CRM dela).
+    // 09/11/2026 (decisão do dono): "última ação há X", turno escrito, meta em vermelho quando está muito abaixo
+    // do esperado para a hora e aviso "Carteira vazia" que leva ao passo Distribuir.
     const cartaoRecepcionista = (c) => {
         const l = linhaDe(c);
         const partes = String(c.nome || '').trim().split(' ');
+        const turno = String(c.turno || '').toUpperCase();
+        const metaAtrasada = l ? metaAbaixoDoEsperado(l.pessoasHoje, turno) : false;
+        const carteiraVazia = l && l.emAtendimento === 0 && !!onAbrirDistribuir;
         return (
-            <button key={c.id} type="button" onClick={() => onEscolher(c)} title={`${c.nome}${c.unidade ? ` · ${c.unidade}` : ''}`}
-                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-sm hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all group text-left flex flex-col gap-2.5">
+            <div key={c.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm hover:border-blue-500 dark:hover:border-blue-500 hover:shadow-md transition-all flex flex-col overflow-hidden">
+            <button type="button" onClick={() => onEscolher(c)} title={`${c.nome}${c.unidade ? ` · ${c.unidade}` : ''}`}
+                className="p-3.5 group text-left flex flex-col gap-3 flex-1">
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 shrink-0 bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white rounded-full flex items-center justify-center font-black transition-colors">
+                    <div className="w-10 h-10 shrink-0 bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white rounded-full flex items-center justify-center font-black transition-colors">
                         {partes[0]?.charAt(0)}
                     </div>
-                    <div className="min-w-0">
-                        <p className="font-black text-sm text-slate-800 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 uppercase truncate leading-tight">{partes[0]}{String(c.turno || '').toUpperCase() === 'MANHA' ? ' ☀' : String(c.turno || '').toUpperCase() === 'NOITE' ? ' 🌙' : ''}</p>
-                        <p className="text-[10px] font-bold text-slate-400 truncate">{l?.ultima ? tempoRelativo(l.ultima) : tx('Sem ação no período')}</p>
+                    <div className="min-w-0 flex-1">
+                        <p className="font-black text-sm text-slate-800 dark:text-white group-hover:text-blue-700 dark:group-hover:text-blue-400 uppercase truncate leading-tight flex items-center gap-1.5">
+                            <span className="truncate">{partes[0]}</span>
+                            {turno === 'MANHA' && <span className="shrink-0 text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300">☀ {tx('Manhã')}</span>}
+                            {turno === 'NOITE' && <span className="shrink-0 text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">🌙 {tx('Noite')}</span>}
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-400 truncate mt-0.5">{l?.ultima ? tx('última ação {quando}', { quando: tempoRelativo(l.ultima) }) : tx('Sem ação no período')}</p>
                     </div>
                 </div>
                 {l && (
                     <div className="space-y-1.5">
                         {/* Meta de hoje (pessoas diferentes) */}
-                        <div className="flex items-center gap-2" title={tx('Meta do dia: pessoas diferentes contatadas hoje')}>
-                            <span className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.pessoasHoje >= 150 ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${Math.min(100, (l.pessoasHoje / 150) * 100)}%` }} /></span>
-                            <span className="text-[10px] font-black text-slate-600 dark:text-slate-300 tabular-nums whitespace-nowrap">{l.pessoasHoje}/150 {tx('hoje')}</span>
+                        <div className="flex items-center gap-2" title={metaAtrasada ? tx('Muito abaixo do esperado para este horário (menos da metade do ritmo para chegar a 150 no fim do turno).') : tx('Meta do dia: pessoas diferentes contatadas hoje')}>
+                            <span className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.pessoasHoje >= 150 ? 'bg-emerald-500' : metaAtrasada ? 'bg-rose-500' : 'bg-orange-500'}`} style={{ width: `${Math.max(l.pessoasHoje > 0 ? 3 : 0, Math.min(100, (l.pessoasHoje / 150) * 100))}%` }} /></span>
+                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${metaAtrasada ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{metaAtrasada ? '⚠️ ' : ''}{l.pessoasHoje}/150 {tx('hoje')}</span>
                         </div>
                         {/* Carteira × limite */}
                         <div className="flex items-center gap-2" title={tx('Em trabalho: Novo + Em Contato (sem os que estão Em Espera). Limite de {limite}. Em espera: {espera}.', { limite: LIMITE_CARTEIRA, espera: l.emEspera })}>
@@ -384,11 +409,19 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                     </div>
                 )}
             </button>
+            {carteiraVazia && (
+                <button type="button" onClick={onAbrirDistribuir} title={tx('Abrir o passo Distribuir do "Abastecer carteiras"')}
+                    className="w-full px-3 py-2 border-t border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 flex items-center justify-center gap-1.5 transition-colors">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />{tx('Carteira vazia: distribuir contatos')}
+                </button>
+            )}
+            </div>
         );
     };
 
+    // Poucas pessoas: cartões maiores (com 2 recepcionistas sobrava tela vazia)
     const gradeCartoes = (pessoas) => (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3">
+        <div className={`grid gap-3 ${pessoas.length <= 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'}`}>
             {pessoas.map(c => cartaoRecepcionista(c))}
         </div>
     );
@@ -411,50 +444,50 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     return (
         <div className="space-y-5 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto px-1">
 
-            {/* CABEÇALHO: título, unidade, filtro de período padrão e Atualizar */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-4 md:p-5 flex flex-col gap-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                        <div className="w-11 h-11 shrink-0 bg-blue-600 text-white rounded-xl flex items-center justify-center">
-                            <Users className="w-5 h-5" />
-                        </div>
-                        <div className="min-w-0">
-                            <h2 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">
-                                {ehRecepcaoLogada ? tx("Quem está operando o CRM?") : tx("CRM da Recepção")}
-                            </h2>
-                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{nomeUnidade}</span>
-                                {unidadeFoco && (
-                                    <button type="button" onClick={() => setUnidadeFoco(null)} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest" title={tx("Voltar a ver todas as unidades")}>
-                                        <X className="w-3 h-3" />{' '}{tx("Ver todas")}
-                                    </button>
-                                )}
-                                {carregando && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />}
-                            </div>
-                        </div>
+            {/* CABEÇALHO (09/11/2026, refeito a pedido do dono): uma faixa só, alinhada.
+                Esquerda: ícone + "CRM da Recepção" + unidade. Meio: abas (mesma altura dos botões). Direita: Atualizar + período.
+                O período não se repete em texto (já está no seletor). */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-3">
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 shrink-0 bg-blue-600 text-white rounded-xl flex items-center justify-center shadow-sm shadow-blue-600/20">
+                        <Users className="w-5 h-5" />
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        {onAtualizar && (
-                            <button type="button" onClick={onAtualizar} disabled={carregando} title={tx("Buscar os números mais novos agora (sozinho, o painel atualiza no máximo 1 vez por minuto)")} className="h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-50 flex items-center gap-1.5 transition-colors">
-                                <RefreshCw className={`w-3.5 h-3.5 ${carregando ? 'animate-spin' : ''}`} />{' '}{tx("Atualizar")}
-                            </button>
-                        )}
-                        <SeletorPeriodo {...periodo.propsSeletor} />
+                    <div className="min-w-0 leading-tight">
+                        <h2 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white whitespace-nowrap">{tx('CRM da Recepção')}</h2>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 truncate">{nomeUnidade}</span>
+                            {unidadeFoco && (
+                                <button type="button" onClick={() => setUnidadeFoco(null)} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest" title={tx("Voltar a ver todas as unidades")}>
+                                    <X className="w-3 h-3" />{tx("Ver todas")}
+                                </button>
+                            )}
+                            {carregando && <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />}
+                        </div>
                     </div>
                 </div>
 
-                {/* ABAS */}
-                <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl overflow-x-auto custom-scrollbar">
+                <div className="hidden sm:block w-px h-8 bg-slate-200 dark:bg-slate-800" />
+
+                <nav className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
                     {ABAS.map(a => {
                         const Icone = a.icone;
                         const ativa = abaMostrada === a.id;
                         return (
                             <button key={a.id} type="button" onClick={() => setAba(a.id)}
-                                className={`flex-1 min-w-[110px] px-3 py-2.5 rounded-lg text-[10px] md:text-xs font-black uppercase tracking-widest whitespace-nowrap flex items-center justify-center gap-2 transition-all ${ativa ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                                className={`h-10 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex items-center gap-2 transition-all ${ativa ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
                                 <Icone className="w-4 h-4" />{tx(a.rotulo)}
                             </button>
                         );
                     })}
+                </nav>
+
+                <div className="flex items-center gap-2 ml-auto">
+                    {onAtualizar && (
+                        <button type="button" onClick={onAtualizar} disabled={carregando} aria-label={tx("Atualizar")} title={tx("Buscar os números mais novos agora (sozinho, o painel atualiza no máximo 1 vez por minuto)")} className="h-10 w-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-300 dark:hover:border-blue-500/40 disabled:opacity-50 flex items-center justify-center transition-colors">
+                            <RefreshCw className={`w-4 h-4 ${carregando ? 'animate-spin' : ''}`} />
+                        </button>
+                    )}
+                    <SeletorPeriodo {...periodo.propsSeletor} />
                 </div>
             </div>
 
@@ -472,8 +505,8 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             {/* ABA EQUIPE: cartões da recepção (clique = abrir o CRM da pessoa) */}
             {abaMostrada === 'equipe' && (
                 <div className="space-y-3">
-                    <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                        {ehRecepcaoLogada ? tx("Selecione seu nome para iniciar o turno. Embaixo está o andamento da recepção.") : tx("Clique num cartão da recepção para ver o Kanban e a Lista daquela pessoa.")}
+                    <p className="text-sm font-bold text-slate-700 dark:text-slate-200">
+                        {ehRecepcaoLogada ? tx("Quem está operando o CRM? Clique no seu nome para começar o turno.") : tx("Clique num cartão da recepção para ver o Kanban e a Lista daquela pessoa.")}
                     </p>
                     {recepcionistas.length === 0 ? (
                         <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 p-6 rounded-2xl text-center max-w-lg mx-auto">

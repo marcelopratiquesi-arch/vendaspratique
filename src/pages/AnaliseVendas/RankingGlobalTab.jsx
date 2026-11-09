@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
 
 // Visual limpo (decisão do dono, 29/10/2026): números em cinza escuro, uma cor só (azul) e
 // a célula fica mais azul quanto maior o número na coluna. Zero = "—".
@@ -47,6 +48,7 @@ const RankingGlobalTab = ({
     produtos = [],
     temVisaoGlobal = false,
     labelFiltroAtual = '',
+    usuarioLogado = null,
     abrirModalWhatsapp
 }) => {
     const { t, locale, language } = useI18n();
@@ -440,7 +442,7 @@ const RankingGlobalTab = ({
                                                 </td>
                                                 <td className="py-3 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white z-10 border-r border-slate-100 dark:text-white dark:bg-slate-900 dark:border-slate-800">
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <span className="truncate">{uni.nome}</span>
+                                                        <span className="flex items-center gap-1.5 min-w-0"><span className="truncate">{uni.nome}</span><BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} /></span>
                                                         <span className="text-[10px] font-bold text-slate-400 tabular-nums shrink-0" title={tx("Participação no total da rede")}>
                                                             {pctDaRede(valorEscopoUnidade)}%
                                                         </span>

@@ -134,7 +134,8 @@ const nomes = [{ n: 'SANTA INÊS 10' }, { n: 'SANTA INÊS 2' }, { n: 'ELDORADO' 
 teste('texto em ordem natural', ordenarLinhas(nomes, { coluna: 'n', direcao: 'asc' }, { n: l => l.n }, l => l.n).map(l => l.n).join('|') === 'ELDORADO|SANTA INÊS 2|SANTA INÊS 10');
 
 // 18) Telas novas ligadas: ficha, colunas, diferenças e cópia existem no código
-const tab = fs.readFileSync('src/pages/CadastroGeral/TabUnidades.jsx', 'utf8');
+// Desde a rodada 5 as ações das unidades moram em dadosUnidades.js (a mesma peça da aba e da Central)
+const tab = fs.readFileSync('src/pages/CadastroGeral/TabUnidades.jsx', 'utf8') + fs.readFileSync('src/pages/CadastroGeral/dadosUnidades.js', 'utf8');
 const perm = fs.readFileSync('src/permissoes/AbaPermissoes.jsx', 'utf8');
 const logins = fs.readFileSync('src/pages/Configuracoes/AbaLogins.jsx', 'utf8');
 teste('ficha, Pronta?, Mentor, diferenças, cópia e etiqueta ligadas',
@@ -179,6 +180,128 @@ teste('todos os números da ficha antiga continuam na nova', camposAntigos.every
 teste('Ver relatório, Abrir o CRM dela e Esc respeitando a ficha do aluno',
     painelCrm.includes('onVerRelatorio={() => abrirRelatorioDe(resumoDe.nome)}') && painelCrm.includes('onEscolher(c)')
     && painelCrm.includes('bloquearEsc={!!contatoFicha}') && fichaR.includes('!bloquearEsc'));
+
+// ---------- Rodada 4 (09/11/2026): Panorama da unidade (mesmas contas das outras telas) ----------
+const P = await import('../src/pages/CadastroGeral/panorama/contasPanorama.js');
+const { contarPlanosDoCard: contarCard } = await import('../src/pages/AnaliseVendas/utils.js');
+const catPlanos = ['PLUS', 'PLUS + NUTRI', 'FIT', 'PRATIQUE NUTRI'].map(nome => ({ nome }));
+const catProdutos = [{ nome: 'WHEY 40G CHOCOLATE', tipo: 'produto' }];
+const vendasP = [
+    { id: 1, data: '2026-11-02', produto: 'PLUS', quantidade: 1, comissao: 10, vendedor: 'ANA', matricula: '1', conferiu: true },
+    { id: 2, data: '2026-11-02', produto: 'PLUS', quantidade: 1, comissao: 10, vendedor: 'ANA', matricula: '1' }, // repetido no dia: conta 1 plano
+    { id: 3, data: '2026-11-03', produto: 'PLUS + NUTRI', quantidade: 1, comissao: 15, vendedor: 'BIA', matricula: '2' },
+    { id: 4, data: '2026-11-04', produto: 'PRATIQUE NUTRI', quantidade: 1, comissao: 5, vendedor: 'BIA', matricula: '3' },
+    { id: 5, data: '2026-11-05', produto: 'DIÁRIA', quantidade: 2, comissao: 4, vendedor: 'ANA' },
+    { id: 6, data: '2026-10-30', produto: 'FIT', quantidade: 1, comissao: 5, vendedor: 'ANA', matricula: '9' }, // fora do período
+    ...Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, unidade: 'PRADO', data: '2026-11-06', created_at: `2026-11-06T1${i % 10}:00:00Z`, produto: 'WHEY 40G CHOCOLATE', quantidade: 1, comissao: 2, vendedor: 'BIA' })),
+];
+const faixaNov = { inicio: '2026-11-01', fim: '2026-11-30' };
+const rv = P.resumoVendas({ vendas: vendasP, faixa: faixaNov, planos: catPlanos, produtos: catProdutos });
+
+// 26) Planos e Nutri iguais ao card do Dashboard (contarPlanosDoCard) no mesmo período
+const doPeriodoP = vendasP.filter(v => v.data >= faixaNov.inicio && v.data <= faixaNov.fim);
+const card = contarCard(doPeriodoP, catPlanos, catProdutos);
+teste('Panorama: planos e Nutri iguais ao Dashboard', rv.planos === card.total && rv.nutri === card.nutri.total && rv.planos === 2 && rv.nutri === 2);
+
+// 27) Produtos: 12 vendidos, só 10 contam para a meta (limite de doses); serviços pela mesma regra do Dashboard
+teste('Panorama: produtos vendidos x na meta (limite de 10 doses) e serviços', rv.produtosVendidos === 12 && rv.produtosNaMeta === 10 && rv.servicos === 2);
+
+// 28) Comissão = soma das vendas do período (não é faturamento); consultor ordenado por itens
+teste('Panorama: comissão do período e ranking de consultores',
+    rv.comissao === 10 + 10 + 15 + 5 + 4 + 24 && rv.consultores[0].nome === 'BIA' && rv.consultores[0].itens === 14 && rv.lancamentos === 17 && rv.conferidas === 1);
+
+// 29) Faturamento vem da Movimentação (digitado, acumulado do mês → valor do dia) e fica separado da comissão
+const mov = P.resumoMovimento({ linhas: [
+    { unidade: 'PRADO', data: '2026-10-31', faturamento: 50000, cancelamentos: 9, ativos: 590 },
+    { unidade: 'PRADO', data: '2026-11-03', faturamento: 21000, cancelamentos: 4, ativos: 598 },
+    { unidade: 'PRADO', data: '2026-11-08', faturamento: 84200, cancelamentos: 11, ativos: 612 },
+], faixa: faixaNov });
+teste('Panorama: faturamento e saídas do período pela Movimentação; ativos = último lançado',
+    mov.faturamento === 84200 && mov.cancelamentos === 11 && mov.ativos === 612 && mov.ativosEm === '2026-11-08');
+
+// 30) Metas do mês: mesmo placar da aba Metas, Produto com limite de doses, Personal some sem Personal Class
+const placar = P.placarDoMes({ vendas: vendasP, metaLinha: { meta_nutri: 4, meta_produtos: 20, meta_personal: 3, meta_plus_mensal: 10 }, semPersonal: true, planos: catPlanos, produtos: catProdutos, agora: new Date(2026, 10, 9) });
+const pegar = (lista, id) => lista.find(i => i.id === id);
+teste('Panorama: metas do mês (Nutri 2/4, Produtos 10 pelo limite, sem Personal)',
+    pegar(placar.start, 'start_nutri').resultado.vendido === 2 && pegar(placar.start, 'start_produtos').resultado.vendido === 10
+    && !placar.start.some(i => /PERSONAL/i.test(i.rotulo)) && !placar.mensal.some(i => /PERSONAL/i.test(i.rotulo)));
+
+// 31) CRM: pessoas diferentes hoje (5 mensagens para a mesma pessoa = 1), ações só do período, fechou sem compra automática
+const hojeT = '2026-11-09';
+const hist = [
+    ...Array.from({ length: 5 }, (_, i) => ({ id: i, lead_id: 7, consultor: 'ISADORA', tipo_acao: 'WhatsApp', data_registro: `2026-11-09T1${i}:00:00` })),
+    { id: 10, lead_id: 8, consultor: 'ISADORA', tipo_acao: 'Ligação', data_registro: '2026-11-09T15:00:00' },
+    { id: 11, lead_id: 9, consultor: 'ISADORA', tipo_acao: 'Mudança de Fase', observacao: 'Movido de "Em Contato" para "Fechado"', data_registro: '2026-11-02T10:00:00' },
+    { id: 12, lead_id: 10, consultor: 'ISADORA', tipo_acao: 'Mudança de Fase', observacao: 'Movido para "Fechado" (automático: comprou PLUS)', data_registro: '2026-11-03T10:00:00' },
+    { id: 13, lead_id: 11, consultor: 'KAIO', tipo_acao: 'WhatsApp', data_registro: '2026-10-20T10:00:00' }, // fora do período
+];
+const crm = P.resumoCrm({ historico: hist, feitosHoje: [{ id: 1, aluno_id: 55, consultor: 'ISADORA' }], recepcionistas: [{ nome: 'ISADORA' }, { nome: 'KAIO' }], hojeIso: hojeT,
+    faixa: faixaNov, ehMudancaPorCompra: (o) => String(o || '').includes('(automático: comprou ') });
+teste('Panorama: CRM conta pessoas (não cliques), meta 150 por recepcionista e não conta compra automática',
+    crm.pessoasHoje === 3 && crm.metaHoje === 300 && crm.acoes === 8 && crm.whatsapp === 5 && crm.fechados === 1 && crm.porPessoa[1].acoes === 0);
+
+// 32) Avaliações do período, por avaliador, e incompletas pela regra da Avaliação
+const pend = (a) => (a.mme ? [] : ['Bioimpedância']);
+const av = P.resumoAvaliacoes({ avaliacoes: [{ data: '2026-11-02', professor: 'CARLOS', mme: 30 }, { data: '2026-11-05', professor: 'CARLOS' }, { data: '2026-11-06', professor: 'MARIA', mme: 20 }, { data: '2026-10-01', professor: 'MARIA', mme: 1 }], faixa: faixaNov, pendenciasAvaliacao: pend });
+teste('Panorama: avaliações do período e incompletas', av.total === 3 && av.incompletas === 1 && av.avaliadores[0].nome === 'CARLOS' && av.avaliadores[0].qtd === 2);
+
+// 33) Período: "fim" do seletor não entra (vira o dia anterior) e ▲▼ igual ao Dashboard
+const fx = P.faixaEmIso({ inicio: new Date(2026, 10, 1), fim: new Date(2026, 11, 1) });
+teste('Panorama: período convertido e variação', fx.inicio === '2026-11-01' && fx.fim === '2026-11-30'
+    && Math.round(P.variacao(24, 18).perc * 100) === 33 && P.variacao(5, 0).dif === 5 && P.variacao(5, null) === null);
+
+// 34) Ligado na Central: aba Panorama, botão "Ver tudo da unidade", só carrega ao abrir, e o App troca a unidade do topo
+const appTxt = fs.readFileSync('src/App.jsx', 'utf8');
+const fichaU2 = fs.readFileSync('src/pages/CadastroGeral/FichaUnidade.jsx', 'utf8');
+teste('Panorama ligado: aba, botão, carga só ao abrir e "Abrir a tela completa"',
+    fichaU2.includes("['panorama', 'Panorama'") && fichaU2.includes("setAba('panorama')") && fichaU2.includes("aba === 'panorama' && (")
+    && appTxt.includes('const abrirTelaDaUnidade') && appTxt.includes('abrirTela={abrirTelaDaUnidade}') && appTxt.includes('pendencias={pendencias.lista}'));
+
+// 35) Só leitura: o Panorama não grava nada no banco
+const arquivosPanorama = ['contasPanorama.js', 'usePanoramaUnidade.js', 'AbaPanorama.jsx'].map(f => fs.readFileSync(`src/pages/CadastroGeral/panorama/${f}`, 'utf8')).join('\n');
+teste('Panorama é só leitura (sem insert/update/upsert/delete/rpc)', !/\.(insert|update|upsert|delete|rpc)\(/.test(arquivosPanorama));
+
+// ---------- Rodada 5 (09/11/2026): botão "Central" em Dashboard, Metas, Relatórios e Ranking ----------
+const { unidadePermitida } = await import('../src/components/centralUnidade.js');
+const ler = (f) => fs.readFileSync(f, 'utf8');
+
+// 36) Quem abre qual unidade: Admin todas; Mentor só as dele; Líder só a própria (sem acento/maiúscula)
+teste('Central: Admin todas, Mentor as dele, Líder a própria',
+    unidadePermitida({ papel: 'ADMIN', nome: 'NEVES', unidadesPermitidas: null })
+    && unidadePermitida({ papel: 'MENTOR', nome: 'santa ines', unidadesPermitidas: ['SANTA INÊS', 'PRADO'] })
+    && !unidadePermitida({ papel: 'MENTOR', nome: 'NEVES', unidadesPermitidas: ['SANTA INÊS', 'PRADO'] })
+    && unidadePermitida({ papel: 'LIDER', nome: 'PRADO', unidadesPermitidas: ['PRADO'] })
+    && !unidadePermitida({ papel: 'LIDER', nome: 'NEVES', unidadesPermitidas: ['PRADO'] })
+    && !unidadePermitida({ papel: 'LIDER', nome: '', unidadesPermitidas: ['PRADO'] }));
+
+// 37) Permissão 314: padrão Admin, Mentor e Líder; Recepção não (e não dá para liberar para ela)
+teste('permissão 314 (Admin, Mentor, Líder; Recepção nunca)',
+    ['ADMIN', 'MENTOR', 'LIDER'].every(papel => temPermissao({ codigo: '314', papel }))
+    && !temPermissao({ codigo: '314', papel: 'RECEPCAO' })
+    && !temPermissao({ codigo: '314', papel: 'RECEPCAO', regrasPapel: new Map([['RECEPCAO|314', true]]) })
+    && !temPermissao({ codigo: '314', papel: 'LIDER', regrasPapel: new Map([['LIDER|314', false]]) }));
+
+// 38) O botão está nas telas pedidas (Dashboard: quadro e cabeçalho; Metas; Relatórios; Ranking) e não atrapalha o clique da linha
+const telas = ['src/pages/AnaliseVendas/visaoRede/QuadroPlanosPorUnidade.jsx', 'src/pages/AnaliseVendas/index.jsx', 'src/pages/AnaliseVendas/MonitorMovimentacao.jsx', 'src/pages/AnaliseVendas/RelatorioTab.jsx', 'src/pages/AnaliseVendas/RankingGlobalTab.jsx'];
+const quadroTxt = ler(telas[0]);
+teste('botão Central em Dashboard, cabeçalho, Metas, Relatórios e Ranking; linha do Dashboard continua trocando o topo',
+    telas.every(f => ler(f).includes('<BotaoCentralUnidade')) && ler('src/components/BotaoCentralUnidade.jsx').includes('e.stopPropagation()')
+    && quadroTxt.includes('onClick={() => onAbrirUnidade(l.nome)}'));
+
+// 39) Mentor e Líder: Central em modo leitura (só Panorama e Equipe, sem Desativar/Excluir/Logins/Mentores)
+const fichaU3 = ler('src/pages/CadastroGeral/FichaUnidade.jsx');
+const centralG = ler('src/pages/CadastroGeral/CentralUnidadeGlobal.jsx');
+teste('modo leitura para Mentor e Líder',
+    centralG.includes("modo={ehAdmin ? 'completo' : 'leitura'}") && centralG.includes('completo: ehAdmin')
+    && fichaU3.includes("id === 'panorama' || id === 'equipe'") && fichaU3.includes('{completo && <button type="button" onClick={() => onAtivar(')
+    && fichaU3.includes('{completo && <button type="button" onClick={() => onExcluir('));
+
+// 40) Uma peça só: aba Unidades e Central do Dashboard usam useDadosUnidades; o App monta a Central uma vez com as unidades certas
+const tabU = ler('src/pages/CadastroGeral/TabUnidades.jsx');
+const app2 = ler('src/App.jsx');
+teste('mesma peça de dados e Central montada no App com as unidades de cada perfil',
+    tabU.includes('useDadosUnidades(') && centralG.includes('useDadosUnidades(') && !tabU.includes("from('usuarios_sistema')")
+    && app2.includes('<CentralUnidadeGlobal') && app2.includes("usuarioLogado?.role === 'ADMIN' ? null : usuarioLogado?.role === 'MENTOR' ? unidadesVisiveis.map(u => u.nome)"));
 
 console.log(falhas === 0 ? `\nTudo certo: ${n} de ${n} testes passaram.` : `\n${falhas} de ${n} testes FALHARAM.`);
 process.exit(falhas ? 1 : 0);

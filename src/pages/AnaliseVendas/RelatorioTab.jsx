@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
 
 const RelatorioTab = ({
     vendasFiltradas = [],
@@ -362,9 +363,13 @@ const RelatorioTab = ({
                                             <Building2 className="w-6 h-6 text-white" />
                                         </div>
                                         <div>
-                                            <h4 className="text-lg md:text-xl font-black text-white uppercase tracking-tight line-clamp-1">
-                                                {unidade}
-                                            </h4>
+                                            <div className="flex items-center gap-2 min-w-0">
+                                                <h4 className="text-lg md:text-xl font-black text-white uppercase tracking-tight line-clamp-1">
+                                                    {unidade}
+                                                </h4>
+                                                {/* Central da Unidade (09/11/2026): não abre/fecha o cartão */}
+                                                <BotaoCentralUnidade unidade={unidade} usuario={usuarioLogado} comTexto />
+                                            </div>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
                                                 {t('analytics.report.perfOps', { defaultValue: 'Performance Operacional' })}
                                             </p>

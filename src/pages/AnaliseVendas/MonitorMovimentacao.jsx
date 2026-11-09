@@ -8,6 +8,7 @@ import { supabase } from '../../supabaseClient.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { contarPlanosDoCard } from './utils.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo, hojeIso, ontemIso, ehDomingo, diaDeLancamentoAtual, diaDeLancamentoAnterior, diasDeLancamentoEntre } from './movimentoDiario.js';
+import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -44,7 +45,7 @@ const CORES = {
     rose: 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30',
 };
 
-const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], planos = [], produtos = [], abrirModalWhatsapp }) => {
+const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], planos = [], produtos = [], abrirModalWhatsapp, usuario = null }) => {
     const { derivados, carregando, semTabela } = useMovimentoDiario({ unidade: 'TODOS', faixa });
 
     // Último lançamento de cada unidade (últimos 60 dias, independente do período escolhido) e últimos ativos lançados
@@ -202,7 +203,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                                 const saldo = l.saidas === null ? null : l.entradas - l.saidas;
                                 return (
                                     <tr key={l.nome} className="border-t border-slate-100 dark:border-slate-800">
-                                        <td className="px-3 py-3 text-[12px] font-black text-slate-800 dark:text-white">{l.nome}</td>
+                                        <td className="px-3 py-3 text-[12px] font-black text-slate-800 dark:text-white"><span className="inline-flex items-center gap-2">{l.nome}<BotaoCentralUnidade unidade={l.nome} usuario={usuario} /></span></td>
                                         <td className="px-3 py-3">
                                             <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wider ${CORES[l.situacao.cor]}`}>{l.situacao.rotulo}</span>
                                             {l.situacao.falta.length > 0 && (

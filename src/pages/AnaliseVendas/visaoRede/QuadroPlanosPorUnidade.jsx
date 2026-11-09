@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Building2, Send, HelpCircle, ArrowRight, Loader2, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
 import { estiloDaUnidade, DIAS_SEM_PLANO_ALERTA, faixaProdutividade, PRODUTIVIDADE_ATENCAO, PRODUTIVIDADE_BOA } from './calculosRede.js';
+import BotaoCentralUnidade from '../../../components/BotaoCentralUnidade.jsx';
 
 // ==========================================
 // QUADRO "PLANOS POR UNIDADE" — só na Visão da Rede (Admin/Mentor com o topo em "Todas"; decisão do dono, 06/11/2026)
@@ -79,7 +80,7 @@ const VALOR_ORDEM = {
 
 const QuadroPlanosPorUnidade = ({
     linhas, gruposBase, escuro, temComparativo, carregandoAnterior, nomeMesAnterior, textoPeriodo,
-    totalPlanos, totalNutri, semMovimento, onAbrirUnidade, onWhatsApp,
+    totalPlanos, totalNutri, semMovimento, onAbrirUnidade, onWhatsApp, usuario = null,
 }) => {
     const [ordem, setOrdem] = useState({ coluna: null, direcao: 'desc' });
     const [modo, setModo] = useState(lerModo);
@@ -229,6 +230,8 @@ const QuadroPlanosPorUnidade = ({
                                         <span className="flex items-center gap-2 min-w-0">
                                             <span className="w-3 h-3 rounded-[3px] shrink-0" style={{ background: cor }} aria-hidden="true" />
                                             <span className="text-[14px] font-bold text-[#0F172A] truncate max-w-[200px] dark:text-white" title={l.nome}>{l.nome}</span>
+                                            {/* Central da Unidade (09/11/2026); clicar na linha continua trocando o topo */}
+                                            <BotaoCentralUnidade unidade={l.nome} usuario={usuario} />
                                         </span>
                                         {(zerado || l.parouDeVender) && (
                                             <span className="mt-1 ml-5 flex flex-wrap gap-1">

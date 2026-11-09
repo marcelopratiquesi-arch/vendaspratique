@@ -425,28 +425,45 @@ const PainelCrm = ({
             else if (p.noiteAindaNao) noite.push({ l, p });
             else paradas.push({ l, p });
         }));
-        trabalharam.sort((a, b) => b.p.pessoasHoje.size - a.p.pessoasHoje.size);
-        let txt = `📞 *CRM DA RECEPÇÃO – ${dia}*\n\n`;
-        txt += `✅ *TRABALHARAM HOJE (${trabalharam.length})*\n`;
-        txt += (trabalharam.map(({ l, p }) => {
-            const bateu = p.pessoasHoje.size >= META_DIARIA ? ' 🏆' : '';
-            const alertaSem = p.semHoje > LIMITE_SEM_WHATSAPP ? ` ⚠️ ${p.semHoje} sem WhatsApp` : '';
-            const comecou = p.primeiraHoje ? ` · começou ${hora(p.primeiraHoje)}` : '';
-            return `• ${primeiro(p.nome)} (${l.unidade}) — ${p.pessoasHoje.size}/${META_DIARIA} pessoas · ${p.ligHoje} lig. · ${p.zapHoje} WhatsApp${comecou}${bateu}${alertaSem}`;
-        }).join('\n') || '—') + '\n\n';
-        txt += `❌ *PARADAS HOJE (${paradas.length})*\n`;
-        txt += (paradas.map(({ l, p }) => `• ${primeiro(p.nome)} (${l.unidade}) — última ação: ${p.ultima ? haQuanto(p.ultima) : 'nada nos últimos 7 dias'}`).join('\n') || '—');
-        if (noite.length) txt += `\n\n🌙 *Turno da noite (começa às ${HORA_INICIO_NOITE}h):* ${noite.map(({ l, p }) => `${primeiro(p.nome)} (${l.unidade})`).join(', ')}`;
+        // Mensagem do grupo (decisão do dono, 09/11/2026, depois de 3 versões "poluídas"): EMOJI SÓ NOS TÍTULOS,
+        // nenhum nas linhas das pessoas. Linha: "1. *Nome* · Unidade — 162  _159 lig · 3 zap_" (nome em negrito,
+        // total normal, detalhe em itálico, que no WhatsApp fica mais leve; a parte zerada não aparece).
+        // Em cima, o total da equipe no dia. Quem não começou: uma linha por unidade. ⚠️ "sem WhatsApp" continua (anti-golpe).
+        const bonito = (t) => String(t || '').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+        const totalDe = (p) => p.ligHoje + p.zapHoje + p.semHoje;
+        const detalhe = (lig, zap) => [lig && `${lig} lig`, zap && `${zap} zap`].filter(Boolean).join(' · ');
+        trabalharam.sort((a, b) => totalDe(b.p) - totalDe(a.p));
+        // Ajuste do dono (09/11/2026): sem a linha "Equipe hoje", ✅ no lugar do 🔥, sem o total na linha
+        // (só "159 lig · 3 zap") e a unidade entre parênteses.
+        let txt = `📋 *CRM DA RECEPÇÃO · ${dia}*\n\n`;
+        txt += `✅ *Já trabalharam (${trabalharam.length})*\n`;
+        txt += (trabalharam.map(({ l, p }, i) => {
+            const det = detalhe(p.ligHoje, p.zapHoje);
+            const sem = p.semHoje ? `${p.semHoje > LIMITE_SEM_WHATSAPP ? '⚠️ ' : ''}${p.semHoje} sem WhatsApp` : '';
+            const partes = [det && `_${det}_`, sem].filter(Boolean).join('  ');
+            return `${i + 1}. *${bonito(primeiro(p.nome))}* (${bonito(l.unidade)}) — ${partes}`;
+        }).join('\n') || '—');
+        if (noite.length) txt += `\n\n🌙 *Noite (a partir das ${HORA_INICIO_NOITE}h)*\n${noite.map(({ l, p }) => `${bonito(primeiro(p.nome))} (${bonito(l.unidade)})`).join(', ')}`;
+        if (paradas.length) {
+            const porUnidade = new Map();
+            paradas.forEach(({ l, p }) => {
+                const u = bonito(l.unidade);
+                if (!porUnidade.has(u)) porUnidade.set(u, []);
+                porUnidade.get(u).push(bonito(primeiro(p.nome)));
+            });
+            txt += `\n\n⏳ *Ainda não começaram (${paradas.length})*\n`;
+            txt += [...porUnidade].map(([u, nomes]) => `${u}: ${nomes.join(', ')}`).join('\n');
+        }
         if (periodoEhHoje) {
             const atrasados = linhas.flatMap(l => l.pessoas).reduce((s, p) => s + p.prazos.atrasado24 + p.prazos.atrasado48, 0);
             const semBV = linhas.flatMap(l => l.pessoas).reduce((s, p) => s + (p.boasVindas.total - p.boasVindas.enviadas), 0);
             if (atrasados || semBV) {
-                txt += `\n\n⚠️ *ATENÇÃO*`;
-                if (atrasados) txt += `\n⏰ Visitantes 24h/48h atrasados: ${atrasados}`;
-                if (semBV) txt += `\n💬 Visitantes de hoje sem boas-vindas: ${semBV}`;
+                txt += `\n\n⚠️ *Atenção*`;
+                if (atrasados) txt += `\n${atrasados} visitante(s) 24h/48h atrasado(s)`;
+                if (semBV) txt += `\n${semBV} visitante(s) de hoje sem boas-vindas`;
             }
         }
-        if (paradas.length) txt += `\n\n⏰ *Por gentileza, comecem agora os contatos do dia.* Meta: ${META_DIARIA} pessoas por recepcionista.`;
+        if (paradas.length) txt += `\n\n👉 *Bora começar os contatos de hoje!*`;
         setMensagem(txt);
     };
     const copiar = async () => {

@@ -678,7 +678,7 @@ const MetasTab = ({
                 </div>
             ) : podeFazer(usuarioLogado, '310') ? (
                 // Admin/Mentor em "Todas": monitoramento de quem lançou a movimentação (decisão do dono, 31/10/2026)
-                <MonitorMovimentacao unidades={unidadesUnicas.filter(u => u && u !== 'TODOS')} faixa={faixa} vendasFiltradas={vendasFiltradas} planos={planos} produtos={produtos} abrirModalWhatsapp={abrirModalWhatsapp} />
+                <MonitorMovimentacao unidades={unidadesUnicas.filter(u => u && u !== 'TODOS')} faixa={faixa} vendasFiltradas={vendasFiltradas} planos={planos} produtos={produtos} abrirModalWhatsapp={abrirModalWhatsapp} usuario={usuarioLogado} />
             ) : (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center mb-8 dark:bg-slate-900 dark:border-slate-800">
                     <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[20px] flex items-center justify-center mb-6 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">

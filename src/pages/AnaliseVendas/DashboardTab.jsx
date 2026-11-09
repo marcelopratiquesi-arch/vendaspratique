@@ -327,7 +327,7 @@ const DashboardTab = ({
     vendasTodas = [], faixa = null,
     vendedoresOcultos = [], planosOcultos = [], produtosOcultos = [], servicosOcultos = [],
     // Visão da Rede (Admin/Mentor com o topo em "Todas"): lista de unidades e troca do seletor do topo
-    unidades = [], onAbrirUnidade
+    unidades = [], onAbrirUnidade, usuario = null
 }) => {
     const { t, locale } = useI18n();
     const escuro = useModoEscuro();
@@ -995,6 +995,7 @@ const DashboardTab = ({
             {/* ===== 3.3 PLANOS POR UNIDADE (só na Visão da Rede) ===== */}
             {visaoRede && (
                 <QuadroPlanosPorUnidade
+                    usuario={usuario}
                     linhas={linhasRede}
                     gruposBase={gruposBase}
                     escuro={escuro}

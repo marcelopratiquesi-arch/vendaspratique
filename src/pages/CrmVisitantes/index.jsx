@@ -21,7 +21,7 @@ import JanelaResultadoContato from './JanelaResultadoContato';
 import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas } from './contatosFeitos';
 import { FASE_ESPERA, estaEmEspera, ocupaVaga, DIAS_SEM_CAMINHO, diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
-import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy } from 'lucide-react';
+import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy, ArrowRight } from 'lucide-react';
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR } from '../../components/aoVivoContatos.js';
@@ -1318,7 +1318,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             { id: 'distribuir', n: 3, titulo: 'Distribuir', texto: tx('{qtd} vagas nas carteiras', { qtd: vagas }), destaque: leadsNaBase.length > 0 && vagas > 0 }
         ];
         return (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3">
+            <div id="crm-abastecer-carteiras" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3 scroll-mt-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2"><Database className="w-4 h-4 text-blue-600 dark:text-blue-400" />{tx('Abastecer carteiras')}</h3>
                     <span className="text-[10px] font-bold text-slate-400">{tx('Limite: {limite} contatos em atendimento por recepcionista', { limite: LIMITE_CARTEIRA })}</span>
@@ -1338,7 +1338,14 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                         );
                     })}
                 </div>
-                {carteiras.length > 0 && (
+                {/* Frase direta do que fazer (09/11/2026, decisão do dono) */}
+                {leadsNaBase.length > 0 && vagas > 0 && passoBase !== 'distribuir' && (
+                    <button type="button" onClick={() => setPassoBase('distribuir')} className="w-full text-left rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 px-3 py-2 text-[11px] font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5 transition-colors">
+                        <ArrowRight className="w-4 h-4 shrink-0" />{tx('Tem {vagas} vagas nas carteiras e {qtd} contatos esperando: clique em Distribuir.', { vagas: vagas.toLocaleString(localeAtual()), qtd: leadsNaBase.length.toLocaleString(localeAtual()) })}
+                    </button>
+                )}
+                {/* Carteira de cada uma × limite: só no passo Distribuir (os cartões da equipe já mostram; 09/11/2026) */}
+                {carteiras.length > 0 && passoBase === 'distribuir' && (
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                         {carteiras.map(c => {
                             const acima = c.total > LIMITE_CARTEIRA;
@@ -1664,6 +1671,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 onAtualizar={atualizarAgora}
                 onEscolher={(c) => { setConsultorAtivo(c); if (ehRecepcao(usuarioLogado) && visaoLiberada.hoje) setVisaoAtivaEstado('hoje'); }}
                 conteudoBase={unidadeOperacao && podeFazer(usuarioLogado, '517') ? blocoBase() : null}
+                onAbrirDistribuir={unidadeOperacao && podeFazer(usuarioLogado, '517') ? () => { setPassoBase('distribuir'); setTimeout(() => document.getElementById('crm-abastecer-carteiras')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); } : null}
             />
         );
     }

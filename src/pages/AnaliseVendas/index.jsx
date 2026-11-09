@@ -20,6 +20,7 @@ import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { registrarEnvioRelatorio, ROTULO_TURNO } from '../Pendencias/relatorioFechamento.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer } from '../../permissoes/catalogoPermissoes.js';
+import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -535,6 +536,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {/* Central da Unidade (09/11/2026): a unidade que está na tela (Líder: a dele; Admin/Mentor: a escolhida no topo) */}
+                        <BotaoCentralUnidade unidade={temVisaoGlobal ? (filtroUnidade === 'TODOS' ? null : filtroUnidade) : usuarioLogado?.unidade} usuario={usuarioLogado} comTexto className="!h-10 !px-3 !rounded-xl" />
                         {temFiltroAtivo && (
                             <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-[#3B4458] hover:text-[#0F172A] hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800">
                                 <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
@@ -645,6 +648,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     onIrParaMetas={() => setAbaPrincipal('visaoGeral')}
                     unidades={unidades}
                     onAbrirUnidade={setUnidadeGlobal}
+                    usuario={usuarioLogado}
                 />
             )}
 
@@ -717,6 +721,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
             {abaMostrada === 'rankingGlobal' && (
                 <RankingGlobalTab
+                    usuarioLogado={usuarioLogado}
                     vendasFiltradas={vendasFiltradas}
                     vendasTodas={vendas}
                     visitantesFiltrados={visitantesFiltrados}

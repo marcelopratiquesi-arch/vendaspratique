@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
     ArrowLeft, CheckCircle2, XCircle, UserCog, Phone, Sun, Moon, AlertTriangle, Save, Loader2, Users, KeyRound,
-    Dumbbell, Trash2, Monitor, LayoutDashboard, Settings2, Target, Power, ArrowRight, Mail,
+    Dumbbell, Trash2, Monitor, LayoutDashboard, Settings2, Target, Power, ArrowRight, Mail, Gauge,
 } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
 import { NOME_PAPEL } from '../../permissoes/catalogoPermissoes.js';
 import { normalizarUnidade, ordenarLogins, unidadesDoMentorEm } from '../Configuracoes/conferenciaLogins.js';
 import CopyButton from '../HistoricoVendas/CopyButton.jsx';
+import AbaPanorama from './panorama/AbaPanorama.jsx';
 
 // ==========================================
 // CENTRAL DA UNIDADE (Cadastros → Unidades, só o Admin) — redesenhada em 09/11/2026 (decisão do dono:
@@ -30,6 +31,7 @@ const telefoneBonito = (t) => {
 
 const ABAS = [
     ['geral', 'Visão geral', LayoutDashboard],
+    ['panorama', 'Panorama', Gauge], // tudo da unidade: vendas, metas, CRM, avaliações e pendências (09/11/2026)
     ['equipe', 'Equipe', Users],
     ['logins', 'Logins', KeyRound],
     ['mentor', 'Mentor', UserCog],
@@ -64,8 +66,11 @@ const Quadro = ({ children, className = '' }) => (
 const th = 'px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 whitespace-nowrap dark:text-slate-400';
 const td = 'px-4 py-2.5 text-[12px] font-semibold text-slate-700 dark:text-slate-200';
 
-const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {}, prontidao, semPersonal = false, onSalvarMentores, onMarcarPersonal, onAtivar, onExcluir, onFechar }) => {
-    const [aba, setAba] = useState('geral');
+const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {}, prontidao, semPersonal = false, onSalvarMentores, onMarcarPersonal, onAtivar, onExcluir, onFechar, planos = [], produtos = [], pendencia, abrirTela, modo = 'completo', abaInicial = 'geral', rotuloVoltar }) => {
+    // modo 'leitura' (Mentor e Líder, aberta pelo Dashboard; 09/11/2026): só Panorama e Equipe, sem ações
+    const completo = modo !== 'leitura';
+    const abasVisiveis = completo ? ABAS : ABAS.filter(([id]) => id === 'panorama' || id === 'equipe');
+    const [aba, setAba] = useState(abasVisiveis.some(([id]) => id === abaInicial) ? abaInicial : abasVisiveis[0][0]);
     const chave = normalizarUnidade(unidade.nome);
     const desativada = unidade.ativa === false;
 
@@ -130,7 +135,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                 <div className="mb-5 flex items-center">
                     <button type="button" onClick={onFechar} disabled={salvando}
                         className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
-                        <ArrowLeft className="w-3.5 h-3.5" />{tx('Voltar para Unidades')}
+                        <ArrowLeft className="w-3.5 h-3.5" />{rotuloVoltar || tx('Voltar para Unidades')}
                     </button>
                 </div>
 
@@ -146,7 +151,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                         <div className="flex flex-col w-full min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-1.5">
                                 <h2 id="titulo-central-unidade" className="text-[19px] font-extrabold text-slate-800 uppercase tracking-tight dark:text-white">{unidade.nome}</h2>
-                                {desativada
+                                {!completo ? null : desativada
                                     ? <span className="px-2 py-0.5 rounded-md border bg-slate-100 border-slate-200 text-slate-500 text-[10px] font-bold uppercase tracking-wider dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400">{tx('Desativada')}</span>
                                     : prontidao?.pronta
                                         ? <span className="px-2 py-0.5 rounded-md border bg-emerald-50 border-emerald-200 text-emerald-700 text-[10px] font-bold uppercase tracking-wider dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300">✓ {tx('Pronta')}</span>
@@ -154,8 +159,8 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                                 {semPersonal && <span className="px-2 py-0.5 rounded-md border bg-slate-100 border-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-wider dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">{tx('Sem Personal Class')}</span>}
                             </div>
                             <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-[12px] font-medium text-slate-500 dark:text-slate-400">
-                                <span className="flex items-center gap-1.5"><UserCog className="w-3.5 h-3.5 text-purple-500" />{tx('Mentor')}: <b className="font-semibold text-slate-700 dark:text-slate-200">{mentores.length ? mentores.map(m => m.nome || m.email).join(', ') : tx('nenhum')}</b></span>
-                                {separador}
+                                {completo && <span className="flex items-center gap-1.5"><UserCog className="w-3.5 h-3.5 text-purple-500" />{tx('Mentor')}: <b className="font-semibold text-slate-700 dark:text-slate-200">{mentores.length ? mentores.map(m => m.nome || m.email).join(', ') : tx('nenhum')}</b></span>}
+                                {completo && separador}
                                 <span className="flex items-center gap-1.5"><KeyRound className="w-3.5 h-3.5 text-amber-500" />{tx('Líder')}: <b className="font-semibold text-slate-700 dark:text-slate-200">{nomeLider || tx('nenhum')}</b></span>
                                 {separador}
                                 <span className="flex items-center gap-1.5">
@@ -164,37 +169,41 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                                         ? <>{telefoneBonito(telefoneLider)}<CopyButton textToCopy={soNumeros(telefoneLider)} label={tx('Copiar telefone')} /></>
                                         : <span className="text-rose-600 dark:text-rose-400">{tx('Líder sem telefone na Equipe')}</span>}
                                 </span>
-                                <span className="flex items-center gap-1.5 lowercase basis-full sm:basis-auto">
+                                {completo && <span className="flex items-center gap-1.5 lowercase basis-full sm:basis-auto">
                                     <Monitor className="w-3.5 h-3.5 text-blue-500" />
                                     {loginsRecepcao[0]
                                         ? <>{loginsRecepcao[0].email}<CopyButton textToCopy={loginsRecepcao[0].email} label={tx('Copiar e-mail')} /></>
                                         : <span className="normal-case text-rose-600 dark:text-rose-400">{tx('sem login da Recepção')}</span>}
-                                </span>
+                                </span>}
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
-                        <button type="button" onClick={() => onAtivar(unidade, desativada)}
+                    <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto shrink-0">
+                        <button type="button" onClick={() => setAba('panorama')}
+                            className={`${botaoTopo} bg-blue-600 border-blue-600 text-white hover:bg-blue-700`}>
+                            <Gauge className="w-3.5 h-3.5" />{tx('Ver tudo da unidade')}
+                        </button>
+                        {completo && <button type="button" onClick={() => onAtivar(unidade, desativada)}
                             className={`${botaoTopo} ${desativada ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-amber-500/10'}`}>
                             <Power className="w-3.5 h-3.5" />{desativada ? tx('Reativar') : tx('Desativar')}
-                        </button>
-                        <button type="button" onClick={() => onExcluir(unidade)} title={tx("Excluir (só unidade sem nenhum dado)")}
+                        </button>}
+                        {completo && <button type="button" onClick={() => onExcluir(unidade)} title={tx("Excluir (só unidade sem nenhum dado)")}
                             className={`${botaoTopo} bg-white border-slate-200 text-slate-500 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-rose-500/10 dark:hover:text-rose-400`}>
                             <Trash2 className="w-3.5 h-3.5" />{tx('Excluir')}
-                        </button>
+                        </button>}
                     </div>
                 </div>
 
                 {/* 5 CARTÕES */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
-                    <Cartao icone={KeyRound} cor="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400" titulo={tx('Logins')} valor={logins.length}
-                        sub={tx('{lider} Líder · {recepcao} Recepção', { lider: loginsLider.length, recepcao: loginsRecepcao.length })} alerta={!desativada && (!loginsLider.length || !loginsRecepcao.length)} />
+                <div className={`grid grid-cols-2 gap-3 mb-5 ${completo ? 'lg:grid-cols-5' : 'lg:grid-cols-3'}`}>
+                    {completo && <Cartao icone={KeyRound} cor="bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400" titulo={tx('Logins')} valor={logins.length}
+                        sub={tx('{lider} Líder · {recepcao} Recepção', { lider: loginsLider.length, recepcao: loginsRecepcao.length })} alerta={!desativada && (!loginsLider.length || !loginsRecepcao.length)} />}
                     <Cartao icone={Users} cor="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400" titulo={tx('Equipe ativa')} valor={equipe.length}
                         sub={qtdSetores === 1 ? tx('1 setor') : tx('{qtd} setores', { qtd: qtdSetores })} />
                     <Cartao icone={Monitor} cor="bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400" titulo={tx('Recepcionistas')} valor={recepcionistas.length}
                         sub={recepcionistas.length === 0 ? tx('ninguém na Recepção') : semTurno.length ? tx('{qtd} sem turno', { qtd: semTurno.length }) : tx('turnos marcados')} alerta={!desativada && (recepcionistas.length === 0 || semTurno.length > 0)} />
-                    <Cartao icone={UserCog} cor="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400" titulo={tx('Mentor')} valor={mentores[0]?.nome || tx('Nenhum')}
-                        sub={mentores.length > 1 ? tx('+{qtd} outros', { qtd: mentores.length - 1 }) : mentores.length ? tx('acompanha a unidade') : tx('ninguém acompanha')} alerta={!desativada && mentores.length === 0} />
+                    {completo && <Cartao icone={UserCog} cor="bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400" titulo={tx('Mentor')} valor={mentores[0]?.nome || tx('Nenhum')}
+                        sub={mentores.length > 1 ? tx('+{qtd} outros', { qtd: mentores.length - 1 }) : mentores.length ? tx('acompanha a unidade') : tx('ninguém acompanha')} alerta={!desativada && mentores.length === 0} />}
                     <Cartao icone={Target} cor="bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-400" titulo={tx('Metas do mês')}
                         valor={!itemMetas ? '—' : itemMetas.ok ? tx('Preenchidas') : tx('Pendentes')}
                         sub={!itemMetas ? tx('não deu para conferir') : itemMetas.ok ? tx('Meta Start e Mensal') : detalheItem(itemMetas)} alerta={!desativada && itemMetas && !itemMetas.ok} />
@@ -202,7 +211,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
 
                 {/* ABAS */}
                 <div className="flex bg-white p-1.5 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar mb-5 shadow-sm dark:bg-slate-900 dark:border-slate-800" role="tablist">
-                    {ABAS.map(([id, rotulo, Icone]) => {
+                    {abasVisiveis.map(([id, rotulo, Icone]) => {
                         const ativo = aba === id;
                         return (
                             <button key={id} type="button" role="tab" aria-selected={ativo} onClick={() => setAba(id)}
@@ -252,6 +261,12 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                             </div>
                         </>
                     ))}
+
+                    {/* PANORAMA: só carrega quando a aba é aberta */}
+                    {aba === 'panorama' && (
+                        <AbaPanorama unidade={unidade} recepcionistas={recepcionistas} semPersonal={semPersonal} pendencia={pendencia}
+                            planos={planos} produtos={produtos} abrirTela={abrirTela ? (tela, opcoes) => abrirTela(unidade.nome, tela, opcoes) : null} />
+                    )}
 
                     {/* EQUIPE */}
                     {aba === 'equipe' && (

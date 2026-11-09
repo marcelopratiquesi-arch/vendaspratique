@@ -17,7 +17,7 @@ import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 
 // 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
 // todasUnidades/setUnidades (09/11/2026): a aba Unidades mostra também as desativadas (o "unidades" daqui são só as visíveis)
-const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnidades, setUnidades, planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
+const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnidades, setUnidades, pendencias = [], pendenciasCarregadas = true, abrirTela, planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
     const { t } = useI18n(); 
     const [abaAtiva, setAbaAtiva] = useState('alunos'); 
     const [listaSetores, setListaSetores] = useState([]);
@@ -280,7 +280,8 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
                 )}
 
                 {abaMostrada === 'unidades' && (
-                    <TabUnidades unidades={todasUnidades || unidades} setUnidades={setUnidades} nomeUsuario={usuarioLogado?.nome} />
+                    <TabUnidades unidades={todasUnidades || unidades} setUnidades={setUnidades} nomeUsuario={usuarioLogado?.nome}
+                        planos={planos} produtos={produtos} pendencias={pendencias} pendenciasCarregadas={pendenciasCarregadas} abrirTela={abrirTela} />
                 )}
 
                 {abaMostrada === 'setores' && (

@@ -34,6 +34,7 @@ import PaginaPendencias from './pages/Pendencias/index.jsx';
 import JanelaPendencias from './pages/Pendencias/JanelaPendencias.jsx';
 import CartaoPendencias from './pages/Pendencias/CartaoPendencias.jsx';
 import JanelaConferirRelatorio from './pages/Pendencias/JanelaConferirRelatorio.jsx';
+import CentralUnidadeGlobal from './pages/CadastroGeral/CentralUnidadeGlobal.jsx';
 import { usePendencias } from './pages/Pendencias/pendencias.js';
 import CobrancaRelatorioRecepcao from './pages/Pendencias/CobrancaRelatorioRecepcao.jsx';
 import LembreteCrm from './pages/Pendencias/LembreteCrm.jsx';
@@ -712,6 +713,12 @@ export default function App() {
     const aoFecharJanelaPendencias = useCallback(() => setJanelaPendenciasFechada(true), []);
     useEffect(() => { setJanelaPendenciasFechada(false); }, [usuarioLogado?.email]);
     // Botões das pendências: Mentor/Admin passam a olhar a unidade da pendência (seletor do topo) e a tela certa abre
+    // Panorama da unidade (Cadastros → Unidades → Central): "Abrir a tela completa" troca o topo para a unidade e abre a tela
+    const abrirTelaDaUnidade = (unidade, tela, opcoes = {}) => {
+        if (ehChefe && unidade) setUnidadeGlobal(unidade);
+        if (opcoes.aba) pedirAbaAnalise(opcoes.aba);
+        handleNavigation(tela);
+    };
     const irParaPendencia = (tipo, u) => {
         if (ehChefe && u?.unidade) setUnidadeGlobal(u.unidade);
         if (tipo === 'conferencia') {
@@ -853,6 +860,11 @@ export default function App() {
 
             {/* Líder/Mentor/Admin: "Conferiu no grupo?" do relatório de fechamento (permissão 313; 06/11/2026) */}
             <JanelaConferirRelatorio usuario={usuarioComPode} />
+            {/* Central da Unidade aberta pelo botão "Central" do Dashboard, Metas, Relatórios e Ranking (09/11/2026):
+                Admin todas as unidades; Mentor as dele; Líder a própria (permissão 314) */}
+            <CentralUnidadeGlobal usuario={usuarioComPode} unidades={unidades} setUnidades={setUnidades}
+                unidadesPermitidas={usuarioLogado?.role === 'ADMIN' ? null : usuarioLogado?.role === 'MENTOR' ? unidadesVisiveis.map(u => u.nome) : (usuarioLogado?.unidade ? [usuarioLogado.unidade] : [])}
+                planos={planos} produtos={produtos} pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />
 
             <CobrancaRelatorioRecepcao usuario={usuarioComPode} colaboradores={colaboradores}
                 aoIrRelatorio={() => { pedirAbaAnalise('relatorio'); handleNavigation('analise'); }} />
@@ -971,7 +983,8 @@ export default function App() {
                             onVoltarParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
-                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} todasUnidades={unidades} setUnidades={setUnidades} />}
+                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} todasUnidades={unidades} setUnidades={setUnidades}
+                        pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />}
                     {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} />}
                     {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} />}

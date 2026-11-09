@@ -82,6 +82,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '310', nome: 'Monitoramento da movimentação', tipo: 'fazer', padrao: GLOBAL, rede: true, descricao: 'Aba Metas com o topo em "Todas".' },
     { codigo: '311', nome: 'Relatórios: Planilha e WhatsApp Geral', tipo: 'fazer', padrao: GESTAO, descricao: 'O WhatsApp Fechamento continua para todos.' },
     { codigo: '312', nome: 'Painel "Relatórios de fechamento enviados"', tipo: 'fazer', padrao: GESTAO },
+    { codigo: '314', nome: 'Abrir a Central da Unidade', tipo: 'ver', padrao: GESTAO, mudavelPara: ['MENTOR', 'LIDER'], descricao: 'Botão "Central" ao lado da unidade (Dashboard, Metas, Relatórios, Ranking). Admin: Central completa; Mentor: as unidades dele; Líder: a própria (Mentor e Líder só veem Panorama e Equipe).' },
     { codigo: '313', nome: 'Confirmar envio do relatório de fechamento', tipo: 'fazer', padrao: GESTAO, banco: true, descricao: 'Conferir no grupo de vendas e marcar Enviado / Não enviado, só nas unidades da pessoa.' },
 
     // ---------- 4xx FECHAMENTO ----------

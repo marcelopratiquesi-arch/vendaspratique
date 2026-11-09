@@ -61,7 +61,7 @@ const CLASSE_COR = {
 
 // Relatório da recepção: uma linha por dia (ontem e hoje) com etiquetas curtas (Manhã / Noite) na cor da situação;
 // o nome da recepcionista e o detalhe vão no passar do mouse
-const RelatorioCompacto = ({ lista }) => {
+export const RelatorioCompacto = ({ lista }) => {
     const porDia = [];
     lista.forEach(r => {
         let dia = porDia.find(d => d.data === r.data);
