@@ -39,7 +39,7 @@ const FILTROS = [
     { id: 'relatorio', rotulo: 'Relatório', tem: TIPOS_PENDENCIA.relatorio },
 ];
 
-const TEXTO_PRAZOS = 'Movimentação: de segunda a sábado (feriado também), a partir das 7h; domingo não tem. Aqui aparece só o dia atual (os dias antigos ficam na tabela Movimentação por dia). Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h.';
+const TEXTO_PRAZOS = 'Movimentação: de segunda a sábado (feriado também), a partir das 7h; domingo não tem. Aqui aparece só o dia atual (os dias antigos ficam na tabela Movimentação por dia). Conferência: toda sexta-feira; o mês anterior é cobrado até o dia 15 (pagamento da comissão). Metas: até o dia 03 de cada mês. Relatório da recepção: manhã das 13h30 às 15h, noite das 21h30 às 23h, sábado, domingo e feriado das 12h às 13h. O relatório de ontem aparece o dia todo se ontem foi dia de semana; se foi sábado, domingo ou feriado, só até as 9h.';
 
 // Cor e texto de cada situação do relatório (ontem e hoje)
 const SITUACAO_RELATORIO = {

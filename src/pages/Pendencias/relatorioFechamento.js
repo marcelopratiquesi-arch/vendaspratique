@@ -150,14 +150,24 @@ const primeiroNome = (nome) => {
 };
 export const nomesDoTurno = (colaboradores, unidade, turno) => recepcionistasDoTurno(colaboradores, unidade, turno).map(c => primeiroNome(c.nome)).filter(Boolean);
 
+// Dias que entram na tela e na cobrança (decisão do dono, 09/11/2026): hoje sempre; ontem o dia todo se foi dia de
+// semana; ontem sábado, domingo ou feriado só até as 9h (fim de semana não precisa de tanta cobrança).
+export const HORA_LIMITE_ONTEM_FIM_DE_SEMANA = 9;
+const diasDoRelatorio = (agora) => {
+    const hojeIso = paraIso(agora);
+    const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
+    const ontemIso = paraIso(ontem);
+    const mostraOntem = !tipoDoDia(ontemIso) || agora.getHours() < HORA_LIMITE_ONTEM_FIM_DE_SEMANA;
+    return mostraOntem ? [ontemIso, hojeIso] : [hojeIso];
+};
+
 // Situação de TODOS os turnos de ontem e hoje de uma unidade (para a tela mostrar o que foi feito em verde):
 // 'enviado' | 'enviado_atrasado' | 'conferido_enviado' (Líder conferiu no grupo) | 'confirmado_nao' (Líder confirmou que não)
 // | 'aguardando' | 'cobrando' | 'atrasado' | 'nao_enviado'
 export const situacaoRelatorioDias = (envios = [], conferencias = [], unidade, agora = new Date()) => {
     const hojeIso = paraIso(agora);
-    const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
     const lista = [];
-    [paraIso(ontem), hojeIso].forEach(dataIso => {
+    diasDoRelatorio(agora).forEach(dataIso => {
         if (dataIso < INICIO_COBRANCA_RELATORIO) return;
         turnosDoDia(dataIso).forEach(t => {
             const envio = acharRegistroTurno(envios, unidade, dataIso, t.turno);
@@ -175,10 +185,8 @@ export const situacaoRelatorioDias = (envios = [], conferencias = [], unidade, a
 export const pendenciasRelatorio = (envios = [], unidade, agora = new Date(), conferencias = []) => {
     const alvo = normalizeString(String(unidade || ''));
     const hojeIso = paraIso(agora);
-    const ontem = new Date(agora); ontem.setDate(ontem.getDate() - 1);
-    const ontemIso = paraIso(ontem);
     const lista = [];
-    [ontemIso, hojeIso].forEach(dataIso => {
+    diasDoRelatorio(agora).forEach(dataIso => {
         if (dataIso < INICIO_COBRANCA_RELATORIO) return;
         turnosDoDia(dataIso).forEach(t => {
             const envio = envios.find(e => normalizeString(String(e.unidade || '')) === alvo && String(e.data).slice(0, 10) === dataIso && e.turno === t.turno);
