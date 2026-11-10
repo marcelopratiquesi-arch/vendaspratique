@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { CalendarCheck, AlarmClock, MessageCircle, Check, Info, Ban, CalendarClock, Loader2, PhoneCall } from 'lucide-react';
+import { CalendarCheck, AlarmClock, MessageCircle, Info, Ban, CalendarClock, Loader2, PhoneCall } from 'lucide-react';
 import { ligarPeloSip } from './contatosFeitos';
 import { JanelaJustificativa } from './JanelasContato';
 import { EtiquetaParado } from './EtiquetasCrm';
@@ -10,7 +10,7 @@ import { tx } from '../../i18n/traduzir.js';
 // ==========================================
 // ABA "HOJE" (Bloco 4): contatos com o próximo contato marcado para hoje ou já atrasado.
 // Só a carteira de quem opera (Kanban). WhatsApp já registra o contato (anti-golpe);
-// "Feito sem WhatsApp" pede justificativa. Depois do contato, o CRM pergunta a próxima data.
+// "Feito sem WhatsApp" saiu daqui (decisão do dono, 10/11/2026). Depois do contato, o CRM pergunta a próxima data.
 // ==========================================
 
 const GRUPOS = [
@@ -111,9 +111,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                                             <button type="button" onClick={() => ligar(v)} disabled={registrando === v.id || !v.telefone} className="px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
                                                 <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
                                             </button>
-                                            <button type="button" onClick={() => setJustificando(v)} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
-                                                <Check className="w-3.5 h-3.5" />{' '}{tx("Feito sem WhatsApp")}
-                                            </button>
+                                            {/* "Feito sem WhatsApp" saiu da aba Hoje (decisão do dono, 10/11/2026: "senão o pessoal vai tudo usar ele") */}
                                             <button type="button" onClick={() => onRemarcar(v)} className="p-2 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors" title={tx("Mudar a data do próximo contato")}>
                                                 <CalendarClock className="w-4 h-4" />
                                             </button>

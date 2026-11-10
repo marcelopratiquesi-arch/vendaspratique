@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { CalendarCheck, X, MessageCircle, Check, Loader2, Cake, UserCheck, Repeat, PenSquare, Ban, AlarmClock, PhoneCall } from 'lucide-react';
+import { CalendarCheck, X, MessageCircle, Loader2, Cake, UserCheck, Repeat, PenSquare, Ban, AlarmClock, PhoneCall } from 'lucide-react';
 import { JanelaNaoContatar, JanelaJustificativa } from './JanelasContato';
 import {
     ehVisitanteRecepcao, dataDaVisita, diaISO, MENSAGENS_PADRAO,
@@ -229,9 +229,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                                     <button type="button" onClick={() => ligar(p)} disabled={marcando === p.chave || !p.telefone} className="px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
                                                         <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
                                                     </button>
-                                                    <button type="button" onClick={() => setJustificando(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-900 disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Para contato feito por ligação ou pessoalmente (fica em vermelho para o Líder)")}>
-                                                        <Check className="w-3.5 h-3.5" />{' '}{tx("Feito sem WhatsApp")}
-                                                    </button>
+                                                    {/* "Feito sem WhatsApp" saiu da aba Hoje (decisão do dono, 10/11/2026: "senão o pessoal vai tudo usar ele") */}
                                                     <button type="button" onClick={() => setBloqueando(p)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title={tx("Não contatar (a pessoa pediu para não receber contato)")}>
                                                         <Ban className="w-4 h-4" />
                                                     </button>
