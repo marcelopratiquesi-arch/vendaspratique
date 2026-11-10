@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Edit3, Building, Zap, Loader2, Check } from 'lucide-react';
 import { maskCpf, maskPhone, maskContaInter } from './utils.js';
+import { validarCPF } from './utilsAlunos.js';
+import CopyButton from '../HistoricoVendas/CopyButton.jsx';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -34,12 +36,21 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
         }
     }, [isOpen, dadosEdicao]);
 
+    // Esc fecha a janela (revisão de 10/11/2026)
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const aoTeclar = (e) => { if (e.key === 'Escape' && !isSubmitting) onClose(); };
+        window.addEventListener('keydown', aoTeclar);
+        return () => window.removeEventListener('keydown', aoTeclar);
+    }, [isOpen, isSubmitting, onClose]);
+
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
         
         if (cpf.length !== 14) return avisar(tx("Preencha o CPF corretamente."));
+        if (!validarCPF(cpf)) return avisar(tx('CPF inválido: confira os números (os dois últimos não batem).'), 'erro');
         if (telefone.length < 14) return avisar(tx("Preencha o Telefone/WhatsApp corretamente."));
         if (tipoConta === 'INTER' && !contaInter.trim()) return avisar(tx("Preencha a conta Inter."));
         
@@ -86,7 +97,7 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="sm:col-span-2">
                                 <label className={labelBase}>{tx("Nome Completo")}</label>
-                                <input type="text" value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: Lucas Mendes")} className={inputBase} />
+                                <input type="text" autoFocus value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: Lucas Mendes")} className={inputBase} />
                             </div>
                             
                             <div>
@@ -103,6 +114,7 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                 <label className={labelBase}>{tx("Setor / Cargo")}</label>
                                 <select value={role} onChange={e => setRole(e.target.value)} required className={`${inputBase} cursor-pointer`}>
                                     <option value="" disabled className="text-slate-400">{tx("Selecione...")}</option>
+                                    {role && !listaSetores.some(s => String(s.nome).toUpperCase() === String(role).toUpperCase()) && <option value={role}>{role} ({tx('fora da lista')})</option>}
                                     {listaSetores.map(s => <option key={s.id} value={s.nome}>{s.nome}</option>)}
                                 </select>
                             </div>
@@ -111,7 +123,7 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                 <div className="sm:col-span-2">
                                     <label className={labelBase}>{tx("Turno da recepção")}</label>
                                     <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner dark:bg-slate-800 dark:border-slate-800">
-                                        {[['MANHA', tx('Manhã (5h às 14h)')], ['NOITE', tx('Noite (14h às 23h)')], ['', tx('Sem turno')]].map(([valor, rotulo]) => (
+                                        {[['MANHA', tx('Manhã (7h às 13h)')], ['NOITE', tx('Noite (13h às 21h)')], ['', tx('Sem turno')]].map(([valor, rotulo]) => (
                                             <button key={valor || 'nenhum'} type="button" onClick={() => setTurno(valor)}
                                                 className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${turno === valor ? 'bg-white shadow-sm text-blue-700 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                                 {rotulo}
@@ -124,9 +136,9 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
 
                             {temVisaoGlobal && (
                                 <div className="sm:col-span-1">
-                                    <label className="block text-[10px] font-black text-rose-500 uppercase tracking-widest mb-1.5 ml-1">{tx("Unidade Vínculo")}</label>
-                                    <select value={unidade} onChange={e => setUnidade(e.target.value)} required className="w-full bg-rose-50/20 border border-rose-200 rounded-xl px-4 py-3 text-sm font-black text-rose-700 focus:ring-2 focus:ring-rose-500 outline-none cursor-pointer uppercase shadow-sm dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400">
-                                        <option value="" disabled className="text-rose-300">{tx("Selecione...")}</option>
+                                    <label className={labelBase}>{tx("Unidade Vínculo")}</label>
+                                    <select value={unidade} onChange={e => setUnidade(e.target.value)} required className={`${inputBase} cursor-pointer`}>
+                                        <option value="" disabled>{tx("Selecione...")}</option>
                                         {unidades.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
                                     </select>
                                 </div>
@@ -155,7 +167,7 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                         <Zap className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wide dark:text-emerald-300">{tx("Chave PIX Travada")}</p>
-                                            <p className="text-xs font-semibold text-emerald-600 mt-1 dark:text-emerald-400">{tx("A chave será estritamente o CPF:")}{' '}<strong className="font-mono text-emerald-900 dark:text-emerald-300">{cpf || tx("Preencha o CPF acima")}</strong></p>
+                                            <p className="text-xs font-semibold text-emerald-600 mt-1 dark:text-emerald-400">{tx("A chave será estritamente o CPF:")}{' '}<strong className="font-mono text-emerald-900 dark:text-emerald-300">{cpf || tx("Preencha o CPF acima")}</strong>{cpf && <span className="inline-flex align-middle ml-1"><CopyButton textToCopy={cpf.replace(/\D/g, '')} label={tx('Copiar CPF')} /></span>}</p>
                                         </div>
                                     </div>
                                 )}

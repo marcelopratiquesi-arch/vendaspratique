@@ -14,12 +14,20 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
+import { normalizeString } from '../AnaliseVendas/utils.js';
 
 // 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
 // todasUnidades/setUnidades (09/11/2026): a aba Unidades mostra também as desativadas (o "unidades" daqui são só as visíveis)
 const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnidades, setUnidades, pendencias = [], pendenciasCarregadas = true, abrirTela, planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
     const { t } = useI18n(); 
-    const [abaAtiva, setAbaAtiva] = useState('alunos'); 
+    // A aba pode vir pedida pelo menu lateral (subabas, 09/11/2026)
+    const [abaAtiva, setAbaAtiva] = useState(() => consumirSubaba('cadastros') || 'alunos');
+    useEffect(() => {
+        const aoPedir = (e) => { if (e.detail?.tela !== 'cadastros') return; const aba = consumirSubaba('cadastros'); if (aba) setAbaAtiva(aba); };
+        window.addEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+        return () => window.removeEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+    }, []);
     const [listaSetores, setListaSetores] = useState([]);
     
     const [modalColabAberto, setModalColabAberto] = useState(false);
@@ -59,6 +67,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
         ['unidades', tx("Unidades"), Building],
     ];
     const abaMostrada = abaLiberada[abaAtiva] ? abaAtiva : (Object.keys(abaLiberada).find(id => abaLiberada[id]) || null);
+    useEffect(() => { if (abaMostrada) avisarSubabaAtual('cadastros', abaMostrada); }, [abaMostrada]);
 
     const catalogoCompleto = [...(planos || []), ...(produtos || []), ...(servicos || [])];
 
@@ -74,6 +83,20 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
     const handleSaveColaborador = async (payload) => {
         setIsSubmitting(true);
         try {
+            // CPF repetido na Equipe (revisão de 10/11/2026): a mesma pessoa duas vezes duplicaria o consultor na Nova Venda
+            // e na comissão. Confere no banco (com e sem pontos) e na lista da tela.
+            const cpfNumeros = String(payload.cpf || '').replace(/\D/g, '');
+            if (cpfNumeros.length === 11) {
+                const { data: mesmos, error: erroCpf } = await supabase.from('colaboradores').select('id, nome, unidade, ativo').in('cpf', [payload.cpf, cpfNumeros]);
+                if (erroCpf) console.warn('Equipe: não deu para conferir CPF repetido.', erroCpf);
+                const daTela = colaboradores.filter(c => String(c.cpf || '').replace(/\D/g, '') === cpfNumeros);
+                const outro = [...(mesmos || []), ...daTela].find(c => c.id !== payload.id);
+                if (outro) {
+                    avisar(tx('Este CPF já está na Equipe: {nome} ({unidade}{situacao}). Edite o cadastro que já existe em vez de criar outro.', { nome: outro.nome, unidade: outro.unidade || '—', situacao: outro.ativo === false ? ` · ${tx('desligado')}` : '' }), 'erro');
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
             const unidadeFinal = temVisaoGlobal ? payload.unidade : (usuarioVirtual?.unidade || usuarioLogado?.unidade);
             const finalPayload = { ...payload, unidade: unidadeFinal };
             // Sem o campo "turno" no banco (falta rodar sql/2026-11-05-relatorio-fechamento), grava o resto e avisa
@@ -127,9 +150,15 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
     const handleSaveCatalogo = async (payload) => {
         setIsSubmitting(true);
         try {
-            const jaExiste = catalogoCompleto.find(item => item.nome === payload.nome && item.tipo === payload.tipo && item.id !== payload.id);
+            // Mesmo nome em QUALQUER categoria bloqueia (regra 12, revisão 360 de 09/11/2026: as telas reconhecem o item
+            // pelo nome, então dois itens iguais em categorias diferentes contam errado; foi o caso da REAVALIAÇÃO)
+            const nomeNovo = normalizeString(payload.nome);
+            const jaExiste = catalogoCompleto.find(item => normalizeString(item.nome) === nomeNovo && item.id !== payload.id);
             if (jaExiste) {
-                avisar(tx("Atenção: O item \"{nome}\" já está cadastrado nesta categoria!", { nome: payload.nome }));
+                const categoria = { plano: 'PLANO', produto: 'PRODUTO', servico: 'SERVIÇO' }[jaExiste.tipo] || jaExiste.tipo;
+                avisar(jaExiste.tipo === payload.tipo
+                    ? tx("Atenção: O item \"{nome}\" já está cadastrado nesta categoria!", { nome: payload.nome })
+                    : tx('Atenção: já existe "{nome}" na categoria {categoria}{desativado}. Não cadastre o mesmo nome em categorias diferentes: as telas contariam errado.', { nome: jaExiste.nome, categoria: tx(categoria), desativado: jaExiste.ativo === false ? ` (${tx('descontinuado')})` : '' }), 'erro');
                 setIsSubmitting(false);
                 return;
             }
@@ -198,9 +227,33 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
             }
 
             if (payload.id) {
+                // Renomear (revisão 360 de 09/11/2026): as pessoas guardam o NOME do setor (colaboradores.role).
+                // Sem trocar nelas, turno, cobrança do relatório e CRM (que procuram "RECEP"/"LIDER") deixam de achar a pessoa.
+                const antigo = listaSetores.find(st => st.id === payload.id);
+                const renomeou = antigo && String(antigo.nome || '').trim() !== String(payload.nome || '').trim();
+                let qtdPessoas = 0;
+                if (renomeou) {
+                    const { count, error: erroConta } = await supabase.from('colaboradores').select('id', { count: 'exact', head: true }).ilike('role', antigo.nome);
+                    if (erroConta) throw erroConta;
+                    qtdPessoas = count || 0;
+                    if (qtdPessoas > 0 && !window.confirm(tx('Renomear o setor "{de}" para "{para}"?\n\n{qtd} pessoas da Equipe estão nesse setor e passam a ficar em "{para}" também.', { de: antigo.nome, para: payload.nome, qtd: qtdPessoas }))) {
+                        setIsSubmitting(false);
+                        return;
+                    }
+                }
                 const { data, error } = await supabase.from('setores').update(payload).eq('id', payload.id).select();
                 if (error) throw error;
-                if (data) setListaSetores(listaSetores.map(s => s.id === payload.id ? data[0] : s));
+                if (data) setListaSetores(listaSetores.map(st => st.id === payload.id ? data[0] : st));
+                if (renomeou && qtdPessoas > 0) {
+                    const { error: erroPessoas } = await supabase.from('colaboradores').update({ role: payload.nome }).ilike('role', antigo.nome);
+                    if (erroPessoas) {
+                        avisar(tx('O setor foi renomeado, mas não deu para trocar o nome nas pessoas da Equipe: {erro}', { erro: erroPessoas.message }), 'erro');
+                    } else {
+                        const alvo = normalizeString(antigo.nome);
+                        setColaboradores(colaboradores.map(c => (normalizeString(c.role) === alvo ? { ...c, role: payload.nome } : c)));
+                        avisar(tx('Setor renomeado. {qtd} pessoas da Equipe foram atualizadas.', { qtd: qtdPessoas }), 'sucesso');
+                    }
+                }
             } else {
                 delete payload.id;
                 const { data, error } = await supabase.from('setores').insert([payload]).select();
@@ -216,6 +269,13 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
     };
 
     const handleDeleteSetor = async (id, nome) => {
+        // Excluir só setor sem ninguém na Equipe, ativo ou desligado (revisão 360 de 09/11/2026)
+        const { count, error: erroConta } = await supabase.from('colaboradores').select('id', { count: 'exact', head: true }).ilike('role', nome);
+        if (erroConta) { avisar(tx('Não foi possível conferir a Equipe do setor. Nada foi excluído.'), 'erro'); return; }
+        if (count > 0) {
+            avisar(tx('O setor "{nome}" tem {qtd} pessoas na Equipe (ativas ou desligadas) e não pode ser excluído. Mude o setor delas antes, ou renomeie o setor.', { nome, qtd: count }), 'atencao');
+            return;
+        }
         if (!window.confirm(tx("Atenção! Tem certeza que deseja apagar o setor: {nome}?", { nome: nome }))) return;
         try {
             const { error } = await supabase.from('setores').delete().eq('id', id);
@@ -264,6 +324,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
                         temVisaoGlobal={temVisaoGlobal} 
                         unidades={unidades} 
                         podeEditarEquipe={podeEditarEquipe}
+                        ehAdmin={ehAdmin}
                         onEdit={(colab) => { setColabEditando(colab); setModalColabAberto(true); }}
                         onToggleStatus={handleToggleStatusColaborador}
                         onOpenModal={() => { setColabEditando(null); setModalColabAberto(true); }}
@@ -286,7 +347,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
 
                 {abaMostrada === 'setores' && (
                     <TabSetores 
-                        listaSetores={listaSetores} ehAdmin={ehAdmin}
+                        listaSetores={listaSetores} ehAdmin={ehAdmin} colaboradores={colaboradores}
                         onEdit={(setor) => { setSetorEditando(setor); setModalSetorAberto(true); }}
                         onDelete={handleDeleteSetor}
                         onOpenModal={() => { setSetorEditando(null); setModalSetorAberto(true); }}

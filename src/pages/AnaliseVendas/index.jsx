@@ -1,6 +1,7 @@
 // src/pages/AnaliseVendas/index.jsx
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { useHojeIso, consumirAbaPedida, EVENTO_ABA_ANALISE } from './movimentoDiario.js';
+import { useHojeIso, consumirAbaPedida, consumirRolarPedido, EVENTO_ABA_ANALISE } from './movimentoDiario.js';
+import { avisarSubabaAtual } from '../../components/subAbas.js';
 import { supabase } from '../../supabaseClient.js';
 import { getMeses, safeIsoDate } from './utils.js';
 import ModalTextoWhatsapp from './Modais.jsx';
@@ -46,9 +47,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
     // Aviso do Líder ("Lançar agora") pode pedir para abrir direto na aba Metas (card Movimentação)
     const [abaPrincipal, setAbaPrincipal] = useState(() => consumirAbaPedida() || 'dashboard');
-    const [rolarParaMov, setRolarParaMov] = useState(() => abaPrincipal === 'visaoGeral');
+    const [rolarParaMov, setRolarParaMov] = useState(() => consumirRolarPedido() && abaPrincipal === 'visaoGeral');
     useEffect(() => {
-        const aoPedir = () => { const aba = consumirAbaPedida(); if (aba) { setAbaPrincipal(aba); setRolarParaMov(aba === 'visaoGeral'); } };
+        const aoPedir = () => { const aba = consumirAbaPedida(); const rolar = consumirRolarPedido(); if (aba) { setAbaPrincipal(aba); setRolarParaMov(rolar && aba === 'visaoGeral'); } };
         window.addEventListener(EVENTO_ABA_ANALISE, aoPedir);
         return () => window.removeEventListener(EVENTO_ABA_ANALISE, aoPedir);
     }, []);
@@ -262,6 +263,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     useEffect(() => {
         if (abaPrincipal !== abaMostrada) setAbaPrincipal(abaMostrada);
     }, [abaPrincipal, abaMostrada]);
+    // Menu lateral (09/11/2026): avisa qual aba está aberta, para marcar a subaba em azul
+    useEffect(() => { avisarSubabaAtual('analise', abaMostrada); }, [abaMostrada]);
 
     const unidadeDoUsuario = usuarioLogado?.unidade;
     useEffect(() => {

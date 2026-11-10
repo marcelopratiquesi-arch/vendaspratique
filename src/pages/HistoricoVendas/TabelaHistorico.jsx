@@ -11,6 +11,7 @@ import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import CopyButton from './CopyButton.jsx';
+import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 // ==========================================
 // 🧩 FORMATADOR SEGURO DE NOME CURTO
@@ -55,7 +56,13 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     // ✅ ESTADOS DE NAVEGAÇÃO E PAGINAÇÃO
-    const [visaoAtual, setVisaoAtual] = useState('registros'); // 'registros' | 'duplicidades' | 'lixeira'
+    const [visaoAtual, setVisaoAtual] = useState(() => consumirSubaba('assinaturas') || 'registros'); // 'registros' | 'duplicidades' | 'lixeira'
+    // Menu lateral (subabas, 10/11/2026): pedido de aba e aviso de qual está aberta
+    useEffect(() => {
+        const aoPedir = (e) => { if (e.detail?.tela !== 'assinaturas') return; const aba = consumirSubaba('assinaturas'); if (aba) setVisaoAtual(aba); };
+        window.addEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+        return () => window.removeEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+    }, []);
     const [paginaAtual, setPaginaAtual] = useState(1);
     const [itensPorPagina, setItensPorPagina] = useState(50); 
 
@@ -89,6 +96,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
     const verDuplicidades = podeVer(usuarioLogado, '202');
     const verLixeira = podeVer(usuarioLogado, '203');
     const visaoMostrada = (visaoAtual === 'duplicidades' && !verDuplicidades) || (visaoAtual === 'lixeira' && !verLixeira) ? 'registros' : visaoAtual;
+    useEffect(() => { avisarSubabaAtual('assinaturas', visaoMostrada); }, [visaoMostrada]);
     // A lista da Lixeira vem pronta do index.jsx (mesmos filtros do Histórico); aqui só recarrega
     const recarregarLixeira = () => { if (onLixeiraMudou) onLixeiraMudou(); };
 

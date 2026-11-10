@@ -13,9 +13,16 @@ import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, Che
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer } from '../../permissoes/catalogoPermissoes.js';
+import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
-    const [subAba, setSubAba] = useState('conferencia');
+    const [subAba, setSubAba] = useState(() => consumirSubaba('fechamento') || 'conferencia');
+    // Menu lateral (subabas, 10/11/2026)
+    useEffect(() => {
+        const aoPedir = (e) => { if (e.detail?.tela !== 'fechamento') return; const aba = consumirSubaba('fechamento'); if (aba) setSubAba(aba); };
+        window.addEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+        return () => window.removeEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+    }, []);
     
     // 🔥 BUSCA O CATÁLOGO DIRETAMENTE NA FONTE (Evita o erro de drop-down vazio)
     const [catalogoGeral, setCatalogoGeral] = useState([]);
@@ -54,6 +61,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     const podeVerAuditoria = podeVer(usuarioLogado, '404');
     const abaLiberada = { conferencia: true, comissoes: podeVer(usuarioLogado, '402'), geral: podeVer(usuarioLogado, '403'), auditoria: podeVerAuditoria };
     const abaMostrada = abaLiberada[subAba] ? subAba : 'conferencia';
+    useEffect(() => { avisarSubabaAtual('fechamento', abaMostrada); }, [abaMostrada]);
     let colunasVisiveis = 10;
     if (temVisaoGlobal) colunasVisiveis++;
 

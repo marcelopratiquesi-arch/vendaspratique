@@ -13,7 +13,8 @@ import { tx } from '../../i18n/traduzir.js';
 // O CRM continua aberto por baixo: "Voltar para o CRM" só fecha a janela
 // (mesma aba, mesmos filtros, mesma busca). Sem Vender/Avaliação: é consulta rápida + Editar.
 // ==========================================
-const FichaAlunoPopup = ({ contato, usuarioLogado, onFechar }) => {
+// rotuloVoltar (09/11/2026): o Cadastro → Alunos usa "Voltar para Cadastros"; no CRM continua "Voltar para o CRM"
+const FichaAlunoPopup = ({ contato, usuarioLogado, onFechar, rotuloVoltar = "Voltar para o CRM" }) => {
     const [aluno, setAluno] = useState(null);
     const [carregando, setCarregando] = useState(true);
     const [naoEncontrado, setNaoEncontrado] = useState(false);
@@ -76,14 +77,14 @@ const FichaAlunoPopup = ({ contato, usuarioLogado, onFechar }) => {
                                 : tx("Este contato não tem CPF completo, então não dá para achar o cadastro de aluno.")}
                         </p>
                         <button type="button" onClick={onFechar} className="mt-6 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-colors">
-                            <ArrowLeft className="w-4 h-4" />{' '}{tx("Voltar para o CRM")}
+                            <ArrowLeft className="w-4 h-4" />{' '}{tx(rotuloVoltar)}
                         </button>
                     </div>
                 ) : (
                     <FichaAluno
                         aluno={aluno}
                         onVoltar={onFechar}
-                        rotuloVoltar="Voltar para o CRM"
+                        rotuloVoltar={rotuloVoltar}
                         onEditar={() => setEditando(true)}
                         usuarioLogado={usuarioLogado}
                     />

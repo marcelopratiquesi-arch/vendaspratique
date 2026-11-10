@@ -29,6 +29,7 @@ import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
 import { pedirAbaAnalise } from './pages/AnaliseVendas/movimentoDiario.js';
+import { pedirSubaba } from './components/subAbas.js';
 import { pedirConferencia } from './pages/FechamentoCaixa/cobrancaAuditoria.js';
 import PaginaPendencias from './pages/Pendencias/index.jsx';
 import JanelaPendencias from './pages/Pendencias/JanelaPendencias.jsx';
@@ -828,7 +829,55 @@ export default function App() {
         { id: 'config', label: t('navigation.settings'), icon: Settings, codigo: '011' }
     ];
 
-    const abasPermitidas = todasAbas.filter(aba => pode(aba.codigo));
+    // Subabas no menu lateral (09/11/2026, decisão do dono): Dashboard e Cadastros, com as mesmas regras das telas
+    // (permissão de cada aba; Ranking global só na visão de várias unidades; Unidades só o Admin de verdade)
+    const visaoDaRede = usuarioVirtual?.role === 'ADMIN' || usuarioVirtual?.role === 'MENTOR';
+    const SUBABAS = {
+        analise: [
+            { id: 'dashboard', label: 'Dashboard' },
+            { id: 'visaoGeral', label: 'Metas da unidade', codigo: '302' },
+            { id: 'relatorio', label: 'Relatórios', codigo: '303' },
+            { id: 'rankingGlobal', label: 'Ranking global', codigo: '304', soRede: true },
+            { id: 'saude', label: 'Saúde da unidade', codigo: '305' },
+        ],
+        // Subabas de 10/11/2026 (decisão do dono): Histórico, Fechamento, CRM e Avaliação
+        assinaturas: [
+            { id: 'registros', label: 'Registros' },
+            { id: 'duplicidades', label: 'Duplicidades', codigo: '202' },
+            { id: 'lixeira', label: 'Lixeira', codigo: '203' },
+        ],
+        fechamento: [
+            { id: 'conferencia', label: 'Conferência' },
+            { id: 'comissoes', label: 'Comissões', codigo: '402' },
+            { id: 'geral', label: 'Visão Geral', codigo: '403' },
+            { id: 'auditoria', label: 'Auditoria', codigo: '404' },
+        ],
+        crm: [
+            { id: 'equipe', label: 'Equipe' },
+            { id: 'painel', label: 'Painel', codigo: '502' },
+            { id: 'contatos', label: 'Contatos', codigo: '504' },
+        ],
+        avaliacao: [
+            { id: 'avaliadores', label: 'Avaliadores' },
+            { id: 'unidade', label: 'Dashboard da Unidade', codigo: '703' },
+            { id: 'global', label: 'Dashboard Global', codigo: '702', soRede: true },
+            { id: 'lixeira', label: 'Lixeira', codigo: '707' },
+        ],
+        cadastros: [
+            { id: 'alunos', label: 'Alunos', codigo: '801' },
+            { id: 'equipe', label: 'Equipe', codigo: '802' },
+            { id: 'catalogo', label: 'Catálogo Geral', codigo: '803' },
+            { id: 'setores', label: 'Setores', codigo: '804' },
+            { id: 'unidades', label: 'Unidades', codigo: '808', soAdmin: true },
+        ],
+    };
+    const subabasDe = (tela) => (SUBABAS[tela] || []).filter(s => (!s.codigo || pode(s.codigo)) && (!s.soRede || visaoDaRede) && (!s.soAdmin || usuarioLogado?.role === 'ADMIN'));
+    const abrirSubaba = (tela, aba) => {
+        if (tela === 'analise') pedirAbaAnalise(aba, { rolar: false });
+        else pedirSubaba(tela, aba);
+        handleNavigation(tela);
+    };
+    const abasPermitidas = todasAbas.filter(aba => pode(aba.codigo)).map(aba => (SUBABAS[aba.id] ? { ...aba, subabas: subabasDe(aba.id) } : aba));
     // A tela aberta foi desligada para este login (ex.: o Admin mudou agora): mostra a primeira permitida
     const telaAtual = abasPermitidas.some(a => a.id === activeTab) ? activeTab : (abasPermitidas[0]?.id || null);
 
@@ -874,14 +923,14 @@ export default function App() {
 
             <SidebarDesktop 
                 isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
-                abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation}
+                abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation} abrirSubaba={abrirSubaba}
                 ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidadesVisiveis} rotuloTodas={rotuloTodas}
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />
 
             <SidebarMobile 
                 isMobileMenuOpen={isMobileMenuOpen} fecharMobile={() => setIsMobileMenuOpen(false)}
-                abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation}
+                abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation} abrirSubaba={abrirSubaba}
                 ehChefe={ehChefe} unidadeGlobal={unidadeGlobal} setUnidadeGlobal={setUnidadeGlobal} unidades={unidadesVisiveis} rotuloTodas={rotuloTodas}
                 usuarioLogado={usuarioLogado} handleLogout={handleLogout}
             />

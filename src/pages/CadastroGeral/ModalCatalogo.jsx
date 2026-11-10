@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, Bookmark, Package, Briefcase, Loader2, Check, Layers } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { lerNumeroBR } from '../AnaliseVendas/movimentoDiario.js';
+import { grupoDoItem } from './grupoCatalogo.js';
 import { tx } from '../../i18n/traduzir.js';
+
+// Valor guardado (número) → campo com vírgula ("5,00")
+const valorEmTexto = (v) => (v === null || v === undefined || v === '' ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+const emReais = (v) => `R$ ${valorEmTexto(v)}`;
 
 const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
     const [tipo, setTipo] = useState('plano');
@@ -13,7 +19,7 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
             if (dadosEdicao) {
                 setTipo(dadosEdicao.tipo || 'plano');
                 setNome(dadosEdicao.nome || '');
-                setValor(dadosEdicao.valor || '');
+                setValor(valorEmTexto(dadosEdicao.valor));
             } else {
                 setTipo('plano');
                 setNome('');
@@ -22,14 +28,27 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
         }
     }, [isOpen, dadosEdicao]);
 
+    // Esc fecha a janela (revisão de 10/11/2026)
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const aoTeclar = (e) => { if (e.key === 'Escape' && !isSubmitting) onClose(); };
+        window.addEventListener('keydown', aoTeclar);
+        return () => window.removeEventListener('keydown', aoTeclar);
+    }, [isOpen, isSubmitting, onClose]);
+
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
         e.preventDefault();
         
-        const valorNumerico = parseFloat(valor);
-        if (isNaN(valorNumerico) || valorNumerico < 0) {
+        const valorNumerico = lerNumeroBR(valor);
+        if (valorNumerico === null || Number.isNaN(valorNumerico) || valorNumerico < 0) {
             return avisar(tx("Por favor, insira um valor válido."));
+        }
+        // Mudou a comissão de um item que já existe: vale só para as vendas lançadas daqui para frente (regra 12)
+        if (dadosEdicao && Number(dadosEdicao.valor) !== valorNumerico
+            && !window.confirm(tx('Comissão de "{nome}": {de} → {para}.\n\nVale só para as vendas lançadas a partir de agora. As vendas já lançadas continuam com o valor antigo.\n\nConfirmar?', { nome: dadosEdicao.nome, de: emReais(dadosEdicao.valor), para: emReais(valorNumerico) }))) {
+            return;
         }
 
         onSave({
@@ -87,12 +106,19 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
 
                         <div>
                             <label className={labelBase}>{tx("Nome Oficial (Aparecerá nas Vendas)")}</label>
-                            <input type="text" value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: {v1}", { v1: tipo === 'plano' ? 'PLANO VIP' : tipo === 'produto' ? 'WHEY PROTEIN' : 'TAXA DE ADESÃO' })} className={inputBase} />
+                            <input type="text" autoFocus={!dadosEdicao} value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: {v1}", { v1: tipo === 'plano' ? 'PLANO VIP' : tipo === 'produto' ? 'WHEY PROTEIN' : 'TAXA DE ADESÃO' })} className={inputBase} />
                         </div>
+
+                        {nome.trim() && (
+                            <p className="-mt-3 ml-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                {tx('Vai contar como:')}{' '}<span className="text-blue-700 dark:text-blue-400">{tx(grupoDoItem({ tipo, nome: nome.trim().toUpperCase() }).texto)}</span>
+                            </p>
+                        )}
 
                         <div>
                             <label className={labelBase}>{tx("Valor da Comissão (R$)")}</label>
-                            <input type="number" step="0.01" min="0" value={valor} onChange={e => setValor(e.target.value)} required placeholder={tx("Ex: 99.90")} className={inputBase} />
+                            <input type="text" inputMode="decimal" autoFocus={!!dadosEdicao} value={valor} onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ''))} required placeholder={tx("Ex: 5,00")} className={inputBase} />
+                            <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx('É a comissão paga ao vendedor, não o preço do plano.')}</p>
                         </div>
                     </form>
                 </div>

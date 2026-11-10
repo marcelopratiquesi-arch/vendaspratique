@@ -4,6 +4,7 @@ import { Users, Database, PhoneForwarded, PhoneOff, Snowflake, CheckCircle2, Act
 import { STATUS_TOKENS, FASES_EM_ATENDIMENTO, formatarDataHora, mesmoNome, normalizarNome, contatoCombinaComBusca, ehCanceladoOuInativo, ehVisitanteRecepcao, dataDaVisita, diaISO, somarDiasISO, dataLocalISO, ehMudancaPorCompra, ehBoasVindas, situacaoProximoContato, LIMITE_CARTEIRA, ocupaVaga, estaEmEspera } from './utils';
 import { carregarContatosFeitos, carregarNaoContatar, chaveContatoFeito, estaNaoContatar, ehSemWhatsApp } from './contatosFeitos';
 import PainelCrm from './PainelCrm';
+import { contarContatos } from './listaContatosCrm.js';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import FichaRecepcionista from './FichaRecepcionista';
 import RelatorioConsultor from './RelatorioConsultor';
@@ -12,6 +13,7 @@ import { usePeriodoPadrao, dentroDaFaixa } from '../../components/periodoPadrao.
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { tipoDoDia } from '../AnaliseVendas/feriados.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 // ==========================================
 // TELA DE ENTRADA DO CRM (redesenho de 29/10/2026, decisão do dono)
@@ -66,7 +68,13 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     // Filtro de período padrão do sistema (vale para a página inteira)
     const periodo = usePeriodoPadrao('hoje');
     const faixa = periodo.faixa;
-    const [aba, setAba] = useState('equipe');
+    const [aba, setAba] = useState(() => consumirSubaba('crm') || 'equipe');
+    // Menu lateral (subabas, 10/11/2026)
+    useEffect(() => {
+        const aoPedir = (e) => { if (e.detail?.tela !== 'crm') return; const pedida = consumirSubaba('crm'); if (pedida) setAba(pedida); };
+        window.addEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+        return () => window.removeEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+    }, []);
     const [historico, setHistorico] = useState([]);
     const [carregando, setCarregando] = useState(false);
     const [erroHistorico, setErroHistorico] = useState(false);
@@ -249,11 +257,49 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     useEffect(() => { setLimiteLista(30); }, [periodo.chave, filtroPessoa, buscaAcontecimentos]);
     useEffect(() => { setFiltroPessoa(''); setRelatorioPessoa(''); setResumoDe(null); }, [chaveFoco]);
 
+    // Carregar conforme a necessidade (10/11/2026): a entrada recebe só o RESUMO (carteiras + visitantes). Os contatos
+    // que aparecem nas ações do período e não estão nele (ex.: um inativo que já saiu da carteira) são buscados à parte,
+    // só eles, para o "Público", a busca e a ficha da recepcionista.
+    const [leadsExtras, setLeadsExtras] = useState(() => new Map());
+    const idsFaltando = useMemo(() => {
+        const conhecidos = new Set(leadsTodos.map(l => String(l.id)));
+        const ids = new Set([...historico.map(h => String(h.lead_id)), ...feitosVisitas.map(f => String(f.lead_id || ''))]);
+        return [...ids].filter(id => /^\d+$/.test(id) && !conhecidos.has(id) && !leadsExtras.has(id)).sort().join(',');
+    }, [leadsTodos, historico, feitosVisitas, leadsExtras]);
+    useEffect(() => {
+        if (!idsFaltando) return undefined;
+        let cancelado = false;
+        (async () => {
+            const ids = idsFaltando.split(',');
+            const novos = new Map();
+            for (let i = 0; i < ids.length; i += 200) {
+                const { data, error } = await supabase.from('leads').select('*').in('id', ids.slice(i, i + 200));
+                if (cancelado) return;
+                if (error) { console.error('CRM: erro ao buscar os contatos das ações do período', error); break; }
+                (data || []).forEach(l => novos.set(String(l.id), l));
+            }
+            // Os que não existem mais também ficam marcados (para não buscar de novo)
+            ids.forEach(id => { if (!novos.has(id)) novos.set(id, null); });
+            if (!cancelado) setLeadsExtras(prev => new Map([...prev, ...novos]));
+        })();
+        return () => { cancelado = true; };
+    }, [idsFaltando]);
     const leadPorId = useMemo(() => {
         const m = new Map();
+        leadsExtras.forEach((l, id) => { if (l) m.set(id, l); });
         leads.forEach(l => m.set(String(l.id), l));
         return m;
-    }, [leads]);
+    }, [leads, leadsExtras]);
+
+    // Números do topo contados no banco (10/11/2026), sem baixar a lista: Base aguardando, Em atendimento, Na Geladeira
+    const [contagens, setContagens] = useState(null);
+    const unidadeDasContagens = unidadeFoco?.nome || (!visaoGlobal ? usuarioLogado?.unidade : '') || '';
+    useEffect(() => {
+        let cancelado = false;
+        setContagens(null);
+        contarContatos(unidadeDasContagens).then(c => { if (!cancelado) setContagens(c); });
+        return () => { cancelado = true; };
+    }, [unidadeDasContagens, versao]);
 
     // Linha da planilha de cada recepcionista
     const linhas = useMemo(() => {
@@ -320,13 +366,13 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
     const extrasPorNome = useMemo(() => new Map(linhas.map(l => [normalizarNome(l.colaborador.nome), l])), [linhas]);
 
     const kpis = useMemo(() => ({
-        base: leads.filter(v => !v.puxado_em && v.status !== 'Arquivado').length,
-        emAtendimento: leads.filter(v => v.puxado_em && FASES_EM_ATENDIMENTO.includes(v.status)).length,
+        base: contagens ? contagens.base : leads.filter(v => !v.puxado_em && v.status !== 'Arquivado').length,
+        emAtendimento: contagens ? contagens.emAtendimento : leads.filter(v => v.puxado_em && FASES_EM_ATENDIMENTO.includes(v.status)).length,
         semContato: linhas.reduce((s, l) => s + l.semContato, 0),
-        geladeira: leads.filter(v => v.status === 'Perdido').length,
+        geladeira: contagens ? contagens.geladeira : leads.filter(v => v.status === 'Perdido').length,
         fechados: linhas.reduce((s, l) => s + l.fechados, 0),
         acoes: linhas.reduce((s, l) => s + l.acoes, 0)
-    }), [leads, linhas]);
+    }), [leads, linhas, contagens]);
 
     const acontecimentos = useMemo(() => historico.filter(h => {
         if (filtroPessoa && normalizarNome(h.consultor) !== filtroPessoa) return false;
@@ -362,6 +408,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
         { id: 'contatos', rotulo: 'Contatos', icone: FileText, codigo: '504' }
     ].filter(a => !a.codigo || podeVer(usuarioLogado, a.codigo));
     const abaMostrada = ABAS.some(a => a.id === aba) ? aba : 'equipe';
+    useEffect(() => { avisarSubabaAtual('crm', abaMostrada); }, [abaMostrada]);
 
     // Cartão de uma recepcionista (clique = abrir o CRM dela).
     // 09/11/2026 (decisão do dono): "última ação há X", turno escrito, meta em vermelho quando está muito abaixo

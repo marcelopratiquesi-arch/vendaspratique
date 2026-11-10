@@ -16,6 +16,14 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
         }
     }, [isOpen, dadosEdicao]);
 
+    // Esc fecha a janela (revisão de 10/11/2026)
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        const aoTeclar = (e) => { if (e.key === 'Escape' && !isSubmitting) onClose(); };
+        window.addEventListener('keydown', aoTeclar);
+        return () => window.removeEventListener('keydown', aoTeclar);
+    }, [isOpen, isSubmitting, onClose]);
+
     if (!isOpen) return null;
 
     const handleSubmit = (e) => {
@@ -56,7 +64,11 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
                     <form id="form-setor" onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label className={labelBase}>{tx("Nome do Setor / Cargo")}</label>
-                            <input type="text" value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: RECEPÇÃO")} className={inputBase} />
+                            <input type="text" autoFocus value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: RECEPÇÃO")} className={inputBase} />
+                            {/* Item 8 (10/11/2026): o sistema reconhece alguns setores pelo nome */}
+                            <p className="text-[11px] font-semibold text-slate-500 mt-2 ml-1 leading-relaxed dark:text-slate-400">
+                                {tx('Com "RECEP" no nome, o setor é tratado como Recepção (turno, CRM e relatório de fechamento). Com "LIDER", como Líder (cobranças no WhatsApp). Com "SAVER" ou "LIDER", aparece como avaliador na Avaliação Física.')}
+                            </p>
                         </div>
                     </form>
                 </div>

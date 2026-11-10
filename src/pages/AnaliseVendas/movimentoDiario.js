@@ -32,10 +32,13 @@ export const useHojeIso = () => {
     return hoje;
 };
 // Pedido para a Análise de Vendas abrir numa aba (ex.: o aviso do Líder abre direto a aba Metas, card Movimentação)
+// { rolar: false } = só troca a aba (menu lateral, 09/11/2026); o padrão continua rolando até o card Movimentação nas Metas
 let abaPedida = null;
+let rolarPedido = true;
 export const EVENTO_ABA_ANALISE = 'pedir-aba-analise';
-export const pedirAbaAnalise = (aba) => { abaPedida = aba; window.dispatchEvent(new CustomEvent(EVENTO_ABA_ANALISE, { detail: aba })); };
+export const pedirAbaAnalise = (aba, opcoes = {}) => { abaPedida = aba; rolarPedido = opcoes.rolar !== false; window.dispatchEvent(new CustomEvent(EVENTO_ABA_ANALISE, { detail: aba })); };
 export const consumirAbaPedida = () => { const a = abaPedida; abaPedida = null; return a; };
+export const consumirRolarPedido = () => { const r = rolarPedido; rolarPedido = true; return r; };
 export const ontemIso = () => { const d = new Date(); d.setDate(d.getDate() - 1); return paraIso(d); };
 // Domingo não tem lançamento de movimentação (decisão do dono, 09/11/2026). Sábado e feriado têm.
 export const ehDomingo = (iso) => new Date(`${iso}T12:00:00`).getDay() === 0;

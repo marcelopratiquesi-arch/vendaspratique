@@ -1,12 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { Search, Users, FileText, X, Loader2, Save, UserRoundPen, ShieldAlert, ClipboardPaste, Info, AlertTriangle, ArrowRightLeft } from 'lucide-react';
+import { Search, Users, FileText, X, Loader2, Save, UserRoundPen, ShieldAlert, ClipboardPaste, Info, AlertTriangle, ArrowRightLeft, Globe2 } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
-import { parseSmartPaste, mascaraCPF, formatarTelefone } from './utilsAlunos.js';
+import { parseSmartPaste, mascaraCPF, formatarTelefone, telefoneFalso, emailFalso } from './utilsAlunos.js';
+import { buscarAlunosNaRede } from '../Alunos/utils.js';
+import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
+import FichaAlunoPopup from '../CrmVisitantes/FichaAlunoPopup.jsx';
+import { localeAtual } from '../../i18n/traduzir.js';
 import { SITUACAO, SITUACOES_COM_CONFIRMACAO, SITUACOES_ERRO, auditarImportacao, aplicarImportacao, linhaVaiGravar, unidadesDaPlanilha, lembrarUnidades, statusEhAtivo } from './importacaoAlunos.js';
 import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+
+// Cor da situação (a mesma da Central de Alunos, ListaAlunos.jsx)
+const corSituacaoAluno = (s) => {
+    if (['ATIVO', 'CLIENTE'].includes(s)) return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30';
+    if (['FINALIZADO', 'CANCELADO', 'BLOQUEADO'].includes(s)) return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30';
+    if (s === 'VISITANTE') return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/30';
+    return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/30';
+};
 
 const AlunosTab = (props) => {
     const { usuarioLogado, usuarioVirtual, unidades } = props;
@@ -35,7 +47,7 @@ const AlunosTab = (props) => {
     const [totalItems, setTotalItems] = useState(0);
     const [loading, setLoading] = useState(true);
     const [pagina, setPagina] = useState(1);
-    const ITENS_POR_PAGINA = 15;
+    const ITENS_POR_PAGINA = 50; // era 15 (revisão de 10/11/2026)
 
     const [busca, setBusca] = useState('');
     const [termoBusca, setTermoBusca] = useState('');
@@ -57,6 +69,8 @@ const AlunosTab = (props) => {
     const [resultado, setResultado] = useState(null);
 
     const [modalAlunoAberto, setModalAlunoAberto] = useState(false);
+    const [fichaAberta, setFichaAberta] = useState(null); // ficha do aluno em pop-up (revisão 360, 09/11/2026)
+    const [temMaisRede, setTemMaisRede] = useState(false);
     const [alunoEditando, setAlunoEditando] = useState(null);
 
     useEffect(() => {
@@ -77,6 +91,18 @@ const AlunosTab = (props) => {
 
         setLoading(true);
         try {
+            // Com busca digitada (revisão 360, 09/11/2026): REDE INTEIRA, igual à Central de Alunos e ao Ctrl+K (regra 8),
+            // por nome, CPF, telefone, e-mail ou matrícula; os da unidade de quem busca aparecem primeiro.
+            if (termoBusca.trim().length >= 2) {
+                const { alunos: achados, temMais } = await buscarAlunosNaRede({
+                    busca: termoBusca, unidadePreferida: isVisaoGlobal ? '' : unidadeAtiva, limite: 50, roleUsuario: roleBaseApp,
+                });
+                setAlunos(achados.map(a => ({ ...a, unidade_vinculo: a.unidade || '', total_vinculos: (a.unidades || []).length })));
+                setTotalItems(achados.length);
+                setTemMaisRede(temMais);
+                return;
+            }
+            setTemMaisRede(false);
             const uniAcento = unidadeAtiva.replace('INES', 'INÊS');
             const uniSemAcento = unidadeAtiva.replace('INÊS', 'INES');
 
@@ -121,6 +147,7 @@ const AlunosTab = (props) => {
 
                 return {
                     ...item,
+                    unidades: vinculoArray.map(v => v.unidade).filter(Boolean),
                     matricula: vinculoLocal.matricula || '',
                     unidade_vinculo: vinculoLocal.unidade || '',
                     status_unidade: vinculoLocal.status || 'ATIVO',
@@ -230,6 +257,17 @@ const AlunosTab = (props) => {
     };
 
     const totalPaginas = Math.ceil(totalItems / ITENS_POR_PAGINA);
+    const buscandoRede = termoBusca.trim().length >= 2;
+    // Barra de páginas (em cima e embaixo da tabela)
+    const barraPaginas = (borda) => (!buscandoRede && totalPaginas > 1 ? (
+        <div className={`px-4 py-2 ${borda} border-slate-100 bg-slate-50 flex items-center justify-between shrink-0 dark:border-slate-800 dark:bg-slate-800/60`}>
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('students.pagination.page')} {pagina} {t('students.pagination.of')} {totalPaginas}</span>
+            <div className="flex gap-2">
+                <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.prev')}</button>
+                <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.next')}</button>
+            </div>
+        </div>
+    ) : null);
 
     const contar = (...situacoes) => previewData.filter(p => situacoes.includes(p.status)).length;
     const origensTransferidos = Object.entries(previewData.filter(p => p.origem && (p.status === SITUACAO.TRANSFERIR || p.status === SITUACAO.CONFIRMAR_TRANSFERENCIA))
@@ -293,7 +331,7 @@ const AlunosTab = (props) => {
     }
 
     return (
-        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
+        <div className="space-y-3 animate-[fadeIn_0.3s_ease-out]">
             
             <ModalAluno 
                 isOpen={modalAlunoAberto} 
@@ -304,128 +342,114 @@ const AlunosTab = (props) => {
                 unidadeDestino={isVisaoGlobal ? '' : unidadeAtiva} 
             />
 
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-[24px] border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner dark:bg-blue-500/10 dark:text-blue-400">
-                        <Users className="w-6 h-6" />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{t('students.title', {defaultValue: 'Banco de Alunos'})}</h2>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                                {tx("UNIDADE ATUAL:")}{' '}<span className="text-blue-600 dark:text-blue-400">{isVisaoGlobal ? tx("VISÃO GLOBAL") : unidadeAtiva}</span>
-                            </p>
-                        </div>
+            {/* TOPO COMPACTO (revisão 360, 09/11/2026): título, unidade, busca e Smart Paste numa faixa só */}
+            <div className="bg-white rounded-2xl border border-slate-200 px-4 py-3 flex flex-wrap items-center gap-3 dark:bg-slate-900 dark:border-slate-800">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 dark:bg-blue-500/10 dark:text-blue-400"><Users className="w-4 h-4" /></span>
+                    <div className="min-w-0">
+                        <h2 className="text-[15px] font-black text-slate-800 tracking-tight dark:text-white">{t('students.title', {defaultValue: 'Banco de Alunos'})}</h2>
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            {buscandoRede
+                                ? <span className="inline-flex items-center gap-1"><Globe2 className="w-3 h-3" />{tx('Busca na rede inteira')} · {temMaisRede ? tx('50 primeiros resultados (refine a busca)') : tx('{qtd} encontrados', { qtd: totalItems })}</span>
+                                : <>{isVisaoGlobal ? tx("Visão Global") : unidadeAtiva} · {isVisaoGlobal ? tx("{qtd} alunos na rede", { qtd: totalItems.toLocaleString(localeAtual()) }) : tx("{qtd} alunos na unidade", { qtd: totalItems.toLocaleString(localeAtual()) })}</>}
+                        </p>
                     </div>
                 </div>
-
-                <div className="flex w-full sm:w-auto gap-3">
-                    <button 
-                        onClick={() => setModalPasteOpen(true)}
-                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-colors border border-emerald-200 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
-                    >
-                        <ClipboardPaste className="w-4 h-4" />{' '}{tx("Smart Paste (Colar Dados)")}
-                    </button>
-                </div>
+                <label className="flex-1 min-w-[min(260px,100%)] h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700">
+                    <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                    <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome, CPF, telefone ou matrícula (rede inteira)...')} aria-label={tx('Buscar aluno')}
+                        className="flex-1 min-w-0 bg-transparent outline-none text-[13px] font-bold text-slate-800 placeholder-slate-400 dark:text-white" />
+                    {busca && <button type="button" onClick={() => setBusca('')} aria-label={tx('Limpar busca')} className="text-slate-400 hover:text-slate-700 dark:hover:text-white"><X className="w-4 h-4" /></button>}
+                </label>
+                <button type="button" onClick={() => setModalPasteOpen(true)}
+                    className="h-10 px-4 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-black uppercase tracking-widest dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
+                    <ClipboardPaste className="w-4 h-4" />{tx("Smart Paste (Colar Dados)")}
+                </button>
             </div>
 
-            <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-[600px] dark:bg-slate-900 dark:border-slate-800">
-                <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between gap-4 bg-slate-50 shrink-0 dark:border-slate-800 dark:bg-slate-800/60">
-                    <div className="relative w-full sm:w-96">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                        <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={t('students.search', {defaultValue: 'Buscar por Nome ou CPF...'})} className="w-full pl-9 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200" />
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest self-end sm:self-center">
-                        {totalItems} {isVisaoGlobal ? tx("ALUNOS NA REDE") : tx("ALUNOS REGISTRADOS EM {unidadeAtiva}", { unidadeAtiva: unidadeAtiva })}
-                    </div>
-                </div>
-                
-                <div className="flex-1 overflow-x-auto overflow-y-auto custom-scrollbar relative">
-                    {loading ? (
-                        <div className="absolute inset-0 flex items-center justify-center bg-white/50 backdrop-blur-sm z-10 dark:bg-slate-900/50">
-                            <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden flex flex-col dark:bg-slate-900 dark:border-slate-800">
+                {barraPaginas('border-b')}
+                <div className="overflow-x-auto custom-scrollbar relative min-h-[240px]">
+                    {loading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-10 dark:bg-slate-900/60">
+                            <Loader2 className="w-7 h-7 text-blue-500 animate-spin" />
                         </div>
-                    ) : (
-                        <table className="w-full text-left border-collapse min-w-[800px]">
-                            <thead className="bg-white sticky top-0 z-10 shadow-sm dark:bg-slate-900">
-                                <tr>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.name')}</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.cpf')}</th>
-                                    {isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center dark:border-slate-800">{tx("VÍNCULOS")}</th>}
-                                    {!isVisaoGlobal && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.enrollment')}</th>}
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.contact')}</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">{t('students.table.created')}</th>
-                                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center dark:border-slate-800">{t('students.table.actions')}</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
-                                {alunos.length > 0 ? (
-                                    alunos.map(a => (
-                                        <tr key={a.id} className="hover:bg-slate-50/50 transition-colors dark:hover:bg-slate-800/40">
-                                            <td className="px-6 py-4">
-                                                <span className="text-sm font-black text-slate-800 uppercase dark:text-white">{a.nome}</span>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-xs font-bold text-slate-600 tracking-widest dark:text-slate-300">{a.cpf ? mascaraCPF(a.cpf) : '—'}</span>
-                                            </td>
-                                            
-                                            {isVisaoGlobal && (
-                                                <td className="px-6 py-4 text-center">
-                                                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${a.total_vinculos > 1 ? 'text-purple-700 bg-purple-100 border-purple-200 dark:text-purple-400 dark:bg-purple-500/20 dark:border-purple-500/30' : a.total_vinculos === 1 ? 'text-blue-700 bg-blue-100 border-blue-200 dark:text-blue-400 dark:bg-blue-500/20 dark:border-blue-500/30' : 'text-slate-500 bg-slate-100 border-slate-200 dark:text-slate-400 dark:bg-slate-800 dark:border-slate-800'}`}>
-                                                        {a.total_vinculos === 0 ? tx("SEM VÍNCULO") : a.total_vinculos > 1 ? tx("MULTIPLO") : a.unidade_vinculo}
-                                                    </span>
-                                                </td>
-                                            )}
-
-                                            {!isVisaoGlobal && (
-                                                <td className="px-6 py-4">
-                                                    <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{a.matricula || '—'}</span>
-                                                </td>
-                                            )}
-
-                                            <td className="px-6 py-4">
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200">{a.telefone ? formatarTelefone(a.telefone) : '—'}</span>
-                                                    <span className="text-[10px] font-semibold text-slate-400 truncate max-w-[200px]" title={a.email}>{a.email || '—'}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">{a.created_at ? new Date(a.created_at).toLocaleDateString(langAtual) : '—'}</span>
-                                            </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <button onClick={() => { setAlunoEditando(a); setModalAlunoAberto(true); }} className="p-2 bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors dark:bg-slate-800/60 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 dark:border-slate-800 dark:hover:border-blue-500/30">
-                                                    <UserRoundPen className="w-4 h-4" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan={isVisaoGlobal ? "7" : "6"} className="text-center py-20">
-                                            <div className="flex flex-col items-center justify-center">
-                                                <Users className="w-12 h-12 text-slate-200 mb-3" />
-                                                <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] dark:text-slate-400">
-                                                    {tx("NENHUM ALUNO CADASTRADO PARA A UNIDADE:")}{' '}<span className="text-blue-600 dark:text-blue-400">{unidadeAtiva}</span>
-                                                </p>
+                    )}
+                    <table className="w-full text-left min-w-[980px]">
+                        <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
+                            <tr>
+                                {[t('students.table.name'), t('students.table.cpf'), tx('Unidade'), t('students.table.enrollment'), tx('Situação'), t('students.table.contact')].map(rotulo => (
+                                    <th key={rotulo} className="px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap dark:text-slate-400">{rotulo}</th>
+                                ))}
+                                <th className="px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap dark:text-slate-400" title={tx('Data de cadastro do TECACE (quando importada); senão, a data em que o aluno entrou no sistema.')}>{t('students.table.created')} <span className="text-slate-400 cursor-help">?</span></th>
+                                <th className="px-4 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center dark:text-slate-400">{t('students.table.actions')}</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                            {alunos.map(a => {
+                                const situacao = String(a.situacao || a.status_aluno || '').toUpperCase().trim();
+                                const telFalso = a.telefone && telefoneFalso(a.telefone);
+                                const mailFalso = a.email && emailFalso(a.email);
+                                const dataCad = a.data_cadastro || a.created_at;
+                                return (
+                                    <tr key={a.id} className="hover:bg-slate-50/70 transition-colors dark:hover:bg-slate-800/40">
+                                        <td className="px-4 py-2.5">
+                                            <button type="button" onClick={() => setFichaAberta(a)} title={tx('Abrir a ficha do aluno')}
+                                                className="text-[13px] font-black text-slate-800 uppercase text-left hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-400">{a.nome}</button>
+                                        </td>
+                                        <td className="px-4 py-2.5 text-[12px] font-bold text-slate-600 tracking-wide whitespace-nowrap dark:text-slate-300">{a.cpf ? mascaraCPF(a.cpf) : '—'}</td>
+                                        <td className="px-4 py-2.5 max-w-[200px]">
+                                            <EtiquetasUnidade unidades={a.unidades || (a.unidade_vinculo ? [a.unidade_vinculo] : [])} unidadeMinha={isVisaoGlobal ? '' : unidadeAtiva} />
+                                        </td>
+                                        <td className="px-4 py-2.5 text-[12px] font-bold text-slate-500 dark:text-slate-400">{a.matricula || '—'}</td>
+                                        <td className="px-4 py-2.5 whitespace-nowrap">
+                                            {situacao
+                                                ? <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${corSituacaoAluno(situacao)}`}>{situacao}</span>
+                                                : <span className="text-[13px] text-slate-300 dark:text-slate-600" title={tx("Ainda sem situação: importe a lista em Cadastro → Alunos")}>—</span>}
+                                        </td>
+                                        <td className="px-4 py-2.5">
+                                            <div className="flex flex-col">
+                                                <span className={`text-[12px] font-bold ${telFalso ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-200'}`} title={telFalso ? tx('Telefone de preenchimento: corrigir no cadastro') : undefined}>
+                                                    {a.telefone ? formatarTelefone(a.telefone) : '—'}{telFalso && ' ⚠️'}
+                                                </span>
+                                                <span className={`text-[10px] font-semibold truncate max-w-[220px] ${mailFalso ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`} title={mailFalso ? tx('E-mail de preenchimento: corrigir no cadastro') : a.email}>
+                                                    {a.email || '—'}{mailFalso && ' ⚠️'}
+                                                </span>
                                             </div>
                                         </td>
+                                        <td className="px-4 py-2.5 text-[12px] font-bold text-slate-500 whitespace-nowrap dark:text-slate-400" title={a.data_cadastro ? tx('Data de cadastro no TECACE') : tx('Data em que entrou no sistema')}>
+                                            {dataCad ? new Date(String(dataCad).length === 10 ? `${dataCad}T12:00:00` : dataCad).toLocaleDateString(langAtual) : '—'}
+                                        </td>
+                                        <td className="px-4 py-2.5 text-center">
+                                            <button type="button" onClick={() => { setAlunoEditando(a); setModalAlunoAberto(true); }} title={tx('Editar')} aria-label={tx('Editar')}
+                                                className="p-2 bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 dark:border-slate-700 dark:hover:border-blue-500/30">
+                                                <UserRoundPen className="w-4 h-4" />
+                                            </button>
+                                        </td>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    )}
+                                );
+                            })}
+                            {!loading && alunos.length === 0 && (
+                                <tr>
+                                    <td colSpan="8" className="text-center py-16">
+                                        <Users className="w-10 h-10 text-slate-200 mx-auto mb-3 dark:text-slate-700" />
+                                        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px] dark:text-slate-400">
+                                            {buscandoRede ? tx('Nenhum aluno encontrado na rede com essa busca.') : <>{tx("NENHUM ALUNO CADASTRADO PARA A UNIDADE:")}{' '}<span className="text-blue-600 dark:text-blue-400">{unidadeAtiva}</span></>}
+                                        </p>
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-                
-                {totalPaginas > 1 && (
-                    <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0 dark:border-slate-800 dark:bg-slate-800/60">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('students.pagination.page')} {pagina} {t('students.pagination.of')} {totalPaginas}</span>
-                        <div className="flex gap-2">
-                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.prev')}</button>
-                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.next')}</button>
-                        </div>
-                    </div>
-                )}
+
+                {barraPaginas('border-t')}
             </div>
+
+            {fichaAberta && (
+                <FichaAlunoPopup contato={{ aluno_id: fichaAberta.id, cpf: fichaAberta.cpf, nome: fichaAberta.nome }} usuarioLogado={usuarioLogado}
+                    rotuloVoltar="Voltar para Cadastros" onFechar={() => { setFichaAberta(null); carregarAlunos(); }} />
+            )}
 
             {/* MODAL SMART PASTE: colar → (ligar unidades) → prévia → (resultado) */}
             {modalPasteOpen && (

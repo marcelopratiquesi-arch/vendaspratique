@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { 
-    PanelLeftClose, PanelLeftOpen, Plus, Building2, Check, Globe, ChevronsUpDown, Search, X, Settings, LogOut, Zap
+    PanelLeftClose, PanelLeftOpen, Plus, Building2, Check, Globe, ChevronsUpDown, Search, X, Settings, LogOut, Zap, ChevronDown
 } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
+import { EVENTO_SUBABA_ATUAL, subabaAtual } from '../subAbas.js';
 
 const useFecharAoClicarFora = (ref, aberto, fechar) => {
     useEffect(() => {
@@ -18,6 +19,10 @@ const useFecharAoClicarFora = (ref, aberto, fechar) => {
         };
     }, [ref, aberto, fechar]);
 };
+
+// O tamanho da tela (Pequeno/Médio) é um zoom na página: a posição medida na tela precisa ser dividida por ele
+// para o balão e a dica ficarem ao lado do ícone (09/11/2026)
+const zoomDaPagina = () => { const z = parseFloat(document.documentElement.style.zoom); return z > 0 ? z : 1; };
 
 const normalizarTexto = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
 
@@ -141,6 +146,21 @@ const ItemMenu = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderDica })
     );
 };
 
+// Subabas (Dashboard e Cadastros; 09/11/2026): aparecem embaixo do item quando a tela está aberta ou quando a seta é clicada.
+const ListaSubabas = ({ tab, ativoTela, subAtual, onEscolher }) => (
+    <div className="mt-0.5 mb-1 ml-[18px] pl-3 border-l border-slate-200 dark:border-slate-800 space-y-0.5">
+        {tab.subabas.map(s => {
+            const ativo = ativoTela && subAtual === s.id;
+            return (
+                <button key={s.id} type="button" onClick={() => onEscolher(tab.id, s.id)} aria-current={ativo ? 'page' : undefined}
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[12px] font-semibold truncate transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativo ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/5 dark:hover:text-white'}`}>
+                    {tx(s.label)}
+                </button>
+            );
+        })}
+    </div>
+);
+
 const BotaoNovaVenda = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderDica }) => (
     <button 
         onClick={onClick} 
@@ -155,15 +175,41 @@ const BotaoNovaVenda = ({ tab, ativo, recolhido, onClick, mostrarDica, esconderD
     </button>
 );
 
-const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFecharMobile, abasPermitidas = [], activeTab, setActiveTab, ehChefe, unidadeGlobal, setUnidadeGlobal, unidades, usuarioLogado, handleLogout, rotuloTodas }) => {
+const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFecharMobile, abasPermitidas = [], activeTab, setActiveTab, abrirSubaba, ehChefe, unidadeGlobal, setUnidadeGlobal, unidades, usuarioLogado, handleLogout, rotuloTodas }) => {
     const { t } = useI18n();
     const [dica, setDica] = useState(null);
     
-    const mostrarDica = useCallback((e, texto) => { if (!recolhido || !texto) return; const r = e.currentTarget.getBoundingClientRect(); setDica({ texto, top: r.top + r.height / 2, left: r.right + 12 }); }, [recolhido]);
+    const mostrarDica = useCallback((e, texto) => { if (!recolhido || !texto) return; const r = e.currentTarget.getBoundingClientRect(); const z = zoomDaPagina(); setDica({ texto, top: (r.top + r.height / 2) / z, left: r.right / z + 12 }); }, [recolhido]);
     const esconderDica = useCallback(() => setDica(null), []);
     useEffect(() => { if (!recolhido) setDica(null); }, [recolhido]);
 
     const navegar = (id) => { esconderDica(); setActiveTab(id); if (modo === 'mobile' && onFecharMobile) onFecharMobile(); };
+
+    // Subabas: qual está aberta em cada tela (as telas avisam), quais itens estão abertos e o balão do menu recolhido
+    const [subAtual, setSubAtual] = useState(() => Object.fromEntries(['analise', 'cadastros', 'assinaturas', 'fechamento', 'crm', 'avaliacao'].map(t => [t, subabaAtual(t)])));
+    useEffect(() => {
+        const aoMudar = (e) => setSubAtual(atual => ({ ...atual, [e.detail.tela]: e.detail.aba }));
+        window.addEventListener(EVENTO_SUBABA_ATUAL, aoMudar);
+        return () => window.removeEventListener(EVENTO_SUBABA_ATUAL, aoMudar);
+    }, []);
+    // Abrir/fechar as subabas (decisão do dono, 10/11/2026): a setinha aparece em TODOS os itens com subabas, inclusive o
+    // da tela aberta (antes ele ficava sempre aberto, sem como fechar). "alternados" = itens que a pessoa inverteu:
+    // o da tela aberta começa aberto (clicar fecha); os outros começam fechados (clicar abre). Trocar de tela limpa
+    // tudo, para não ficar um monte de item aberto sem necessidade.
+    const [alternados, setAlternados] = useState(() => new Set());
+    const alternarAberto = (id) => setAlternados(atual => { const n = new Set(atual); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+    useEffect(() => { setAlternados(new Set()); }, [activeTab]);
+    const escolherSubaba = (tela, aba) => {
+        esconderDica(); setBalao(null);
+        if (abrirSubaba) abrirSubaba(tela, aba); else setActiveTab(tela);
+        if (modo === 'mobile' && onFecharMobile) onFecharMobile();
+    };
+    const [balao, setBalao] = useState(null); // menu recolhido: { tab, top, left }
+    const timerBalao = useRef(null);
+    const abrirBalao = (e, tab) => { clearTimeout(timerBalao.current); const r = e.currentTarget.getBoundingClientRect(); const z = zoomDaPagina(); setBalao({ tab, top: r.top / z, left: r.right / z + 8 }); };
+    const fecharBalaoDepois = () => { clearTimeout(timerBalao.current); timerBalao.current = setTimeout(() => setBalao(null), 180); };
+    useEffect(() => () => clearTimeout(timerBalao.current), []);
+    useEffect(() => { if (!recolhido) setBalao(null); }, [recolhido]);
 
     const abaDestaque = abasPermitidas.find(a => a.id === 'lancamento');
     const abaConfig = abasPermitidas.find(a => a.id === 'config');
@@ -228,9 +274,33 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                                 <p className="px-3 pb-1.5 text-[10px] font-bold tracking-widest uppercase text-slate-400 dark:text-slate-500">{grupo.nome}</p>
                             )}
                             <div className="space-y-1">
-                                {grupo.abas.map(tab => (
-                                    <ItemMenu key={tab.id} tab={tab} ativo={activeTab === tab.id} recolhido={recolhido} onClick={() => navegar(tab.id)} mostrarDica={mostrarDica} esconderDica={esconderDica} />
-                                ))}
+                                {grupo.abas.map(tab => {
+                                    const temSub = Array.isArray(tab.subabas) && tab.subabas.length > 1;
+                                    const ativo = activeTab === tab.id;
+                                    if (!temSub) return <ItemMenu key={tab.id} tab={tab} ativo={ativo} recolhido={recolhido} onClick={() => navegar(tab.id)} mostrarDica={mostrarDica} esconderDica={esconderDica} />;
+                                    if (recolhido) {
+                                        // Menu recolhido: passar o mouse mostra o balão com as subabas
+                                        return (
+                                            <div key={tab.id} onMouseEnter={(e) => abrirBalao(e, tab)} onMouseLeave={fecharBalaoDepois}>
+                                                <ItemMenu tab={tab} ativo={ativo} recolhido onClick={() => navegar(tab.id)} mostrarDica={() => {}} esconderDica={esconderDica} />
+                                            </div>
+                                        );
+                                    }
+                                    const aberto = ativo ? !alternados.has(tab.id) : alternados.has(tab.id);
+                                    return (
+                                        <div key={tab.id}>
+                                            <div className="relative">
+                                                <ItemMenu tab={tab} ativo={ativo} recolhido={false} onClick={() => navegar(tab.id)} mostrarDica={mostrarDica} esconderDica={esconderDica} />
+                                                <button type="button" onClick={() => alternarAberto(tab.id)} aria-expanded={aberto} aria-label={aberto ? tx('Esconder as abas de {nome}', { nome: tx(tab.label) }) : tx('Ver as abas de {nome}', { nome: tx(tab.label) })}
+                                                    title={aberto ? tx('Esconder as abas de {nome}', { nome: tx(tab.label) }) : tx('Ver as abas de {nome}', { nome: tx(tab.label) })}
+                                                    className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-md flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativo ? 'text-blue-600 hover:bg-blue-100 dark:text-blue-400 dark:hover:bg-blue-500/20' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-200/70 dark:hover:text-white dark:hover:bg-white/10'}`}>
+                                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                                                </button>
+                                            </div>
+                                            {aberto && <ListaSubabas tab={tab} ativoTela={ativo} subAtual={subAtual[tab.id]} onEscolher={escolherSubaba} />}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -265,6 +335,22 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                     </button>
                 </div>
             </div>
+
+            {balao && (
+                <div className="fixed z-[200] w-max min-w-[190px] max-w-[260px] py-2 rounded-xl bg-white border border-slate-200 shadow-xl dark:bg-slate-900 dark:border-slate-700"
+                    style={{ top: balao.top, left: balao.left }} onMouseEnter={() => clearTimeout(timerBalao.current)} onMouseLeave={fecharBalaoDepois}>
+                    <p className="px-3 pb-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-400">{tx(balao.tab.label)}</p>
+                    {balao.tab.subabas.map(s => {
+                        const ativo = activeTab === balao.tab.id && subAtual[balao.tab.id] === s.id;
+                        return (
+                            <button key={s.id} type="button" onClick={() => escolherSubaba(balao.tab.id, s.id)}
+                                className={`w-full text-left px-3 py-1.5 text-[12px] font-semibold transition-colors ${ativo ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5'}`}>
+                                {tx(s.label)}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {dica && (
                 <div className="fixed z-[200] -translate-y-1/2 px-2.5 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-700 text-white text-xs font-semibold shadow-lg pointer-events-none whitespace-nowrap" style={{ top: dica.top, left: dica.left }}>

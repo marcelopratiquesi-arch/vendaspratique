@@ -25,13 +25,11 @@ import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send,
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR } from '../../components/aoVivoContatos.js';
+import { carregarListaCrm, listaGuardada, guardarLista, esquecerListas, ficaNaLista, contarContatos } from './listaContatosCrm.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
-// O App só carrega leads dos últimos 90 dias. O CRM busca à parte os leads mais antigos que ainda estão em aberto
-// (Base, Kanban e Geladeira) para nenhum contato sumir. Fechados antigos não precisam ser trabalhados.
-const DIAS_CORTE_APP = 90;
-const STATUS_ENCERRADOS = ['Fechado', 'Arquivado'];
 // Mudanças feitas por outras pessoas (tempo real) recarregam os números no máximo 1 vez por minuto
 const INTERVALO_ATUALIZACAO = 60000;
 // Ações que contam na meta diária (a meta soma PESSOAS diferentes que receberam alguma dessas ações) (puxar fila, capturar e importar não contam)
@@ -65,24 +63,30 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     }, []);
 
     // ==========================================
-    // LISTA DE CONTATOS DO CRM (economia de dados e correção, 09/11/2026)
-    // Antes: o App trazia os 3.000 contatos mais novos dos últimos 90 dias e o CRM buscava à parte os antigos em
-    // aberto, DE NOVO A CADA MINUTO com movimento (na Prado, 4.165 contatos por minuto). Quem passava dos 3.000 não
-    // aparecia para ninguém: em 09/11/2026 eram 16.623 contatos em aberto escondidos (Prado 7.809, Castelinho 6.476,
-    // Gutierrez 2.338).
-    // Agora: o CRM baixa UMA VEZ, ao abrir, todos os contatos da unidade (dos últimos 90 dias + os mais antigos ainda
-    // em aberto), de 1.000 em 1.000, sem corte. Depois só encaixa o contato que mudou (avisos do tempo real que o App
-    // repassa, aoVivoContatos.js). Recarrega tudo só no "Atualizar" ou quando o App pede (queda de internet etc.).
-    // A lista só é entregue às telas quando está COMPLETA: as rotinas automáticas (reciclagem, carteira que se renova)
-    // rodam quando os contatos chegam e nunca podem trabalhar com metade da lista.
+    // LISTA DE CONTATOS DO CRM — carregar conforme a necessidade (decisão do dono, 10/11/2026; regras em listaContatosCrm.js)
+    // 09/11/2026: o CRM passou a baixar a lista completa, sem o corte de 3.000 do App (16.623 contatos em aberto estavam
+    // escondidos). 10/11/2026: baixar TUDO a cada entrada ficou lento (31.648 na Visão Global, 24 mil no Banco Bruto).
+    // Agora:
+    //   - Entrada do CRM (Equipe, Painel, Contatos): só o RESUMO (carteiras + visitantes dos últimos 90 dias); os
+    //     números do topo são contados no banco (PainelInicialCrm).
+    //   - Lista COMPLETA de UMA unidade só no CRM de uma recepcionista ou com o "Abastecer carteiras" aberto.
+    //   - O que já foi baixado fica guardado na memória (sair e voltar não baixa de novo) e o tempo real mantém em dia.
+    //   - As rotinas automáticas (reciclagem, carteira que se renova, limite de 300, quem comprou plano) só rodam com a
+    //     lista COMPLETA da unidade (`listaCompleta`), nunca com o resumo nem com metade da lista.
     // ==========================================
     const [leadsCrm, setLeadsCrm] = useState([]);
     const [contatosCarregados, setContatosCarregados] = useState(false);
+    const [carregandoLista, setCarregandoLista] = useState(true);
     const [versaoRecarga, setVersaoRecarga] = useState(0);
     const carregadoRef = useRef(false);
-    // Barra de progresso da primeira carga (09/11/2026): quantos já chegaram de quantos (o total vem na 1ª página)
+    // Qual lista está na tela agora: { tipo: 'resumo' | 'completa', unidade }
+    const [listaPronta, setListaPronta] = useState({ tipo: '', unidade: '' });
+    const listaProntaRef = useRef(listaPronta);
+    useEffect(() => { listaProntaRef.current = listaPronta; }, [listaPronta]);
+    // Barra de progresso da carga: quantos já chegaram de quantos (o total vem na 1ª página)
     const [progressoCarga, setProgressoCarga] = useState({ feitos: 0, total: null });
     const atualizarAgora = useCallback(() => {
+        esquecerListas();
         ultimaAtualizacao.current = Date.now();
         setVersaoDados(v => v + 1);
         setVersaoRecarga(v => v + 1);
@@ -91,63 +95,21 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // Mensagens prontas do WhatsApp (versões do embaralhador): carrega ao abrir o CRM para o Kanban/Lista/Hoje usarem
     useEffect(() => { carregarMensagensProntas(); }, [versaoDados]);
 
+    // Avisos do tempo real (repassados pelo App): encaixa só o contato que mudou, com a mesma regra da lista na tela
     useEffect(() => {
-        let cancelado = false;
-        (async () => {
-            const corte = new Date();
-            corte.setDate(corte.getDate() - DIAS_CORTE_APP);
-            const encerrados = `(${STATUS_ENCERRADOS.map(s => `"${s}"`).join(',')})`;
-            const encontrados = [];
-            for (let pagina = 0; pagina < 200; pagina++) { // até 200 mil contatos (só uma trava de segurança)
-                // Só a 1ª página pede o total (para a barra de progresso); as outras vêm sem contar de novo
-                let query = supabase.from('leads').select('*', pagina === 0 ? { count: 'exact' } : undefined)
-                    .or(`created_at.gte."${corte.toISOString()}",status.not.in.${encerrados}`)
-                    .order('id', { ascending: false })
-                    .range(pagina * 1000, pagina * 1000 + 999);
-                if (unidadeTopo) query = query.eq('unidade', unidadeTopo);
-                const { data, error, count } = await query;
-                if (cancelado) return;
-                if (!error && !carregadoRef.current) {
-                    setProgressoCarga(p => ({ feitos: encontrados.length + (data?.length || 0), total: pagina === 0 && Number.isFinite(count) ? count : p.total }));
-                }
-                if (error) {
-                    console.error('Erro ao carregar os contatos do CRM:', error);
-                    avisar(tx('Não foi possível carregar os contatos do CRM. Clique em "Atualizar" para tentar de novo.'), 'erro');
-                    // Não troca a lista que já estava na tela por uma pela metade
-                    if (!carregadoRef.current) { carregadoRef.current = true; setContatosCarregados(true); }
-                    return;
-                }
-                encontrados.push(...(data || []));
-                if (!data || data.length < 1000) break;
-            }
-            if (cancelado) return;
-            setLeadsCrm(encontrados);
-            carregadoRef.current = true;
-            setContatosCarregados(true);
-        })();
-        return () => { cancelado = true; };
-    }, [unidadeTopo, versaoRecarga]);
-
-    // Avisos do tempo real (repassados pelo App): encaixa só o contato que mudou, com a mesma regra da carga
-    useEffect(() => {
-        const fica = (l) => {
-            if (!l) return false;
-            if (unidadeTopo && l.unidade !== unidadeTopo) return false;
-            const criado = Date.parse(l.created_at || '');
-            const recente = !Number.isFinite(criado) || criado >= Date.now() - DIAS_CORTE_APP * 86400000;
-            return recente || !STATUS_ENCERRADOS.includes(l.status);
-        };
         const aoAviso = (e) => {
-            if (!carregadoRef.current) return; // a carga completa ainda vai trazer
+            if (!carregadoRef.current) return; // a carga ainda vai trazer
             const eventos = Array.isArray(e?.detail) ? e.detail : [];
             if (!eventos.length) return;
+            const { tipo, unidade } = listaProntaRef.current;
+            if (!tipo) return;
             setLeadsCrm(lista => {
                 const porId = new Map(lista.map(l => [l.id, l]));
                 eventos.forEach(ev => {
                     if (ev?.eventType === 'DELETE') { if (ev.old?.id != null) porId.delete(ev.old.id); return; }
                     const linha = ev?.new;
                     if (!linha || linha.id == null) return;
-                    if (fica(linha)) porId.set(linha.id, { ...(porId.get(linha.id) || {}), ...linha });
+                    if (ficaNaLista(tipo, unidade, linha)) porId.set(linha.id, { ...(porId.get(linha.id) || {}), ...linha });
                     else porId.delete(linha.id);
                 });
                 return [...porId.values()].sort((a, b) => (b.id > a.id ? 1 : b.id < a.id ? -1 : 0));
@@ -161,7 +123,13 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             window.removeEventListener(EVENTO_CONTATOS, aoAviso);
             window.removeEventListener(EVENTO_CONTATOS_RECARREGAR, aoRecarregar);
         };
-    }, [unidadeTopo, marcarMudancaDeFora]);
+    }, [marcarMudancaDeFora]);
+
+    // Mudanças feitas aqui (mover fase, enviar para recepcionista...) ficam guardadas para a próxima entrada
+    useEffect(() => {
+        if (!carregadoRef.current || carregandoLista || !listaPronta.tipo) return;
+        guardarLista(listaPronta.tipo, listaPronta.unidade, leadsCrm);
+    }, [leadsCrm, listaPronta, carregandoLista]);
 
     // Lista única do CRM. Quem ainda estiver na fase antiga "Day Use (3 Dias)" aparece como "Em Contato".
     const visitantes = useMemo(() => leadsCrm
@@ -238,6 +206,13 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const [loadingHistorico, setLoadingHistorico] = useState(false);
 
     const [consultorAtivo, setConsultorAtivo] = useState(null);
+    // Menu lateral (subabas, 10/11/2026): Equipe/Painel/Contatos ficam na entrada; no CRM da pessoa, nenhuma fica marcada
+    useEffect(() => {
+        const aoPedir = (e) => { if (e.detail?.tela === 'crm') setConsultorAtivo(null); };
+        window.addEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+        return () => window.removeEventListener(EVENTO_PEDIR_SUBABA, aoPedir);
+    }, []);
+    useEffect(() => { if (consultorAtivo) avisarSubabaAtual('crm', null); }, [consultorAtivo]);
 
     const META_DIARIA = 150; 
     const [progressoHoje, setProgressoHoje] = useState([]);
@@ -408,6 +383,57 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const aoAtualizarPendentes = useCallback((total, carregando) => setPendentesHoje({ total, carregando }), []);
     // Base em 3 passos na aba Equipe: qual passo está aberto ('' = todos fechados)
     const [passoBase, setPassoBase] = useState('');
+
+    // Qual lista o CRM precisa agora (10/11/2026): COMPLETA de uma unidade no CRM de uma recepcionista ou com um passo
+    // do "Abastecer carteiras" aberto; senão o RESUMO (carteiras + visitantes) da unidade do topo (ou de todas).
+    const unidadeCompleta = consultorAtivo
+        ? String(consultorAtivo.unidade || unidadeTopo || '').toUpperCase().trim()
+        : (passoBase && unidadeTopo ? String(unidadeTopo).toUpperCase().trim() : '');
+    const tipoLista = unidadeCompleta ? 'completa' : 'resumo';
+    const unidadeLista = unidadeCompleta || String(unidadeTopo || '').toUpperCase().trim();
+    // Banco Bruto contado no banco, para o cabeçalho do "Abastecer carteiras" antes de a lista completa chegar
+    const [contagemBase, setContagemBase] = useState(null);
+    useEffect(() => {
+        if (consultorAtivo || !unidadeTopo) { setContagemBase(null); return undefined; }
+        let cancelado = false;
+        contarContatos(unidadeTopo).then(c => { if (!cancelado) setContagemBase(c ? c.base : null); });
+        return () => { cancelado = true; };
+    }, [consultorAtivo, unidadeTopo, versaoDados]);
+    // As rotinas automáticas só rodam com a lista COMPLETA da unidade de quem está operando
+    const listaCompleta = !carregandoLista && listaPronta.tipo === 'completa' && Boolean(unidadeCompleta) && listaPronta.unidade === unidadeCompleta;
+    useEffect(() => {
+        let cancelado = false;
+        const guardada = listaGuardada(tipoLista, unidadeLista);
+        if (guardada) {
+            setLeadsCrm(guardada);
+            setListaPronta({ tipo: tipoLista, unidade: unidadeLista });
+            carregadoRef.current = true;
+            setContatosCarregados(true);
+            setCarregandoLista(false);
+            return undefined;
+        }
+        setCarregandoLista(true);
+        setProgressoCarga({ feitos: 0, total: null });
+        carregarListaCrm(tipoLista, unidadeLista, (feitos, total) => { if (!cancelado) setProgressoCarga({ feitos, total }); })
+            .then(lista => {
+                if (cancelado) return;
+                setLeadsCrm(lista);
+                setListaPronta({ tipo: tipoLista, unidade: unidadeLista });
+                carregadoRef.current = true;
+                setContatosCarregados(true);
+                setCarregandoLista(false);
+            })
+            .catch(error => {
+                if (cancelado) return;
+                console.error('Erro ao carregar os contatos do CRM:', error);
+                avisar(tx('Não foi possível carregar os contatos do CRM. Clique em "Atualizar" para tentar de novo.'), 'erro');
+                // Não troca a lista que já estava na tela por uma pela metade
+                carregadoRef.current = true;
+                setContatosCarregados(true);
+                setCarregandoLista(false);
+            });
+        return () => { cancelado = true; };
+    }, [tipoLista, unidadeLista, versaoRecarga]);
     // Ordem dos contatos no Kanban: fila inteligente (padrão), mais antigos ou mais novos (07/11/2026)
     const [ordemContatos, setOrdemContatos] = useState(lerOrdemContatos);
     // Contatos do dia (24h, 48h, atrasados, aniversariantes; feitos e pendentes) para o botão "Hoje" da Conversa
@@ -827,7 +853,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // ainda em "Novo" e sem nenhum contato (WhatsApp, ligação, nota ou mudança de fase) volta para o Banco Bruto.
     // Roda uma vez por dia por unidade, para quem abrir o CRM.
     useEffect(() => {
-        if (!unidadeOperacao) return;
+        if (!unidadeOperacao || !listaCompleta) return; // só com a lista COMPLETA da unidade (10/11/2026)
         const chave = `crm_reciclagem_${unidadeOperacao}_${new Date().toISOString().slice(0, 10)}`;
         try { if (sessionStorage.getItem(chave) === '1') return; } catch { /* sem armazenamento: roda assim mesmo */ }
         const limite = Date.now() - DIAS_RECICLAGEM * 86400000;
@@ -858,7 +884,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         })();
         return () => { cancelado = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- roda quando os contatos chegam (uma vez por dia por unidade)
-    }, [unidadeOperacao, visitantes.length]);
+    }, [unidadeOperacao, visitantes.length, listaCompleta]);
 
     // CARTEIRA QUE SE RENOVA SOZINHA (decisão do dono, 07/11/2026; revisada em 09/11/2026 com a coluna "Em Espera").
     // Todo contato tem um caminho: data de volta (Em Espera, ou hoje = na vez), Fechado, Geladeira ou Banco Bruto.
@@ -872,7 +898,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const ultimaCarteiraAuto = useRef({});
     const MAX_TENTATIVAS_FUNIL = 3;
     useEffect(() => {
-        if (!unidadeOperacao || !visitantes.length) return;
+        if (!unidadeOperacao || !visitantes.length || !listaCompleta) return; // só com a lista COMPLETA (10/11/2026)
         const agoraMs = Date.now();
         if (agoraMs - (ultimaCarteiraAuto.current[unidadeOperacao] || 0) < 120000) return;
         ultimaCarteiraAuto.current[unidadeOperacao] = agoraMs;
@@ -948,14 +974,14 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             if (qtdBanco || qtdGeladeira) avisar(tx("Carteiras organizadas: {banco} contato(s) parado(s) voltaram para o Banco Bruto e {gel} foram para a Geladeira (sem resposta).", { banco: qtdBanco, gel: qtdGeladeira }), 'sucesso');
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez por dia por unidade, quando os contatos chegam
-    }, [unidadeOperacao, visitantes.length > 0]);
+    }, [unidadeOperacao, visitantes.length > 0, listaCompleta]);
 
     // Contato que comprou plano (decisão do dono, 06/11/2026; regras em compraDePlano.js): na MESMA unidade vai
     // sozinho para "Fechado" (conta para a recepcionista); em OUTRA unidade sai do CRM ("Arquivado").
     // Confere ao abrir o CRM e de novo quando chegam mais contatos (no máximo a cada 2 minutos por unidade).
     const ultimaConferenciaCompras = useRef({});
     useEffect(() => {
-        if (!unidadeOperacao) return;
+        if (!unidadeOperacao || !listaCompleta) return; // só com a lista COMPLETA (10/11/2026)
         const agora = Date.now();
         if (agora - (ultimaConferenciaCompras.current[unidadeOperacao] || 0) < 120000) return;
         const candidatos = visitantes.filter(v => daUnidadeOperacao(v) && ['Novo', 'Em Contato', 'Perdido'].includes(normalizarStatus(v.status))
@@ -977,7 +1003,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             if (saiu.length) avisar(tx("{qtd} contatos saíram do CRM: compraram plano em outra unidade ({unidades}).", { qtd: saiu.length, unidades: [...new Set(saiu.map(f => String(f.compra.unidade || '').toUpperCase()))].join(', ') }), 'atencao');
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- roda quando os contatos chegam (no máximo a cada 2 minutos)
-    }, [unidadeOperacao, visitantes.length]);
+    }, [unidadeOperacao, visitantes.length, listaCompleta]);
 
     // Mover: só contatos ainda não trabalhados (fase Novo) da recepcionista de origem
     const contatosParaMover = (nome) => visitantes.filter(v => v.puxado_em && mesmoNome(v.puxado_por, nome) && normalizarStatus(v.status) === 'Novo' && daUnidadeOperacao(v));
@@ -1312,10 +1338,12 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         const vagas = carteiras.reduce((t, c) => t + Math.max(0, LIMITE_CARTEIRA - c.total), 0);
         const excedentes = excedentesCarteira();
         const qtdExcedente = excedentes.reduce((t, x) => t + x.ids.length, 0);
+        // Antes da lista completa (entrada do CRM), o Banco Bruto vem contado no banco (10/11/2026)
+        const qtdNaBase = listaCompleta ? leadsNaBase.length : (contagemBase ?? 0);
         const passos = [
-            { id: 'importar', n: 1, titulo: 'Importar', texto: tx('Smart Paste ou Puxar do cadastro'), destaque: leadsNaBase.length === 0 },
-            { id: 'banco', n: 2, titulo: 'Banco Bruto', texto: tx('{qtd} contatos esperando', { qtd: leadsNaBase.length }), destaque: false },
-            { id: 'distribuir', n: 3, titulo: 'Distribuir', texto: tx('{qtd} vagas nas carteiras', { qtd: vagas }), destaque: leadsNaBase.length > 0 && vagas > 0 }
+            { id: 'importar', n: 1, titulo: 'Importar', texto: tx('Smart Paste ou Puxar do cadastro'), destaque: qtdNaBase === 0 },
+            { id: 'banco', n: 2, titulo: 'Banco Bruto', texto: tx('{qtd} contatos esperando', { qtd: qtdNaBase }), destaque: false },
+            { id: 'distribuir', n: 3, titulo: 'Distribuir', texto: tx('{qtd} vagas nas carteiras', { qtd: vagas }), destaque: qtdNaBase > 0 && vagas > 0 }
         ];
         return (
             <div id="crm-abastecer-carteiras" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4 space-y-3 scroll-mt-4">
@@ -1339,9 +1367,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     })}
                 </div>
                 {/* Frase direta do que fazer (09/11/2026, decisão do dono) */}
-                {leadsNaBase.length > 0 && vagas > 0 && passoBase !== 'distribuir' && (
+                {qtdNaBase > 0 && vagas > 0 && passoBase !== 'distribuir' && (
                     <button type="button" onClick={() => setPassoBase('distribuir')} className="w-full text-left rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-100 dark:hover:bg-blue-500/20 px-3 py-2 text-[11px] font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1.5 transition-colors">
-                        <ArrowRight className="w-4 h-4 shrink-0" />{tx('Tem {vagas} vagas nas carteiras e {qtd} contatos esperando: clique em Distribuir.', { vagas: vagas.toLocaleString(localeAtual()), qtd: leadsNaBase.length.toLocaleString(localeAtual()) })}
+                        <ArrowRight className="w-4 h-4 shrink-0" />{tx('Tem {vagas} vagas nas carteiras e {qtd} contatos esperando: clique em Distribuir.', { vagas: vagas.toLocaleString(localeAtual()), qtd: qtdNaBase.toLocaleString(localeAtual()) })}
                     </button>
                 )}
                 {/* Carteira de cada uma × limite: só no passo Distribuir (os cartões da equipe já mostram; 09/11/2026) */}
@@ -1372,7 +1400,15 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const blocoBase = () => (
                 <div className="space-y-4">
                     {cabecalhoBase()}
-                    {passoBase === 'importar' && (<>
+                    {/* Carga da lista completa da unidade (10/11/2026): só quando um passo é aberto */}
+                    {passoBase && !listaCompleta && (
+                        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 flex items-center gap-3 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                            <Loader2 className="w-4 h-4 animate-spin text-blue-600 dark:text-blue-400 shrink-0" />
+                            {tx('Carregando o Banco Bruto da unidade...')}
+                            {progressoCarga.total ? <span className="tabular-nums">{tx('{feitos} de {total} contatos', { feitos: progressoCarga.feitos.toLocaleString(localeAtual()), total: progressoCarga.total.toLocaleString(localeAtual()) })}</span> : null}
+                        </div>
+                    )}
+                    {passoBase === 'importar' && listaCompleta && (<>
 <div className="bg-white dark:bg-slate-900 rounded-[24px] border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 overflow-hidden animate-[slideUp_0.4s_ease-out] p-6 lg:p-8 flex flex-col h-full relative">
                         <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-2xl shadow-sm">{tx("Mais Rápido ⚡")}</div>
                         <div className="flex items-center gap-3 mb-6">
@@ -1458,7 +1494,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                         />
                     )}
                     </>)}
-                    {passoBase === 'distribuir' && (
+                    {passoBase === 'distribuir' && listaCompleta && (
 <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
                             <div>
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Send className="w-4 h-4" />{' '}{tx("Distribuir contatos")}</h3>
@@ -1497,7 +1533,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                             </div>
                         </div>
                     )}
-                    {passoBase === 'banco' && (
+                    {passoBase === 'banco' && listaCompleta && (
 <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8">
                         <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
                             <div>
@@ -1637,8 +1673,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 </div>
     );
 
-    // Primeira carga dos contatos da unidade (completa, de 1.000 em 1.000): até terminar, mostra só o aviso
-    if (!contatosCarregados) {
+    // Carga dos contatos: na entrada só na primeira vez (depois fica guardado); no CRM de uma recepcionista, enquanto
+    // a lista completa da unidade dela não chega (10/11/2026)
+    if (!contatosCarregados || (carregandoLista && consultorAtivo)) {
         const { feitos, total } = progressoCarga;
         const pct = total ? Math.min(100, Math.round((feitos / total) * 100)) : null;
         return (
@@ -1646,7 +1683,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 <div className="w-[min(420px,100%)] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm p-5">
                     <div className="flex items-center gap-3 text-slate-600 dark:text-slate-300">
                         <Loader2 className="w-5 h-5 shrink-0 animate-spin text-blue-600 dark:text-blue-400" />
-                        <p className="text-xs font-black uppercase tracking-widest">{tx("Carregando os contatos do CRM...")}</p>
+                        <p className="text-xs font-black uppercase tracking-widest">{consultorAtivo ? tx('Carregando os contatos de {unidade}...', { unidade: unidadeLista }) : tx("Carregando os contatos do CRM...")}</p>
                     </div>
                     <div className="mt-4 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct ?? undefined}>
                         <div className={`h-full rounded-full bg-blue-600 dark:bg-blue-500 transition-all duration-300 ${pct === null ? 'w-1/4 animate-pulse' : ''}`} style={pct === null ? undefined : { width: `${Math.max(pct, 3)}%` }} />
