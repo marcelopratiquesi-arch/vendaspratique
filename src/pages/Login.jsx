@@ -7,6 +7,17 @@ import {
     ShoppingCart, Coins, Users, ClipboardList, AlertTriangle, CheckCircle2, ArrowLeft, KeyRound
 } from 'lucide-react';
 import { tx, localeAtual } from '../i18n/traduzir.js';
+import { carregarChavesLogin, entrarComGoogle } from '../components/acesso/acessoBanco.js';
+
+// Logo do Google (cores oficiais), desenhado no próprio sistema
+const LogoGoogle = () => (
+    <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+    </svg>
+);
 
 // ==========================================
 // CONFIGURAÇÕES
@@ -262,6 +273,22 @@ export default function Login({ onLogin }) {
     }, [t]);
 
     const [modo, setModo] = useState('login'); // login | esqueci | nova
+    // Login com Google (12/11/2026): chaves do banco (sistema_config); sem o SQL, a tela fica como antes
+    const [chaves, setChaves] = useState(null);
+    const [mostrarSenha, setMostrarSenha] = useState(false);
+    useEffect(() => { carregarChavesLogin().then(setChaves); }, []);
+    const entrarGoogle = async () => {
+        setErro(''); setAviso(''); setLoading(true);
+        const { error } = await entrarComGoogle();
+        if (error) { setErro(tx('Não foi possível abrir o Google: {erro}', { erro: error.message })); setLoading(false); }
+    };
+    // Aviso deixado pelo App (sessão expirada, acesso negado...)
+    useEffect(() => {
+        try {
+            const msg = sessionStorage.getItem('pratique_aviso_login');
+            if (msg) { sessionStorage.removeItem('pratique_aviso_login'); setErro(msg); }
+        } catch { /* sem armazenamento */ }
+    }, []);
     const [email, setEmail] = useState(() => {
         try { return localStorage.getItem(CHAVE_EMAIL_LEMBRADO) || ''; } catch { return ''; }
     });
@@ -479,7 +506,26 @@ export default function Login({ onLogin }) {
                 </div>
             )}
 
-            {modo === 'login' && (
+            {/* ENTRAR COM GOOGLE (12/11/2026, decisão do dono): o principal quando a chave login_google está ligada.
+                O login com senha fica embaixo, recolhido: para todos durante a transição (login_senha_todos) e, depois
+                da virada, só como "acesso de emergência" (Admin, ou quem o Admin liberou por 24 h). */}
+            {modo === 'login' && chaves?.login_google && (
+                <div className="flex flex-col gap-4">
+                    <button type="button" onClick={entrarGoogle} disabled={loading}
+                        className={`${c.alturaBotao} rounded-2xl bg-white text-slate-800 border border-slate-300 text-[15px] font-extrabold flex items-center justify-center gap-3 shadow-sm transition-all hover:bg-slate-50 active:scale-[0.98] disabled:opacity-60 outline-none focus-visible:ring-4 focus-visible:ring-blue-400/40`}>
+                        {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <LogoGoogle />}{tx('Entrar com Google')}
+                    </button>
+                    {!mostrarSenha && (
+                        <button type="button" onClick={() => setMostrarSenha(true)} className={`text-[13px] font-bold min-h-[44px] transition-colors ${c.link}`}>
+                            {chaves.login_senha_todos ? tx('Entrar com e-mail e senha (temporário)') : tx('Acesso de emergência (Admin)')}
+                        </button>
+                    )}
+                </div>
+            )}
+
+            {modo === 'login' && !chaves && <div className="flex justify-center py-6"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
+
+            {modo === 'login' && chaves && (!chaves.login_google || mostrarSenha) && (
                 <form onSubmit={handleLogin} className="flex flex-col gap-[18px]">
                     {renderCampo("login-email", t('auth.emailLabel'), Mail, (<>
                         <input id="login-email" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder={tx("nome@pratique.com")} className={classeInput} />

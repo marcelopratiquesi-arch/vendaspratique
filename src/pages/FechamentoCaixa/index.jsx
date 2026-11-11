@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
-import { formatMoney } from './utils.js';
 import { SeletorPeriodo, calcularPreset, isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao } from '../../components/periodoPadrao.js';
 import { pedirMotivoExclusao, excluirVendaComMotivo } from '../HistoricoVendas/utils.js';
@@ -12,7 +11,9 @@ import { vendaAtrasada, consumirConferenciaPedida, EVENTO_PEDIR_CONFERENCIA } fr
 import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, ChevronDown } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
-import { podeVer } from '../../permissoes/catalogoPermissoes.js';
+import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import PainelPagamento from './PainelPagamento.jsx';
+import { usePagamentosComissao, mesDaFaixa, vendaTravada, pagamentoDe, mensagemDaTrava } from './pagamentosComissao.js';
 import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
@@ -52,7 +53,15 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     }, [aplicarPeriodo]);
     const inicioIso = periodo.faixa.inicio ? isoLocal(periodo.faixa.inicio) : '';
     const fimIso = periodo.faixa.fim ? isoLocal(periodo.faixa.fim) : '';
-    const [filtroUnidadeIsolada, setFiltroUnidadeIsolada] = useState('TODOS'); 
+    const [filtroUnidadeIsolada, setFiltroUnidadeIsolada] = useState('TODOS');
+    // Pagamento das comissões (11/11/2026): unidade (uma só) e mês (um mês inteiro) escolhidos nos filtros
+    const papelReal = String(usuarioLogado?.roleReal || usuarioLogado?.role || '').toUpperCase();
+    const unidadePagamento = (usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR')
+        ? (filtroUnidadeIsolada !== 'TODOS' ? filtroUnidadeIsolada : null)
+        : (usuarioLogado?.unidade || null);
+    const mesPagamento = mesDaFaixa(inicioIso, fimIso);
+    const pagamentos = usePagamentosComissao({ mesInicio: inicioIso ? inicioIso.slice(0, 7) : null, mesFim: fimIso ? fimIso.slice(0, 7) : null });
+    const podeAprovarPagamento = (papelReal === 'ADMIN' || papelReal === 'MENTOR') && podeFazer(usuarioLogado, '407');
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     // Aba Auditoria: Admin e Mentor de verdade (roleReal), mesmo quando escolhem uma unidade no topo
@@ -88,6 +97,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     });
 
     const toggleConferido = async (id, statusAtual) => {
+        const venda = vendas.find(v => v.id === id);
+        if (venda && vendaTravada(venda, pagamentos.ativos)) { avisar(tx('O pagamento deste mês já foi aprovado: a conferência não pode mais ser mexida.'), 'atencao'); return; }
         const novoStatus = !statusAtual;
         const validadorNome = novoStatus ? usuarioLogado.nome : null;
         const validadorData = novoStatus ? new Date().toISOString() : null;
@@ -97,13 +108,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         if (error) {
             console.error("Erro ao atualizar:", error);
-            avisar(tx("Erro de conexão. Revertendo alteração."));
+            avisar(mensagemDaTrava(error) || tx("Erro de conexão. Revertendo alteração."));
             setVendas(vendas.map(v => v.id === id ? { ...v, conferiu: statusAtual } : v));
         }
     };
 
     const handleObsLocalChange = (id, novaObs) => setVendas(vendas.map(v => v.id === id ? { ...v, observacao: novaObs } : v));
-    const handleObsSaveDb = async (id, textoFinal) => await supabase.from('vendas').update({ observacao: textoFinal }).eq('id', id);
+    const handleObsSaveDb = async (id, textoFinal) => {
+        const { error } = await supabase.from('vendas').update({ observacao: textoFinal }).eq('id', id);
+        if (error && mensagemDaTrava(error)) avisar(mensagemDaTrava(error), 'atencao');
+    };
 
     const handleSalvarEdicaoVenda = async (vendaEditada) => {
         const { error } = await supabase.from('vendas').update({
@@ -122,7 +136,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         if (error) {
             console.error("Erro ao editar venda:", error);
-            avisar(tx("Erro ao salvar a edição. Tente novamente."));
+            avisar(mensagemDaTrava(error) || tx("Erro ao salvar a edição. Tente novamente."));
             throw error; 
         } else {
             setVendas(vendas.map(v => v.id === vendaEditada.id ? { ...v, ...vendaEditada, comissao: vendaEditada.valor } : v));
@@ -163,6 +177,11 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         return true;
     });
 
+    // Vendas ainda sem conferir da unidade+mês do pagamento (o banco confere de novo ao aprovar)
+    const pendentesPagamento = unidadePagamento && mesPagamento
+        ? vendas.filter(v => !v.conferiu && String(v.data || '').slice(0, 7) === mesPagamento && String(v.unidade || '').toUpperCase() === String(unidadePagamento).toUpperCase()).length
+        : 0;
+
     let comissaoTotalGeral = 0;
     const relatorioVendedores = {};
 
@@ -172,38 +191,67 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         comissaoTotalGeral += valorComissao;
 
-        if (!relatorioVendedores[venda.vendedor]) {
-            relatorioVendedores[venda.vendedor] = { vendedor: venda.vendedor, totalComissao: 0, itens: {} };
+        // Agrupa pelo CPF do vendedor quando a venda tem (passo 1 do SQL de 11/11/2026); senão pelo nome escrito.
+        // Assim a mesma pessoa com o nome escrito de dois jeitos vira UMA linha. O total geral não muda.
+        const cpfVenda = String(venda.vendedor_cpf || '').replace(/\D/g, '');
+        const chave = cpfVenda.length === 11 ? `cpf:${cpfVenda}` : venda.vendedor;
+        if (!relatorioVendedores[chave]) {
+            relatorioVendedores[chave] = { chave, vendedor: venda.vendedor, cpfVenda: cpfVenda.length === 11 ? cpfVenda : '', totalComissao: 0, itens: {} };
         }
-        
-        relatorioVendedores[venda.vendedor].totalComissao += valorComissao;
+
+        relatorioVendedores[chave].totalComissao += valorComissao;
+        (relatorioVendedores[chave].unidades ||= new Set()).add(String(venda.unidade || '').toUpperCase());
         const qty = parseInt(venda.quantidade) || 1;
-        relatorioVendedores[venda.vendedor].itens[venda.produto] = (relatorioVendedores[venda.vendedor].itens[venda.produto] || 0) + qty;
+        relatorioVendedores[chave].itens[venda.produto] = (relatorioVendedores[chave].itens[venda.produto] || 0) + qty;
     });
 
-    const normalizarTexto = (texto) => String(texto || '').replace(/\s+/g, ' ').trim().toUpperCase();
+    const normalizarTexto = (texto) => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
 
+    // Conta bancária de quem vendeu (corrigido em 11/11/2026, decisão do dono): SÓ o nome exato da Equipe.
+    // Antes, sem o nome exato, aceitava um nome PARECIDO ("ANA SILVA" pegava a conta da "ANA SILVA SANTOS").
+    // Com mais de uma pessoa com o mesmo nome: a ativa da unidade das vendas; se ainda empatar, não chuta
+    // ("conferir cadastro"). Só muda os dados bancários mostrados: os totais de comissão continuam iguais.
     const dadosTabelaComissoes = Object.values(relatorioVendedores).map(r => {
-        const nomeVenda = normalizarTexto(r.vendedor);
-        let infoColaborador = colaboradores.find(c => normalizarTexto(c.nome) === nomeVenda);
-        
-        if (!infoColaborador) {
-            infoColaborador = colaboradores.find(c => {
-                if (!c.nome) return false;
-                const nomeRH = normalizarTexto(c.nome);
-                if (nomeRH.length < 3) return false; 
-                return nomeVenda.includes(nomeRH) || nomeRH.includes(nomeVenda);
-            });
+        // Venda com CPF do vendedor: a pessoa da Equipe é achada pelo CPF (certeiro)
+        if (r.cpfVenda) {
+            const doCpf = colaboradores.filter(c => String(c.cpf || '').replace(/\D/g, '') === r.cpfVenda);
+            const pessoa = doCpf.find(c => c.ativo !== false) || doCpf[0] || null;
+            const { unidades, ...restoCpf } = r;
+            return {
+                ...restoCpf,
+                vendedor: pessoa?.nome || r.vendedor,
+                totalItens: Object.values(r.itens).reduce((acc, q) => acc + q, 0),
+                cpf: pessoa?.cpf || r.cpfVenda,
+                tipo_conta: pessoa?.tipo_conta || '',
+                conta_inter: pessoa?.conta_inter || '',
+                colaborador: pessoa || { nome: r.vendedor, unidade: unidades ? [...unidades][0] : '' },
+                situacaoCadastro: pessoa ? 'ok' : 'sem_cadastro',
+            };
         }
-
-        infoColaborador = infoColaborador || {}; 
+        const nomeVenda = normalizarTexto(r.vendedor);
+        let candidatos = colaboradores.filter(c => normalizarTexto(c.nome) === nomeVenda);
+        if (candidatos.length > 1) {
+            const ativos = candidatos.filter(c => c.ativo !== false);
+            if (ativos.length) candidatos = ativos;
+        }
+        if (candidatos.length > 1 && r.unidades) {
+            const daUnidade = candidatos.filter(c => r.unidades.has(String(c.unidade || '').toUpperCase()));
+            if (daUnidade.length) candidatos = daUnidade;
+        }
+        const cpfsDiferentes = new Set(candidatos.map(c => String(c.cpf || '').replace(/\D/g, ''))).size;
+        const ambiguo = candidatos.length > 1 && cpfsDiferentes > 1;
+        const infoColaborador = (!ambiguo && candidatos[0]) || {};
+        const { unidades, ...resto } = r;
 
         return {
-            ...r, 
+            ...resto,
             totalItens: Object.values(r.itens).reduce((acc, q) => acc + q, 0),
             cpf: infoColaborador.cpf || '',
             tipo_conta: infoColaborador.tipo_conta || '',
-            conta_inter: infoColaborador.conta_inter || ''
+            conta_inter: infoColaborador.conta_inter || '',
+            // Para a Central do Colaborador e o aviso "conferir cadastro"
+            colaborador: infoColaborador.id != null ? infoColaborador : { nome: r.vendedor, unidade: unidades ? [...unidades][0] : '' },
+            situacaoCadastro: ambiguo ? 'ambiguo' : infoColaborador.id != null ? 'ok' : 'sem_cadastro',
         };
     }).sort((a, b) => b.totalComissao - a.totalComissao);
 
@@ -323,20 +371,21 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 </div>
             </div>
 
+            {/* Pagamento das comissões (11/11/2026): substituiu a etiqueta "Pagamento Aprovado" que aparecia SEMPRE */}
             {abaMostrada === 'comissoes' && (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 flex flex-col md:flex-row justify-between items-center gap-6 animate-[fadeIn_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
-                    <div>
-                        <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-widest mb-2 dark:text-slate-400">{tx("Status do Repasse")}</h3>
-                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 px-3 py-1.5 rounded-full dark:bg-emerald-500/10 dark:border-emerald-500/30">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                            <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest dark:text-emerald-400">{tx("Pagamento Aprovado")}</span>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-1 dark:text-slate-400">{tx("Comissão Total Auditada")}</p>
-                        <p className="text-4xl font-bold text-emerald-700 tracking-tight leading-none dark:text-emerald-400">{formatMoney(comissaoTotalGeral)}</p>
-                    </div>
-                </div>
+                <PainelPagamento
+                    unidade={unidadePagamento}
+                    mes={mesPagamento}
+                    pagamento={unidadePagamento && mesPagamento ? pagamentoDe(unidadePagamento, mesPagamento, pagamentos.ativos) : null}
+                    semTabela={pagamentos.semTabela}
+                    pendentes={pendentesPagamento}
+                    totalComissao={comissaoTotalGeral}
+                    pessoas={dadosTabelaComissoes}
+                    podeAprovar={podeAprovarPagamento}
+                    podeReabrir={papelReal === 'ADMIN'}
+                    onAprovar={pagamentos.aprovar}
+                    onReabrir={pagamentos.reabrir}
+                />
             )}
 
             {abaMostrada === 'conferencia' && (
@@ -352,6 +401,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                     handleObsSaveDb={handleObsSaveDb}
                     onSalvarEdicao={handleSalvarEdicaoVenda}
                     onExcluirVenda={handleExcluirVenda}
+                    estaTravada={(v) => vendaTravada(v, pagamentos.ativos)}
                 />
             )}
             {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={dadosTabelaComissoes} />}

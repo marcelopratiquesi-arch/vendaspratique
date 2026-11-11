@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { formatMoney, formatDataBR, formatarDataHora } from './utils.js';
 import { itensCatalogoParaEdicao } from '../HistoricoVendas/utils.js';
-import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle, User } from 'lucide-react';
+import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, ShieldCheck, ChevronUp, ChevronDown, ChevronsUpDown, X, Save, Loader2, Search, AlertCircle, User, Lock } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
@@ -82,8 +82,9 @@ const ConferenciaTab = ({
     toggleConferido, 
     handleObsLocalChange, 
     handleObsSaveDb,
-    onSalvarEdicao, 
-    onExcluirVenda  
+    onSalvarEdicao,
+    onExcluirVenda,
+    estaTravada = () => false // venda de mês com pagamento aprovado (11/11/2026): não altera, não apaga, não desconfere
 }) => {
     // Ações pelas permissões (Configurações → Permissões, Etapa 2): 405 conferir/editar/excluir; 406 conferir a tela toda
     const podeAgir = podeFazer(usuarioLogado, '405');
@@ -692,6 +693,7 @@ const ConferenciaTab = ({
                                             type="text"
                                             value={v.observacao || ''}
                                             onChange={(e) => handleObsLocalChange(v.id, e.target.value)}
+                                            readOnly={estaTravada(v)}
                                             onBlur={(e) => handleObsSaveDb(v.id, e.target.value)}
                                             placeholder={tx("+ Add Obs")}
                                             className={`w-full max-w-[200px] text-[10px] font-medium px-2.5 py-1.5 mt-1.5 rounded-md outline-none transition-all placeholder:text-slate-400 ${v.observacao ? 'bg-amber-50 text-amber-800 border border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30' : 'bg-slate-50 hover:bg-slate-100 focus:bg-white focus:ring-2 focus:ring-blue-500 border border-slate-200 focus:border-blue-200 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:focus:bg-slate-900 dark:border-slate-800 dark:focus:border-blue-500/30'}`}
@@ -702,18 +704,23 @@ const ConferenciaTab = ({
                                     <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] dark:border-slate-800 ${v.conferiu ? 'bg-emerald-50/90 dark:bg-emerald-500/10' : 'bg-white dark:bg-slate-900'}`}>
                                         <div className="flex items-center justify-center gap-3">
                                             
-                                            {/* BOTÃO STATUS */}
-                                            <button 
+                                            {/* BOTÃO STATUS (cadeado quando o pagamento do mês já foi aprovado) */}
+                                            {estaTravada(v) ? (
+                                                <span title={tx('O pagamento deste mês já foi aprovado: a conferência não pode mais ser mexida.')}
+                                                    className="px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest flex flex-col items-center justify-center w-28 h-12 bg-emerald-600 text-white border border-emerald-700">
+                                                    <Lock className="w-4 h-4 mb-0.5" />{tx('Pago')}
+                                                </span>
+                                            ) : <button
                                                 onClick={() => podeAgir && toggleConferido(v.id, v.conferiu)}
                                                 disabled={!podeAgir}
                                                 title={podeAgir ? undefined : tx('Sem permissão para conferir (permissão 405).')}
                                                 className={`px-3 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm flex flex-col items-center justify-center w-28 h-12 ${v.conferiu ? 'bg-emerald-500 text-white border border-emerald-600 hover:bg-emerald-600 hover:shadow-md' : 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200 hover:text-amber-800 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30 dark:hover:text-amber-300'}`}
                                             >
                                                 {v.conferiu ? <><Check className="w-4 h-4 mb-0.5"/> OK</> : <><Clock className="w-4 h-4 mb-0.5"/>{' '}{tx("PENDENTE")}</>}
-                                            </button>
+                                            </button>}
 
-                                            {/* BOTÕES DE EDITAR / EXCLUIR EMPILHADOS */}
-                                            {podeAgir && <div className="flex flex-col gap-1.5">
+                                            {/* BOTÕES DE EDITAR / EXCLUIR EMPILHADOS (somem quando o mês está pago) */}
+                                            {podeAgir && !estaTravada(v) && <div className="flex flex-col gap-1.5">
                                                 <button 
                                                     onClick={() => setVendaEmEdicao(v)} 
                                                     title={tx("Editar Registro")}

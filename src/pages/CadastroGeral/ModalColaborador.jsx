@@ -146,12 +146,16 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
 
                             <div className="sm:col-span-2 border-t border-slate-100 pt-4 mt-2 dark:border-slate-800">
                                 <label className={labelBase}>{tx("Conta de Recebimento (Comissões)")}</label>
+                                {/* Banco Inter = pagamento principal; PIX (sempre a chave CPF) = secundário (decisão do dono, 11/11/2026) */}
+                                <p className="text-[11px] font-semibold text-slate-500 ml-1 dark:text-slate-400">{tx("O pagamento é feito principalmente pelo Banco Inter. Use o PIX só se a pessoa ainda não tiver conta no Inter.")}</p>
                                 <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 mt-2 shadow-inner dark:bg-slate-800 dark:border-slate-800">
                                     <button type="button" onClick={() => setTipoConta('INTER')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoConta === 'INTER' ? 'bg-white shadow-sm text-orange-600 border border-slate-200 dark:bg-slate-900 dark:text-orange-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                         <Building className="w-3.5 h-3.5" />{' '}{tx("Banco Inter")}
+                                        <span className="px-1.5 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-black">{tx("Principal")}</span>
                                     </button>
                                     <button type="button" onClick={() => { setTipoConta('PIX_CPF'); setContaInter(''); }} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoConta === 'PIX_CPF' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
-                                        <Zap className="w-3.5 h-3.5" />{' '}{tx("PIX (CPF)")}
+                                        <Zap className="w-3.5 h-3.5" />{' '}{tx("PIX (chave CPF)")}
+                                        <span className="normal-case tracking-normal font-bold opacity-80">{tx("só sem Inter")}</span>
                                     </button>
                                 </div>
                                 
@@ -163,11 +167,21 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                 )}
 
                                 {tipoConta === 'PIX_CPF' && (
-                                    <div className="mt-4 bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-start gap-3 animate-[fadeIn_0.2s_ease-out] dark:bg-emerald-500/10 dark:border-emerald-500/30">
+                                    <div className="mt-4 bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-start gap-2 dark:bg-amber-500/10 dark:border-amber-500/30">
+                                        <Building className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 dark:text-amber-400" />
+                                        <p className="text-xs font-bold text-amber-900 leading-snug dark:text-amber-200">
+                                            {tx("Atenção: o pagamento principal é pelo Banco Inter. Use o PIX só se a pessoa ainda não tiver conta no Inter. Enquanto estiver no PIX, o Líder e o Mentor vão receber o aviso para trocar para o Banco Inter.")}
+                                        </p>
+                                    </div>
+                                )}
+
+                                {tipoConta === 'PIX_CPF' && (
+                                    <div className="mt-3 bg-emerald-50 border border-emerald-100 p-4 rounded-xl flex items-start gap-3 animate-[fadeIn_0.2s_ease-out] dark:bg-emerald-500/10 dark:border-emerald-500/30">
                                         <Zap className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                                         <div>
                                             <p className="text-[10px] font-black text-emerald-800 uppercase tracking-wide dark:text-emerald-300">{tx("Chave PIX Travada")}</p>
                                             <p className="text-xs font-semibold text-emerald-600 mt-1 dark:text-emerald-400">{tx("A chave será estritamente o CPF:")}{' '}<strong className="font-mono text-emerald-900 dark:text-emerald-300">{cpf || tx("Preencha o CPF acima")}</strong>{cpf && <span className="inline-flex align-middle ml-1"><CopyButton textToCopy={cpf.replace(/\D/g, '')} label={tx('Copiar CPF')} /></span>}</p>
+                                            <p className="text-[11px] font-semibold text-emerald-700 mt-1 dark:text-emerald-400">{tx("A chave PIX é sempre o CPF da pessoa, nunca o telefone ou o e-mail.")}</p>
                                         </div>
                                     </div>
                                 )}

@@ -4,6 +4,7 @@ import { Database, Users, LayoutGrid, Layers, UserCircle, Building } from 'lucid
 
 import TabEquipe from './TabEquipe.jsx';
 import ModalColaborador from './ModalColaborador.jsx';
+import JanelaDesligamento from './JanelaDesligamento.jsx';
 import TabCatalogo from './TabCatalogo.jsx';
 import ModalCatalogo from './ModalCatalogo.jsx';
 import TabSetores from './TabSetores.jsx';
@@ -124,26 +125,40 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
         }
     };
 
-    const handleToggleStatusColaborador = async (colab) => {
-        const statusAtual = colab.ativo !== false; 
-        const novoStatus = !statusAtual;
-        
-        const msg = novoStatus 
-            ? `Deseja REATIVAR o acesso de ${colab.nome}? Ele voltará a aparecer nas listas de vendas.` 
-            : `Deseja DESLIGAR o colaborador ${colab.nome}? Ele não aparecerá mais para novas vendas, mas seu histórico financeiro será preservado.`;
-
-        if (!window.confirm(tx("Atenção! {msg}", { msg: msg }))) return;
-
+    // Desligar pede a DATA e o MOTIVO (janela JanelaDesligamento, 11/11/2026); reativar continua com a pergunta.
+    // Sem os campos no banco (falta o passo 3 de sql/2026-11-11-equipe-cpf-pagamento) grava só o ativo e avisa.
+    const [desligando, setDesligando] = useState(null);
+    const gravarStatusColaborador = async (colab, campos) => {
         setIsSubmitting(true);
         try {
-            const { data, error } = await supabase.from('colaboradores').update({ ativo: novoStatus }).eq('id', colab.id).select();
+            let { data, error } = await supabase.from('colaboradores').update(campos).eq('id', colab.id).select();
+            if (error && /desligado_em|motivo_desligamento/i.test(error.message || '')) {
+                console.warn('Equipe: campos do desligamento não existem no banco — rode sql/2026-11-11-equipe-cpf-pagamento/3_desligamento.sql');
+                if (campos.ativo === false) avisar(tx('A data e o motivo do desligamento não foram gravados: falta criar os campos no banco (SQL de 11/11/2026).'), 'atencao');
+                ({ data, error } = await supabase.from('colaboradores').update({ ativo: campos.ativo }).eq('id', colab.id).select());
+            }
             if (error) throw error;
             if (data) setColaboradores(colaboradores.map(c => c.id === colab.id ? data[0] : c));
+            return true;
         } catch (error) {
             avisar(tx("Erro ao atualizar status: {message}", { message: error.message }));
+            return false;
         } finally {
             setIsSubmitting(false);
         }
+    };
+    const handleToggleStatusColaborador = async (colab) => {
+        const statusAtual = colab.ativo !== false;
+        if (statusAtual) { setDesligando(colab); return; }
+
+        // Pergunta traduzida nos 3 idiomas (11/11/2026; antes ficava só em português)
+        const msg = tx('Deseja REATIVAR o acesso de {nome}? Ele voltará a aparecer nas listas de vendas.', { nome: colab.nome });
+        if (!window.confirm(tx("Atenção! {msg}", { msg: msg }))) return;
+        await gravarStatusColaborador(colab, { ativo: true, desligado_em: null, motivo_desligamento: null });
+    };
+    const confirmarDesligamento = async ({ data, motivo }) => {
+        const ok = await gravarStatusColaborador(desligando, { ativo: false, desligado_em: data, motivo_desligamento: motivo });
+        if (ok) setDesligando(null);
     };
 
     // --- CRUD: CATÁLOGO ---
@@ -289,6 +304,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
     return (
         <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative pb-10">
             <ModalColaborador isOpen={modalColabAberto} onClose={() => setModalColabAberto(false)} onSave={handleSaveColaborador} isSubmitting={isSubmitting} dadosEdicao={colabEditando} listaSetores={listaSetores} unidades={unidades} temVisaoGlobal={temVisaoGlobal} />
+            <JanelaDesligamento colaborador={desligando} salvando={isSubmitting} onConfirmar={confirmarDesligamento} onCancelar={() => setDesligando(null)} />
             <ModalCatalogo isOpen={modalCatAberto} onClose={() => setModalCatAberto(false)} onSave={handleSaveCatalogo} isSubmitting={isSubmitting} dadosEdicao={catEditando} />
             <ModalSetor isOpen={modalSetorAberto} onClose={() => setModalSetorAberto(false)} onSave={handleSaveSetor} isSubmitting={isSubmitting} dadosEdicao={setorEditando} />
 
@@ -325,6 +341,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
                         unidades={unidades} 
                         podeEditarEquipe={podeEditarEquipe}
                         ehAdmin={ehAdmin}
+                        listaSetores={listaSetores}
                         onEdit={(colab) => { setColabEditando(colab); setModalColabAberto(true); }}
                         onToggleStatus={handleToggleStatusColaborador}
                         onOpenModal={() => { setColabEditando(null); setModalColabAberto(true); }}

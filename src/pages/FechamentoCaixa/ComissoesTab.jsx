@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { formatMoney } from './utils.js'; 
-import { Check, Copy, Users, CheckCheck, Loader2, FileSpreadsheet, ChevronDown, ChevronRight, ChevronsUpDown, ChevronUp, Zap, Building, Inbox, CheckCircle2 } from 'lucide-react'; 
+import { Check, Copy, Users, CheckCheck, Loader2, FileSpreadsheet, ChevronDown, ChevronRight, ChevronsUpDown, ChevronUp, Zap, Building, Inbox, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { abrirCentralColaborador } from '../../components/centralColaborador.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 
@@ -237,7 +238,7 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                     </thead>
                     <tbody className="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
                         {sortedData.length > 0 ? sortedData.map((row, idx) => {
-                            const isExpanded = expandedRow === row.vendedor;
+                            const isExpanded = expandedRow === (row.chave || row.vendedor);
                             const stringItens = gerarStringItens(row.itens); 
                             
                             const cpfExibicao = row.cpf || '';
@@ -248,7 +249,7 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                             return (
                                 <React.Fragment key={idx}>
                                     <tr 
-                                        onClick={() => toggleRow(row.vendedor)}
+                                        onClick={() => toggleRow(row.chave || row.vendedor)}
                                         className={`transition-colors cursor-pointer group ${isExpanded ? 'bg-slate-50/80 dark:bg-slate-800/40' : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'}`}
                                     >
                                         <td className="px-6 py-6 align-middle">
@@ -264,8 +265,16 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                                     {row.vendedor.charAt(0)}
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-black text-slate-800 uppercase tracking-tight dark:text-white">{row.vendedor}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Time de Vendas")}</span>
+                                                    {/* Nome abre a Central do Colaborador (11/11/2026) */}
+                                                    <button type="button" onClick={(e) => { e.stopPropagation(); abrirCentralColaborador(row.colaborador || { nome: row.vendedor }); }} title={tx('Abrir a Central do Colaborador')}
+                                                        className="text-left text-sm font-black text-slate-800 uppercase tracking-tight hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-400">{row.vendedor}</button>
+                                                    {row.situacaoCadastro === 'sem_cadastro' ? (
+                                                        <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-0.5 inline-flex items-center gap-1 dark:text-rose-400" title={tx('Este nome da venda não está na Equipe. Confira o cadastro antes de pagar.')}><AlertTriangle className="w-3 h-3" />{tx('Conferir cadastro: nome não está na Equipe')}</span>
+                                                    ) : row.situacaoCadastro === 'ambiguo' ? (
+                                                        <span className="text-[10px] font-black text-rose-600 uppercase tracking-widest mt-0.5 inline-flex items-center gap-1 dark:text-rose-400" title={tx('Há mais de uma pessoa com este nome na Equipe. Confira qual conta usar.')}><AlertTriangle className="w-3 h-3" />{tx('Conferir cadastro: nome repetido na Equipe')}</span>
+                                                    ) : (
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Time de Vendas")}</span>
+                                                    )}
                                                 </div>
                                                 <CopyButton textToCopy={row.vendedor} label={tx("Copiar nome de {vendedor}", { vendedor: row.vendedor })} />
                                             </div>

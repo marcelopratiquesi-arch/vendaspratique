@@ -75,7 +75,7 @@ const PopupTurnoRecepcao = ({ usuario, colaboradores = [], setColaboradores }) =
                                 <li key={c.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${atual ? 'border-slate-200 dark:border-slate-800' : 'border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30'}`}>
                                     <span className="text-[12px] font-black uppercase text-slate-800 dark:text-white">{c.nome}</span>
                                     <div className="flex bg-slate-100 p-1 rounded-lg gap-1 dark:bg-slate-800">
-                                        {[['MANHA', tx('Manhã (5h às 14h)')], ['NOITE', tx('Noite (14h às 23h)')]].map(([valor, rotulo]) => (
+                                        {[['MANHA', tx('Manhã (7h às 13h)')], ['NOITE', tx('Noite (13h às 21h)')]].map(([valor, rotulo]) => (
                                             <button key={valor} type="button" onClick={() => setEscolhas(e => ({ ...e, [c.id]: valor }))}
                                                 className={`px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-colors ${atual === valor ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                                 {rotulo}

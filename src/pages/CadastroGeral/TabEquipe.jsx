@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Edit3, Power, PowerOff, UserPlus, Building, Zap, MapPin, RefreshCw, AlertTriangle, Sun, Moon, FileSpreadsheet } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
 import { ORDEM_NORMAL, proximaOrdem, ordenarLinhas } from '../../components/ordenacao.js';
 import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
 import CopyButton from '../HistoricoVendas/CopyButton.jsx';
 import { setorDoColaborador } from '../Lancamentos/seletores/setoresEquipe.js';
+import { abrirCentralColaborador } from '../../components/centralColaborador.js';
+import { problemasDoColaborador, conjuntoDeSetores, PROBLEMAS_CADASTRO, consumirFiltroEquipe, EVENTO_FILTRO_EQUIPE } from './cadastroColaborador.js';
 
 // ==========================================
 // CADASTROS → EQUIPE — revisão 360 de 09/11/2026 (decisão do dono)
@@ -13,6 +15,8 @@ import { setorDoColaborador } from '../Lancamentos/seletores/setoresEquipe.js';
 // - Botões sempre visíveis; copiar telefone; ordenar clicando no título (regra única de ordenacao.js).
 // - Filtro de unidade em azul (era vermelho, a cor de erro) e só na visão de várias unidades.
 // - CPF dentro de "Dados bancários" só para o Admin (dado sensível).
+// - 11/11/2026 (decisão do dono): alertas "recebendo por PIX" (o pagamento principal é o Banco Inter) e "cadastro
+//   incompleto" (regra única em cadastroColaborador.js, a mesma do aviso do Líder/Mentor); PIX ganha "trocar para Inter".
 // ==========================================
 
 const soNumeros = (t) => String(t || '').replace(/\D/g, '');
@@ -28,12 +32,19 @@ const VALORES = {
     banco: c => c.tipo_conta || null,
 };
 
-const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal, unidades = [], onOpenModal, podeEditarEquipe = true, ehAdmin = false }) => {
+const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal, unidades = [], onOpenModal, podeEditarEquipe = true, ehAdmin = false, listaSetores = [] }) => {
     const [termoBusca, setTermoBusca] = useState('');
     const [filtroUnidade, setFiltroUnidade] = useState('TODOS');
     const [filtroSetor, setFiltroSetor] = useState('TODOS');
     const [filtroStatus, setFiltroStatus] = useState('ATIVOS');
-    const [filtroAlerta, setFiltroAlerta] = useState(''); // '' | 'sem_turno' | 'sem_telefone'
+    // '' | 'sem_turno' | 'sem_telefone' | 'pix' | 'incompleto' (os dois últimos podem vir pedidos pela janela do Líder/Mentor)
+    const [filtroAlerta, setFiltroAlerta] = useState(() => consumirFiltroEquipe() || '');
+    useEffect(() => {
+        const aoPedir = () => { const f = consumirFiltroEquipe(); if (f) { setFiltroAlerta(f); setFiltroStatus('ATIVOS'); } };
+        window.addEventListener(EVENTO_FILTRO_EQUIPE, aoPedir);
+        return () => window.removeEventListener(EVENTO_FILTRO_EQUIPE, aoPedir);
+    }, []);
+    const setoresValidos = useMemo(() => conjuntoDeSetores(listaSetores), [listaSetores]);
     const [ordem, setOrdem] = useState(ORDEM_NORMAL);
     const ordenar = (coluna, texto) => setOrdem(atual => proximaOrdem(atual, coluna, texto));
 
@@ -47,6 +58,8 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
         desligados: daUnidade.length - ativos.length,
         semTurno: ativos.filter(c => ehRecepcao(c) && !c.turno).length,
         semTelefone: ativos.filter(semTelefone).length,
+        pix: ativos.filter(c => c.tipo_conta === 'PIX_CPF').length,
+        incompleto: ativos.filter(c => problemasDoColaborador(c, setoresValidos).length > 0).length,
         porSetor: Object.entries(ativos.reduce((acc, c) => { const s = c.role || tx('Sem setor'); acc[s] = (acc[s] || 0) + 1; return acc; }, {})).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'pt-BR')),
     };
 
@@ -60,13 +73,15 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
             if (filtroSetor !== 'TODOS' && String(c.role || '').toUpperCase() !== filtroSetor.toUpperCase()) return false;
             if (filtroAlerta === 'sem_turno' && !(ehRecepcao(c) && !c.turno)) return false;
             if (filtroAlerta === 'sem_telefone' && !semTelefone(c)) return false;
+            if (filtroAlerta === 'pix' && c.tipo_conta !== 'PIX_CPF') return false;
+            if (filtroAlerta === 'incompleto' && !problemasDoColaborador(c, setoresValidos).length) return false;
             if (!busca) return true;
             return String(c.nome || '').toLowerCase().includes(busca)
                 || (buscaNum && (soNumeros(c.cpf).includes(buscaNum) || soNumeros(c.telefone).includes(buscaNum)));
         });
         const normal = [...filtrados].sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-BR'));
         return ordenarLinhas(normal, ordem, VALORES, c => c.nome);
-    }, [daUnidade, filtroSetor, filtroStatus, filtroAlerta, termoBusca, ordem]);
+    }, [daUnidade, filtroSetor, filtroStatus, filtroAlerta, termoBusca, ordem, setoresValidos]);
 
     // Planilha da Equipe (revisão de 10/11/2026, só o Admin: tem dados bancários). Exporta a lista que está na tela
     // (o padrão é "Ativos"); abre no Excel (separador ";" e acentos certos).
@@ -119,6 +134,18 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                     );
                 })}
                 <div className="flex-1" />
+                {resumo.pix > 0 && (
+                    <button type="button" onClick={() => alternarAlerta('pix')} aria-pressed={filtroAlerta === 'pix'} title={tx('O pagamento principal é o Banco Inter. O PIX (chave CPF) é só para quem ainda não tem conta no Inter.')}
+                        className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'pix' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300'}`}>
+                        <Zap className="w-3.5 h-3.5" />{resumo.pix === 1 ? tx('1 recebendo por PIX') : tx('{qtd} recebendo por PIX', { qtd: resumo.pix })}
+                    </button>
+                )}
+                {resumo.incompleto > 0 && (
+                    <button type="button" onClick={() => alternarAlerta('incompleto')} aria-pressed={filtroAlerta === 'incompleto'} title={tx('PIX no lugar do Banco Inter, sem conta, CPF vazio ou inválido, sem telefone ou sem setor')}
+                        className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'incompleto' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
+                        <AlertTriangle className="w-3.5 h-3.5" />{resumo.incompleto === 1 ? tx('1 cadastro incompleto') : tx('{qtd} cadastros incompletos', { qtd: resumo.incompleto })}
+                    </button>
+                )}
                 {resumo.semTurno > 0 && (
                     <button type="button" onClick={() => alternarAlerta('sem_turno')} aria-pressed={filtroAlerta === 'sem_turno'}
                         className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'sem_turno' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
@@ -178,7 +205,7 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
 
             {(temFiltro || ordem.coluna) && (
                 <div className="flex flex-wrap items-center gap-3 px-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                    <span>{tx('{qtd} de {total} pessoas', { qtd: dadosProcessados.length, total: colaboradores.length })}</span>
+                    <span>{tx('{qtd} de {total} pessoas', { qtd: dadosProcessados.length, total: daUnidade.length })}</span>
                     {ordem.coluna && <button type="button" onClick={() => setOrdem(ORDEM_NORMAL)} className="text-blue-700 hover:underline dark:text-blue-400">{tx('Voltar à ordem normal')}</button>}
                 </div>
             )}
@@ -203,11 +230,28 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                                 const isAtivo = c.ativo !== false;
                                 const setor = setorDoColaborador(c);
                                 const turno = String(c.turno || '').toUpperCase();
+                                // Problemas que não aparecem em outra coluna (PIX e telefone já aparecem)
+                                const outrosProblemas = isAtivo ? problemasDoColaborador(c, setoresValidos).filter(p => p !== 'pix' && p !== 'telefone') : [];
                                 return (
                                     <tr key={c.id} className={`transition-colors ${isAtivo ? 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40' : 'bg-slate-50/60 opacity-70 hover:opacity-100 dark:bg-slate-800/40'}`}>
                                         <td className="px-4 py-2.5">
-                                            <p className={`text-[13px] font-black uppercase tracking-tight ${isAtivo ? 'text-slate-800 dark:text-white' : 'text-slate-500 line-through decoration-slate-300 dark:text-slate-400'}`}>{c.nome}</p>
-                                            {!isAtivo && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">{tx('DESLIGADO')}</p>}
+                                            {/* Nome abre a Central do Colaborador (11/11/2026; permissão 809) + copiar o nome */}
+                                            <span className="inline-flex items-center gap-1">
+                                                <button type="button" onClick={() => abrirCentralColaborador(c, { onEditar: podeEditarEquipe ? onEdit : null })} title={tx('Abrir a Central do Colaborador')}
+                                                    className={`text-left text-[13px] font-black uppercase tracking-tight hover:text-blue-700 hover:underline dark:hover:text-blue-400 ${isAtivo ? 'text-slate-800 dark:text-white' : 'text-slate-500 line-through decoration-slate-300 dark:text-slate-400'}`}>{c.nome}</button>
+                                                <CopyButton textToCopy={c.nome} label={tx('Copiar nome')} />
+                                            </span>
+                                            {!isAtivo && <p className="text-[10px] font-black text-rose-500 uppercase tracking-widest">
+                                                {tx('DESLIGADO')}
+                                                {/* Data e motivo do desligamento (11/11/2026; vazio nos desligamentos antigos) */}
+                                                {c.desligado_em && <span className="normal-case tracking-normal font-bold text-slate-500 dark:text-slate-400"> · {tx('em {data}', { data: String(c.desligado_em).slice(0, 10).split('-').reverse().join('/') })}</span>}
+                                                {c.motivo_desligamento && <span className="normal-case tracking-normal font-bold text-slate-500 dark:text-slate-400"> · {tx(c.motivo_desligamento)}</span>}
+                                            </p>}
+                                            {outrosProblemas.length > 0 && (
+                                                <p className="text-[10px] font-black text-amber-700 uppercase tracking-wide inline-flex items-center gap-1 dark:text-amber-400">
+                                                    <AlertTriangle className="w-3 h-3 shrink-0" />{outrosProblemas.map(p => tx(PROBLEMAS_CADASTRO[p])).join(' · ')}
+                                                </p>
+                                            )}
                                         </td>
                                         <td className="px-4 py-2.5">
                                             {c.cpf
@@ -241,6 +285,7 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                                                     <span>
                                                         <span className="block text-[10px] font-black text-emerald-600 uppercase tracking-widest dark:text-emerald-400">{tx('PIX (Chave CPF)')}</span>
                                                         {ehAdmin && <span className="block text-[10px] font-mono font-bold text-emerald-800 dark:text-emerald-300">{c.cpf}</span>}
+                                                        {isAtivo && <span className="mt-0.5 inline-block px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-700 text-[10px] font-black uppercase dark:bg-rose-500/10 dark:text-rose-300" title={tx('O pagamento principal é o Banco Inter. O PIX (chave CPF) é só para quem ainda não tem conta no Inter.')}>{tx('Trocar para Inter')}</span>}
                                                     </span>
                                                 </span>
                                             ) : c.tipo_conta === 'INTER' ? (
@@ -252,7 +297,7 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                                                     </span>
                                                 </span>
                                             ) : (
-                                                <span className="text-[10px] font-bold text-slate-400 uppercase">{tx('Não Definido')}</span>
+                                                <span className={`text-[10px] font-black uppercase ${isAtivo ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>{tx('Não Definido')}</span>
                                             )}
                                         </td>
                                         <td className="px-4 py-2.5 text-right">

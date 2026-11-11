@@ -7,7 +7,9 @@ import { recarregarNaVersaoMaisNova } from '../pausaSistema.js';
 // Cortina de inatividade (decisão do dono, 07/11/2026): 30 min sem uso = sistema pausado (sem "ao vivo" nem
 // releituras do banco). No último minuto aparece o cartão com contagem regressiva; mexer o mouse cancela.
 // Voltar recarrega SEMPRE na versão mais nova publicada (recarregarNaVersaoMaisNova).
-export default function IdleCurtain({ isIdle, segundosParaPausar = null }) {
+// modoSair (12/11/2026): Líder/Mentor/Admin com o login com Google ligado SAEM do sistema depois de 15 min parados;
+// o cartão do último minuto avisa "Sua sessão vai expirar" com o botão Continuar.
+export default function IdleCurtain({ isIdle, segundosParaPausar = null, modoSair = false }) {
     const { t } = useI18n();
     const [voltando, setVoltando] = useState(false);
 
@@ -19,10 +21,18 @@ export default function IdleCurtain({ isIdle, segundosParaPausar = null }) {
                     <Timer className="w-4 h-4 text-amber-500" />
                     <span className="text-lg font-black text-amber-600 dark:text-amber-400 leading-none tabular-nums">{segundosParaPausar}</span>
                 </div>
+                {modoSair ? (
+                    <div className="min-w-0 flex-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Sua sessão vai expirar em {seg} s', { seg: segundosParaPausar })}</p>
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{tx('Sem uso há quase 15 minutos. Continuar?')}</p>
+                        <button type="button" className="mt-2 h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Continuar')}</button>
+                    </div>
+                ) : (
                 <div className="min-w-0">
                     <p className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('O sistema vai pausar em {seg} s', { seg: segundosParaPausar })}</p>
                     <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{tx('Sem uso há quase 30 minutos. Mexa o mouse ou aperte qualquer tecla para continuar.')}</p>
                 </div>
+                )}
             </div>
         );
     }

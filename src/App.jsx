@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { supabase } from './supabaseClient.js';
+import { supabase, definirLoginLembrado } from './supabaseClient.js';
 import { useI18n } from './i18n/I18nContext.jsx'; 
 
 import { 
     ShoppingCart, History, PieChart, Wallet, 
-    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone, Building2, BellRing
+    Users, GraduationCap, Database, Settings, Dumbbell, Megaphone, Building2, BellRing, KeyRound
 } from 'lucide-react';
 
 import { SidebarDesktop, SidebarMobile } from './components/layout/Sidebar.jsx';
@@ -40,8 +40,20 @@ import { usePendencias } from './pages/Pendencias/pendencias.js';
 import CobrancaRelatorioRecepcao from './pages/Pendencias/CobrancaRelatorioRecepcao.jsx';
 import LembreteCrm from './pages/Pendencias/LembreteCrm.jsx';
 import PopupTurnoRecepcao from './pages/Pendencias/PopupTurnoRecepcao.jsx';
+import { JanelaCadastroEquipe, CartaoCadastroEquipe } from './pages/Pendencias/AvisoCadastroEquipe.jsx';
+import { useCadastroEquipe } from './pages/Pendencias/useCadastroEquipe.js';
+import CentralColaboradorGlobal from './pages/CadastroGeral/colaborador/CentralColaboradorGlobal.jsx';
+import { pedirFiltroEquipe } from './pages/CadastroGeral/cadastroColaborador.js';
 import { tx } from './i18n/traduzir.js';
 import { usePermissoes } from './permissoes/usePermissoes.js';
+import { carregarChavesLogin, situacaoDoAcesso, dadosDoLoginAtual, registrarLoginUmaVez, registrarEvento, baterAtividade, esquecerRegistroDoLogin } from './components/acesso/acessoBanco.js';
+import { situacaoDaEntrada, senhaLiberada, precisaConfirmarDados, MINUTOS_SESSAO, MINUTOS_ENTRE_BATIDAS } from './components/acesso/regrasAcesso.js';
+import { useAcessos } from './components/acesso/useAcessos.js';
+import TelaAcesso from './components/acesso/TelaAcesso.jsx';
+import JanelaConfirmarDados from './components/acesso/JanelaConfirmarDados.jsx';
+import JanelaPedidosAcesso from './components/acesso/JanelaPedidosAcesso.jsx';
+import MeusAcessos from './components/acesso/MeusAcessos.jsx';
+import PaginaAcessos from './pages/Acessos/index.jsx';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface").
 // Desde 09/11/2026 cada computador escolhe na barra do topo (guardado no computador). Pequeno = 0.8, o tamanho
@@ -221,6 +233,50 @@ export default function App() {
         setUsuarioLogado(perfil);
     }, []);
 
+    // ACESSO PESSOAL COM GOOGLE (12/11/2026, decisão do dono; components/acesso/). Depois de qualquer login (Google,
+    // senha ou login guardado) o banco diz a situação: ativo entra; sem acesso vai para a TelaAcesso (pedir acesso,
+    // aguardando, rejeitado, inativo). Senha depois da virada: só Admin ou liberação de emergência de 24 h.
+    // Recepção (e todos, enquanto o Google não está ligado) continua com o login lembrado no computador.
+    // Sem o SQL de 12/11/2026, tudo fica como antes.
+    const [acessoPendente, setAcessoPendente] = useState(null); // { email, situacao }
+    const [chavesLogin, setChavesLogin] = useState(null);
+    const sairComAviso = useCallback(async (mensagem) => {
+        try { if (mensagem) sessionStorage.setItem('pratique_aviso_login', mensagem); } catch { /* sem armazenamento */ }
+        esquecerLugar();
+        esquecerRegistroDoLogin();
+        try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
+        recarregarNaVersaoMaisNova();
+    }, []);
+    const conferirEEntrar = useCallback(async (perfilDoLogin) => {
+        const chaves = await carregarChavesLogin();
+        setChavesLogin(chaves);
+        const situacao = await situacaoDoAcesso();
+        const { data } = await supabase.auth.getSession();
+        const email = perfilDoLogin?.email || data?.session?.user?.email || '';
+        if (!situacao) {
+            // Banco ainda sem o SQL de 12/11/2026: como antes
+            const perfil = perfilDoLogin?.role ? perfilDoLogin : (await buscarPerfilDoLogin(email)).perfil;
+            if (perfil) entrar(perfil); else await supabase.auth.signOut();
+            return;
+        }
+        if (situacaoDaEntrada(situacao) !== 'ativo') { setAcessoPendente({ email, situacao }); return; }
+        const p = situacao.perfil;
+        const { metodo } = await dadosDoLoginAtual();
+        if (metodo === 'senha' && !senhaLiberada({ perfil: p, senhaParaTodos: chaves.login_senha_todos })) {
+            await registrarEvento('NEGADO', 'entrada com senha depois da virada');
+            await sairComAviso(tx('Entre com o Google. A entrada com senha é só para emergência: peça a liberação à diretoria.'));
+            return;
+        }
+        definirLoginLembrado(!chaves.login_google || String(p.role).toUpperCase() === 'RECEPCAO');
+        await registrarLoginUmaVez();
+        entrar({ ...p, email: p.email || email, unidade: p.unidade || 'MATRIZ' });
+    }, [entrar, sairComAviso]);
+    const atualizarAcessoPendente = useCallback(async () => {
+        const situacao = await situacaoDoAcesso();
+        if (situacao && situacaoDaEntrada(situacao) === 'ativo') { setAcessoPendente(null); await conferirEEntrar(null); return; }
+        setAcessoPendente(a => (a ? { ...a, situacao: situacao || a.situacao } : a));
+    }, [conferirEEntrar]);
+
     // Ao abrir/recarregar: se o navegador ainda tem o login (só "Sair" apaga), entra direto, sem pedir a senha
     useEffect(() => {
         if (VEIO_DO_LINK_DE_SENHA) return undefined;
@@ -230,10 +286,8 @@ export default function App() {
                 const { data } = await supabase.auth.getSession();
                 const email = data?.session?.user?.email;
                 if (!email) return;
-                const { perfil, erro } = await buscarPerfilDoLogin(email);
                 if (!ativo) return;
-                if (perfil) entrar(perfil);
-                else if (erro?.code === 'PGRST116') await supabase.auth.signOut(); // login sem cadastro no sistema
+                await conferirEEntrar({ email });
             } catch (err) {
                 console.error('Não foi possível reabrir o login guardado:', err);
             } finally {
@@ -241,7 +295,7 @@ export default function App() {
             }
         })();
         return () => { ativo = false; };
-    }, [entrar]);
+    }, [conferirEEntrar]);
 
     // Login encerrado em outra aba ("Sair") ou expirado: recarrega e mostra a tela de login
     useEffect(() => {
@@ -298,15 +352,27 @@ export default function App() {
     // releituras do banco). No último minuto aparece o cartão com contagem regressiva; mexer cancela.
     // Conta pelo relógio (e confere ao voltar para a aba), porque aba minimizada atrasa os temporizadores.
     // Só conta com alguém logado: a tela de login esquecida aberta não pausa o sistema de quem entrar depois.
+    // Login com Google ligado (12/11/2026, decisão do dono): Líder, Mentor e Admin SAEM do sistema depois de 15 min
+    // parados (aviso 1 min antes) e marcam "estou ativo" no banco no máximo a cada 5 min. A Recepção continua com a
+    // cortina de 30 min.
     const temLogin = Boolean(usuarioLogado);
+    const sessaoCurta = Boolean(chavesLogin?.login_google) && temLogin && String(usuarioLogado?.role || '').toUpperCase() !== 'RECEPCAO';
     useEffect(() => {
         if (isIdle || !temLogin) return undefined;
-        const LIMITE = MINUTOS_PARA_PAUSAR * 60 * 1000;
+        const LIMITE = (sessaoCurta ? MINUTOS_SESSAO : MINUTOS_PARA_PAUSAR) * 60 * 1000;
         const AVISO = SEGUNDOS_DE_AVISO * 1000;
         let ultimaAtividade = Date.now();
+        let saindo = false;
         const conferir = () => {
             const parado = Date.now() - ultimaAtividade;
             if (parado >= LIMITE) {
+                if (sessaoCurta) {
+                    if (saindo) return;
+                    saindo = true;
+                    setSegundosParaPausar(null);
+                    registrarEvento('EXPIROU', `${MINUTOS_SESSAO} min sem uso`).finally(() => sairComAviso(tx('Sua sessão expirou depois de {min} minutos sem uso. Entre de novo.', { min: MINUTOS_SESSAO })));
+                    return;
+                }
                 pausarSistema();
                 setSegundosParaPausar(null);
                 setIsIdle(true);
@@ -321,6 +387,7 @@ export default function App() {
             if (Date.now() - ultimaAtividade >= LIMITE) { conferir(); return; }
             ultimaAtividade = Date.now();
             setSegundosParaPausar(null);
+            if (sessaoCurta) baterAtividade(MINUTOS_ENTRE_BATIDAS);
         };
         const eventos = ['mousemove', 'mousedown', 'keydown', 'scroll', 'wheel', 'touchstart', 'click'];
         eventos.forEach(evento => window.addEventListener(evento, marcarAtividade, { passive: true }));
@@ -331,7 +398,7 @@ export default function App() {
             document.removeEventListener('visibilitychange', conferir);
             eventos.forEach(evento => window.removeEventListener(evento, marcarAtividade));
         };
-    }, [isIdle, temLogin]);
+    }, [isIdle, temLogin, sessaoCurta, sairComAviso]);
 
     // Comunicados (revisado em 09/11/2026 para gastar menos banco): usa o e-mail do login que já está na memória
     // (antes perguntava ao servidor de login a cada aviso), escuta só a caixa de entrada desta pessoa, junta os
@@ -704,6 +771,21 @@ export default function App() {
         return [];
     }, [papelCobranca, usuarioLogado?.unidade, unidadesVisiveis]);
     const pendencias = usePendencias({ ativo: ['LIDER', 'MENTOR', 'ADMIN'].includes(papelCobranca), unidades: unidadesCobradas, colaboradores });
+    // Acessos (12/11/2026): pedidos, trocas de líder, sem acesso há 7+ dias... para Admin e Mentor (aba Pendências
+    // → Acessos e janela ao entrar). "Meus acessos" para todos. Confirmação dos dados para Líder/Mentor/Admin.
+    const acessos = useAcessos({ ativo: papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR', unidades: unidadesVisiveis });
+    const [janelaAcessosFechada, setJanelaAcessosFechada] = useState(false);
+    useEffect(() => { setJanelaAcessosFechada(false); }, [usuarioLogado?.email]);
+    const [meusAcessosAberto, setMeusAcessosAberto] = useState(false);
+    useEffect(() => {
+        const abrir = () => setMeusAcessosAberto(true);
+        window.addEventListener('abrir-meus-acessos', abrir);
+        return () => window.removeEventListener('abrir-meus-acessos', abrir);
+    }, []);
+    const confirmarDadosAgora = precisaConfirmarDados(usuarioLogado);
+    const aoConfirmarDados = useCallback(({ nome, telefone }) => {
+        setUsuarioLogado(u => (u ? { ...u, nome, telefone, dados_confirmados_em: new Date().toISOString() } : u));
+    }, []);
     // Permissões (Configurações → Permissões, 06/11/2026): pode('004') etc.; sem mudança do Admin vale o padrão de antes
     const pode = usePermissoes(usuarioLogado);
     // O usuário de verdade (sem a troca de unidade do topo), já com as permissões, para as telas que usam o login real
@@ -713,6 +795,19 @@ export default function App() {
     const [janelaPendenciasFechada, setJanelaPendenciasFechada] = useState(false);
     const aoFecharJanelaPendencias = useCallback(() => setJanelaPendenciasFechada(true), []);
     useEffect(() => { setJanelaPendenciasFechada(false); }, [usuarioLogado?.email]);
+    // Cadastro da equipe incompleto (decisão do dono, 11/11/2026): PIX → Banco Inter, CPF, telefone, setor.
+    // Líder (a unidade dele) e Mentor (as dele), permissão 910. Janela TODA VEZ que entra; cartão no canto até resolver.
+    const avisoEquipeAtivo = (papelCobranca === 'LIDER' || papelCobranca === 'MENTOR') && pode('910');
+    const cadastroEquipe = useCadastroEquipe({ ativo: avisoEquipeAtivo, unidades: unidadesCobradas, colaboradoresApp: colaboradores, setColaboradoresApp: setColaboradores });
+    const [janelaEquipeAberta, setJanelaEquipeAberta] = useState(true);
+    useEffect(() => { setJanelaEquipeAberta(true); }, [usuarioLogado?.email]);
+    const fecharJanelaEquipe = useCallback(() => setJanelaEquipeAberta(false), []);
+    const abrirEquipeComFiltro = () => {
+        setJanelaEquipeAberta(false);
+        pedirFiltroEquipe('incompleto');
+        pedirSubaba('cadastros', 'equipe');
+        handleNavigation('cadastros');
+    };
     // Botões das pendências: Mentor/Admin passam a olhar a unidade da pendência (seletor do topo) e a tela certa abre
     // Panorama da unidade (Cadastros → Unidades → Central): "Abrir a tela completa" troca o topo para a unidade e abre a tela
     const abrirTelaDaUnidade = (unidade, tela, opcoes = {}) => {
@@ -788,6 +883,8 @@ export default function App() {
     const handleLogout = async () => {
         esquecerLugar();
         setIsMobileMenuOpen(false);
+        await registrarEvento('LOGOUT'); // histórico de acessos (12/11/2026); sem o SQL só avisa no console
+        esquecerRegistroDoLogin();
         try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
         recarregarNaVersaoMaisNova();
     };
@@ -811,7 +908,12 @@ export default function App() {
                 </div>
             );
         }
-        return <Login onLogin={entrar} />;
+        // Entrou com o Google mas ainda não tem acesso ativo: pedir acesso / aguardando / rejeitado / inativo
+        if (acessoPendente) {
+            return <TelaAcesso email={acessoPendente.email} situacao={acessoPendente.situacao} onAtualizar={atualizarAcessoPendente}
+                onSair={() => { setAcessoPendente(null); sairComAviso(null); }} />;
+        }
+        return <Login onLogin={conferirEEntrar} />;
     }
 
     // Cada item do menu tem o número da permissão (Configurações → Permissões; padrão = como era antes)
@@ -826,6 +928,8 @@ export default function App() {
         { id: 'cadastros', label: t('navigation.management'), icon: Database, codigo: '008' },
         { id: 'comunicados', label: t('navigation.communications', { defaultValue: 'Comunicados' }), icon: Megaphone, codigo: '009', badge: comunicadosGlobais.pendentesTotais > 0 ? comunicadosGlobais.pendentesTotais : null },
         { id: 'pendencias', label: tx('Pendências'), icon: BellRing, codigo: '010', badge: pendencias.totalDia > 0 ? pendencias.totalDia : null }, // movimentação só do dia atual (09/11/2026)
+        // Acessos (12/11/2026, decisão do dono: aba própria no menu): número vermelho = pedidos esperando
+        { id: 'acessos', label: tx('Acessos'), icon: KeyRound, codigo: '013', badge: acessos.contas?.pedidos.length ? acessos.contas.pedidos.length : null },
         { id: 'config', label: t('navigation.settings'), icon: Settings, codigo: '011' }
     ];
 
@@ -889,8 +993,18 @@ export default function App() {
     return (
         <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
             
-            <IdleCurtain isIdle={isIdle} segundosParaPausar={segundosParaPausar} />
+            <IdleCurtain isIdle={isIdle} segundosParaPausar={segundosParaPausar} modoSair={sessaoCurta} />
             <AvisoConexao semInternet={semInternet} aoVivoOk={aoVivoOk} pausado={isIdle} />
+
+            {/* Acesso pessoal (12/11/2026): confirmar os dados (Líder/Mentor/Admin; obrigatória), pedidos de acesso para
+                quem aprova (Admin/Mentor, uma vez por entrada) e "Meus acessos" (botão no menu, ao lado de Sair) */}
+            {confirmarDadosAgora && <JanelaConfirmarDados perfil={usuarioLogado} onConfirmado={aoConfirmarDados} />}
+            {!confirmarDadosAgora && !janelaAcessosFechada && (
+                <JanelaPedidosAcesso contas={acessos.contas} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)}
+                    onDecidido={acessos.recarregar} onFechar={() => setJanelaAcessosFechada(true)}
+                    onVerPendencias={() => { setJanelaAcessosFechada(true); handleNavigation('acessos'); }} />
+            )}
+            {meusAcessosAberto && <MeusAcessos onFechar={() => setMeusAcessosAberto(false)} />}
 
             {/* Central de cobranças (decisão do dono, 05/11/2026): Líder e Mentor ganham a janela ao entrar e o cartão
                 do canto (Conferência, Movimentação e Metas). O Admin cobra pela aba Pendências. */}
@@ -898,10 +1012,25 @@ export default function App() {
                 <>
                     <JanelaPendencias lista={pendencias.lista} carregado={pendencias.carregado && unidadesCobradas.length > 0} ehMentor={ehMentor} podeConferirRelatorio={pode('313')}
                         aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} onFechar={aoFecharJanelaPendencias} />
-                    <CartaoPendencias lista={pendencias.lista} ehMentor={ehMentor} escondido={!janelaPendenciasFechada} podeConferirRelatorio={pode('313')}
-                        aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} />
                 </>
             )}
+
+            {/* Cadastro da equipe incompleto (11/11/2026): janela ao entrar (fica por baixo da janela do turno) */}
+            {avisoEquipeAtivo && janelaEquipeAberta && (
+                <JanelaCadastroEquipe itens={cadastroEquipe.itens} setores={cadastroEquipe.setores} ehMentor={ehMentor} unidadeTitulo={usuarioLogado?.unidade}
+                    podeEditar={pode('807')} salvar={cadastroEquipe.salvar} onFechar={fecharJanelaEquipe} aoAbrirEquipe={abrirEquipeComFiltro} />
+            )}
+
+            {/* Cartões do canto direito (lado oposto ao menu), um em cima do outro: cobranças e cadastro da equipe */}
+            <div className="fixed bottom-4 right-4 z-[70] w-[min(360px,calc(100%-32px))] flex flex-col gap-3 pointer-events-none">
+                {cobradoNaTela && (
+                    <CartaoPendencias lista={pendencias.lista} ehMentor={ehMentor} escondido={!janelaPendenciasFechada} podeConferirRelatorio={pode('313')}
+                        aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} />
+                )}
+                {avisoEquipeAtivo && !janelaEquipeAberta && (
+                    <CartaoCadastroEquipe itens={cadastroEquipe.itens} ehMentor={ehMentor} aoAbrir={() => setJanelaEquipeAberta(true)} />
+                )}
+            </div>
 
             {/* Recepção: cobrança do relatório de fechamento do turno (14h30 manhã, 22h30 noite, 12h30 sáb/dom/feriado; horários de 06/11/2026) */}
             {/* Líder: marcar o turno das recepcionistas da unidade (enquanto faltar alguém; 05/11/2026) */}
@@ -914,6 +1043,11 @@ export default function App() {
             <CentralUnidadeGlobal usuario={usuarioComPode} unidades={unidades} setUnidades={setUnidades}
                 unidadesPermitidas={usuarioLogado?.role === 'ADMIN' ? null : usuarioLogado?.role === 'MENTOR' ? unidadesVisiveis.map(u => u.nome) : (usuarioLogado?.unidade ? [usuarioLogado.unidade] : [])}
                 planos={planos} produtos={produtos} pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />
+            {/* Central do Colaborador (11/11/2026): clicar no nome na Equipe ou nas Comissões. Admin todas; Mentor as dele;
+                Líder a própria; Recepção não abre (permissão 809) */}
+            <CentralColaboradorGlobal usuario={usuarioComPode}
+                unidadesPermitidas={usuarioLogado?.role === 'ADMIN' ? null : usuarioLogado?.role === 'MENTOR' ? unidadesVisiveis.map(u => u.nome) : (usuarioLogado?.unidade ? [usuarioLogado.unidade] : [])}
+                planos={planos} produtos={produtos} />
 
             <CobrancaRelatorioRecepcao usuario={usuarioComPode} colaboradores={colaboradores}
                 aoIrRelatorio={() => { pedirAbaAnalise('relatorio'); handleNavigation('analise'); }} />
@@ -1036,6 +1170,7 @@ export default function App() {
                         pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />}
                     {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} />}
+                    {telaAtual === 'acessos' && (papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR') && <PaginaAcessos acessos={acessos} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)} />}
                     {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} />}
                     </>)}
                     </ProtecaoTela>

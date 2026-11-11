@@ -12,6 +12,8 @@ import { contarPlanosDoCard } from '../../AnaliseVendas/utils.js';
 import { textoMovimentoDia, textoMetaCard, textoUltimoLancamento } from '../../Pendencias/pendencias.js';
 import { RelatorioCompacto } from '../../Pendencias/index.jsx';
 import { usePanoramaUnidade } from './usePanoramaUnidade.js';
+import { abrirCentralColaborador } from '../../../components/centralColaborador.js';
+import { mesmoNomeColaborador } from '../colaborador/contasColaborador.js';
 import { faixaEmIso, resumoVendas, variacao, placarDoMes, resumoMovimento, resumoAvaliacoes, resumoCrm } from './contasPanorama.js';
 
 // ==========================================
@@ -70,7 +72,18 @@ const Numero = ({ rotulo, valor, sub, cor = 'text-slate-800 dark:text-white', ti
     </div>
 );
 
-const AbaPanorama = ({ unidade, recepcionistas = [], semPersonal = false, pendencia, planos = [], produtos = [], abrirTela }) => {
+const AbaPanorama = ({ unidade, recepcionistas = [], colaboradores = [], semPersonal = false, pendencia, planos = [], produtos = [], abrirTela }) => {
+    // Clicar no nome de um consultor abre a Central do Colaborador POR CIMA da unidade (11/11/2026, decisão do dono);
+    // Esc ou Fechar volta para a unidade. A pessoa é achada pelo nome na Equipe (senão abre só com o nome).
+    const nomeConsultor = (nome, conteudo = null) => {
+        const pessoa = colaboradores.find(c => mesmoNomeColaborador(c.nome, nome)) || { nome, unidade: unidade.nome };
+        return (
+            <button type="button" onClick={() => abrirCentralColaborador(pessoa)} title={tx('Abrir a Central do Colaborador')}
+                className="text-left text-[12px] font-bold uppercase text-slate-700 truncate flex items-center gap-1.5 min-w-0 hover:text-blue-700 hover:underline dark:text-slate-200 dark:hover:text-blue-400">
+                {conteudo || <span className="truncate">{nome}</span>}
+            </button>
+        );
+    };
     const periodo = usePeriodoPadrao('este_mes');
     const faixa = useMemo(() => faixaEmIso(periodo.faixa), [periodo.faixa]);
     const [versao, setVersao] = useState(0);
@@ -155,7 +168,7 @@ const AbaPanorama = ({ unidade, recepcionistas = [], semPersonal = false, penden
                                         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{tx('Por consultor (itens · comissão)')}</p>
                                         {v.consultores.slice(0, 8).map(c => (
                                             <div key={c.nome} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_80px] items-center gap-3">
-                                                <span className="text-[12px] font-bold uppercase text-slate-700 truncate dark:text-slate-200" title={c.nome}>{c.nome}</span>
+                                                {nomeConsultor(c.nome)}
                                                 <span className="flex items-center gap-2"><span className="flex-1 min-w-0"><Barra valor={c.itens} total={v.consultores[0].itens} /></span><span className="text-[12px] font-extrabold tabular-nums text-slate-700 w-6 text-right dark:text-slate-200">{c.itens}</span></span>
                                                 <span className="text-[11px] font-bold tabular-nums text-emerald-600 text-right dark:text-emerald-400">{dinheiro(c.comissao)}</span>
                                             </div>
@@ -218,11 +231,11 @@ const AbaPanorama = ({ unidade, recepcionistas = [], semPersonal = false, penden
                                         <div className="space-y-2">
                                             {contas.crm.porPessoa.map(p => (
                                                 <div key={p.nome} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_64px] items-center gap-3">
-                                                    <span className="text-[12px] font-bold uppercase text-slate-700 truncate flex items-center gap-1.5 dark:text-slate-200" title={p.nome}>
+                                                    {nomeConsultor(p.nome, <>
                                                         {String(p.turno).toUpperCase() === 'MANHA' && <Sun className="w-3 h-3 text-amber-500 shrink-0" />}
                                                         {String(p.turno).toUpperCase() === 'NOITE' && <Moon className="w-3 h-3 text-blue-500 shrink-0" />}
-                                                        {p.nome}
-                                                    </span>
+                                                        <span className="truncate">{p.nome}</span>
+                                                    </>)}
                                                     <Barra valor={p.pessoasHoje} total={150} cor={p.pessoasHoje >= 150 ? 'bg-emerald-500' : 'bg-orange-500'} />
                                                     <span className="text-[12px] font-extrabold tabular-nums text-right text-slate-700 dark:text-slate-200">{p.pessoasHoje}/150</span>
                                                 </div>
@@ -261,7 +274,7 @@ const AbaPanorama = ({ unidade, recepcionistas = [], semPersonal = false, penden
                                     )}
                                     {contas.avaliacoes.avaliadores.map(a => (
                                         <div key={a.nome} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_40px] items-center gap-3">
-                                            <span className="text-[12px] font-bold uppercase text-slate-700 truncate dark:text-slate-200" title={a.nome}>{a.nome}</span>
+                                            {nomeConsultor(a.nome)}
                                             <Barra valor={a.qtd} total={contas.avaliacoes.avaliadores[0].qtd} cor="bg-purple-500" />
                                             <span className="text-[12px] font-extrabold tabular-nums text-right text-slate-700 dark:text-slate-200">{a.qtd}</span>
                                         </div>

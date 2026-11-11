@@ -8,6 +8,7 @@ import { NOME_PAPEL } from '../../permissoes/catalogoPermissoes.js';
 import { normalizarUnidade, ordenarLogins, unidadesDoMentorEm } from '../Configuracoes/conferenciaLogins.js';
 import CopyButton from '../HistoricoVendas/CopyButton.jsx';
 import AbaPanorama from './panorama/AbaPanorama.jsx';
+import { abrirCentralColaborador } from '../../components/centralColaborador.js';
 
 // ==========================================
 // CENTRAL DA UNIDADE (Cadastros → Unidades, só o Admin) — redesenhada em 09/11/2026 (decisão do dono:
@@ -264,7 +265,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
 
                     {/* PANORAMA: só carrega quando a aba é aberta */}
                     {aba === 'panorama' && (
-                        <AbaPanorama unidade={unidade} recepcionistas={recepcionistas} semPersonal={semPersonal} pendencia={pendencia}
+                        <AbaPanorama unidade={unidade} recepcionistas={recepcionistas} colaboradores={daUnidade} semPersonal={semPersonal} pendencia={pendencia}
                             planos={planos} produtos={produtos} abrirTela={abrirTela ? (tela, opcoes) => abrirTela(unidade.nome, tela, opcoes) : null} />
                     )}
 
@@ -280,7 +281,10 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                             {equipe.map(c => (
                                                 <tr key={c.id || c.nome} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                                                    <td className={`${td} font-bold uppercase`}>{c.nome}</td>
+                                                    <td className={`${td} font-bold uppercase`}>
+                                                        {/* Nome abre a Central do Colaborador por cima da unidade (11/11/2026) */}
+                                                        <button type="button" onClick={() => abrirCentralColaborador(c)} title={tx('Abrir a Central do Colaborador')} className="text-left uppercase hover:text-blue-700 hover:underline dark:hover:text-blue-400">{c.nome}</button>
+                                                    </td>
                                                     <td className={`${td} text-[11px] uppercase text-slate-500 dark:text-slate-400`}>{c.role || c.setor || '—'}</td>
                                                     <td className={td}>{etiquetaTurno(c)}</td>
                                                     <td className={td}>

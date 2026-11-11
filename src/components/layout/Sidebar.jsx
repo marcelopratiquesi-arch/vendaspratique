@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import { 
-    PanelLeftClose, PanelLeftOpen, Plus, Building2, Check, Globe, ChevronsUpDown, Search, X, Settings, LogOut, Zap, ChevronDown
+    PanelLeftClose, PanelLeftOpen, Plus, Building2, Check, Globe, ChevronsUpDown, Search, X, Settings, LogOut, Zap, ChevronDown, History
 } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
 import { EVENTO_SUBABA_ATUAL, subabaAtual } from '../subAbas.js';
@@ -218,7 +218,7 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
     const grupos = [
         { id: 'op', nome: 'Operação', abas: abasRestantes.filter(a => ['assinaturas', 'fechamento'].includes(a.id)) },
         { id: 'rel', nome: 'Relacionamento', abas: abasRestantes.filter(a => ['crm', 'alunos', 'avaliacao'].includes(a.id)) },
-        { id: 'ges', nome: 'Gestão', abas: abasRestantes.filter(a => ['analise', 'comunicados', 'cadastros', 'pendencias'].includes(a.id)) }
+        { id: 'ges', nome: 'Gestão', abas: abasRestantes.filter(a => ['analise', 'comunicados', 'cadastros', 'pendencias', 'acessos'].includes(a.id)) }
     ];
 
     const papel = traduzirRole(usuarioLogado?.role, t);
@@ -326,7 +326,15 @@ const ConteudoSidebar = ({ modo, recolhido, podeRecolher, setIsCollapsed, onFech
                         </div>
                     )}
                     
-                    <button 
+                    {/* Meus acessos + "Não fui eu" (12/11/2026): o App abre a janela pelo evento */}
+                    <button
+                        onClick={() => window.dispatchEvent(new Event('abrir-meus-acessos'))}
+                        title={tx('Meus acessos')} aria-label={tx('Meus acessos')}
+                        className={`text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 shrink-0 ${recolhido ? 'mt-2' : ''}`}
+                    >
+                        <History className="w-5 h-5" />
+                    </button>
+                    <button
                         onClick={handleLogout}
                         title={tx("Sair do sistema")}
                         className={`text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1.5 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 outline-none focus-visible:ring-2 focus-visible:ring-rose-500 shrink-0 ${recolhido ? 'mt-2' : ''}`}

@@ -3,6 +3,7 @@
 // Substituiu o antigo aviso só da Movimentação (AvisoMovimentoLider): agora mostra Conferência, Movimentação
 // e Metas, em todas as telas, enquanto houver o que fazer. Cada linha some sozinha quando a pessoa preenche
 // (o banco avisa em tempo real). "Depois" esconde por 1 hora. Fica escondido enquanto a janela do login está aberta.
+// Desde 11/11/2026 fica dentro da coluna de cartões do canto (App.jsx), junto com o aviso de cadastro da equipe.
 // ==========================================
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
@@ -75,7 +76,7 @@ const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas, p
     const depois = () => setEscondidoAte(Date.now() + UMA_HORA);
 
     return (
-        <div role="alert" className={`fixed bottom-4 right-4 z-[70] w-[min(360px,calc(100%-32px))] max-h-[70vh] overflow-y-auto custom-scrollbar rounded-2xl shadow-xl p-4 border ${temAtraso ? 'bg-rose-50 border-rose-300 dark:bg-slate-900 dark:border-rose-500/40' : 'bg-amber-50 border-amber-300 dark:bg-slate-900 dark:border-amber-500/40'}`}>
+        <div role="alert" className={`pointer-events-auto w-full max-h-[60vh] overflow-y-auto custom-scrollbar rounded-2xl shadow-xl p-4 border ${temAtraso ? 'bg-rose-50 border-rose-300 dark:bg-slate-900 dark:border-rose-500/40' : 'bg-amber-50 border-amber-300 dark:bg-slate-900 dark:border-amber-500/40'}`}>
             <div className="flex items-start gap-3">
                 <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${temAtraso ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`} />
                 <div className="min-w-0 flex-1">
