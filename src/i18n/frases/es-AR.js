@@ -3876,4 +3876,18 @@ export default {
     "Sem acesso": "Sin acceso",
     "Líderes por unidade": "Líderes por sede",
     "Todos os logins": "Todos los accesos",
+    // Tela de pedido de acesso em dois cartões (12/11/2026)
+    "Seus dados": "Tus datos",
+    "Função e unidade": "Función y sede",
+    // Senha de emergência até 7 dias (12/11/2026)
+    "Senha por": "Contraseña por",
+    "3 dias": "3 días",
+    "7 dias": "7 días",
+    "Encerrar": "Terminar",
+    "Liberar entrada com senha por 24 h, 3 dias ou 7 dias (quando o Google não funcionar). Dá para renovar até resolver.": "Habilitar el ingreso con contraseña por 24 h, 3 días o 7 días (cuando Google no funcione). Se puede renovar hasta resolverlo.",
+    "Liberar {nome} para entrar com a senha por {prazo} (a partir de agora)?": "¿Habilitar a {nome} para entrar con la contraseña por {prazo} (desde ahora)?",
+    "{nome} pode entrar com a senha até {quando}.": "{nome} puede entrar con la contraseña hasta {quando}.",
+    "Encerrar a entrada com senha de {nome}? Ele(a) volta a entrar só pelo Google.": "¿Terminar el ingreso con contraseña de {nome}? Vuelve a entrar solo con Google.",
+    "Entrada com senha de {nome} encerrada.": "Ingreso con contraseña de {nome} terminado.",
+    "Para liberar por mais de 24 horas (ou encerrar), rode no Supabase o passo 6 de sql/2026-11-12-login-google.": "Para habilitar más de 24 horas (o terminar), ejecutá en Supabase el paso 6 de sql/2026-11-12-login-google.",
 };

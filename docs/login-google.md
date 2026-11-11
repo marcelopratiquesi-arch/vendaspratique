@@ -41,8 +41,9 @@ Tudo é gratuito (Google Cloud e Supabase no plano grátis). Faça uma vez só.
   O Mentor aprova só Líder das unidades dele; Mentor novo só o Admin aprova.
 - **Troca de líder**: quando alguém pede para ser Líder de uma unidade que já tem líder, aparece "TROCA DE LÍDER" com
   os dois lado a lado. Ao aprovar, o líder antigo fica **INATIVO** (nada dele é apagado) e vai para o histórico.
-- **Alguém não consegue entrar com o Google** (ex.: Neves): Pendências → Acessos → "Todos os logins" → botão **24 h**
-  na linha da pessoa. Ela entra com a senha antiga por 24 horas.
+- **Alguém não consegue entrar com o Google** (ex.: Neves): aba Acessos → "Todos os logins" → botão **Senha** na linha da
+  pessoa → 24 h, 3 dias ou 7 dias (dá para renovar até ela resolver ou pedir acesso com outro e-mail; "Encerrar" corta antes).
+  Para 3 e 7 dias, rode uma vez `6_emergencia_ate_7_dias.sql`.
 - **Sessão**: Líder, Mentor e Admin saem sozinhos depois de 15 minutos parados (aviso 1 minuto antes) e ao fechar o
   navegador. A Recepção continua com a cortina de 30 minutos.
 - **Meus acessos**: ícone de relógio no menu, ao lado de "Sair". "Não fui eu" avisa a diretoria (Pendências → Acessos).

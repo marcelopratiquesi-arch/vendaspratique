@@ -3,6 +3,7 @@
 // Sem o SQL rodado, tudo cai no jeito de hoje (login com senha, sem pedidos) e avisa no console.
 // ==========================================
 import { supabase } from '../../supabaseClient.js';
+import { tx } from '../../i18n/traduzir.js';
 import { metodoDoToken, sessaoDoToken, descreverDispositivo } from './regrasAcesso.js';
 
 const PADRAO_CHAVES = { login_google: false, login_senha_todos: true, sessao_banco: false };
@@ -89,10 +90,19 @@ export const resolverAlerta = async (id) => {
     const { error } = await supabase.rpc('acesso_resolver_alerta', { p_id: id });
     if (error) throw error;
 };
-export const liberarEmergencia = async (email) => {
-    const { data, error } = await supabase.rpc('acesso_liberar_emergencia', { p_email: email });
-    if (error) throw error;
-    return data;
+// Liberação com senha (só Admin): 24 h, 3 dias ou 7 dias; 0 = encerrar. Os prazos diferentes de 24 h precisam do
+// passo 6 (sql/2026-11-12-login-google/6_emergencia_ate_7_dias.sql); sem ele, 24 h usa a função antiga.
+export const liberarEmergencia = async (email, horas = 24) => {
+    const { data, error } = await supabase.rpc('acesso_liberar_emergencia', { p_email: email, p_horas: horas });
+    if (!error) return data;
+    const semPasso6 = error.code === 'PGRST202' || /could not find|schema cache/i.test(error.message || '');
+    if (!semPasso6) throw error;
+    if (horas === 24) {
+        const antigo = await supabase.rpc('acesso_liberar_emergencia', { p_email: email });
+        if (antigo.error) throw antigo.error;
+        return antigo.data;
+    }
+    throw new Error(tx('Para liberar por mais de 24 horas (ou encerrar), rode no Supabase o passo 6 de sql/2026-11-12-login-google.'));
 };
 export const definirLider = async (unidade, email) => {
     const { error } = await supabase.rpc('acesso_definir_lider', { p_unidade: unidade, p_email: email });

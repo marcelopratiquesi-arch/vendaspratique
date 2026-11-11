@@ -29,6 +29,8 @@ const EVENTO = { LOGIN: 'Entrou', LOGOUT: 'Saiu', EXPIROU: 'Sessão expirou', NE
 const quando = (v) => { if (!v) return '—'; const d = new Date(v); return isNaN(d) ? '—' : d.toLocaleString(localeAtual(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }); };
 const ha = (v) => { if (!v) return tx('nunca entrou'); const m = Math.floor((Date.now() - new Date(v)) / 60000); if (m < 60) return tx('há {qtd} min', { qtd: Math.max(1, m) }); const h = Math.floor(m / 60); if (h < 24) return tx('há {qtd} h', { qtd: h }); return tx('há {qtd} dias', { qtd: Math.floor(h / 24) }); };
 const papelDe = (l) => String(l?.role || '').toUpperCase();
+// Liberação da entrada com senha (decisão do dono, 12/11/2026): até 7 dias, renovável até a pessoa resolver o e-mail
+const PRAZOS_SENHA = [[24, '24 h'], [72, '3 dias'], [168, '7 dias']];
 
 const EtiquetaPapel = ({ role }) => (
     <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wide ${COR_PAPEL[String(role).toUpperCase()] || 'bg-slate-100 text-slate-600'}`}>{tx(PAPEL[String(role).toUpperCase()] || role || '—')}</span>
@@ -60,6 +62,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
     const [soSemGoogle, setSoSemGoogle] = useState(false);
     const [escolhaLider, setEscolhaLider] = useState({}); // unidade → email escolhido
     const [atualizadoEm, setAtualizadoEm] = useState(new Date());
+    const [menuSenha, setMenuSenha] = useState(''); // e-mail da linha com a escolha do prazo da senha aberta
 
     // Atualiza sozinha a cada 1 minuto (menos com o sistema pausado)
     useEffect(() => {
@@ -82,10 +85,19 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
 
     const acaoLogin = async (l, acao) => {
         try {
-            if (acao === 'emergencia') {
-                if (!window.confirm(tx('Liberar {nome} para entrar com a senha por 24 horas?', { nome: l.nome }))) return;
-                await liberarEmergencia(l.email);
-                avisar(tx('{nome} pode entrar com a senha nas próximas 24 horas.', { nome: l.nome }), 'sucesso');
+            if (String(acao).startsWith('emergencia')) {
+                const horas = Number(String(acao).split(':')[1] ?? 24);
+                setMenuSenha('');
+                if (horas === 0) {
+                    if (!window.confirm(tx('Encerrar a entrada com senha de {nome}? Ele(a) volta a entrar só pelo Google.', { nome: l.nome }))) return;
+                    await liberarEmergencia(l.email, 0);
+                    avisar(tx('Entrada com senha de {nome} encerrada.', { nome: l.nome }), 'sucesso');
+                } else {
+                    const prazo = PRAZOS_SENHA.find(p => p[0] === horas)?.[1] || `${horas} h`;
+                    if (!window.confirm(tx('Liberar {nome} para entrar com a senha por {prazo} (a partir de agora)?', { nome: l.nome, prazo: tx(prazo) }))) return;
+                    const ate = await liberarEmergencia(l.email, horas);
+                    avisar(tx('{nome} pode entrar com a senha até {quando}.', { nome: l.nome, quando: quando(ate) }), 'sucesso');
+                }
             } else if (acao === 'inativar') {
                 const motivo = window.prompt(tx('Motivo para inativar {nome} (nada é apagado):', { nome: l.nome }));
                 if (motivo === null) return;
@@ -113,10 +125,22 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
     };
     const botoesLogin = (l) => (
         <span className="inline-flex flex-wrap gap-1.5 md:justify-end">
-            {ehAdmin && String(l.status || 'ATIVO') === 'ATIVO' && (
-                <button type="button" onClick={() => acaoLogin(l, 'emergencia')} title={tx('Liberar entrada com senha por 24 horas (quando o Google não funcionar)')}
-                    className="h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300"><KeyRound className="w-3.5 h-3.5" />{tx('24 h')}</button>
-            )}
+            {ehAdmin && String(l.status || 'ATIVO') === 'ATIVO' && (menuSenha === l.email ? (
+                <span className="inline-flex flex-wrap items-center gap-1 rounded-lg bg-blue-50 px-1.5 py-1 dark:bg-blue-500/10">
+                    <span className="text-[11px] font-black uppercase text-blue-700 px-1 dark:text-blue-300">{tx('Senha por')}</span>
+                    {PRAZOS_SENHA.map(([h, r]) => (
+                        <button key={h} type="button" onClick={() => acaoLogin(l, `emergencia:${h}`)}
+                            className="h-7 px-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase">{tx(r)}</button>
+                    ))}
+                    {l.emergencia_ate && new Date(l.emergencia_ate) > new Date() && (
+                        <button type="button" onClick={() => acaoLogin(l, 'emergencia:0')} className="h-7 px-2 rounded-md border border-rose-200 bg-white text-rose-600 text-[11px] font-black uppercase hover:bg-rose-50 dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-300">{tx('Encerrar')}</button>
+                    )}
+                    <button type="button" onClick={() => setMenuSenha('')} className="h-7 px-1.5 text-[11px] font-black uppercase text-slate-500 hover:text-slate-700 dark:text-slate-400">✕</button>
+                </span>
+            ) : (
+                <button type="button" onClick={() => setMenuSenha(l.email)} title={tx('Liberar entrada com senha por 24 h, 3 dias ou 7 dias (quando o Google não funcionar). Dá para renovar até resolver.')}
+                    className="h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300"><KeyRound className="w-3.5 h-3.5" />{tx('Senha')}</button>
+            ))}
             {String(l.status || 'ATIVO') === 'ATIVO'
                 ? <button type="button" onClick={() => acaoLogin(l, 'inativar')} className="h-8 px-2.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"><Power className="w-3.5 h-3.5" />{tx('Inativar')}</button>
                 : <button type="button" onClick={() => acaoLogin(l, 'reativar')} className="h-8 px-2.5 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"><Power className="w-3.5 h-3.5" />{tx('Reativar')}</button>}
