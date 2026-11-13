@@ -27,11 +27,16 @@ const COR_PAPEL = {
 const papelDe = (u) => String(u?.role || '').toUpperCase().trim();
 const emailDe = (u) => String(u?.email || '').toLowerCase().trim();
 
-const EtiquetaPapel = ({ papel }) => (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${COR_PAPEL[papel] || 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
-        {papel === 'RECEPCAO' ? tx('Recepção / Consultor') : tx(NOME_PAPEL[papel] || papel || '—')}
+// Líder com posto ASPIRA aparece "Aspira"; login inativo ganha a etiqueta "Inativo" (13/11/2026: Revogar = inativar)
+const EtiquetaPapel = ({ papel, posto, inativo }) => (
+    <span className="inline-flex flex-wrap items-center gap-1">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-widest whitespace-nowrap ${COR_PAPEL[papel] || 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700'}`}>
+            {papel === 'RECEPCAO' ? tx('Recepção / Consultor') : papel === 'LIDER' && String(posto || '').toUpperCase() === 'ASPIRA' ? tx('Aspira') : tx(NOME_PAPEL[papel] || papel || '—')}
+        </span>
+        {inativo && <span className="inline-flex items-center px-2 py-0.5 rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-[10px] font-black uppercase tracking-widest dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300">{tx('Inativo')}</span>}
     </span>
 );
+const inativoDe = (u) => String(u?.status || 'ATIVO').toUpperCase() === 'INATIVO';
 
 const textoAviso = (a) => {
     switch (a.tipo) {
@@ -104,7 +109,7 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
                 <button type="button" onClick={() => onEditar(u)} title={tx('Editar login')} aria-label={tx('Editar login')} className={`${botao} hover:text-blue-700 hover:border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-300`}><Pencil className="w-3.5 h-3.5" /></button>
                 {p === 'MENTOR' && <button type="button" onClick={() => onUnidadesMentor(u)} title={tx('Escolher as unidades deste mentor')} aria-label={tx('Escolher as unidades deste mentor')} className={`${botao} hover:text-blue-700 hover:border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-300`}><Building2 className="w-3.5 h-3.5" /></button>}
                 {p !== 'ADMIN' && <button type="button" onClick={() => onPermissoes(u)} title={tx('Permissões deste login')} aria-label={tx('Permissões deste login')} className={`${botao} hover:text-blue-700 hover:border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-500/10 dark:hover:text-blue-300`}><KeyRound className="w-3.5 h-3.5" /></button>}
-                {p !== 'ADMIN' && <button type="button" onClick={() => onRevogar(u)} title={tx('Revogar Acesso')} aria-label={tx('Revogar Acesso')} className={`${botao} hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400`}><UserMinus className="w-3.5 h-3.5" /></button>}
+                {p !== 'ADMIN' && !inativoDe(u) && <button type="button" onClick={() => onRevogar(u)} title={tx('Inativar acesso (nada é apagado)')} aria-label={tx('Inativar acesso (nada é apagado)')} className={`${botao} hover:text-rose-600 hover:border-rose-200 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400`}><UserMinus className="w-3.5 h-3.5" /></button>}
             </div>
         );
     };
@@ -212,7 +217,7 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
                                 <td className="px-4 py-2.5 text-[12px] font-semibold text-slate-500 lowercase dark:text-slate-400">
                                     <span className="inline-flex items-center gap-1">{u.email}<CopyButton textToCopy={u.email} label={tx('Copiar e-mail')} /></span>
                                 </td>
-                                <td className="px-4 py-2.5"><EtiquetaPapel papel={papelDe(u)} /></td>
+                                <td className="px-4 py-2.5"><EtiquetaPapel papel={papelDe(u)} posto={u.posto} inativo={inativoDe(u)} /></td>
                                 <td className="px-4 py-2.5">{etiquetaExcecoes(u) || <span className="text-slate-300 dark:text-slate-600">—</span>}</td>
                                 <td className="px-4 py-2.5 text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">{colunaUnidade(u)}</td>
                                 <td className="px-4 py-2.5">{acoes(u)}</td>
@@ -231,7 +236,7 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
                                 <p className="text-[13px] font-black text-slate-800 uppercase truncate dark:text-white">{u.nome || '—'}</p>
                                 <p className="text-[11px] font-semibold text-slate-500 lowercase dark:text-slate-400 flex items-center gap-1 min-w-0"><span className="truncate">{u.email}</span><CopyButton textToCopy={u.email} label={tx('Copiar e-mail')} /></p>
                             </div>
-                            <span className="flex flex-col items-end gap-1"><EtiquetaPapel papel={papelDe(u)} />{etiquetaExcecoes(u)}</span>
+                            <span className="flex flex-col items-end gap-1"><EtiquetaPapel papel={papelDe(u)} posto={u.posto} inativo={inativoDe(u)} />{etiquetaExcecoes(u)}</span>
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-[11px] font-black uppercase tracking-wider text-slate-600 dark:text-slate-300">{colunaUnidade(u)}</span>

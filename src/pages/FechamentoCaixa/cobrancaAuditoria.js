@@ -166,6 +166,30 @@ export const liderDaUnidade = (colaboradores = [], unidade, lideresAcesso = null
     return lideres.find(c => String(c.telefone || '').replace(/\D/g, '').length >= 10) || lideres[0] || lideresDoAcesso(lideresAcesso, alvo);
 };
 
+// LÍDER E ASPIRA (13/11/2026, decisão do dono: as cobranças no WhatsApp vão para os DOIS). Lista de quem cobrar:
+// da Equipe, setor com "LIDER" ou "ASPIRA" (Líder primeiro, depois Aspira; quem tem telefone antes). Se a Equipe
+// não tem Líder, vale o líder de Acessos → Líderes por unidade (como antes); se a Equipe não tem Aspira, entra o
+// Aspira de Acessos. Cada item: { nome, telefone, posto: 'TITULAR' | 'ASPIRA' }.
+const temTelefone = (c) => String(c?.telefone || '').replace(/\D/g, '').length >= 10;
+export const lideresDaUnidade = (colaboradores = [], unidade, lideresAcesso = null) => {
+    const alvo = normalizeString(unidade);
+    const daEquipe = colaboradores.filter(c => c && c.ativo !== false && normalizeString(c.unidade) === alvo)
+        .map(c => ({ c, setor: normalizeString(c.role || c.setor || c.cargo) }))
+        .filter(x => x.setor.includes('LIDER') || x.setor.includes('ASPIRA'))
+        .map(x => ({ ...x.c, posto: x.setor.includes('ASPIRA') ? 'ASPIRA' : 'TITULAR' }))
+        .sort((a, b) => (a.posto === b.posto ? 0 : a.posto === 'TITULAR' ? -1 : 1) || (temTelefone(b) - temTelefone(a)));
+    const lista = [];
+    ['TITULAR', 'ASPIRA'].forEach(posto => {
+        const doPosto = daEquipe.filter(c => c.posto === posto);
+        if (doPosto.length) { lista.push(doPosto[0]); return; }
+        const item = (lideresAcesso || []).find(x => normalizeString(x?.unidade) === alvo);
+        const l = (item?.lideres || []).filter(x => String(x.posto || 'TITULAR').toUpperCase() === posto)
+            .sort((a, b) => temTelefone(b) - temTelefone(a))[0];
+        if (l) lista.push({ nome: l.nome, telefone: telefoneParaEquipe(l.telefone) || '', origem: 'acesso', posto });
+    });
+    return lista;
+};
+
 // Pedido para o Fechamento abrir direto na aba Conferência num período (botão "Fazer a conferência agora"
 // da janela de cobrança do Líder). Mesmo modelo do pedirAbaAnalise da Análise de Vendas.
 let conferenciaPedida = null;

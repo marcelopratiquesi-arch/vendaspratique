@@ -150,9 +150,10 @@ teste('títulos e células na mesma ordem', ordemTitulos === 'nome,email,nivel,e
 
 // 20) Nada foi tirado: cadastrar, desativar/reativar, excluir (unidade_uso) e unidades do Mentor continuam
 const cfg = fs.readFileSync('src/pages/Configuracoes/index.jsx', 'utf8');
-teste('funções antigas continuam (unidade_definir_ativa, unidade_uso, mentor_unidades, signUp, revogar)',
+// (13/11/2026, decisão do dono: Revogar passou a INATIVAR o login pelo banco, mudarSituacao; nada é apagado)
+teste('funções antigas continuam (unidade_definir_ativa, unidade_uso, mentor_unidades, signUp, revogar = inativar)',
     tab.includes("rpc('unidade_definir_ativa'") && tab.includes("rpc('unidade_uso'") && tab.includes("from('unidades').insert")
-    && cfg.includes('auth.signUp') && cfg.includes("from('mentor_unidades')") && cfg.includes("from('usuarios_sistema').delete()"));
+    && cfg.includes('auth.signUp') && cfg.includes("from('mentor_unidades')") && cfg.includes("mudarSituacao(u.email, 'INATIVO'") && !cfg.includes("from('usuarios_sistema').delete()"));
 
 // ---------- Rodada 3 (09/11/2026): fichas no modelo da ficha do aluno (janela no meio, sem painel lateral) ----------
 const fichaU = fs.readFileSync('src/pages/CadastroGeral/FichaUnidade.jsx', 'utf8');

@@ -1,13 +1,14 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    KeyRound, UserPlus, LogIn, ShieldAlert, Crown, UserCheck, AlertOctagon, Users, RefreshCw, Loader2, Power, Search, Globe,
+    KeyRound, UserPlus, LogIn, ShieldAlert, Crown, UserCheck, AlertOctagon, Users, RefreshCw, Loader2, Power, Search, Globe, Timer,
 } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
 import CopyButton from '../HistoricoVendas/CopyButton.jsx';
 import PedidosAcesso from '../../components/acesso/PedidosAcesso.jsx';
-import { liberarEmergencia, mudarSituacao, resolverAlerta, definirLider } from '../../components/acesso/acessoBanco.js';
-import { telefoneBonito } from '../../components/acesso/regrasAcesso.js';
+import { liberarEmergencia, mudarSituacao, resolverAlerta, definirLider, tirarLider } from '../../components/acesso/acessoBanco.js';
+import AbaTemporarios from '../../components/acesso/AbaTemporarios.jsx';
+import { telefoneBonito, postoDe, dataBr } from '../../components/acesso/regrasAcesso.js';
 import { sistemaPausado } from '../../components/pausaSistema.js';
 
 // ==========================================
@@ -32,9 +33,13 @@ const papelDe = (l) => String(l?.role || '').toUpperCase();
 // Liberação da entrada com senha (decisão do dono, 12/11/2026): até 7 dias, renovável até a pessoa resolver o e-mail
 const PRAZOS_SENHA = [[24, '24 h'], [72, '3 dias'], [168, '7 dias']];
 
-const EtiquetaPapel = ({ role }) => (
-    <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wide ${COR_PAPEL[String(role).toUpperCase()] || 'bg-slate-100 text-slate-600'}`}>{tx(PAPEL[String(role).toUpperCase()] || role || '—')}</span>
+// Líder com posto ASPIRA aparece "Aspira" (13/11/2026: segundo líder fixo da unidade, mesmas permissões)
+const EtiquetaPapel = ({ role, posto }) => (
+    <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-black uppercase tracking-wide ${COR_PAPEL[String(role).toUpperCase()] || 'bg-slate-100 text-slate-600'}`}>
+        {String(role).toUpperCase() === 'LIDER' && String(posto || '').toUpperCase() === 'ASPIRA' ? tx('Aspira') : tx(PAPEL[String(role).toUpperCase()] || role || '—')}
+    </span>
 );
+const POSTOS_UNIDADE = [['TITULAR', 'Líder'], ['ASPIRA', 'Aspira']];
 const Pessoa = ({ l }) => (
     <div className="min-w-0">
         <p className="text-[14px] font-bold text-slate-800 uppercase truncate dark:text-white">{l.nome || l.email}</p>
@@ -56,7 +61,7 @@ const Rotulo = ({ children }) => <span className="md:hidden text-[11px] font-bla
 
 // somenteAbas / esconderAbas (12/11/2026): a lista "Todos os logins" também aparece em Configurações → Entradas e senha
 // (só ela) e, para o Admin, sai da aba Acessos do menu; o Mentor continua vendo a lista aqui.
-const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = null, esconderAbas = [] }) => {
+const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = null, esconderAbas = [], podeLiberar = true }) => {
     const { contas, painel, carregando, recarregar, semSql } = acessos || {};
     const [aba, setAba] = useState(somenteAbas?.[0] || 'pedidos');
     const [busca, setBusca] = useState('');
@@ -114,16 +119,26 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
             atualizar();
         } catch (e) { avisar(e.message || tx('Não foi possível concluir.'), 'erro'); }
     };
-    const salvarLider = async (unidade, atuais) => {
-        const email = escolhaLider[unidade];
-        if (!email) { avisar(tx('Escolha quem é o líder.'), 'atencao'); return; }
+    // Líder e Aspira (13/11/2026): cada posto é trocado sozinho; o outro não é tocado
+    const salvarLider = async (unidade, posto, atuais) => {
+        const chave = `${unidade}|${posto}`;
+        const email = escolhaLider[chave];
+        if (!email) { avisar(tx('Escolha quem vai ocupar o posto.'), 'atencao'); return; }
         const novo = candidatosLider.find(l => l.email === email);
+        const nomePosto = posto === 'ASPIRA' ? tx('Aspira') : tx('Líder');
         const texto = atuais.length
-            ? tx('Trocar o líder de {unidade}? {atual} deixa de ser o líder e {novo} passa a ser. Se {atual} for login de nível Líder, fica INATIVO.', { unidade, atual: atuais.map(a => a.nome).join(', '), novo: novo?.nome })
-            : tx('Definir {novo} como líder de {unidade}?', { unidade, novo: novo?.nome });
+            ? tx('Trocar o {posto} de {unidade}? {atual} sai e {novo} entra. Se {atual} for login de nível Líder, fica INATIVO. O outro posto não muda.', { posto: nomePosto, unidade, atual: atuais.map(a => a.nome).join(', '), novo: novo?.nome })
+            : tx('Definir {novo} como {posto} de {unidade}?', { unidade, novo: novo?.nome, posto: nomePosto });
         if (!window.confirm(texto)) return;
-        try { await definirLider(unidade, email); avisar(tx('Líder de {unidade} definido.', { unidade }), 'sucesso'); setEscolhaLider(s => ({ ...s, [unidade]: '' })); atualizar(); }
+        try { await definirLider(unidade, email, posto); avisar(tx('{posto} de {unidade} definido.', { unidade, posto: nomePosto }), 'sucesso'); setEscolhaLider(s => ({ ...s, [chave]: '' })); atualizar(); }
         catch (e) { avisar(e.message || tx('Não foi possível definir o líder.'), 'erro'); }
+    };
+    const tirarDoPosto = async (unidade, l) => {
+        const motivo = window.prompt(tx('Tirar {nome} da liderança de {unidade}, sem colocar outra pessoa? Se for login de nível Líder, fica INATIVO (nada é apagado). Motivo:', { nome: l.nome, unidade }));
+        if (motivo === null) return;
+        if (motivo.trim().length < 5) { avisar(tx('Cancelado: o motivo precisa ter pelo menos 5 letras.'), 'atencao'); return; }
+        try { await tirarLider(unidade, l.email, motivo.trim()); avisar(tx('{nome} saiu da liderança de {unidade}.', { nome: l.nome, unidade }), 'sucesso'); atualizar(); }
+        catch (e) { avisar(e.message || tx('Não foi possível concluir.'), 'erro'); }
     };
     const botoesLogin = (l) => (
         <span className="inline-flex flex-wrap gap-1.5 md:justify-end">
@@ -156,6 +171,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
         ['recentes', 'Entradas recentes', LogIn, contas.recentes.filter(r => r.evento === 'LOGIN').length, 'azul'],
         ['sem', 'Sem acesso', ShieldAlert, contas.semAcesso.length, 'rose'],
         ['lideres', 'Líderes por unidade', Crown, contas.unidadesSemLider.length, 'amarelo'],
+        ['temporarios', 'Temporários', Timer, contas.tempVencendo?.length || 0, 'amarelo'],
         ['dados', 'Dados não confirmados', UserCheck, contas.naoConfirmados.length, 'amarelo'],
         ['alertas', '"Não fui eu"', AlertOctagon, contas.alertas.length, 'rose'],
         ['logins', 'Todos os logins', Users, qtdAtivos, 'cinza'],
@@ -243,7 +259,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                     {filtrar(contas.semAcesso).length ? filtrar(contas.semAcesso).map(l => (
                         <Linha key={l.email} colunas="md:grid-cols-[minmax(0,1.8fr)_110px_minmax(0,1fr)_150px_auto]">
                             <Pessoa l={l} />
-                            <span><EtiquetaPapel role={l.role} /></span>
+                            <span><EtiquetaPapel role={l.role} posto={l.posto} /></span>
                             <span className="text-[13px] font-bold uppercase text-slate-700 dark:text-slate-200"><Rotulo>{tx('Unidade')}:</Rotulo>{l.unidade}</span>
                             <span className="text-[13px] font-black text-rose-600 dark:text-rose-400">{l.nunca ? tx('nunca entrou') : tx('há {qtd} dias', { qtd: l.dias })}</span>
                             {botoesLogin(l)}
@@ -255,36 +271,61 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
             {/* LÍDERES POR UNIDADE */}
             {aba === 'lideres' && (
                 <Caixa>
-                    <Cabecalho colunas="md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.6fr)]" titulos={[tx('Unidade'), tx('Líder'), ehAdmin ? tx('Definir líder') : '']} />
-                    {contas.lideres.map(({ unidade, lideres }) => (
-                        <Linha key={unidade} colunas="md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1.6fr)]" destaque={lideres.length ? '' : 'bg-amber-50/60 dark:bg-amber-500/5'}>
-                            <span className="text-[14px] font-black uppercase text-slate-800 dark:text-white">{unidade}</span>
-                            <div className="space-y-1.5">
-                                {lideres.length ? lideres.map(l => (
-                                    <div key={l.email} className="flex flex-wrap items-center gap-2">
-                                        <Pessoa l={l} />
-                                        <EtiquetaPapel role={l.role} />
-                                        {l.telefone && <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{telefoneBonito(l.telefone)}</span>}
-                                        <span className="text-[12px] font-semibold text-slate-400">{ha(l.ultimo_login)}</span>
-                                    </div>
-                                )) : <span className="text-[13px] font-black text-amber-700 dark:text-amber-300">{tx('Sem líder')}</span>}
-                            </div>
-                            {ehAdmin ? (
-                                <div className="flex gap-2">
-                                    <select value={escolhaLider[unidade] || ''} onChange={e => setEscolhaLider(s => ({ ...s, [unidade]: e.target.value }))}
-                                        className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold dark:bg-slate-900 dark:border-slate-700 dark:text-white" aria-label={tx('Escolher o líder de {unidade}', { unidade })}>
-                                        <option value="">{tx('Escolher...')}</option>
-                                        {candidatosLider.filter(l => papelDe(l) !== 'LIDER' || String(l.unidade || '').toUpperCase() === unidade).map(l => (
-                                            <option key={l.email} value={l.email}>{l.nome} · {tx(PAPEL[papelDe(l)] || l.role)}</option>
-                                        ))}
-                                    </select>
-                                    <button type="button" onClick={() => salvarLider(unidade, lideres)} className="h-9 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Salvar')}</button>
+                    <Cabecalho colunas="md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.6fr)_minmax(0,1fr)]" titulos={[tx('Unidade'), tx('Líder'), tx('Aspira'), tx('Temporários')]} />
+                    {contas.lideres.map(({ unidade, lideres }) => {
+                        const temps = contas.tempPorUnidade?.get(unidade) || [];
+                        return (
+                            <Linha key={unidade} colunas="md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.6fr)_minmax(0,1.6fr)_minmax(0,1fr)] md:items-start" destaque={lideres.length || temps.length ? '' : 'bg-amber-50/60 dark:bg-amber-500/5'}>
+                                <span className="text-[14px] font-black uppercase text-slate-800 dark:text-white">{unidade}</span>
+                                {POSTOS_UNIDADE.map(([posto, rotuloPosto]) => {
+                                    const doPosto = lideres.filter(l => postoDe(l) === posto);
+                                    const chave = `${unidade}|${posto}`;
+                                    return (
+                                        <div key={posto} className="space-y-1.5 min-w-0">
+                                            <span className="md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{tx(rotuloPosto)}</span>
+                                            {doPosto.length ? doPosto.map(l => (
+                                                <div key={l.email} className="flex flex-wrap items-center gap-2">
+                                                    <Pessoa l={l} />
+                                                    <EtiquetaPapel role={l.role} posto={l.posto} />
+                                                    {l.telefone && <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{telefoneBonito(l.telefone)}</span>}
+                                                    <span className="text-[12px] font-semibold text-slate-400">{ha(l.ultimo_login)}</span>
+                                                    {ehAdmin && <button type="button" onClick={() => tirarDoPosto(unidade, l)} className="h-7 px-2 rounded-md border border-rose-200 text-rose-600 text-[10px] font-black uppercase hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300">{tx('Tirar')}</button>}
+                                                </div>
+                                            )) : <span className={`text-[13px] font-black ${posto === 'TITULAR' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-400'}`}>{posto === 'TITULAR' ? tx('Sem líder') : tx('Sem aspira')}</span>}
+                                            {ehAdmin && (
+                                                <div className="flex gap-2">
+                                                    <select value={escolhaLider[chave] || ''} onChange={e => setEscolhaLider(s => ({ ...s, [chave]: e.target.value }))}
+                                                        className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold dark:bg-slate-900 dark:border-slate-700 dark:text-white" aria-label={tx('Escolher o {posto} de {unidade}', { unidade, posto: tx(rotuloPosto) })}>
+                                                        <option value="">{doPosto.length ? tx('Trocar por...') : tx('Escolher...')}</option>
+                                                        {candidatosLider.filter(l => papelDe(l) !== 'LIDER' || String(l.unidade || '').toUpperCase() === unidade).map(l => (
+                                                            <option key={l.email} value={l.email}>{l.nome} · {papelDe(l) === 'LIDER' && postoDe(l) === 'ASPIRA' ? tx('Aspira') : tx(PAPEL[papelDe(l)] || l.role)}</option>
+                                                        ))}
+                                                    </select>
+                                                    <button type="button" onClick={() => salvarLider(unidade, posto, doPosto)} className="h-9 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Salvar')}</button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                                <div className="space-y-1 min-w-0">
+                                    <span className="md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('Temporários')}</span>
+                                    {temps.length ? temps.map(t => (
+                                        <p key={t.id} className="text-[12px] font-bold text-slate-700 dark:text-slate-200">
+                                            {t.nome}
+                                            <span className={`block text-[11px] font-black ${Number(t.dias_para_vencer) <= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'}`}>
+                                                {t.tipo === 'MENTOR' ? tx('Mentor') : tx('Líder')} · {tx('até {data}', { data: dataBr(t.vale_ate) })}
+                                            </span>
+                                        </p>
+                                    )) : <span className="text-[12px] font-semibold text-slate-400">—</span>}
                                 </div>
-                            ) : <span />}
-                        </Linha>
-                    ))}
+                            </Linha>
+                        );
+                    })}
                 </Caixa>
             )}
+
+            {/* TEMPORÁRIOS (13/11/2026) */}
+            {aba === 'temporarios' && <AbaTemporarios contas={contas} ehAdmin={ehAdmin} unidades={unidades} podeLiberar={podeLiberar} onMudou={atualizar} />}
 
             {/* DADOS NÃO CONFIRMADOS */}
             {aba === 'dados' && (
@@ -293,7 +334,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                     {filtrar(contas.naoConfirmados).length ? filtrar(contas.naoConfirmados).map(l => (
                         <Linha key={l.email} colunas="md:grid-cols-[minmax(0,1.8fr)_110px_minmax(0,1fr)_170px_150px]">
                             <Pessoa l={l} />
-                            <span><EtiquetaPapel role={l.role} /></span>
+                            <span><EtiquetaPapel role={l.role} posto={l.posto} /></span>
                             <span className="text-[13px] font-bold uppercase text-slate-700 dark:text-slate-200">{l.unidade}</span>
                             <span className="text-[13px] font-semibold">{l.telefone ? telefoneBonito(l.telefone) : <span className="font-black text-rose-600 dark:text-rose-400">{tx('sem telefone')}</span>}</span>
                             <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{l.dados_confirmados_em ? quando(l.dados_confirmados_em) : tx('nunca')}</span>
@@ -330,7 +371,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                             return (
                                 <Linha key={l.email} colunas="md:grid-cols-[minmax(0,1.8fr)_110px_minmax(0,1fr)_100px_170px_150px_auto]" destaque={ativo ? '' : 'opacity-60'}>
                                     <Pessoa l={l} />
-                                    <span><EtiquetaPapel role={l.role} /></span>
+                                    <span><EtiquetaPapel role={l.role} posto={l.posto} /></span>
                                     <span className="text-[13px] font-bold uppercase text-slate-700 dark:text-slate-200">{l.unidade}</span>
                                     <span className={`text-[13px] font-black ${ativo ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} title={l.inativado_motivo || ''}>
                                         {ativo ? tx('Ativo') : tx('Inativo')}

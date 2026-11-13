@@ -7,7 +7,7 @@ import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
 import {
     DIAS_ALERTA_VERMELHO, diasDesdeData, diasDesdeMomento, sextaDoPrazo,
-    textoPeriodo, mensagemCobrancaRede, mensagemCobrancaLider, liderDaUnidade,
+    textoPeriodo, mensagemCobrancaRede, mensagemCobrancaLider, lideresDaUnidade,
 } from './cobrancaAuditoria.js';
 
 // ==========================================
@@ -89,8 +89,9 @@ const AuditoriaTab = ({ dadosTabelaAuditoria = [], totais, rotuloPeriodo, inicio
         if (!dadosTabelaAuditoria.length) { avisar(tx('Nenhum lançamento no período para cobrar.'), 'atencao'); return; }
         abrirMensagem(tipo === 'resumo' ? tx('Conferência – resumo') : tx('Conferência – detalhado'), mensagemCobrancaRede(dadosTabelaAuditoria, t, periodoTexto, tipo));
     };
-    const cobrarLider = (row) => {
-        const lider = liderDaUnidade(colaboradores, row.unidade);
+    // Líder e Aspira (13/11/2026): um botão para cada um
+    const cobrarLider = (row, lider = lideresDaUnidade(colaboradores, row.unidade)[0]) => {
+        // (lider vem do botão)
         const telefone = String(lider?.telefone || '').replace(/\D/g, '');
         if (!lider) avisar(tx('Nenhum Líder ativo cadastrado na Equipe de {unidade}. Escolha o contato no WhatsApp.', { unidade: row.unidade }), 'atencao');
         else if (telefone.length < 10) avisar(tx('O Líder {nome} está sem telefone no cadastro da Equipe. Escolha o contato no WhatsApp.', { nome: lider.nome }), 'atencao');
@@ -227,13 +228,20 @@ const AuditoriaTab = ({ dadosTabelaAuditoria = [], totais, rotuloPeriodo, inicio
                                             ) : <span className="text-[11px] font-bold text-rose-500 dark:text-rose-400">{tx('Nenhuma ainda')}</span>}
                                         </td>
                                         <td className="px-4 py-3.5 text-center">
-                                            {row.pendentes > 0 ? (
-                                                <button type="button" onClick={(e) => { e.stopPropagation(); cobrarLider(row); }}
-                                                    title={tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={tx('Cobrar o Líder desta unidade no WhatsApp')}
-                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
-                                                    <MessageCircle className="w-4 h-4" />
-                                                </button>
-                                            ) : <span className="text-[11px] font-bold text-slate-400">—</span>}
+                                            {row.pendentes > 0 ? (() => {
+                                                const lideres = lideresDaUnidade(colaboradores, row.unidade);
+                                                return (
+                                                    <div className="inline-flex gap-1">
+                                                        {(lideres.length ? lideres : [null]).map((lider, j) => (
+                                                            <button key={j} type="button" onClick={(e) => { e.stopPropagation(); cobrarLider(row, lider); }}
+                                                                title={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')}
+                                                                className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
+                                                                <MessageCircle className="w-4 h-4" />
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                );
+                                            })() : <span className="text-[11px] font-bold text-slate-400">—</span>}
                                         </td>
                                         <td className="px-3 py-3.5 text-slate-300 group-hover:text-blue-600 dark:text-slate-600 dark:group-hover:text-blue-400"><ChevronRight className="w-4 h-4" /></td>
                                     </tr>

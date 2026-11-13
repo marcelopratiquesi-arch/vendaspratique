@@ -71,6 +71,7 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
     const [ddi, setDdi] = useState('55');
     const [numero, setNumero] = useState('');
     const [papel, setPapel] = useState('LIDER');
+    const [posto, setPosto] = useState('TITULAR'); // Líder (TITULAR) ou Aspira (13/11/2026)
     const [escolhidas, setEscolhidas] = useState([]);
     const [busca, setBusca] = useState('');
     const [unidades, setUnidades] = useState(null);
@@ -100,7 +101,7 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
         if (!escolhidas.length) { avisar(papel === 'LIDER' ? tx('Escolha a sua unidade.') : tx('Escolha as suas unidades.'), 'atencao'); return; }
         setEnviando(true);
         try {
-            await pedirAcesso({ nome: nome.trim(), telefone, papel, unidades: escolhidas });
+            await pedirAcesso({ nome: nome.trim(), telefone, papel, unidades: escolhidas, posto: papel === 'LIDER' ? posto : 'TITULAR' });
             avisar(tx('Pedido enviado. Aguarde a liberação.'), 'sucesso');
             setRefazer(false);
             await onAtualizar();
@@ -119,7 +120,7 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
                     <Aviso icone={Clock} cor="text-amber-500" titulo={tx('Aguardando liberação')}>
                         <p>{tx('Seu acesso está aguardando liberação do seu mentor ou da diretoria.')}</p>
                         <p className="mt-3 text-base text-slate-500 dark:text-slate-400">
-                            {p.papel === 'LIDER' ? tx('Líder') : tx('Mentor')} · {(p.unidades || []).join(', ')}{p.tipo === 'TROCA_LIDER' ? ` · ${tx('troca de líder')}` : ''}
+                            {p.papel === 'LIDER' ? (p.posto === 'ASPIRA' ? tx('Aspira') : tx('Líder')) : tx('Mentor')} · {(p.unidades || []).join(', ')}{p.tipo === 'TROCA_LIDER' ? ` · ${tx('troca de líder')}` : ''}
                         </p>
                     </Aviso>
                     <button type="button" onClick={onAtualizar} className={`${botaoGrande} bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200`}>{tx('Já fui liberado? Conferir')}</button>
@@ -199,11 +200,14 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
                     <Cartao numero="2" icone={Building2} titulo={tx('Função e unidade')}>
                         <div>
                             <span className={rotulo}>{tx('Você é')}</span>
-                            <div className="grid grid-cols-2 gap-3">
-                                {[['LIDER', 'Líder da unidade'], ['MENTOR', 'Mentor']].map(([v, r]) => (
-                                    <button key={v} type="button" onClick={() => trocarPapel(v)} aria-pressed={papel === v}
-                                        className={`h-14 rounded-xl border-2 text-[15px] font-black uppercase tracking-wide ${papel === v ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(r)}</button>
-                                ))}
+                            <div className="grid grid-cols-3 gap-3">
+                                {[['LIDER', 'TITULAR', 'Líder da unidade'], ['LIDER', 'ASPIRA', 'Aspira'], ['MENTOR', 'TITULAR', 'Mentor']].map(([v, pst, r]) => {
+                                    const sel = papel === v && (v !== 'LIDER' || posto === pst);
+                                    return (
+                                        <button key={r} type="button" onClick={() => { trocarPapel(v); setPosto(pst); }} aria-pressed={sel}
+                                            className={`h-14 rounded-xl border-2 text-[14px] sm:text-[15px] font-black uppercase tracking-wide ${sel ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(r)}</button>
+                                    );
+                                })}
                             </div>
                         </div>
                         <div className="mt-4 flex-1 flex flex-col">
@@ -226,7 +230,9 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
                                 {unidades && filtradas.length === 0 && <p className="sm:col-span-2 p-3 text-base font-semibold text-slate-400">{tx('Nenhuma unidade encontrada.')}</p>}
                             </div>
                             {escolhidas.length > 0 && <p className="mt-3 text-base font-black text-blue-700 dark:text-blue-400">{escolhidas.join(' · ')}</p>}
-                            {papel === 'LIDER' && <p className="mt-2 text-[14px] font-semibold text-slate-500 dark:text-slate-400">{tx('Se a unidade já tem líder, o pedido vira TROCA DE LÍDER e o líder atual sai quando o pedido for aprovado.')}</p>}
+                            {papel === 'LIDER' && <p className="mt-2 text-[14px] font-semibold text-slate-500 dark:text-slate-400">{posto === 'ASPIRA'
+                                ? tx('Se a unidade já tem Aspira, o pedido vira TROCA e o Aspira atual sai quando o pedido for aprovado. O Líder não muda.')
+                                : tx('Se a unidade já tem líder, o pedido vira TROCA DE LÍDER e o líder atual sai quando o pedido for aprovado.')}</p>}
                         </div>
                         <button type="submit" disabled={enviando} className="w-full h-14 mt-5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-base font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
                             {enviando ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}{tx('Enviar pedido')}

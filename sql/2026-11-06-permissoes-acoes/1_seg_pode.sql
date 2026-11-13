@@ -119,6 +119,7 @@ insert into public.permissoes_padrao (codigo, padrao, travada, rede, mudavel_par
   ('904', array['LIDER'], false, false, array['LIDER']),
   ('909', array['RECEPCAO'], false, false, array['RECEPCAO']),
   ('910', array['MENTOR', 'LIDER'], false, false, array['MENTOR', 'LIDER']),
+  ('911', array['ADMIN', 'MENTOR'], false, false, array['MENTOR']),
   ('905', array['ADMIN'], true, false, null),
   ('907', array['ADMIN'], true, false, null),
   ('908', array['ADMIN'], true, false, null)

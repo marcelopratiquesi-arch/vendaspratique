@@ -9,6 +9,7 @@ import AbaLogins from './AbaLogins.jsx';
 import PaginaAcessos from '../Acessos/index.jsx';
 import JanelaLogin from './JanelaLogin.jsx';
 import { normalizarUnidade, unidadesDoMentorEm } from './conferenciaLogins.js';
+import { mudarSituacao } from '../../components/acesso/acessoBanco.js';
 
 // ==========================================
 // CONFIGURAÇÕES (só o Admin) — visual novo de 09/11/2026 (decisão do dono):
@@ -70,7 +71,24 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
     };
 
     // Novo login: igual a antes (cria o login numa conexão separada; o Admin continua conectado como ele mesmo)
-    const criarLogin = async ({ email, senha, nome, role, unidade }) => {
+    // Posto (Líder/Aspira, 13/11/2026): sem o SQL de 13/11/2026 o campo ainda não existe; grava sem ele (vale Líder)
+    const gravarComPosto = async (fazer, dados) => {
+        let r = await fazer(dados);
+        if (r.error && 'posto' in dados && /posto/i.test(r.error.message || '')) {
+            if (dados.posto === 'ASPIRA') return { error: { message: tx('Para ter Aspira, rode no Supabase o passo 1 de sql/2026-11-13-aspira-temporario.') } };
+            const { posto: _sem, ...resto } = dados;
+            r = await fazer(resto);
+        }
+        if (r.error && /usuarios_um_lider_por_posto|duplicate key/i.test(r.error.message || '')) {
+            return { error: { message: tx('Esta unidade já tem um {posto} ativo. Troque pela aba Acessos → Líderes por unidade ou inative o atual antes.', { posto: dados.posto === 'ASPIRA' ? tx('Aspira') : tx('Líder') }) } };
+        }
+        if (r.error && /usuarios_sistema_unidade_obrigatoria/i.test(r.error.message || '')) {
+            return { error: { message: tx('Líder e Recepção precisam de uma unidade (não pode ser "Todas").') } };
+        }
+        return r;
+    };
+
+    const criarLogin = async ({ email, senha, nome, role, unidade, posto }) => {
         if (usuariosAcesso.some(u => String(u.email).toLowerCase().trim() === email)) {
             avisar(tx('Este e-mail já tem login. Use o botão Editar na lista.'), 'atencao');
             return false;
@@ -80,7 +98,8 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
             avisar(tx("Erro na autenticação do Supabase: {message}", { message: authError.message }), 'erro');
             return false;
         }
-        const { data, error } = await supabase.from('usuarios_sistema').upsert({ email, nome, role, unidade }).select();
+        const { data, error } = await gravarComPosto(d => supabase.from('usuarios_sistema').upsert(d).select(),
+            { email, nome, role, unidade, ...(role === 'LIDER' ? { posto: posto || 'TITULAR' } : {}) });
         if (error || !data?.[0]) { avisar(tx("Erro ao salvar permissões: {v2}", { v2: error?.message || '' }), 'erro'); return false; }
         setUsuariosAcesso(lista => [...lista.filter(u => u.email !== email), data[0]]);
         avisar(tx('Login criado: {nome}.', { nome }), 'sucesso');
@@ -89,14 +108,15 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
     };
 
     // Editar: troca nível, nome e unidade (o e-mail e a senha não mudam)
-    const editarLogin = async (existente, { nome, role, unidade }) => {
+    const editarLogin = async (existente, { nome, role, unidade, posto }) => {
         const email = String(existente.email).toLowerCase().trim();
         if (email === String(emailLogado || '').toLowerCase().trim() && role !== String(existente.role).toUpperCase()) {
             avisar(tx('Você não pode mudar o nível do seu próprio login (para não ficar sem acesso às Configurações).'), 'erro');
             return false;
         }
         if (!confirmarSaidaDeMentor(existente, role)) return false;
-        const { data, error } = await supabase.from('usuarios_sistema').update({ nome, role, unidade }).eq('email', existente.email).select();
+        const { data, error } = await gravarComPosto(d => supabase.from('usuarios_sistema').update(d).eq('email', existente.email).select(),
+            { nome, role, unidade, ...(role === 'LIDER' ? { posto: posto || 'TITULAR' } : {}) });
         if (error || !data?.[0]) { avisar(tx("Erro ao salvar permissões: {v2}", { v2: error?.message || tx('nenhuma linha alterada') }), 'erro'); return false; }
         setUsuariosAcesso(lista => lista.map(u => (u.email === existente.email ? data[0] : u)));
         carregarVinculosMentor();
@@ -110,13 +130,17 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
         return ok;
     };
 
+    // Revogar = INATIVAR (decisão do dono, 13/11/2026): o login não é mais apagado. Fica guardado (histórico,
+    // líderes, quem aprovou) e pode ser reativado em Acessos → Todos os logins. O banco registra quem e por quê.
     const revogar = async (u) => {
-        if (!window.confirm(tx("Atenção! Deseja realmente revogar o acesso de {email}? Ele não poderá mais fazer login no sistema.", { email: u.email }))) return;
-        const { error } = await supabase.from('usuarios_sistema').delete().eq('email', u.email);
-        if (error) { avisar(tx('Não foi possível revogar o acesso: {erro}', { erro: error.message }), 'erro'); return; }
-        setUsuariosAcesso(lista => lista.filter(x => x.email !== u.email));
-        carregarVinculosMentor();
-        avisar(tx('Acesso revogado: {email}.', { email: u.email }), 'sucesso');
+        if (String(u.status || 'ATIVO').toUpperCase() === 'INATIVO') { avisar(tx('Este login já está inativo.'), 'atencao'); return; }
+        const motivo = window.prompt(tx('Inativar o acesso de {email}? A pessoa não consegue mais entrar, mas nada é apagado (dá para reativar). Motivo:', { email: u.email }));
+        if (motivo === null) return;
+        if (motivo.trim().length < 5) { avisar(tx('Cancelado: o motivo precisa ter pelo menos 5 letras.'), 'atencao'); return; }
+        try { await mudarSituacao(u.email, 'INATIVO', motivo.trim()); }
+        catch (error) { avisar(tx('Não foi possível inativar o acesso: {erro}', { erro: error.message }), 'erro'); return; }
+        setUsuariosAcesso(lista => lista.map(x => (x.email === u.email ? { ...x, status: 'INATIVO', inativado_motivo: motivo.trim() } : x)));
+        avisar(tx('Acesso inativado: {email}.', { email: u.email }), 'sucesso');
     };
 
     // Salva as unidades marcadas para o mentor: tira as desmarcadas e inclui as novas (só Admin; o banco confere)

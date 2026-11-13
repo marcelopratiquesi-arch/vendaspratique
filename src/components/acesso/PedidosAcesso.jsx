@@ -29,19 +29,21 @@ const Pessoa = ({ titulo, cor, nome, email, telefone, extra }) => (
 const CartaoPedido = ({ p, ehAdmin, unidades, onDecidido }) => {
     const [papel, setPapel] = useState(p.papel);
     const [unidade, setUnidade] = useState((p.unidades || [])[0] || '');
+    const [posto, setPosto] = useState(p.posto === 'ASPIRA' ? 'ASPIRA' : 'TITULAR'); // Líder ou Aspira (13/11/2026)
     const [gravando, setGravando] = useState(false);
     const troca = p.tipo === 'TROCA_LIDER';
     const atual = (p.lider_atual || [])[0] || null;
+    const nomePosto = posto === 'ASPIRA' ? tx('Aspira') : tx('Líder');
 
     const aprovar = async () => {
         const unidadesFinais = papel === 'LIDER' ? [unidade] : p.unidades;
         const texto = troca && papel === 'LIDER'
-            ? tx('Aprovar a TROCA DE LÍDER em {unidade}? {atual} fica INATIVO e {novo} passa a ser o líder.', { unidade, atual: atual?.nome || tx('o líder atual'), novo: p.nome })
+            ? tx('Aprovar a TROCA em {unidade}? {atual} fica INATIVO e {novo} passa a ser o {posto}. O outro posto não muda.', { unidade, atual: atual?.nome || tx('o líder atual'), novo: p.nome, posto: nomePosto })
             : tx('Aprovar o acesso de {nome}?', { nome: p.nome });
         if (!window.confirm(texto)) return;
         setGravando(true);
         try {
-            await aprovarPedido(p.id, papel, unidadesFinais);
+            await aprovarPedido(p.id, papel, unidadesFinais, papel === 'LIDER' ? posto : null);
             avisar(tx('Acesso aprovado: {nome}.', { nome: p.nome }), 'sucesso');
             onDecidido?.();
         } catch (e) { avisar(e.message || tx('Não foi possível aprovar.'), 'erro'); } finally { setGravando(false); }
@@ -59,17 +61,17 @@ const CartaoPedido = ({ p, ehAdmin, unidades, onDecidido }) => {
         <li className={`rounded-2xl border p-4 bg-white dark:bg-slate-900 ${troca ? 'border-amber-300 dark:border-amber-500/40' : 'border-slate-200 dark:border-slate-800'}`}>
             <div className="flex flex-wrap items-center gap-2 mb-3">
                 {troca
-                    ? <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest"><ArrowRightLeft className="w-3.5 h-3.5" />{tx('Troca de líder — {unidade}', { unidade: (p.unidades || [])[0] })}</span>
-                    : <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest"><UserPlus className="w-3.5 h-3.5" />{p.papel === 'LIDER' ? tx('Novo líder') : tx('Novo mentor')}</span>}
+                    ? <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest"><ArrowRightLeft className="w-3.5 h-3.5" />{posto === 'ASPIRA' ? tx('Troca de aspira — {unidade}', { unidade: (p.unidades || [])[0] }) : tx('Troca de líder — {unidade}', { unidade: (p.unidades || [])[0] })}</span>
+                    : <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest"><UserPlus className="w-3.5 h-3.5" />{p.papel === 'LIDER' ? (posto === 'ASPIRA' ? tx('Novo aspira') : tx('Novo líder')) : tx('Novo mentor')}</span>}
                 <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx('pedido em {quando}', { quando: quando(p.criado_em) })}</span>
             </div>
             {troca ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Pessoa titulo={tx('Líder atual')} cor="border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700" nome={atual?.nome || '—'} email={atual?.email || '—'} telefone={atual?.telefone} extra={tx('Último login: {quando}', { quando: ha(atual?.ultimo_login) })} />
-                    <Pessoa titulo={tx('Novo líder')} cor="border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30" nome={p.nome} email={p.email} telefone={p.telefone} />
+                    <Pessoa titulo={tx('{posto} atual', { posto: nomePosto })} cor="border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700" nome={atual?.nome || '—'} email={atual?.email || '—'} telefone={atual?.telefone} extra={tx('Último login: {quando}', { quando: ha(atual?.ultimo_login) })} />
+                    <Pessoa titulo={tx('Novo {posto}', { posto: nomePosto })} cor="border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30" nome={p.nome} email={p.email} telefone={p.telefone} />
                 </div>
             ) : (
-                <Pessoa titulo={p.papel === 'LIDER' ? tx('Líder') : tx('Mentor')} cor="border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700" nome={p.nome} email={p.email} telefone={p.telefone}
+                <Pessoa titulo={p.papel === 'LIDER' ? nomePosto : tx('Mentor')} cor="border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-700" nome={p.nome} email={p.email} telefone={p.telefone}
                     extra={(p.unidades || []).join(' · ')} />
             )}
             {p.telefone_repetido_de && (
@@ -79,8 +81,9 @@ const CartaoPedido = ({ p, ehAdmin, unidades, onDecidido }) => {
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <label className="block">
                         <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 dark:text-slate-400">{tx('Papel')}</span>
-                        <select value={papel} onChange={e => setPapel(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold dark:bg-slate-900 dark:border-slate-700 dark:text-white">
-                            <option value="LIDER">{tx('Líder')}</option><option value="MENTOR">{tx('Mentor')}</option>
+                        <select value={papel === 'LIDER' ? `LIDER|${posto}` : papel} onChange={e => { const [pp, ps] = e.target.value.split('|'); setPapel(pp); if (ps) setPosto(ps); }}
+                            className="w-full h-9 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold dark:bg-slate-900 dark:border-slate-700 dark:text-white">
+                            <option value="LIDER|TITULAR">{tx('Líder')}</option><option value="LIDER|ASPIRA">{tx('Aspira')}</option><option value="MENTOR">{tx('Mentor')}</option>
                         </select>
                     </label>
                     {papel === 'LIDER' && (

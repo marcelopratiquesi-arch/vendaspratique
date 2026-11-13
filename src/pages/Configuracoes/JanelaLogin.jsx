@@ -27,7 +27,10 @@ const JanelaLogin = ({ login = null, unidades = [], onCancelar, onSalvar }) => {
     const [senha, setSenha] = useState('');
     const [nome, setNome] = useState(login?.nome || '');
     const [unidade, setUnidade] = useState(login?.unidade || '');
+    // Líder ou Aspira (13/11/2026): os dois são nível Líder, cada unidade tem no máximo um de cada
+    const [posto, setPosto] = useState(String(login?.posto || '').toUpperCase() === 'ASPIRA' ? 'ASPIRA' : 'TITULAR');
     const [salvando, setSalvando] = useState(false);
+    const precisaUnidade = nivel === 'LIDER' || nivel === 'RECEPCAO'; // nunca "Todas" (o banco também recusa)
     const primeiroCampo = useRef(null);
 
     const senhaAutomatica = nivel === 'LIDER' || nivel === 'RECEPCAO';
@@ -47,8 +50,9 @@ const JanelaLogin = ({ login = null, unidades = [], onCancelar, onSalvar }) => {
         if (salvando) return;
         const senhaFinal = senhaAutomatica ? SENHA_PADRAO : senha;
         if (!email.trim() || !nivel || !nome.trim() || !unidade || (!editando && !senhaFinal)) return;
+        if (precisaUnidade && unidade.toUpperCase() === 'TODAS') return;
         setSalvando(true);
-        const ok = await onSalvar({ email: email.toLowerCase().trim(), role: nivel, senha: senhaFinal, nome: nome.toUpperCase().trim(), unidade: unidade.toUpperCase() });
+        const ok = await onSalvar({ email: email.toLowerCase().trim(), role: nivel, senha: senhaFinal, nome: nome.toUpperCase().trim(), unidade: unidade.toUpperCase(), posto: nivel === 'LIDER' ? posto : null });
         if (!ok) setSalvando(false);
     };
 
@@ -99,12 +103,26 @@ const JanelaLogin = ({ login = null, unidades = [], onCancelar, onSalvar }) => {
                         <label htmlFor="login-unidade" className={rotulo}>{tx('Vincular à Unidade')}</label>
                         <select id="login-unidade" value={unidade} onChange={(e) => setUnidade(e.target.value)} required className={`${campo} cursor-pointer uppercase`}>
                             <option value="" disabled>{tx('Selecione a Unidade...')}</option>
-                            <option value="TODAS">{tx('Todas as Unidades (Global)')}</option>
+                            {!precisaUnidade && <option value="TODAS">{tx('Todas as Unidades (Global)')}</option>}
                             {atualForaDaLista && <option value={unidade}>{unidade} ({tx('desativada')})</option>}
                             {ativas.map(u => <option key={u.id} value={u.nome}>{u.nome}</option>)}
                         </select>
                         {nivel === 'MENTOR' && <p className="text-[10px] font-bold text-slate-400 mt-1">{tx('O Mentor vê as unidades marcadas no botão "Unidades" da lista.')}</p>}
+                        {precisaUnidade && unidade.toUpperCase() === 'TODAS' && <p className="text-[10px] font-bold text-rose-600 mt-1 dark:text-rose-400">{tx('Líder e Recepção precisam de uma unidade (não pode ser "Todas").')}</p>}
                     </div>
+
+                    {nivel === 'LIDER' && (
+                        <div>
+                            <span className={rotulo}>{tx('Posto na unidade')}</span>
+                            <div className="grid grid-cols-2 gap-2">
+                                {[['TITULAR', 'Líder'], ['ASPIRA', 'Aspira']].map(([v, r]) => (
+                                    <button key={v} type="button" onClick={() => setPosto(v)} aria-pressed={posto === v}
+                                        className={`h-10 rounded-xl border text-[11px] font-black uppercase tracking-widest ${posto === v ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(r)}</button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] font-bold text-slate-400 mt-1">{tx('Cada unidade tem no máximo um Líder e um Aspira, com as mesmas permissões.')}</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-100 dark:border-slate-800">

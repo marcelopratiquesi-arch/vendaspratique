@@ -18,7 +18,7 @@ import { tx, localeAtual } from '../../i18n/traduzir.js';
 import ModalTextoWhatsapp from '../AnaliseVendas/Modais.jsx';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
-import { liderDaUnidade } from '../FechamentoCaixa/cobrancaAuditoria.js';
+import { lideresDaUnidade } from '../FechamentoCaixa/cobrancaAuditoria.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
 import { mensagemPendenciasGrupo, mensagemPendenciasUnidade, DIA_PRAZO_METAS, TIPOS_PENDENCIA } from './pendencias.js';
 
@@ -117,8 +117,8 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
     // O filtro escolhido define o que vai na mensagem (só conferência, só movimentação...)
     const tipoMensagem = filtro === 'todas' ? null : filtro;
     const cobrarGrupo = () => abrirMensagem(tipoMensagem ? `${tx('Pendências – grupo geral')} · ${tx(filtroAtual.rotulo)}` : tx('Pendências – grupo geral'), mensagemPendenciasGrupo(filtrada, new Date(), tipoMensagem));
-    const cobrarLider = (u) => {
-        const lider = liderDaUnidade(colaboradores, u.unidade, lideresAcesso);
+    // Líder e Aspira (13/11/2026): um botão para cada um; sem nenhum, abre a mensagem sem contato
+    const cobrarLider = (u, lider = lideresDaUnidade(colaboradores, u.unidade, lideresAcesso)[0]) => {
         const telefone = String(lider?.telefone || '').replace(/\D/g, '');
         if (!lider) avisar(tx('Nenhum Líder ativo cadastrado na Equipe de {unidade}. Escolha o contato no WhatsApp.', { unidade: u.unidade }), 'atencao');
         else if (telefone.length < 10) avisar(tx('O Líder {nome} está sem telefone no cadastro da Equipe. Escolha o contato no WhatsApp.', { nome: lider.nome }), 'atencao');
@@ -198,7 +198,7 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                             ) : filtrada.length === 0 ? (
                                 <tr><td colSpan={qtdColunas} className="py-16 text-center text-[12px] font-bold text-slate-400">{tx('Nenhuma unidade para mostrar.')}</td></tr>
                             ) : linhas.map((u, i) => {
-                                const lider = liderDaUnidade(colaboradores, u.unidade, lideresAcesso);
+                                const lideres = lideresDaUnidade(colaboradores, u.unidade, lideresAcesso);
                                 const c = u.conferencia;
                                 const ok = i >= linhasPendentes.length; // linha de unidade em dia (no tipo escolhido)
                                 return (
@@ -261,20 +261,29 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                                             {u.relatorioDias?.length ? <RelatorioCompacto lista={u.relatorioDias} /> : <Ok />}
                                         </td>}
                                         <td className="px-4 py-2.5 align-top">
-                                            {lider ? (
-                                                <div className="flex flex-col" title={lider.nome}>
-                                                    <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">{nomeCurto(lider.nome)}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400">{lider.telefone || tx('sem telefone')}</span>
+                                            {lideres.length ? (
+                                                <div className="flex flex-col gap-1">
+                                                    {lideres.map(lider => (
+                                                        <div key={`${lider.posto}-${lider.nome}`} className="flex flex-col" title={lider.nome}>
+                                                            <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">{nomeCurto(lider.nome)}{lider.posto === 'ASPIRA' && <span className="ml-1 text-[10px] font-black uppercase text-blue-600 dark:text-blue-400">{tx('Aspira')}</span>}</span>
+                                                            <span className="text-[10px] font-bold text-slate-400">{lider.telefone || tx('sem telefone')}</span>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             ) : <span className="text-[11px] font-bold text-slate-400">{tx('Sem Líder cadastrado')}</span>}
                                         </td>
                                         <td className="px-4 py-2.5 align-top text-center">
                                             {/* Em dia: nada para cobrar */}
                                             {ok ? <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400" aria-label={tx('Em dia')}>✓</span> : (
-                                            <button type="button" onClick={() => cobrarLider(u)} title={tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={tx('Cobrar o Líder desta unidade no WhatsApp')}
-                                                className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
-                                                <MessageCircle className="w-4 h-4" />
-                                            </button>
+                                            <div className="inline-flex flex-col gap-1">
+                                                {(lideres.length ? lideres : [null]).map((lider, j) => (
+                                                    <button key={j} type="button" onClick={() => cobrarLider(u, lider)}
+                                                        title={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')}
+                                                        className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
+                                                        <MessageCircle className="w-4 h-4" />
+                                                    </button>
+                                                ))}
+                                            </div>
                                             )}
                                         </td>
                                     </tr>

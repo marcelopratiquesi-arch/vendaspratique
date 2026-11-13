@@ -49,14 +49,22 @@ export const unidadesParaCadastro = async () => {
     return (data || []).map(l => l.nome);
 };
 
-export const pedirAcesso = async ({ nome, telefone, papel, unidades }) => {
-    const { data, error } = await supabase.rpc('acesso_solicitar', { p_nome: nome, p_telefone: telefone, p_papel: papel, p_unidades: unidades });
+// Sem o SQL de 13/11/2026 a função ainda não conhece o posto (Aspira): repete o pedido do jeito antigo
+const semParametroNovo = (error) => error && (error.code === 'PGRST202' || /could not find|schema cache/i.test(error.message || ''));
+
+export const pedirAcesso = async ({ nome, telefone, papel, unidades, posto = 'TITULAR' }) => {
+    const base = { p_nome: nome, p_telefone: telefone, p_papel: papel, p_unidades: unidades };
+    let { data, error } = await supabase.rpc('acesso_solicitar', { ...base, p_posto: posto });
+    if (semParametroNovo(error) && posto === 'TITULAR') ({ data, error } = await supabase.rpc('acesso_solicitar', base));
+    else if (semParametroNovo(error)) throw new Error(tx('O pedido de Aspira ainda não está liberado no sistema. Fale com a diretoria.'));
     if (error) throw error;
     return data;
 };
 
-export const aprovarPedido = async (id, papel, unidades) => {
-    const { data, error } = await supabase.rpc('acesso_aprovar', { p_id: id, p_papel: papel || null, p_unidades: unidades || null });
+export const aprovarPedido = async (id, papel, unidades, posto = null) => {
+    const base = { p_id: id, p_papel: papel || null, p_unidades: unidades || null };
+    let { data, error } = await supabase.rpc('acesso_aprovar', posto ? { ...base, p_posto: posto } : base);
+    if (semParametroNovo(error) && posto) ({ data, error } = await supabase.rpc('acesso_aprovar', base));
     if (error) throw error;
     return data;
 };
@@ -104,8 +112,45 @@ export const liberarEmergencia = async (email, horas = 24) => {
     }
     throw new Error(tx('Para liberar por mais de 24 horas (ou encerrar), rode no Supabase o passo 6 de sql/2026-11-12-login-google.'));
 };
-export const definirLider = async (unidade, email) => {
-    const { error } = await supabase.rpc('acesso_definir_lider', { p_unidade: unidade, p_email: email });
+export const definirLider = async (unidade, email, posto = 'TITULAR') => {
+    let { error } = await supabase.rpc('acesso_definir_lider', { p_unidade: unidade, p_email: email, p_posto: posto });
+    if (semParametroNovo(error) && posto === 'TITULAR') ({ error } = await supabase.rpc('acesso_definir_lider', { p_unidade: unidade, p_email: email }));
+    else if (semParametroNovo(error)) throw new Error(tx('Para ter Aspira, rode no Supabase o passo 1 de sql/2026-11-13-aspira-temporario.'));
+    if (error) throw error;
+};
+export const tirarLider = async (unidade, email, motivo) => {
+    const { error } = await supabase.rpc('acesso_tirar_lider', { p_unidade: unidade, p_email: email, p_motivo: motivo });
+    if (error) throw error;
+};
+
+// ---------- Acesso temporário (13/11/2026; sql/2026-11-13-aspira-temporario passo 2) ----------
+/** Lista para a aba Acessos → Temporários. null = SQL ainda não rodado. */
+export const listarTemporarios = async () => {
+    const { data, error } = await supabase.rpc('acesso_temp_listar');
+    if (error) { if (!semParametroNovo(error)) console.warn('acesso_temp_listar:', error.message || error); return null; }
+    return data || [];
+};
+/** Data final calculada pelo BANCO (hora do servidor, Brasília). { hoje, inicio, vale_ate, dias } */
+export const previaTemporario = async (prazo, data = null, id = null) => {
+    const { data: r, error } = await supabase.rpc('acesso_temp_previa', { p_prazo: prazo, p_data: data || null, p_id: id || null });
+    if (error) throw error;
+    return r;
+};
+export const liberarTemporario = async ({ email, nome, telefone, tipo, unidades, prazo, data, motivo }) => {
+    const { data: r, error } = await supabase.rpc('acesso_temp_liberar', {
+        p_email: email, p_nome: nome, p_telefone: telefone, p_tipo: tipo, p_unidades: unidades,
+        p_prazo: prazo, p_data: data || null, p_motivo: motivo,
+    });
+    if (error) throw error;
+    return r;
+};
+export const prorrogarTemporario = async (id, prazo, data, motivo) => {
+    const { data: r, error } = await supabase.rpc('acesso_temp_prorrogar', { p_id: id, p_prazo: prazo, p_data: data || null, p_motivo: motivo });
+    if (error) throw error;
+    return r;
+};
+export const encerrarTemporario = async (id, motivo) => {
+    const { error } = await supabase.rpc('acesso_temp_encerrar', { p_id: id, p_motivo: motivo });
     if (error) throw error;
 };
 export const mudarSituacao = async (email, status, motivo) => {

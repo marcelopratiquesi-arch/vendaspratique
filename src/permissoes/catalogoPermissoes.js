@@ -156,6 +156,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '904', nome: 'Janela para marcar o turno das recepcionistas', tipo: 'fazer', padrao: ['LIDER'], mudavelPara: ['LIDER'], descricao: 'Só o Líder (da unidade dele); dá para desligar.' },
     { codigo: '909', nome: 'Lembrete para fazer o CRM', tipo: 'fazer', padrao: ['RECEPCAO'], mudavelPara: ['RECEPCAO'], descricao: 'Só a Recepção: janela nos horários do CRM (seg-sex 8h, 10h, 12h, 14h30, 15h30, 17h30, 19h30; sáb/dom/feriado 9h e 11h).' },
     { codigo: '910', nome: 'Aviso de cadastro da equipe incompleto (PIX → Banco Inter)', tipo: 'fazer', padrao: ['MENTOR', 'LIDER'], mudavelPara: ['MENTOR', 'LIDER'], descricao: 'Janela ao entrar e cartão no canto até corrigir (Líder: a unidade dele; Mentor: as dele); dá para desligar.' },
+    { codigo: '911', nome: 'Liberar acesso temporário', tipo: 'fazer', padrao: GLOBAL, mudavelPara: ['MENTOR'], descricao: 'Acessos → Temporários (13/11/2026): quem cobre férias ou ausência. Admin libera Líder ou Mentor em qualquer unidade; Mentor só Líder temporário nas unidades dele (o banco confere).' },
     { codigo: '905', nome: 'Configurações: Logins', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '907', nome: 'Configurações: Permissões', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '908', nome: 'Marcar as unidades de cada Mentor', tipo: 'fazer', padrao: SO_ADMIN, travada: true, descricao: 'Só o Admin.' },

@@ -45,9 +45,11 @@ import { useCadastroEquipe } from './pages/Pendencias/useCadastroEquipe.js';
 import CentralColaboradorGlobal from './pages/CadastroGeral/colaborador/CentralColaboradorGlobal.jsx';
 import { pedirFiltroEquipe } from './pages/CadastroGeral/cadastroColaborador.js';
 import { tx } from './i18n/traduzir.js';
+import { avisar } from './components/avisar.js';
 import { usePermissoes } from './permissoes/usePermissoes.js';
 import { carregarChavesLogin, situacaoDoAcesso, dadosDoLoginAtual, registrarLoginUmaVez, registrarEvento, baterAtividade, esquecerRegistroDoLogin } from './components/acesso/acessoBanco.js';
-import { situacaoDaEntrada, senhaLiberada, precisaConfirmarDados, MINUTOS_SESSAO, MINUTOS_ENTRE_BATIDAS } from './components/acesso/regrasAcesso.js';
+import { situacaoDaEntrada, senhaLiberada, precisaConfirmarDados, perfilEfetivo, assinaturaDoAcesso, MINUTOS_SESSAO, MINUTOS_ENTRE_BATIDAS } from './components/acesso/regrasAcesso.js';
+import AvisoAcessoTemporario from './components/acesso/AvisoAcessoTemporario.jsx';
 import { useAcessos } from './components/acesso/useAcessos.js';
 import TelaAcesso from './components/acesso/TelaAcesso.jsx';
 import JanelaConfirmarDados from './components/acesso/JanelaConfirmarDados.jsx';
@@ -227,7 +229,7 @@ export default function App() {
     // Só Admin/Mentor trocam de unidade; unidade que não existe mais ou foi desativada volta para "Todas" (efeitos abaixo).
     const entrar = useCallback((perfil) => {
         const lugar = lerLugarSalvo(perfil?.email);
-        const podeTrocar = perfil?.role === 'ADMIN' || perfil?.role === 'MENTOR';
+        const podeTrocar = perfil?.role === 'ADMIN' || perfil?.role === 'MENTOR' || (perfil?.unidadesLider?.length > 1);
         setUnidadeGlobal(podeTrocar && lugar?.unidade ? lugar.unidade : 'TODAS');
         if (lugar?.tela) setActiveTab(lugar.tela);
         setUsuarioLogado(perfil);
@@ -259,9 +261,10 @@ export default function App() {
             if (perfil) entrar(perfil); else await supabase.auth.signOut();
             return;
         }
-        if (situacaoDaEntrada(situacao) !== 'ativo') { setAcessoPendente({ email, situacao }); return; }
-        const p = situacao.perfil;
         const { metodo } = await dadosDoLoginAtual();
+        // Acesso temporário (13/11/2026): conta como acesso (só com login Google) e SOMA ao acesso fixo
+        if (situacaoDaEntrada(situacao, metodo) !== 'ativo') { setAcessoPendente({ email, situacao }); return; }
+        const p = perfilEfetivo(situacao, metodo);
         if (metodo === 'senha' && !senhaLiberada({ perfil: p, senhaParaTodos: chaves.login_senha_todos })) {
             await registrarEvento('NEGADO', 'entrada com senha depois da virada');
             await sairComAviso(tx('Entre com o Google. A entrada com senha é só para emergência: peça a liberação à diretoria.'));
@@ -273,7 +276,8 @@ export default function App() {
     }, [entrar, sairComAviso]);
     const atualizarAcessoPendente = useCallback(async () => {
         const situacao = await situacaoDoAcesso();
-        if (situacao && situacaoDaEntrada(situacao) === 'ativo') { setAcessoPendente(null); await conferirEEntrar(null); return; }
+        const { metodo } = await dadosDoLoginAtual();
+        if (situacao && situacaoDaEntrada(situacao, metodo) === 'ativo') { setAcessoPendente(null); await conferirEEntrar(null); return; }
         setAcessoPendente(a => (a ? { ...a, situacao: situacao || a.situacao } : a));
     }, [conferirEEntrar]);
 
@@ -484,7 +488,9 @@ export default function App() {
         };
     }, [usuarioLogado, emailLogado, triggerSync]);
 
-    const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
+    // Líder com mais de uma unidade (fixa + temporárias, ou várias temporárias; 13/11/2026) troca de unidade no topo
+    const liderVariasUnidades = usuarioLogado?.role === 'LIDER' && (usuarioLogado?.unidadesLider?.length || 0) > 1;
+    const ehChefe = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR' || liderVariasUnidades;
     const deveFiltrar = !ehChefe || (ehChefe && unidadeGlobal !== 'TODAS');
     const unidadeFiltro = ehChefe ? unidadeGlobal : usuarioLogado?.unidade;
 
@@ -755,21 +761,68 @@ export default function App() {
 
     // Lista de unidades que as telas mostram (seletor, filtros, cadastros): para o Mentor, só as dele.
     // Unidade DESATIVADA (Configurações, 04/11/2026) não aparece; os dados dela continuam no banco.
+    // Acesso temporário (13/11/2026): as unidades temporárias somam às do Mentor; o Líder com várias vê só as dele
+    const unidadesTempLogin = usuarioLogado?.unidadesTemporarias;
+    const unidadesLiderLogin = usuarioLogado?.unidadesLider;
+    const unidadesMentorTodas = useMemo(() => (unidadesMentor === null ? null
+        : [...new Set([...unidadesMentor, ...(unidadesTempLogin || []).map(normalizarNomeBusca)])]), [unidadesMentor, unidadesTempLogin]);
     const unidadesVisiveis = useMemo(() => {
         const ativas = unidades.filter(u => u.ativa !== false);
+        if (liderVariasUnidades) {
+            const minhasL = new Set((unidadesLiderLogin || []).map(normalizarNomeBusca));
+            return ativas.filter(u => minhasL.has(normalizarNomeBusca(u.nome)));
+        }
         if (!ehMentor) return ativas;
-        const minhas = new Set(unidadesMentor || []);
+        const minhas = new Set(unidadesMentorTodas || []);
         return ativas.filter(u => minhas.has(normalizarNomeBusca(u.nome)));
-    }, [ehMentor, unidades, unidadesMentor]);
+    }, [ehMentor, unidades, unidadesMentorTodas, liderVariasUnidades, unidadesLiderLogin]);
 
     // Central de cobranças (decisão do dono, 05/11/2026): Líder = a unidade dele; Mentor = as dele; Admin = todas.
     // Um carregamento só, usado pela janela do login, pelo cartão do canto e pela aba Pendências (com o número vermelho).
+    // Líder com acesso temporário em outras unidades (13/11/2026) é cobrado em todas elas.
     const papelCobranca = usuarioLogado?.role;
     const unidadesCobradas = useMemo(() => {
-        if (papelCobranca === 'LIDER') return usuarioLogado?.unidade ? [usuarioLogado.unidade] : [];
+        if (papelCobranca === 'LIDER') return unidadesLiderLogin?.length ? unidadesLiderLogin : (usuarioLogado?.unidade ? [usuarioLogado.unidade] : []);
         if (papelCobranca === 'MENTOR' || papelCobranca === 'ADMIN') return unidadesVisiveis.map(u => u.nome).filter(Boolean);
         return [];
-    }, [papelCobranca, usuarioLogado?.unidade, unidadesVisiveis]);
+    }, [papelCobranca, usuarioLogado?.unidade, unidadesVisiveis, unidadesLiderLogin]);
+
+    // Acesso temporário (13/11/2026): confere com o BANCO a cada 5 min e ao voltar para a aba (hora do servidor).
+    // Venceu ou foi encerrado = o banco já negou; aqui a tela acompanha: sem acesso nenhum sai com aviso; se as
+    // unidades/papel mudaram (prorrogou, liberou outro), recarrega com o acesso novo; senão só atualiza os prazos.
+    const usuarioLogadoRef = useRef(usuarioLogado);
+    useEffect(() => { usuarioLogadoRef.current = usuarioLogado; }, [usuarioLogado]);
+    const emailDoLogin = usuarioLogado?.email;
+    const papelDoLogin = String(usuarioLogado?.role || '').toUpperCase();
+    useEffect(() => {
+        if (!emailDoLogin || papelDoLogin === 'RECEPCAO') return undefined;
+        let vivo = true;
+        const conferir = async () => {
+            const atual = usuarioLogadoRef.current;
+            if (sistemaPausado() || !atual || !('unidadesTemporarias' in atual)) return;
+            const situacao = await situacaoDoAcesso();
+            if (!vivo || !situacao) return;
+            const { metodo } = await dadosDoLoginAtual();
+            const novo = perfilEfetivo(situacao, metodo);
+            if (!novo) {
+                await registrarEvento('NEGADO', 'acesso temporário terminou (vencido ou encerrado)');
+                await sairComAviso(tx('Seu acesso temporário terminou. Se precisar continuar, fale com quem liberou.'));
+                return;
+            }
+            if (assinaturaDoAcesso(novo) !== assinaturaDoAcesso(atual)) {
+                const perdeu = (atual.unidadesTemporarias || []).some(u => !(novo.unidadesTemporarias || []).includes(u));
+                if (perdeu) await registrarEvento('NEGADO', 'acesso temporário de uma unidade terminou');
+                avisar(perdeu ? tx('Um dos seus acessos temporários terminou. O sistema vai recarregar.') : tx('Seu acesso foi atualizado. O sistema vai recarregar.'), 'atencao');
+                setTimeout(() => recarregarNaVersaoMaisNova(), 2500);
+                return;
+            }
+            setUsuarioLogado(u => (u ? { ...u, temporarios: novo.temporarios } : u));
+        };
+        const id = setInterval(conferir, 5 * 60 * 1000);
+        const aoVoltar = () => { if (document.visibilityState === 'visible') conferir(); };
+        document.addEventListener('visibilitychange', aoVoltar);
+        return () => { vivo = false; clearInterval(id); document.removeEventListener('visibilitychange', aoVoltar); };
+    }, [emailDoLogin, papelDoLogin, sairComAviso]);
     const pendencias = usePendencias({ ativo: ['LIDER', 'MENTOR', 'ADMIN'].includes(papelCobranca), unidades: unidadesCobradas, colaboradores });
     // Acessos (12/11/2026): pedidos, trocas de líder, sem acesso há 7+ dias... para Admin e Mentor (aba Pendências
     // → Acessos e janela ao entrar). "Meus acessos" para todos. Confirmação dos dados para Líder/Mentor/Admin.
@@ -836,9 +889,15 @@ export default function App() {
 
     // Se o Admin tirou a unidade que o Mentor estava vendo, volta para "Todas as minhas unidades"
     useEffect(() => {
-        if (!ehMentor || !unidadesMentor || unidadeGlobal === 'TODAS') return;
-        if (!unidadesMentor.includes(normalizarNomeBusca(unidadeGlobal))) setUnidadeGlobal('TODAS');
-    }, [ehMentor, unidadesMentor, unidadeGlobal]); 
+        if (unidadeGlobal === 'TODAS') return;
+        // Líder com várias unidades (acesso temporário, 13/11/2026): só as dele
+        if (liderVariasUnidades) {
+            if (!(unidadesLiderLogin || []).map(normalizarNomeBusca).includes(normalizarNomeBusca(unidadeGlobal))) setUnidadeGlobal('TODAS');
+            return;
+        }
+        if (!ehMentor || !unidadesMentorTodas) return;
+        if (!unidadesMentorTodas.includes(normalizarNomeBusca(unidadeGlobal))) setUnidadeGlobal('TODAS');
+    }, [ehMentor, unidadesMentorTodas, unidadeGlobal, liderVariasUnidades, unidadesLiderLogin]);
 
     const vendasEnriquecidas = useMemo(() => {
         return dadosAssinaturas.map(v => {
@@ -894,11 +953,12 @@ export default function App() {
     // (cada venda que chegava, cada segundo da contagem da pausa) e as telas que dependem do usuário iam ao banco à toa.
     const usuarioVirtual = useMemo(() => (usuarioLogado ? {
         ...usuarioLogado,
-        role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : usuarioLogado.role,
+        // Líder com várias unidades em "Todas as minhas" vê como o Mentor vê (dados limitados pelo banco às dele)
+        role: (ehChefe && unidadeGlobal !== 'TODAS') ? 'LIDER' : (liderVariasUnidades ? 'MENTOR' : usuarioLogado.role),
         roleReal: usuarioLogado.role, // papel verdadeiro (o "role" acima vira LIDER quando ADMIN/MENTOR escolhe uma unidade)
         unidade: ehChefe ? unidadeGlobal : usuarioLogado.unidade,
         pode, // permissões (catalogoPermissoes.js): as telas usam podeVer(usuario, 'codigo')
-    } : null), [usuarioLogado, ehChefe, unidadeGlobal, pode]);
+    } : null), [usuarioLogado, ehChefe, unidadeGlobal, pode, liderVariasUnidades]);
 
     if (!usuarioLogado) {
         if (verificandoLogin) {
@@ -986,9 +1046,9 @@ export default function App() {
     const telaAtual = abasPermitidas.some(a => a.id === activeTab) ? activeTab : (abasPermitidas[0]?.id || null);
 
     // Mentor: "Todas as minhas unidades" no seletor; sem unidade marcada, as telas ficam bloqueadas
-    const rotuloTodas = ehMentor ? 'Todas as minhas unidades' : undefined;
+    const rotuloTodas = (ehMentor || liderVariasUnidades) ? 'Todas as minhas unidades' : undefined;
     const mentorCarregando = ehMentor && unidadesMentor === null;
-    const mentorSemUnidade = ehMentor && Array.isArray(unidadesMentor) && unidadesMentor.length === 0;
+    const mentorSemUnidade = ehMentor && Array.isArray(unidadesMentorTodas) && unidadesMentorTodas.length === 0;
 
     return (
         <div className="fixed inset-0 flex bg-slate-50 dark:bg-[#0a0f1c] overflow-hidden font-sans text-slate-800 dark:text-slate-200 transition-colors duration-500">
@@ -1005,6 +1065,8 @@ export default function App() {
                     onVerPendencias={() => { setJanelaAcessosFechada(true); handleNavigation('acessos'); }} />
             )}
             {meusAcessosAberto && <MeusAcessos onFechar={() => setMeusAcessosAberto(false)} />}
+            {/* Acesso temporário (13/11/2026): etiqueta com o prazo e aviso faltando 7, 3 e 1 dia */}
+            {usuarioLogado?.temporarios?.length > 0 && <AvisoAcessoTemporario temporarios={usuarioLogado.temporarios} />}
 
             {/* Central de cobranças (decisão do dono, 05/11/2026): Líder e Mentor ganham a janela ao entrar e o cartão
                 do canto (Conferência, Movimentação e Metas). O Admin cobra pela aba Pendências. */}
@@ -1170,7 +1232,8 @@ export default function App() {
                         pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />}
                     {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} lideresAcesso={acessos.contas?.lideres} />}
-                    {telaAtual === 'acessos' && (papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR') && <PaginaAcessos acessos={acessos} esconderAbas={papelCobranca === 'ADMIN' ? ['logins'] : []} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)} />}
+                    {telaAtual === 'acessos' && (papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR') && <PaginaAcessos acessos={acessos} esconderAbas={papelCobranca === 'ADMIN' ? ['logins'] : []} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)}
+                        podeLiberar={pode('911') && ['ADMIN', 'MENTOR'].includes(String(usuarioLogado && 'roleFixo' in usuarioLogado ? usuarioLogado.roleFixo : usuarioLogado?.role).toUpperCase())} />}
                     {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} acessos={acessos} unidadesAcesso={unidadesVisiveis.map(u => u.nome)} />}
                     </>)}
                     </ProtecaoTela>
