@@ -402,13 +402,13 @@ const DashboardTab = ({
         const cargo = String(colab.cargo || colab.setor || colab.role || '').toUpperCase();
         const isAlvoCobranca = cargo.includes('SAVER') || cargo.includes('RECEPÇÃO') || cargo.includes('RECEPCAO');
 
-        // 2. Varredura Profunda (Deep Scan) para achar inativos independente do nome da chave no banco
-        const stringDoColaborador = JSON.stringify(colab).toUpperCase();
+        // 2. Desligado = ativo falso ou data de desligamento preenchida.
+        // (Antes procurava a palavra DESLIGADO no cadastro inteiro; desde 11/11/2026 todo cadastro
+        // tem o campo desligado_em, mesmo vazio, e todo mundo virava "desligado".)
         const isDesligado =
             colab.ativo === false ||
             colab.is_active === false ||
-            stringDoColaborador.includes('DESLIGADO') ||
-            stringDoColaborador.includes('INATIVO');
+            !!colab.desligado_em;
 
         // Se for alvo de cobrança E estiver ativo (não desligado), entra zerado no ranking de cobrança
         if (isAlvoCobranca && !isDesligado) {
@@ -456,7 +456,9 @@ const DashboardTab = ({
             // Se quem vendeu não estava no ranking (ex: Líder, Bem-estar), ele é inserido aqui dinamicamente
             if (rankingConsultoresFisicos[vendUpper] !== undefined) {
                 rankingConsultoresFisicos[vendUpper] += qtdValida;
-            } else {
+            } else if (qtdValida > 0) {
+                // Líder, Bem-estar e outros setores só entram quando a venda CONTA (decisão do dono, 13/11/2026):
+                // quem vendeu só dose acima do limite (vale 0) não aparece na lista de cobrança.
                 rankingConsultoresFisicos[vendUpper] = qtdValida;
             }
         } else if (categoriaFinal === 'SERVICO') {

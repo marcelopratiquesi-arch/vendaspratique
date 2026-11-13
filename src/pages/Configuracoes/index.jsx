@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Settings, Shield, KeyRound, UserPlus } from 'lucide-react';
+import { Settings, Shield, KeyRound, UserPlus, Globe } from 'lucide-react';
 import { supabase, conexaoParaCriarLogin } from '../../supabaseClient.js';
 import ModalUnidadesMentor from '../../components/Modals/ModalUnidadesMentor.jsx';
 import AbaPermissoes from '../../permissoes/AbaPermissoes.jsx';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import AbaLogins from './AbaLogins.jsx';
+import PaginaAcessos from '../Acessos/index.jsx';
 import JanelaLogin from './JanelaLogin.jsx';
 import { normalizarUnidade, unidadesDoMentorEm } from './conferenciaLogins.js';
 
@@ -17,7 +18,7 @@ import { normalizarUnidade, unidadesDoMentorEm } from './conferenciaLogins.js';
 //   unidades do Mentor em mentor_unidades). Novo: Editar sem redigitar a senha e o atalho "Permissões deste login".
 // ==========================================
 
-const Configuracoes = ({ unidades = [], emailLogado = '' }) => {
+const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidadesAcesso = [] }) => {
     const [abaAtiva, setAbaAtiva] = useState('logins'); // 'logins' | 'permissoes'
     const [usuariosAcesso, setUsuariosAcesso] = useState([]);
     const [carregando, setCarregando] = useState(true);
@@ -152,7 +153,7 @@ const Configuracoes = ({ unidades = [], emailLogado = '' }) => {
     // Voltando para Logins, relê as exceções (podem ter mudado na aba Permissões)
     const trocarAba = (aba) => { if (aba === 'permissoes') setLoginPermissoes(''); else carregarExcecoes(); setAbaAtiva(aba); };
 
-    const ABAS = [['logins', tx('Logins'), Shield], ['permissoes', tx('Permissões'), KeyRound]];
+    const ABAS = [['logins', tx('Logins'), Shield], ['entradas', tx('Entradas e senha'), Globe], ['permissoes', tx('Permissões'), KeyRound]];
 
     return (
         <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto pb-10">
@@ -163,7 +164,7 @@ const Configuracoes = ({ unidades = [], emailLogado = '' }) => {
                         <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"><Settings className="w-4 h-4" /></span>
                         <div className="min-w-0">
                             <h2 className="text-xl font-black text-slate-800 tracking-tight leading-tight dark:text-white">{tx('Configurações')}</h2>
-                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Logins e permissões · só o Admin')}</p>
+                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Logins, entradas e permissões · só o Admin')}</p>
                         </div>
                     </div>
                     <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="tablist" aria-label={tx('Configurações')}>
@@ -195,6 +196,8 @@ const Configuracoes = ({ unidades = [], emailLogado = '' }) => {
                     onPermissoes={abrirPermissoesDo}
                     onRevogar={revogar}
                 />
+            ) : abaAtiva === 'entradas' ? (
+                <PaginaAcessos acessos={acessos} ehAdmin somenteAbas={['logins']} unidades={unidadesAcesso} />
             ) : (
                 <AbaPermissoes key={loginPermissoes || 'nivel'} usuarios={usuariosAcesso} loginInicial={loginPermissoes} />
             )}

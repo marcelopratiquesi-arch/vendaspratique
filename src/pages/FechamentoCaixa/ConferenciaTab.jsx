@@ -282,7 +282,7 @@ const ConferenciaTab = ({
         }
 
         const BOM = '\uFEFF'; 
-        const headers = ['Data da Venda', 'Unidade', 'CPF', 'Nome do Aluno', 'Item Vendido', 'Categoria', 'Vendedor', 'Quantidade', 'Valor', 'Observação', 'Status'];
+        const headers = ['Data da Venda', 'Unidade', 'CPF', 'Nome do Aluno', 'Item Vendido', 'Categoria', 'Vendedor', 'Quantidade', 'Valor', 'Observação', 'Status', 'Conferido por', 'Conferido em'];
 
         const rows = sortedVendas.map(v => [
             formatDataBR(v.data),
@@ -295,7 +295,9 @@ const ConferenciaTab = ({
             v.quantidade,
             formatMoney(v.valor), 
             String(v.observacao || '').replace(/(\r\n|\n|\r)/gm, " "),
-            v.conferiu ? 'CONFERIDO' : 'PENDENTE'
+            v.conferiu ? 'CONFERIDO' : 'PENDENTE',
+            v.conferiu ? (v.conferido_por || '') : '',
+            v.conferiu && v.conferido_em ? new Date(v.conferido_em).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''
         ]);
 
         const csvContent = [
@@ -704,6 +706,7 @@ const ConferenciaTab = ({
                                     <td className={`px-5 py-3 align-middle no-drag border-l border-slate-100 sticky right-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)] dark:border-slate-800 ${v.conferiu ? 'bg-emerald-50/90 dark:bg-emerald-500/10' : 'bg-white dark:bg-slate-900'}`}>
                                         <div className="flex items-center justify-center gap-3">
                                             
+                                            <div className="flex flex-col items-center gap-1">
                                             {/* BOTÃO STATUS (cadeado quando o pagamento do mês já foi aprovado) */}
                                             {estaTravada(v) ? (
                                                 <span title={tx('O pagamento deste mês já foi aprovado: a conferência não pode mais ser mexida.')}
@@ -718,6 +721,12 @@ const ConferenciaTab = ({
                                             >
                                                 {v.conferiu ? <><Check className="w-4 h-4 mb-0.5"/> OK</> : <><Clock className="w-4 h-4 mb-0.5"/>{' '}{tx("PENDENTE")}</>}
                                             </button>}
+                                            {v.conferiu && (v.conferido_por || v.conferido_em) && (
+                                                <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 leading-tight text-center max-w-[7rem] truncate" title={`${tx('Conferido por')} ${v.conferido_por || '—'}${v.conferido_em ? ' · ' + formatarDataHora(v.conferido_em) : ''}`}>
+                                                    {[v.conferido_por ? String(v.conferido_por).split(' ')[0] : null, v.conferido_em ? formatarDataHora(v.conferido_em) : null].filter(Boolean).join(' · ')}
+                                                </span>
+                                            )}
+                                            </div>
 
                                             {/* BOTÕES DE EDITAR / EXCLUIR EMPILHADOS (somem quando o mês está pago) */}
                                             {podeAgir && !estaTravada(v) && <div className="flex flex-col gap-1.5">

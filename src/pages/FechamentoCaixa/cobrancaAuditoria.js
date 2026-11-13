@@ -9,6 +9,7 @@
 // Só leitura: nada aqui grava ou muda vendas/comissões (regra 12).
 // Mensagens de WhatsApp não são traduzidas (vão para a equipe, em português).
 // ==========================================
+import { telefoneParaEquipe } from '../../components/acesso/regrasAcesso.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
 
 // Cobrança começa em outubro/2026 (decisão do dono): vendas mais antigas não entram na janela do Líder
@@ -149,12 +150,20 @@ export const mensagemCobrancaLider = (linha, nomeLider, periodoTexto) => {
 };
 
 // Líder ativo da unidade (setor do cadastro da Equipe contém "LIDER"); prefere quem tem telefone
-export const liderDaUnidade = (colaboradores = [], unidade) => {
+// Reserva (12/11/2026): se a Equipe não tem Líder da unidade, vale o líder definido em Acessos → Líderes por unidade
+// (login de Líder ou Admin/Mentor marcado), com o nome e o telefone que ele confirmou. `lideresAcesso` = contas.lideres
+// de useAcessos ([{ unidade, lideres: [{ nome, telefone }] }]). Sem ele, funciona como antes.
+const lideresDoAcesso = (lideresAcesso, alvo) => {
+    const item = (lideresAcesso || []).find(x => normalizeString(x?.unidade) === alvo);
+    const l = (item?.lideres || []).find(x => String(x.telefone || '').replace(/[^0-9]/g, '').length >= 10) || item?.lideres?.[0];
+    return l ? { nome: l.nome, telefone: telefoneParaEquipe(l.telefone) || '', origem: 'acesso' } : null;
+};
+export const liderDaUnidade = (colaboradores = [], unidade, lideresAcesso = null) => {
     const alvo = normalizeString(unidade);
     const lideres = colaboradores.filter(c => c && c.ativo !== false
         && normalizeString(c.unidade) === alvo
         && normalizeString(c.role || c.setor || c.cargo).includes('LIDER'));
-    return lideres.find(c => String(c.telefone || '').replace(/\D/g, '').length >= 10) || lideres[0] || null;
+    return lideres.find(c => String(c.telefone || '').replace(/\D/g, '').length >= 10) || lideres[0] || lideresDoAcesso(lideresAcesso, alvo);
 };
 
 // Pedido para o Fechamento abrir direto na aba Conferência num período (botão "Fazer a conferência agora"

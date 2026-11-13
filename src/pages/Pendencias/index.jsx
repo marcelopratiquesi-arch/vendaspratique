@@ -90,7 +90,7 @@ export const RelatorioCompacto = ({ lista }) => {
     );
 };
 
-const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TODAS', ehMentor }) => {
+const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TODAS', ehMentor, lideresAcesso = null }) => {
     const { lista = [], carregando, carregado, recarregar } = pendencias || {};
     const filtrada = unidadeGlobal && unidadeGlobal !== 'TODAS' ? lista.filter(u => normalizeString(u.unidade) === normalizeString(unidadeGlobal)) : lista;
     const comPendencia = filtrada.filter(u => u.totalDia > 0);
@@ -118,7 +118,7 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
     const tipoMensagem = filtro === 'todas' ? null : filtro;
     const cobrarGrupo = () => abrirMensagem(tipoMensagem ? `${tx('Pendências – grupo geral')} · ${tx(filtroAtual.rotulo)}` : tx('Pendências – grupo geral'), mensagemPendenciasGrupo(filtrada, new Date(), tipoMensagem));
     const cobrarLider = (u) => {
-        const lider = liderDaUnidade(colaboradores, u.unidade);
+        const lider = liderDaUnidade(colaboradores, u.unidade, lideresAcesso);
         const telefone = String(lider?.telefone || '').replace(/\D/g, '');
         if (!lider) avisar(tx('Nenhum Líder ativo cadastrado na Equipe de {unidade}. Escolha o contato no WhatsApp.', { unidade: u.unidade }), 'atencao');
         else if (telefone.length < 10) avisar(tx('O Líder {nome} está sem telefone no cadastro da Equipe. Escolha o contato no WhatsApp.', { nome: lider.nome }), 'atencao');
@@ -198,7 +198,7 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                             ) : filtrada.length === 0 ? (
                                 <tr><td colSpan={qtdColunas} className="py-16 text-center text-[12px] font-bold text-slate-400">{tx('Nenhuma unidade para mostrar.')}</td></tr>
                             ) : linhas.map((u, i) => {
-                                const lider = liderDaUnidade(colaboradores, u.unidade);
+                                const lider = liderDaUnidade(colaboradores, u.unidade, lideresAcesso);
                                 const c = u.conferencia;
                                 const ok = i >= linhasPendentes.length; // linha de unidade em dia (no tipo escolhido)
                                 return (

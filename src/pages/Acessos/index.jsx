@@ -54,9 +54,11 @@ const Caixa = ({ children }) => <div className="bg-white rounded-2xl border bord
 const Vazio = ({ texto }) => <p className="px-4 py-8 text-center text-[14px] font-bold text-emerald-600 dark:text-emerald-400">✓ {texto || tx('Tudo certo.')}</p>;
 const Rotulo = ({ children }) => <span className="md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{children} </span>;
 
-const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
+// somenteAbas / esconderAbas (12/11/2026): a lista "Todos os logins" também aparece em Configurações → Entradas e senha
+// (só ela) e, para o Admin, sai da aba Acessos do menu; o Mentor continua vendo a lista aqui.
+const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = null, esconderAbas = [] }) => {
     const { contas, painel, carregando, recarregar, semSql } = acessos || {};
-    const [aba, setAba] = useState('pedidos');
+    const [aba, setAba] = useState(somenteAbas?.[0] || 'pedidos');
     const [busca, setBusca] = useState('');
     const [filtroPapel, setFiltroPapel] = useState('');
     const [soSemGoogle, setSoSemGoogle] = useState(false);
@@ -149,7 +151,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
 
     const qtdGoogle = logins.filter(l => String(l.status || 'ATIVO') === 'ATIVO' && l.ultimo_metodo === 'google').length;
     const qtdAtivos = logins.filter(l => String(l.status || 'ATIVO') === 'ATIVO').length;
-    const ABAS = [
+    const ABAS_TODAS = [
         ['pedidos', 'Pedidos', UserPlus, contas.pedidos.length, 'rose'],
         ['recentes', 'Entradas recentes', LogIn, contas.recentes.filter(r => r.evento === 'LOGIN').length, 'azul'],
         ['sem', 'Sem acesso', ShieldAlert, contas.semAcesso.length, 'rose'],
@@ -158,6 +160,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
         ['alertas', '"Não fui eu"', AlertOctagon, contas.alertas.length, 'rose'],
         ['logins', 'Todos os logins', Users, qtdAtivos, 'cinza'],
     ];
+    const ABAS = ABAS_TODAS.filter(([id]) => (!somenteAbas || somenteAbas.includes(id)) && !esconderAbas.includes(id));
     const corNumero = { rose: 'bg-rose-500 text-white', amarelo: 'bg-amber-500 text-white', azul: 'bg-blue-600 text-white', cinza: 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200' };
 
     return (
@@ -167,7 +170,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
                 <div className="flex items-center gap-3 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center dark:bg-blue-500/10 dark:text-blue-400"><KeyRound className="w-5 h-5" /></div>
                     <div className="min-w-0">
-                        <h1 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Acessos')}</h1>
+                        <h1 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{somenteAbas ? tx('Entradas e senha') : tx('Acessos')}</h1>
                         <p className="text-[13px] font-semibold text-slate-500 dark:text-slate-400">
                             {tx('{qtd} pedidos', { qtd: contas.pedidos.length })} · {tx('{qtd} sem acesso há 7+ dias', { qtd: contas.semAcesso.length })} · <Globe className="inline w-3.5 h-3.5 -mt-0.5" /> {tx('Google: {feito} de {total} já entraram', { feito: qtdGoogle, total: qtdAtivos })}
                         </p>
@@ -180,7 +183,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
             </div>
 
             {/* ABAS */}
-            <div className="flex gap-1 p-1 bg-white rounded-xl border border-slate-200 overflow-x-auto custom-scrollbar dark:bg-slate-900 dark:border-slate-800" role="tablist">
+            {ABAS.length > 1 && <div className="flex gap-1 p-1 bg-white rounded-xl border border-slate-200 overflow-x-auto custom-scrollbar dark:bg-slate-900 dark:border-slate-800" role="tablist">
                 {ABAS.map(([id, rotulo, Icone, qtd, cor]) => {
                     const sel = aba === id;
                     return (
@@ -191,7 +194,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [] }) => {
                         </button>
                     );
                 })}
-            </div>
+            </div>}
 
             {/* BUSCA (abas de listas de pessoas) */}
             {['sem', 'dados', 'logins'].includes(aba) && (

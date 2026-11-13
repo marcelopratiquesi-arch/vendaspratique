@@ -3099,6 +3099,8 @@ export default {
     "Login atualizado: {nome}.": "Login updated: {nome}.",
     "Não foi possível revogar o acesso: {erro}": "Could not revoke the access: {erro}",
     "Acesso revogado: {email}.": "Access revoked: {email}.",
+    "Entradas e senha": "Sign-ins and password",
+    "Logins, entradas e permissões · só o Admin": "Logins, sign-ins and permissions · Admin only",
     "Logins e permissões · só o Admin": "Logins and permissions · Admin only",
     "Novo login": "New login",
     "{nome}: Mentor sem nenhuma unidade marcada (não vê nada no sistema).": "{nome}: Mentor with no unit selected (sees nothing in the system).",
@@ -3890,4 +3892,5 @@ export default {
     "Encerrar a entrada com senha de {nome}? Ele(a) volta a entrar só pelo Google.": "End password sign-in for {nome}? They go back to Google only.",
     "Entrada com senha de {nome} encerrada.": "Password sign-in for {nome} ended.",
     "Para liberar por mais de 24 horas (ou encerrar), rode no Supabase o passo 6 de sql/2026-11-12-login-google.": "To allow more than 24 hours (or end it), run step 6 of sql/2026-11-12-login-google in Supabase.",
+    "Conferido por": "Checked by",
 };
