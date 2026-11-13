@@ -82,13 +82,23 @@ const LinhaPrevia = ({ previa }) => {
     );
 };
 
-const FormularioLiberar = ({ ehAdmin, unidades, onFeito, onCancelar }) => {
+const FormularioLiberar = ({ ehAdmin, unidades, onFeito, onCancelar, unidadesIniciais = [], pessoas = [] }) => {
     const [email, setEmail] = useState('');
     const [nome, setNome] = useState('');
     const [ddi, setDdi] = useState('55');
     const [numero, setNumero] = useState('');
     const [tipo, setTipo] = useState('LIDER');
-    const [escolhidas, setEscolhidas] = useState([]);
+    const [escolhidas, setEscolhidas] = useState(() => unidades.filter(u => unidadesIniciais.some(i => String(i).trim().toUpperCase() === String(u).trim().toUpperCase())));
+    // Pessoa já cadastrada (login ativo): preenche e-mail, nome e WhatsApp de uma vez
+    const escolherPessoa = (em) => {
+        const p = pessoas.find(x => normalizarEmail(x.email) === em);
+        if (!p) return;
+        setEmail(normalizarEmail(p.email));
+        setNome(String(p.nome || '').toUpperCase());
+        const tel = String(p.telefone || '').replace(/\D/g, '');
+        const d = DDIS.find(([v]) => tel.startsWith(v) && tel.length - v.length >= 10);
+        if (d) { setDdi(d[0]); setNumero(tel.slice(d[0].length)); } else if (tel) setNumero(tel);
+    };
     const [prazo, setPrazo] = useState('10d');
     const [data, setData] = useState('');
     const [motivo, setMotivo] = useState('');
@@ -123,6 +133,17 @@ const FormularioLiberar = ({ ehAdmin, unidades, onFeito, onCancelar }) => {
                 <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Liberar acesso temporário')}</h3>
                 <button type="button" onClick={onCancelar} className="h-8 px-2 rounded-lg text-[11px] font-black uppercase text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">{tx('Cancelar')}</button>
             </div>
+            {pessoas.length > 0 && (
+                <label className="block">
+                    <span className={rotulo}>{tx('Pessoa já cadastrada no sistema (opcional)')}</span>
+                    <select defaultValue="" onChange={e => escolherPessoa(e.target.value)} className={`${campo} max-w-md`}>
+                        <option value="">{tx('Escolher para preencher e-mail, nome e WhatsApp...')}</option>
+                        {[...pessoas].sort((a, b) => String(a.nome).localeCompare(String(b.nome))).map(p => (
+                            <option key={p.email} value={normalizarEmail(p.email)}>{p.nome} · {p.role === 'LIDER' && p.posto === 'ASPIRA' ? tx('Aspira') : p.role}{p.unidade && p.unidade !== 'TODAS' ? ` · ${p.unidade}` : ''}</option>
+                        ))}
+                    </select>
+                </label>
+            )}
             <div className="grid gap-3 md:grid-cols-3">
                 <label className="block md:col-span-1">
                     <span className={rotulo}>{tx('E-mail (Google) da pessoa')}</span>
@@ -227,8 +248,8 @@ const textoDias = (t) => {
     return d <= 0 ? tx('vence hoje') : d === 1 ? tx('vence amanhã') : tx('faltam {qtd} dias', { qtd: d });
 };
 
-const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, onMudou }) => {
-    const [novo, setNovo] = useState(false);
+const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, onMudou, inicial = null, pessoas = [] }) => {
+    const [novo, setNovo] = useState(!!inicial && podeLiberar); // "Cobrir com temporário" (Líderes por unidade) abre direto
     const [filtro, setFiltro] = useState('ativos');
     const [prorrogando, setProrrogando] = useState(null);
     const lista = useMemo(() => (contas?.temporarios || []).filter(t => (filtro === 'ativos' ? t.situacao === 'ATIVO' : t.situacao !== 'ATIVO')), [contas, filtro]);
@@ -260,7 +281,7 @@ const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, on
                 )}
             </div>
 
-            {novo && <FormularioLiberar ehAdmin={ehAdmin} unidades={unidades} onCancelar={() => setNovo(false)}
+            {novo && <FormularioLiberar ehAdmin={ehAdmin} unidades={unidades} onCancelar={() => setNovo(false)} unidadesIniciais={inicial?.unidades || []} pessoas={pessoas}
                 onFeito={(t) => { setNovo(false); onMudou?.(); if (window.confirm(tx('Mandar agora a mensagem no WhatsApp para {nome} com o e-mail e o prazo?', { nome: t.nome }))) abrirNoWhatsApp(t.telefone, mensagemParaPessoa(t, null)); }} />}
 
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">

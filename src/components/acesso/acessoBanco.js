@@ -203,3 +203,11 @@ export function registrarEvento(evento, detalhe) {
 export function esquecerRegistroDoLogin() {
     try { sessionStorage.removeItem(CHAVE_REGISTRADO); } catch { /* nada */ }
 }
+
+// Cadastrar Líder ou Aspira direto pelo e-mail (13/11/2026; passo 6 do SQL). A pessoa entra com o Google sem pedir acesso.
+export const cadastrarLider = async ({ unidade, email, nome, telefone, posto }) => {
+    const { data, error } = await supabase.rpc('acesso_cadastrar_lider', { p_unidade: unidade, p_email: email, p_nome: nome, p_telefone: telefone, p_posto: posto });
+    if (semParametroNovo(error)) throw new Error(tx('Para cadastrar pelo e-mail, rode no Supabase o passo 6 de sql/2026-11-13-aspira-temporario.'));
+    if (error) throw error;
+    return data;
+};

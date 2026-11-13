@@ -1232,7 +1232,7 @@ export default function App() {
                         pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />}
                     {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} lideresAcesso={acessos.contas?.lideres} />}
-                    {telaAtual === 'acessos' && (papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR') && <PaginaAcessos acessos={acessos} esconderAbas={papelCobranca === 'ADMIN' ? ['logins'] : []} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)}
+                    {telaAtual === 'acessos' && (papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR') && <PaginaAcessos acessos={acessos} esconderAbas={papelCobranca === 'ADMIN' ? ['logins'] : []} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)} colaboradores={colaboradores}
                         podeLiberar={pode('911') && ['ADMIN', 'MENTOR'].includes(String(usuarioLogado && 'roleFixo' in usuarioLogado ? usuarioLogado.roleFixo : usuarioLogado?.role).toUpperCase())} />}
                     {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} acessos={acessos} unidadesAcesso={unidadesVisiveis.map(u => u.nome)} />}
                     </>)}

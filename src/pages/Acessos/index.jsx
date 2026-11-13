@@ -8,6 +8,7 @@ import CopyButton from '../HistoricoVendas/CopyButton.jsx';
 import PedidosAcesso from '../../components/acesso/PedidosAcesso.jsx';
 import { liberarEmergencia, mudarSituacao, resolverAlerta, definirLider, tirarLider } from '../../components/acesso/acessoBanco.js';
 import AbaTemporarios from '../../components/acesso/AbaTemporarios.jsx';
+import FormCadastrarLider from '../../components/acesso/FormCadastrarLider.jsx';
 import { telefoneBonito, postoDe, dataBr } from '../../components/acesso/regrasAcesso.js';
 import { sistemaPausado } from '../../components/pausaSistema.js';
 
@@ -61,9 +62,11 @@ const Rotulo = ({ children }) => <span className="md:hidden text-[11px] font-bla
 
 // somenteAbas / esconderAbas (12/11/2026): a lista "Todos os logins" também aparece em Configurações → Entradas e senha
 // (só ela) e, para o Admin, sai da aba Acessos do menu; o Mentor continua vendo a lista aqui.
-const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = null, esconderAbas = [], podeLiberar = true }) => {
+const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = null, esconderAbas = [], podeLiberar = true, colaboradores = [] }) => {
     const { contas, painel, carregando, recarregar, semSql } = acessos || {};
     const [aba, setAba] = useState(somenteAbas?.[0] || 'pedidos');
+    const [cadastrando, setCadastrando] = useState(''); // "UNIDADE|POSTO" com o formulário "Cadastrar pessoa" aberto
+    const [tempInicial, setTempInicial] = useState(null); // "Cobrir com temporário": abre o formulário já com a unidade
     const [busca, setBusca] = useState('');
     const [filtroPapel, setFiltroPapel] = useState('');
     const [soSemGoogle, setSoSemGoogle] = useState(false);
@@ -292,7 +295,16 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                                     {ehAdmin && <button type="button" onClick={() => tirarDoPosto(unidade, l)} className="h-7 px-2 rounded-md border border-rose-200 text-rose-600 text-[10px] font-black uppercase hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300">{tx('Tirar')}</button>}
                                                 </div>
                                             )) : <span className={`text-[13px] font-black ${posto === 'TITULAR' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-400'}`}>{posto === 'TITULAR' ? tx('Sem líder') : tx('Sem aspira')}</span>}
-                                            {ehAdmin && (
+                                            {cadastrando === chave ? (
+                                                <FormCadastrarLider unidade={unidade} posto={posto} atuais={doPosto} colaboradores={colaboradores}
+                                                    onCancelar={() => setCadastrando('')} onFeito={() => { setCadastrando(''); atualizar(); }} />
+                                            ) : (
+                                                <button type="button" onClick={() => setCadastrando(chave)}
+                                                    className="h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300">
+                                                    <UserPlus className="w-3.5 h-3.5" />{doPosto.length ? tx('Trocar: cadastrar pessoa') : tx('Cadastrar pessoa')}
+                                                </button>
+                                            )}
+                                            {ehAdmin && cadastrando !== chave && (
                                                 <div className="flex gap-2">
                                                     <select value={escolhaLider[chave] || ''} onChange={e => setEscolhaLider(s => ({ ...s, [chave]: e.target.value }))}
                                                         className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold dark:bg-slate-900 dark:border-slate-700 dark:text-white" aria-label={tx('Escolher o {posto} de {unidade}', { unidade, posto: tx(rotuloPosto) })}>
@@ -317,6 +329,12 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                             </span>
                                         </p>
                                     )) : <span className="text-[12px] font-semibold text-slate-400">—</span>}
+                                    {podeLiberar && (
+                                        <button type="button" onClick={() => { setTempInicial({ unidades: [unidade], chave: Date.now() }); setAba('temporarios'); }}
+                                            className="h-8 px-2.5 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-300">
+                                            <Timer className="w-3.5 h-3.5" />{tx('Cobrir com temporário')}
+                                        </button>
+                                    )}
                                 </div>
                             </Linha>
                         );
@@ -325,7 +343,8 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
             )}
 
             {/* TEMPORÁRIOS (13/11/2026) */}
-            {aba === 'temporarios' && <AbaTemporarios contas={contas} ehAdmin={ehAdmin} unidades={unidades} podeLiberar={podeLiberar} onMudou={atualizar} />}
+            {aba === 'temporarios' && <AbaTemporarios key={tempInicial?.chave || 'temp'} contas={contas} ehAdmin={ehAdmin} unidades={unidades} podeLiberar={podeLiberar} onMudou={atualizar}
+                inicial={tempInicial} pessoas={logins.filter(l => String(l.status || 'ATIVO') === 'ATIVO' && papelDe(l) !== 'RECEPCAO')} />}
 
             {/* DADOS NÃO CONFIRMADOS */}
             {aba === 'dados' && (
