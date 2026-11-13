@@ -4,6 +4,7 @@ import { tx } from '../../i18n/traduzir.js';
 import { avisar } from '../avisar.js';
 import CopyButton from '../../pages/HistoricoVendas/CopyButton.jsx';
 import { abrirNoWhatsApp } from '../whatsapp.js';
+import ModalTextoWhatsapp from '../../pages/AnaliseVendas/Modais.jsx';
 import { liberarTemporario, prorrogarTemporario, encerrarTemporario, previaTemporario } from './acessoBanco.js';
 import { PRAZOS_TEMPORARIO, calcularValeAte, hojeEmBrasilia, dataBr, telefoneValido, juntarTelefone, telefoneBonito, normalizarEmail } from './regrasAcesso.js';
 
@@ -15,6 +16,8 @@ import { PRAZOS_TEMPORARIO, calcularValeAte, hojeEmBrasilia, dataBr, telefoneVal
 // Admin. O banco confere tudo (acesso_temp_liberar / _prorrogar / _encerrar).
 // ==========================================
 
+// Link do sistema de vendas na mensagem (o endereço em que o sistema está aberto)
+const LINK_SISTEMA = typeof window !== 'undefined' ? window.location.origin : '';
 const DDIS = [['55', '+55'], ['54', '+54'], ['1', '+1'], ['351', '+351']];
 const campo = 'w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-[13px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white';
 const rotulo = 'block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 dark:text-slate-400';
@@ -29,12 +32,14 @@ const mensagemParaPessoa = (t, dias) => {
         txt += `Seu acesso temporário de *${tipo}* ao sistema Pratique Vendas (${unidades}) `;
         txt += dias <= 0 ? '*vence hoje* às 23:59.' : `vence em *${dias} dia${dias === 1 ? '' : 's'}* (${dataBr(t.vale_ate)} às 23:59).`;
         txt += '\nSe precisar continuar, fale com quem liberou o acesso.';
+        txt += `\n\n👉 Sistema: ${LINK_SISTEMA}`;
     } else {
         txt += `Seu acesso temporário de *${tipo}* ao sistema Pratique Vendas foi liberado.\n`;
         txt += `• Unidade${(t.unidades || []).length > 1 ? 's' : ''}: ${unidades}\n`;
         txt += `• Vale até: ${dataBr(t.vale_ate)} às 23:59 (horário de Brasília)\n\n`;
-        txt += `Para entrar: abra o sistema e clique em *Entrar com Google* usando o e-mail ${t.email}.`;
-        if ((t.unidades || []).length > 1) txt += '\nVocê escolhe a unidade no topo da tela.';
+        txt += `Para entrar: abra o link abaixo e clique em *Entrar com Google* usando o e-mail ${t.email}.\n`;
+        txt += `👉 ${LINK_SISTEMA}`;
+        if ((t.unidades || []).length > 1) txt += '\n\nVocê escolhe a unidade no topo da tela.';
     }
     return txt;
 };
@@ -252,6 +257,8 @@ const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, on
     const [novo, setNovo] = useState(!!inicial && podeLiberar); // "Cobrir com temporário" (Líderes por unidade) abre direto
     const [filtro, setFiltro] = useState('ativos');
     const [prorrogando, setProrrogando] = useState(null);
+    const [mensagem, setMensagem] = useState(null); // { titulo, telefone, texto } da janela de mensagem
+    const [copiado, setCopiado] = useState(false);
     const lista = useMemo(() => (contas?.temporarios || []).filter(t => (filtro === 'ativos' ? t.situacao === 'ATIVO' : t.situacao !== 'ATIVO')), [contas, filtro]);
 
     if (contas?.temporariosSemSql) {
@@ -265,7 +272,13 @@ const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, on
         try { await encerrarTemporario(t.id, motivo.trim()); avisar(tx('Acesso de {nome} encerrado.', { nome: t.nome }), 'sucesso'); onMudou?.(); }
         catch (e) { avisar(e.message || tx('Não foi possível encerrar.'), 'erro'); }
     };
-    const avisarWhats = (t) => abrirNoWhatsApp(String(t.telefone || '').replace(/\D/g, ''), mensagemParaPessoa(t, t.situacao === 'ATIVO' ? Number(t.dias_para_vencer) : null));
+    // Mensagem na janela padrão (decisão do dono, 13/11/2026): editar, Copiar ou Enviar — nunca abre o WhatsApp direto
+    const abrirMensagem = (t, dias) => { setCopiado(false); setMensagem({ titulo: tx('Mensagem para {nome}', { nome: t.nome }), telefone: String(t.telefone || '').replace(/\D/g, ''), texto: mensagemParaPessoa(t, dias) }); };
+    const avisarWhats = (t) => abrirMensagem(t, t.situacao === 'ATIVO' ? Number(t.dias_para_vencer) : null);
+    const copiar = () => {
+        navigator.clipboard.writeText(mensagem?.texto || '').then(() => { setCopiado(true); setTimeout(() => setCopiado(false), 2000); })
+            .catch(() => avisar(tx('Não foi possível copiar. Selecione o texto e copie manualmente.'), 'erro'));
+    };
 
     return (
         <div className="space-y-3">
@@ -282,7 +295,20 @@ const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, on
             </div>
 
             {novo && <FormularioLiberar ehAdmin={ehAdmin} unidades={unidades} onCancelar={() => setNovo(false)} unidadesIniciais={inicial?.unidades || []} pessoas={pessoas}
-                onFeito={(t) => { setNovo(false); onMudou?.(); if (window.confirm(tx('Mandar agora a mensagem no WhatsApp para {nome} com o e-mail e o prazo?', { nome: t.nome }))) abrirNoWhatsApp(t.telefone, mensagemParaPessoa(t, null)); }} />}
+                onFeito={(t) => { setNovo(false); onMudou?.(); abrirMensagem(t, null); }} />}
+
+            <ModalTextoWhatsapp
+                isOpen={!!mensagem}
+                titulo={mensagem?.titulo}
+                icone="send"
+                corIcone="blue"
+                texto={mensagem?.texto || ''}
+                setTexto={(texto) => setMensagem(m => (m ? { ...m, texto } : m))}
+                copiado={copiado}
+                onFechar={() => setMensagem(null)}
+                onCopiar={copiar}
+                onEnviar={() => abrirNoWhatsApp(mensagem?.telefone || '', mensagem?.texto || '')}
+            />
 
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="hidden md:grid gap-3 px-4 py-2 bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800 md:grid-cols-[minmax(0,1.6fr)_90px_minmax(0,1.2fr)_140px_minmax(0,1fr)_auto]">

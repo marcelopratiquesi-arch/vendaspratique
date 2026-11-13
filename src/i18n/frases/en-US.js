@@ -4010,4 +4010,5 @@ export default {
     "Trocar: cadastrar pessoa": "Swap: register person",
     "Cadastrar pessoa": "Register person",
     "Cobrir com temporário": "Cover with temporary",
+    "Mensagem para {nome}": "Message for {nome}",
 };
