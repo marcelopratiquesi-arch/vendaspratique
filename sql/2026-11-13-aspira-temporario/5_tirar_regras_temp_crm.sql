@@ -12,7 +12,7 @@ do $$ declare r record; begin
   end loop;
 end $$;
 
--- Conferência (MANDE ESTE RESULTADO): esperado 0 regras temp_ e as regras antigas do CRM continuam (esperado 22)
+-- Conferência (MANDE ESTE RESULTADO): esperado 0 regras temp_ e as regras antigas do CRM continuam (esperado 23)
 select 'regras temp_ que sobraram (esperado 0)' as item, count(*)::text as valor from pg_policies where schemaname = 'public' and policyname like 'temp\_%'
-union all select 'regras antigas do CRM (esperado 22)', count(*)::text from pg_policies
+union all select 'regras antigas do CRM (esperado 23)', count(*)::text from pg_policies
   where schemaname = 'public' and tablename in ('leads', 'historico_leads', 'crm_contatos_feitos', 'crm_migracao', 'crm_nao_contatar', 'crm_mensagens_prontas');
