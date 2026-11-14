@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { definirRegrasGrupos } from './pages/AnaliseVendas/regrasGrupos.js';
 import { supabase, definirLoginLembrado } from './supabaseClient.js';
 import { useI18n } from './i18n/I18nContext.jsx'; 
 
@@ -132,7 +133,12 @@ export default function App() {
     const [dadosAvaliacoes, setDadosAvaliacoes] = useState([]); 
     const [planos, setPlanos] = useState([]);
     const [produtos, setProdutos] = useState([]);
-    const [servicos, setServicos] = useState([]); 
+    const [servicos, setServicos] = useState([]);
+    // Grupos do catálogo (Cadastros → Catálogo → Grupos, 14/11/2026): o lugar único que diz como cada item conta. null = tabela ainda não existe no banco.
+    const [gruposCatalogo, setGruposCatalogo] = useState([]);
+    // A regra é atualizada aqui, ANTES das telas calcularem (regrasGrupos.js). Catálogo e grupos chegam juntos.
+    useMemo(() => definirRegrasGrupos([...planos, ...produtos, ...servicos], gruposCatalogo || []), [planos, produtos, servicos, gruposCatalogo]);
+ 
     const [colaboradores, setColaboradores] = useState([]);
     const [unidades, setUnidades] = useState([]);
 
@@ -552,7 +558,15 @@ export default function App() {
 
     const fetchUnidades = useCallback(async (isMounted = true) => { const { data } = await supabase.from('unidades').select('*').order('nome', { ascending: true }); if (aindaVale(isMounted) && data) setUnidades(data); }, []);
     const fetchColaboradores = useCallback(async (isMounted = true) => { let query = supabase.from('colaboradores').select('*'); if (deveFiltrar) query = query.eq('unidade', unidadeFiltro); const { data } = await query; if (aindaVale(isMounted) && data) setColaboradores(data); }, [deveFiltrar, unidadeFiltro]);
-    const fetchCatalogo = useCallback(async (isMounted = true) => { const { data } = await supabase.from('catalogo').select('*'); if (aindaVale(isMounted) && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); } }, []);
+    const fetchCatalogo = useCallback(async (isMounted = true) => {
+        const [{ data }, resGrupos] = await Promise.all([
+            supabase.from('catalogo').select('*'),
+            supabase.from('catalogo_grupos').select('*').order('nome', { ascending: true }),
+        ]);
+        if (resGrupos.error) console.warn('Grupos do catálogo: tabela catalogo_grupos ainda não existe (rodar sql/2026-11-14-grupos-catalogo). Vale a regra pelo nome.', resGrupos.error.message);
+        if (aindaVale(isMounted)) setGruposCatalogo(resGrupos.error ? null : (resGrupos.data || []));
+        if (aindaVale(isMounted) && data) { setPlanos(data.filter(item => item.tipo === 'plano')); setProdutos(data.filter(item => item.tipo === 'produto')); setServicos(data.filter(item => item.tipo === 'servico')); }
+    }, []);
     
     const getDataCorte = () => {
         const d = new Date();
@@ -622,6 +636,7 @@ export default function App() {
         const agendar = criarAgendador(estaAtivo);
         const canal = supabase.channel('sistema-pratique-cadastros')
             .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo' }, agendar('catalogo', fetchCatalogo))
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'catalogo_grupos' }, agendar('catalogo', fetchCatalogo))
             .on('postgres_changes', { event: '*', schema: 'public', table: 'unidades' }, agendar('unidades', fetchUnidades))
             .subscribe();
         return () => { ativo = false; agendar.parar(); supabase.removeChannel(canal); };
@@ -1228,7 +1243,7 @@ export default function App() {
                             onVoltarParaAluno={handleSelecionarAlunoGlobal}
                         />
                     )}
-                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} todasUnidades={unidades} setUnidades={setUnidades}
+                    {telaAtual === 'cadastros' && <CadastroGeral usuarioLogado={usuarioVirtual} gruposCatalogo={gruposCatalogo} recarregarCatalogo={fetchCatalogo} planos={planos} setPlanos={setPlanos} produtos={produtos} setProdutos={setProdutos} servicos={servicos} setServicos={setServicos} colaboradores={colaboradores} setColaboradores={setColaboradores} unidades={unidadesVisiveis} todasUnidades={unidades} setUnidades={setUnidades}
                         pendencias={pendencias.lista} pendenciasCarregadas={pendencias.carregado} abrirTela={abrirTelaDaUnidade} />}
                     {telaAtual === 'comunicados' && <CentralComunicados usuarioLogado={usuarioComPode} unidades={unidadesVisiveis} />}
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} lideresAcesso={acessos.contas?.lideres} />}

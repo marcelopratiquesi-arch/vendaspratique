@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, Edit3, Power, PowerOff, Bookmark, Package, Briefcase, PlusCircle, LayoutList, RefreshCw, Loader2 } from 'lucide-react';
+import { Search, Edit3, Power, PowerOff, Bookmark, Package, Briefcase, PlusCircle, LayoutList, RefreshCw, Loader2, Layers } from 'lucide-react';
 import { supabase } from '../../supabaseClient.js';
 import { formatMoney } from './utils.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -7,6 +7,8 @@ import { normalizeString } from '../AnaliseVendas/utils.js';
 import { grupoDoItem } from './grupoCatalogo.js';
 import { ORDEM_NORMAL, proximaOrdem, ordenarLinhas } from '../../components/ordenacao.js';
 import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
+import GruposCatalogo from './GruposCatalogo.jsx';
+import { infoContaComo } from '../AnaliseVendas/regrasGrupos.js';
 
 // ==========================================
 // CADASTROS → CATÁLOGO — revisão 360 de 09/11/2026 (decisão do dono)
@@ -14,6 +16,8 @@ import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
 // - Coluna GRUPO: como cada item conta nas metas (decomporPlano para planos; dose única Whey/Energy nos produtos).
 // - Coluna VENDAS: em quantas vendas o item já foi usado (nas unidades que a pessoa vê; só leitura, ao abrir a aba).
 // - Botões sempre visíveis e ordenar clicando no título. Só o Admin altera (o valor é a comissão; regra 12).
+// - 14/11/2026 (decisão do dono): aba GRUPOS (GruposCatalogo.jsx). O grupo do item manda no sistema inteiro;
+//   item sem grupo aparece com "pelo nome" (regra antiga).
 // ==========================================
 
 const TIPOS = {
@@ -43,7 +47,9 @@ const useUsoNasVendas = () => {
     return uso; // null = contando · undefined = não deu · Map = pronto
 };
 
-const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModal, ehAdmin }) => {
+const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModal, ehAdmin, grupos = [], recarregarCatalogo }) => {
+    const [visao, setVisao] = useState('ITENS'); // ITENS | GRUPOS
+    const listaGrupos = grupos || [];
     const [termoBusca, setTermoBusca] = useState('');
     const [filtroTipo, setFiltroTipo] = useState('TODOS');
     const [filtroStatus, setFiltroStatus] = useState('ATIVOS');
@@ -73,13 +79,13 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
         const valores = {
             nome: i => i.nome || null,
             tipo: i => i.tipo || null,
-            grupo: i => tx(grupoDoItem(i).texto),
+            grupo: i => tx(grupoDoItem(i, listaGrupos).texto),
             valor: i => Number(i.valor) || 0,
             vendas: i => usoDe(i),
         };
         return ordenarLinhas(normal, ordem, valores, i => i.nome);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- usoDe depende só de "uso"
-    }, [catalogoCompleto, termoBusca, filtroTipo, filtroStatus, ordem, uso]);
+    }, [catalogoCompleto, termoBusca, filtroTipo, filtroStatus, ordem, uso, grupos]);
 
     const temFiltro = !!(termoBusca.trim() || filtroTipo !== 'TODOS' || filtroStatus !== 'ATIVOS');
     const limpar = () => { setTermoBusca(''); setFiltroTipo('TODOS'); setFiltroStatus('ATIVOS'); };
@@ -98,6 +104,15 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
         <div className="space-y-3 animate-[fadeIn_0.3s_ease-out]">
             {/* FAIXA FINA */}
             <div className="bg-white rounded-2xl border border-slate-200 px-4 py-2.5 flex flex-wrap items-center gap-2 dark:bg-slate-900 dark:border-slate-800">
+                <div className="flex bg-slate-100 p-0.5 rounded-lg dark:bg-slate-800">
+                    {[['ITENS', 'Itens', LayoutList], ['GRUPOS', 'Grupos', Layers]].map(([id, rotulo, Icone]) => (
+                        <button key={id} type="button" onClick={() => setVisao(id)} aria-pressed={visao === id}
+                            className={`h-7 px-2.5 rounded-md text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 ${visao === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'}`}>
+                            <Icone className="w-3.5 h-3.5" />{tx(rotulo)}{id === 'GRUPOS' && <span className="text-[12px]">{listaGrupos.length}</span>}
+                        </button>
+                    ))}
+                </div>
+                <span className="w-px h-5 bg-slate-200 dark:bg-slate-700" />
                 {chip('plano', 'Planos', resumo.plano, Bookmark, 'bg-blue-600')}
                 {chip('produto', 'Produtos', resumo.produto, Package, 'bg-emerald-600')}
                 {chip('servico', 'Serviços', resumo.servico, Briefcase, 'bg-violet-600')}
@@ -111,6 +126,9 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                 <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{tx('O valor de cada item é a comissão')}</span>
             </div>
 
+            {visao === 'GRUPOS' ? (
+                <GruposCatalogo grupos={grupos} catalogoCompleto={catalogoCompleto} ehAdmin={ehAdmin} recarregar={() => recarregarCatalogo?.()} />
+            ) : (<>
             {/* BUSCA + FILTROS + NOVO */}
             <div className="flex flex-wrap items-center gap-2">
                 <label className="flex-[2] min-w-[min(220px,100%)] h-10 px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 dark:bg-slate-900 dark:border-slate-800">
@@ -158,7 +176,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                             <tr>
                                 <TituloOrdenavel coluna="nome" texto ordem={ordem} onOrdenar={ordenar} className={th}>{tx('Nome Oficial')}</TituloOrdenavel>
                                 <TituloOrdenavel coluna="tipo" texto ordem={ordem} onOrdenar={ordenar} className={th}>{tx('Categoria')}</TituloOrdenavel>
-                                <TituloOrdenavel coluna="grupo" texto ordem={ordem} onOrdenar={ordenar} className={th} dica={tx('Como o item conta nas metas: plano base (Plus, Fit, Personal, Outros), Nutri adicional ou dose única (Whey/Energy, até 10 por mês contam).')}>{tx('Grupo')}</TituloOrdenavel>
+                                <TituloOrdenavel coluna="grupo" texto ordem={ordem} onOrdenar={ordenar} className={th} dica={tx('O grupo diz como o item conta no sistema inteiro (metas, Dashboard, Relatórios). Os grupos ficam na aba Grupos. "pelo nome" = item ainda sem grupo, conta pela regra antiga do nome.')}>{tx('Grupo')}</TituloOrdenavel>
                                 <TituloOrdenavel coluna="valor" ordem={ordem} onOrdenar={ordenar} className={`${th} text-right`} alinhar="right">{tx('Comissão Padrão')}</TituloOrdenavel>
                                 <TituloOrdenavel coluna="vendas" ordem={ordem} onOrdenar={ordenar} className={`${th} text-right`} alinhar="right" dica={tx('Em quantas vendas o item já foi lançado (nas unidades que você vê). Ajuda a decidir se pode descontinuar.')}>{tx('Vendas')}</TituloOrdenavel>
                                 {ehAdmin && <th className={`${th} text-right`}>{tx('Ações')}</th>}
@@ -169,7 +187,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                                 const meta = TIPOS[item.tipo] || OUTRO;
                                 const Icone = meta.icone;
                                 const isAtivo = item.ativo !== false;
-                                const grupo = grupoDoItem(item);
+                                const grupo = grupoDoItem(item, listaGrupos);
                                 const qtdVendas = usoDe(item);
                                 return (
                                     <tr key={item.id} className={`transition-colors ${isAtivo ? 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40' : 'bg-slate-50/60 opacity-70 hover:opacity-100 dark:bg-slate-800/40'}`}>
@@ -186,7 +204,9 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                                             <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest border ${isAtivo ? `${meta.bg} ${meta.cor} ${meta.border}` : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}>{tx(meta.label)}</span>
                                         </td>
                                         <td className="px-4 py-2.5">
-                                            <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wide whitespace-nowrap ${grupo.cor}`}>{tx(grupo.texto)}</span>
+                                            <span title={grupo.manual ? tx('Conta como: {regra}', { regra: tx(infoContaComo(grupo.contaComo)?.rotulo || '') }) : tx('Sem grupo: conta pelo nome do item')}
+                                                className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wide whitespace-nowrap ${grupo.cor} ${grupo.manual ? '' : 'border-dashed'}`}>{grupo.manual ? grupo.texto : tx(grupo.texto)}</span>
+                                            {!grupo.manual && grupos !== null && <span className="ml-1.5 text-[10px] font-bold text-slate-400 normal-case">{tx('pelo nome')}</span>}
                                         </td>
                                         <td className={`px-4 py-2.5 text-right text-[13px] font-black tabular-nums ${isAtivo ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}`}>{formatMoney(item.valor)}</td>
                                         <td className="px-4 py-2.5 text-right text-[13px] font-black tabular-nums text-slate-700 dark:text-slate-200">
@@ -220,6 +240,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                     </table>
                 </div>
             </div>
+            </>)}
         </div>
     );
 };

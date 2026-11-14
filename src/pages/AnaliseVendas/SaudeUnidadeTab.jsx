@@ -4,6 +4,7 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, AreaChart, Area, Lin
 import { supabase } from '../../supabaseClient.js';
 import { decomporPlano, normalizeString, safeIsoDate } from './utils.js';
 import { aplicarLimiteDoses, qtdValidaProduto, LIMITE_DOSES_POR_UNIDADE_MES } from './limiteDoses.js';
+import { regraDoGrupo } from './regrasGrupos.js';
 import {
     TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, HelpCircle, ArrowUpDown, ArrowDown, ArrowUp,
     HeartPulse, Info, CircleSlash, Sparkles, Users, ChevronDown
@@ -267,6 +268,8 @@ const SaudeUnidadeTab = ({
     // Catálogo manda (mesma regra do Dashboard e dos Relatórios). Fora do catálogo = não classificado,
     // que fica junto de Serviços (como na coluna SERVIÇOS dos Relatórios/Ranking) e nunca conta como plano.
     const categoriaDe = (produtoUpper) => {
+        const doGrupo = regraDoGrupo(produtoUpper); // grupo do catálogo manda (14/11/2026)
+        if (doGrupo) return doGrupo.categoria;
         const tipo = mapaCatalogo.get(normalizeString(produtoUpper));
         if (tipo === 'produto') return 'PRODUTO';
         if (tipo === 'servico' || tipo === 'serviço') return 'SERVICO';

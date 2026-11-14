@@ -13,6 +13,7 @@
 // ==========================================
 import { familiaDoProduto } from './familiasProdutos.js';
 import { getCategoriaItem, safeIsoDate } from './utils.js';
+import { regraDoGrupo } from './regrasGrupos.js';
 
 // ---------- CONSTANTES (fáceis de editar) ----------
 export const FAMILIAS_DOSE_UNICA = ['Energy', 'Whey'];  // nomes das famílias em FAMILIAS_PRODUTOS
@@ -21,6 +22,13 @@ export const INICIO_LIMITE_DOSES = '2026-11-01';         // antes desta data: to
 
 // É dose única? (produto das famílias acima, qualquer sabor)
 export const ehDoseUnica = (nomeProduto) => {
+    // Item com GRUPO no catálogo: só o grupo "Dose única" entra no limite (14/11/2026). Sem grupo: pela família.
+    const doGrupo = regraDoGrupo(nomeProduto);
+    if (doGrupo) return !!doGrupo.dose;
+    return ehDoseUnicaPeloNome(nomeProduto);
+};
+// A regra antiga, pela família do nome (Energy/Whey)
+export const ehDoseUnicaPeloNome = (nomeProduto) => {
     const achou = familiaDoProduto(nomeProduto);
     return !!achou && FAMILIAS_DOSE_UNICA.includes(achou.familia.nome);
 };

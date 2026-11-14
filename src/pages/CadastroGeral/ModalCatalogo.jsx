@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { X, Bookmark, Package, Briefcase, Loader2, Check, Layers } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { lerNumeroBR } from '../AnaliseVendas/movimentoDiario.js';
-import { grupoDoItem } from './grupoCatalogo.js';
+import { contaComoAutomatico, textoAutomatico } from './grupoCatalogo.js';
+import { infoContaComo } from '../AnaliseVendas/regrasGrupos.js';
 import { tx } from '../../i18n/traduzir.js';
 
 // Valor guardado (número) → campo com vírgula ("5,00")
 const valorEmTexto = (v) => (v === null || v === undefined || v === '' ? '' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
 const emReais = (v) => `R$ ${valorEmTexto(v)}`;
 
-const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
+// grupos = catalogo_grupos (null = tabela ainda não existe no banco: o campo Grupo não aparece)
+const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, grupos = [] }) => {
     const [tipo, setTipo] = useState('plano');
     const [nome, setNome] = useState('');
     const [valor, setValor] = useState('');
+    const [grupoId, setGrupoId] = useState(''); // '' = sem grupo (conta pelo nome)
 
     useEffect(() => {
         if (isOpen) {
@@ -20,10 +23,12 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
                 setTipo(dadosEdicao.tipo || 'plano');
                 setNome(dadosEdicao.nome || '');
                 setValor(valorEmTexto(dadosEdicao.valor));
+                setGrupoId(dadosEdicao.grupo_id === null || dadosEdicao.grupo_id === undefined ? '' : String(dadosEdicao.grupo_id));
             } else {
                 setTipo('plano');
                 setNome('');
                 setValor('');
+                setGrupoId('');
             }
         }
     }, [isOpen, dadosEdicao]);
@@ -37,6 +42,18 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
     }, [isOpen, isSubmitting, onClose]);
 
     if (!isOpen) return null;
+
+    // Grupos que servem para a categoria escolhida (ex.: produto pode ir para "Nutri adicional")
+    const temGrupos = Array.isArray(grupos);
+    const gruposDoTipo = (grupos || []).filter(g => infoContaComo(g.conta_como)?.tipos.includes(tipo))
+        .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    const grupoEscolhido = gruposDoTipo.find(g => String(g.id) === grupoId) || null;
+    const contaComoAgora = grupoEscolhido ? infoContaComo(grupoEscolhido.conta_como)?.rotulo : textoAutomatico(contaComoAutomatico({ tipo, nome: nome.trim().toUpperCase() }));
+    const trocarTipo = (novo) => {
+        setTipo(novo);
+        const g = (grupos || []).find(x => String(x.id) === grupoId);
+        if (g && !infoContaComo(g.conta_como)?.tipos.includes(novo)) setGrupoId('');
+    };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -55,7 +72,8 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
             id: dadosEdicao?.id,
             tipo,
             nome: nome.trim().toUpperCase(),
-            valor: valorNumerico
+            valor: valorNumerico,
+            ...(temGrupos ? { grupo_id: grupoEscolhido ? grupoEscolhido.id : null } : {}),
         });
     };
 
@@ -91,13 +109,13 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
                         <div>
                             <label className={labelBase}>{tx("Categoria do Item")}</label>
                             <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 shadow-inner dark:bg-slate-800 dark:border-slate-800">
-                                <button type="button" disabled={!!dadosEdicao} onClick={() => setTipo('plano')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${tipo === 'plano' ? 'bg-white shadow-sm text-blue-600 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                <button type="button" disabled={!!dadosEdicao} onClick={() => trocarTipo('plano')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${tipo === 'plano' ? 'bg-white shadow-sm text-blue-600 border border-slate-200 dark:bg-slate-900 dark:text-blue-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                     <Bookmark className="w-3.5 h-3.5" />{' '}{tx("Plano")}
                                 </button>
-                                <button type="button" disabled={!!dadosEdicao} onClick={() => setTipo('produto')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${tipo === 'produto' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                <button type="button" disabled={!!dadosEdicao} onClick={() => trocarTipo('produto')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${tipo === 'produto' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                     <Package className="w-3.5 h-3.5" />{' '}{tx("Produto")}
                                 </button>
-                                <button type="button" disabled={!!dadosEdicao} onClick={() => setTipo('servico')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${tipo === 'servico' ? 'bg-white shadow-sm text-violet-600 border border-slate-200 dark:bg-slate-900 dark:text-violet-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                <button type="button" disabled={!!dadosEdicao} onClick={() => trocarTipo('servico')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed ${tipo === 'servico' ? 'bg-white shadow-sm text-violet-600 border border-slate-200 dark:bg-slate-900 dark:text-violet-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                     <Briefcase className="w-3.5 h-3.5" />{' '}{tx("Serviço")}
                                 </button>
                             </div>
@@ -109,9 +127,20 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) =
                             <input type="text" autoFocus={!dadosEdicao} value={nome} onChange={e => setNome(e.target.value)} required placeholder={tx("Ex: {v1}", { v1: tipo === 'plano' ? 'PLANO VIP' : tipo === 'produto' ? 'WHEY PROTEIN' : 'TAXA DE ADESÃO' })} className={inputBase} />
                         </div>
 
-                        {nome.trim() && (
+                        {temGrupos && (
+                            <div>
+                                <label className={labelBase}>{tx('Grupo')}</label>
+                                <select value={grupoEscolhido ? grupoId : ''} onChange={e => setGrupoId(e.target.value)} className={`${inputBase} normal-case`}>
+                                    <option value="">{tx('Sem grupo (conta pelo nome)')}</option>
+                                    {gruposDoTipo.map(g => <option key={g.id} value={String(g.id)}>{g.nome} · {tx(infoContaComo(g.conta_como)?.rotulo || '')}</option>)}
+                                </select>
+                                <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx('O grupo diz como o item conta nas metas e nos relatórios. Para criar um grupo, use a aba Grupos do catálogo.')}</p>
+                            </div>
+                        )}
+
+                        {(nome.trim() || grupoEscolhido) && (
                             <p className="-mt-3 ml-1 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                {tx('Vai contar como:')}{' '}<span className="text-blue-700 dark:text-blue-400">{tx(grupoDoItem({ tipo, nome: nome.trim().toUpperCase() }).texto)}</span>
+                                {tx('Vai contar como:')}{' '}<span className="text-blue-700 dark:text-blue-400">{tx(contaComoAgora || '')}</span>
                             </p>
                         )}
 

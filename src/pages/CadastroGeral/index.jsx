@@ -20,7 +20,7 @@ import { normalizeString } from '../AnaliseVendas/utils.js';
 
 // 🔥 CORREÇÃO: Adicionado 'usuarioVirtual' à assinatura de props para espelhar a unidade da TopBar
 // todasUnidades/setUnidades (09/11/2026): a aba Unidades mostra também as desativadas (o "unidades" daqui são só as visíveis)
-const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnidades, setUnidades, pendencias = [], pendenciasCarregadas = true, abrirTela, planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
+const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnidades, setUnidades, pendencias = [], pendenciasCarregadas = true, abrirTela, gruposCatalogo = [], recarregarCatalogo, planos, setPlanos, produtos, setProdutos, servicos, setServicos, colaboradores, setColaboradores }) => {
     const { t } = useI18n(); 
     // A aba pode vir pedida pelo menu lateral (subabas, 09/11/2026)
     const [abaAtiva, setAbaAtiva] = useState(() => consumirSubaba('cadastros') || 'alunos');
@@ -178,6 +178,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
                 return;
             }
 
+            if (gruposCatalogo === null) delete payload.grupo_id;
             if (payload.id) {
                 const { data, error } = await supabase.from('catalogo').update(payload).eq('id', payload.id).select();
                 if (error) throw error;
@@ -305,7 +306,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
         <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto relative pb-10">
             <ModalColaborador isOpen={modalColabAberto} onClose={() => setModalColabAberto(false)} onSave={handleSaveColaborador} isSubmitting={isSubmitting} dadosEdicao={colabEditando} listaSetores={listaSetores} unidades={unidades} temVisaoGlobal={temVisaoGlobal} />
             <JanelaDesligamento colaborador={desligando} salvando={isSubmitting} onConfirmar={confirmarDesligamento} onCancelar={() => setDesligando(null)} />
-            <ModalCatalogo isOpen={modalCatAberto} onClose={() => setModalCatAberto(false)} onSave={handleSaveCatalogo} isSubmitting={isSubmitting} dadosEdicao={catEditando} />
+            <ModalCatalogo isOpen={modalCatAberto} onClose={() => setModalCatAberto(false)} onSave={handleSaveCatalogo} isSubmitting={isSubmitting} dadosEdicao={catEditando} grupos={gruposCatalogo} />
             <ModalSetor isOpen={modalSetorAberto} onClose={() => setModalSetorAberto(false)} onSave={handleSaveSetor} isSubmitting={isSubmitting} dadosEdicao={setorEditando} />
 
             {/* Topo compacto (09/11/2026): título + abas pequenas; a aba Unidades veio de Configurações (só o Admin) */}
@@ -350,7 +351,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
 
                 {abaMostrada === 'catalogo' && (
                     <TabCatalogo 
-                        catalogoCompleto={catalogoCompleto} ehAdmin={ehAdmin}
+                        catalogoCompleto={catalogoCompleto} ehAdmin={ehAdmin} grupos={gruposCatalogo} recarregarCatalogo={recarregarCatalogo}
                         onEdit={(item) => { setCatEditando(item); setModalCatAberto(true); }}
                         onToggleStatus={handleToggleStatusCatalogo} 
                         onOpenModal={() => { setCatEditando(null); setModalCatAberto(true); }}

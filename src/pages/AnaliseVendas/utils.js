@@ -2,6 +2,7 @@
 // 🧠 UTILITÁRIOS GLOBAIS DE SISTEMA (B2B SaaS)
 // Otimizado para Performance, Segurança e i18n
 // ==========================================
+import { regraDoGrupo } from './regrasGrupos.js';
 
 export const getMeses = (t) => [
     { val: 'TODOS', label: t('analytics.months.all', { defaultValue: 'Todos os Meses' }) }, 
@@ -97,6 +98,11 @@ export const getValorRealDaVenda = (venda, planos, produtos) => {
 export const getCategoriaItem = (nomeProduto, planos, produtos) => {
     const nomeNorm = normalizeString(nomeProduto);
 
+    // 0. Item com GRUPO no catálogo: o grupo manda (Cadastros → Catálogo → Grupos, 14/11/2026).
+    //    Ex.: produto no grupo "Nutri adicional" conta como PLANO (só o adicional Nutri), não como produto.
+    const doGrupo = regraDoGrupo(nomeProduto);
+    if (doGrupo) return doGrupo.categoria;
+
     // 1. Busca estrita no catálogo de Planos
     if (planos && planos.length > 0 && planos.some(p => normalizeString(p.nome) === nomeNorm)) {
         return 'PLANO';
@@ -146,6 +152,14 @@ export const criarGruposPlanosVazio = () => ({
 // não mexe em nenhum lançamento, então vale para todos os meses.
 // ==========================================
 export const decomporPlano = (nomePlano) => {
+    // Item com GRUPO de plano/Nutri no catálogo: o grupo manda (14/11/2026). Sem grupo: regra pelo nome, abaixo.
+    const doGrupo = regraDoGrupo(nomePlano);
+    if (doGrupo && doGrupo.categoria === 'PLANO') return { base: doGrupo.base, nutri: doGrupo.nutri };
+    return decomporPlanoPeloNome(nomePlano);
+};
+
+// A regra antiga, só pelo nome (usada para itens SEM grupo e para sugerir o grupo automático no catálogo)
+export const decomporPlanoPeloNome = (nomePlano) => {
     const n = normalizeString(nomePlano);
     const nutri = n.includes('NUTRI');
     const resto = nutri ? n.replace(/\+?\s*NUTRI\b/g, ' ').replace(/\s+/g, ' ').trim() : n;
