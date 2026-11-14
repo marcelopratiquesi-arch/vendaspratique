@@ -355,8 +355,9 @@ const SaudeUnidadeTab = ({
             const i = indiceNoPeriodo(data, atual ? periodos.inicio : periodos.inicioAnt, tipoGrupo);
             const ponto = serie.get(i) || { i, PLANO: 0, PRODUTO: 0, SERVICO: 0, NUTRI: 0, anterior: 0 };
             // Camada do gráfico: plano base em "Planos"; Nutri sem plano base (ex.: PRATIQUE NUTRI) em "Só Nutri"
-            const camada = cat !== 'PLANO' ? cat : (decomposto.base ? 'PLANO' : 'NUTRI');
-            if (atual) ponto[camada] += qtd; else ponto.anterior += qtd;
+            // (plano à parte que não conta como plano vendido não entra em nenhuma camada)
+            const camada = cat !== 'PLANO' ? cat : (decomposto.base ? 'PLANO' : (decomposto.nutri ? 'NUTRI' : null));
+            if (!atual) ponto.anterior += qtd; else if (camada) ponto[camada] += qtd;
             serie.set(i, ponto);
         });
 

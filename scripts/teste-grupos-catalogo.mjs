@@ -7,6 +7,8 @@ const { definirRegrasGrupos } = await import('../src/pages/AnaliseVendas/regrasG
 const { decomporPlano, getCategoriaItem, contarPlanosDoCard } = await import('../src/pages/AnaliseVendas/utils.js');
 const { ehDoseUnica } = await import('../src/pages/AnaliseVendas/limiteDoses.js');
 const { grupoDoItem, contaComoAutomatico } = await import('../src/pages/CadastroGeral/grupoCatalogo.js');
+const { processarConsolidadas } = await import('../src/pages/AnaliseVendas/relatorio/motorConsolidacao.js');
+const { montarTextoFechamentoUnidade } = await import('../src/pages/AnaliseVendas/relatorio/exportadorSeguro.js');
 
 const planos = [
     { id: 1, nome: 'PLUS', tipo: 'plano' },
@@ -66,6 +68,36 @@ teste('automático: PRATIQUE NUTRI → NUTRI', contaComoAutomatico({ tipo: 'plan
 teste('automático: PLUS + NUTRI → PLUS_NUTRI', contaComoAutomatico({ tipo: 'plano', nome: 'PLUS + NUTRI' }) === 'PLUS_NUTRI');
 teste('automático: Energy dose única → DOSE_UNICA', contaComoAutomatico({ tipo: 'produto', nome: 'ENERGY LIMÃO DOSE ÚNICA 20G' }) === 'DOSE_UNICA');
 teste('automático: serviço → SERVICO', contaComoAutomatico({ tipo: 'servico', nome: 'DIÁRIA' }) === 'SERVICO');
+
+// 4) Plano à parte (14/11/2026): aparece com o nome do grupo; conta ou não como plano vendido
+const planosAP = [
+    { id: 20, nome: 'FÉRIAS 7 DIAS', tipo: 'plano' },
+    { id: 21, nome: 'FÉRIAS 15 DIAS', tipo: 'plano' },
+    { id: 22, nome: 'PREFEITURA BH', tipo: 'plano' },
+    { id: 23, nome: 'PLUS', tipo: 'plano' },
+];
+const gruposAP = [
+    { id: 200, nome: 'Férias', conta_como: 'A_PARTE_FORA' },
+    { id: 201, nome: 'Prefeituras', conta_como: 'A_PARTE' },
+];
+definirRegrasGrupos([{ ...planosAP[0], grupo_id: 200 }, { ...planosAP[1], grupo_id: 200 }, { ...planosAP[2], grupo_id: 201 }, planosAP[3]], gruposAP);
+const vendasAP = [
+    { produto: 'FÉRIAS 7 DIAS', matricula: '1', data: '2026-11-10', quantidade: 1, unidade: 'X', vendedor: 'ANA SILVA' },
+    { produto: 'FÉRIAS 15 DIAS', matricula: '2', data: '2026-11-10', quantidade: 1, unidade: 'X', vendedor: 'ANA SILVA' },
+    { produto: 'PREFEITURA BH', matricula: '3', data: '2026-11-10', quantidade: 1, unidade: 'X', vendedor: 'ANA SILVA' },
+    { produto: 'PLUS', matricula: '4', data: '2026-11-10', quantidade: 1, unidade: 'X', vendedor: 'ANA SILVA' },
+];
+const cAP = contarPlanosDoCard(vendasAP, planosAP, []);
+teste('Férias "não conta": fora do card de planos (2 planos: Plus + Prefeituras)', cAP.total === 2 && cAP.grupos['OUTROS PLANOS'].total === 1);
+const rel = processarConsolidadas({ vendasFiltradas: vendasAP, planos: planosAP, produtos: [] });
+const gX = rel.relatorioPorUnidade.X.grupos;
+teste('Relatórios: bloco FÉRIAS (À PARTE) com 2 e bloco PREFEITURAS com 1', gX['FÉRIAS (À PARTE)']?.total === 2 && gX.PREFEITURAS?.total === 1);
+teste('Relatórios: Planos = 2 (Férias não soma) e Vendas = 4', rel.baseRankingUnidades[0].totalPlanos === 2 && rel.baseRankingUnidades[0].vendas === 4);
+const txtAP = montarTextoFechamentoUnidade({ unidadeAlvo: 'X', relatorioPorUnidade: rel.relatorioPorUnidade });
+teste('Mensagem do fechamento mostra os blocos com o nome do grupo', txtAP.includes('PREFEITURAS') && txtAP.includes('FÉRIAS (À PARTE)'));
+definirRegrasGrupos([{ ...planosAP[0], grupo_id: 202 }], [{ id: 202, nome: 'Férias', conta_como: 'A_PARTE' }]);
+const rel2 = processarConsolidadas({ vendasFiltradas: vendasAP.slice(0, 1), planos: planosAP, produtos: [] });
+teste('Férias "conta": junta no bloco FÉRIAS e soma em Planos', rel2.relatorioPorUnidade.X.grupos['FÉRIAS'].total === 1 && rel2.baseRankingUnidades[0].totalPlanos === 1);
 
 definirRegrasGrupos([], []);
 console.log(falhas ? `\n❌ ${falhas} de ${n} falharam` : `\n✅ Todos os ${n} testes passaram`);

@@ -1,6 +1,6 @@
 // src/pages/AnaliseVendas/relatorio/exportadorSeguro.js
 import { safeIsoDate, formatDataBR } from '../utils.js';
-import { ORDEM_CLASSICA, ROTULO_NUTRI_ADICIONAL } from './motorConsolidacao.js';
+import { compararGruposClassicos, ROTULO_NUTRI_ADICIONAL } from './motorConsolidacao.js';
 import { avisar } from '../../../components/avisar.js';
 import { tx } from '../../../i18n/traduzir.js';
 
@@ -270,7 +270,7 @@ export const montarTextoFechamentoUnidade = ({
     txt += `${tr('analytics.report.wppSalesSummary', '📌 *RESUMO DAS VENDAS*')}\n\n`;
 
     const gruposClassicosOrdenados = Object.entries(dados.grupos)
-        .sort((a, b) => ORDEM_CLASSICA.indexOf(a[0]) - ORDEM_CLASSICA.indexOf(b[0]))
+        .sort(compararGruposClassicos)
         .filter(([_, info]) => info.total > 0);
 
     gruposClassicosOrdenados.forEach(([nomeGrupo, grupoInfo]) => {

@@ -1,6 +1,7 @@
 // src/pages/AnaliseVendas/relatorio/motorConsolidacao.js
 import { safeIsoDate, normalizeString, getCategoriaItem, decomporPlano } from '../utils.js';
 import { montarNomesCurtos } from '../../Lancamentos/seletores/setoresEquipe.js';
+import { planoAParte } from '../regrasGrupos.js';
 
 export const ORDEM_CLASSICA = [
     "NUTRI",
@@ -36,12 +37,39 @@ const subgrupoDeOutros = (nomeNorm) => {
     return 'OUTROS PLANOS';
 };
 
+// PLANO À PARTE (grupos do catálogo, decisão do dono 14/11/2026): o plano aparece num bloco com o NOME DO GRUPO
+// (ex.: "FÉRIAS"). Se o grupo conta como plano vendido, o bloco soma em "Planos" e na coluna Outros pl.; se não, fica
+// só à parte (soma em Vendas). Nome igual a um bloco fixo: junta quando conta igual; senão ganha "(À PARTE)".
+const FIXOS_QUE_CONTAM = ['PLUS', 'FIT', 'PERSONAL CLASS', 'PROMOÇÕES', 'FÉRIAS', 'OUTROS PLANOS'];
+const FIXOS_QUE_NAO_CONTAM = ['NUTRI', 'PRODUTOS', 'SERVIÇOS', 'NÃO CLASSIFICADOS', ROTULO_NUTRI_ADICIONAL];
+const chaveAParte = (ap) => {
+    if (!ap.nome) return null;
+    if (FIXOS_QUE_CONTAM.includes(ap.nome)) return ap.contaPlano ? ap.nome : `${ap.nome} (À PARTE)`;
+    if (FIXOS_QUE_NAO_CONTAM.includes(ap.nome)) return `${ap.nome} (À PARTE)`;
+    return ap.nome;
+};
+const iconeAParte = (nome) => (/F[ÉE]RIAS/.test(nome) ? '🏖️' : '📌');
+
+// Ordem dos blocos: a fixa; os planos à parte entram antes de "Outros planos", em ordem alfabética
+const ordemDoGrupo = (nome) => {
+    const i = ORDEM_CLASSICA.indexOf(nome);
+    return i >= 0 ? i : ORDEM_CLASSICA.indexOf('OUTROS PLANOS') - 0.5;
+};
+export const compararGruposClassicos = (a, b) => ordemDoGrupo(a[0]) - ordemDoGrupo(b[0]) || String(a[0]).localeCompare(String(b[0]), 'pt-BR');
+
+// Planos vendidos de uma unidade = blocos que contam como plano (fixos + planos à parte que contam). Nutri não soma.
+export const totalPlanosDosGrupos = (grupos = {}) => Object.entries(grupos)
+    .reduce((soma, [nome, g]) => soma + ((g.aParte ? g.contaPlano : FIXOS_QUE_CONTAM.includes(nome)) ? (g.total || 0) : 0), 0);
+
 // Grupos dos relatórios em que um lançamento entra. Plano: decomporPlano → grupo BASE e/ou NUTRI (adicional).
 // O mesmo combo (ex.: PLUS + NUTRI) entra no PLUS e no NUTRI; o total de vendas conta o lançamento 1 vez só.
 export const gruposDoLancamento = (nome, categoria) => {
     if (categoria === 'PRODUTO') return ['PRODUTOS'];
     if (categoria === 'SERVICO') return ['SERVIÇOS'];
     if (categoria !== 'PLANO') return ['NÃO CLASSIFICADOS'];
+    const aParte = planoAParte(nome);
+    const chave = aParte && chaveAParte(aParte);
+    if (chave) return [chave];
     const nomeNorm = normalizeString(nome);
     const { base, nutri } = decomporPlano(nome);
     const lista = [];
@@ -64,7 +92,8 @@ const INFO_ADMIN = {
 };
 
 // Resumo executivo: lista de grupos (com ícone/ordem) em que o lançamento entra
-export const classificarParaAdmin = (nome, categoria) => gruposDoLancamento(nome, categoria).map(g => INFO_ADMIN[g]);
+export const classificarParaAdmin = (nome, categoria) => gruposDoLancamento(nome, categoria)
+    .map(g => INFO_ADMIN[g] || { grupo: g, tipo: 'AGRUPADO', order: 70, icone: iconeAParte(g), cor: 'text-sky-600' });
 
 export const processarConsolidadas = ({
     vendasFiltradas = [],
@@ -139,6 +168,11 @@ export const processarConsolidadas = ({
 
         // Plano: grupo base e/ou NUTRI (adicional). Produto, serviço e não classificado: como antes.
         gruposDoLancamento(prodUpper, categoriaMestre).forEach(grupoAlvo => {
+            if (!registro.grupos[grupoAlvo]) {
+                // Plano à parte (grupo do catálogo): bloco criado na hora, com o nome do grupo
+                const ap = planoAParte(prodUpper);
+                registro.grupos[grupoAlvo] = { total: 0, itens: {}, cor: 'text-sky-600', bgIcone: 'bg-sky-100 text-sky-600', icone: iconeAParte(grupoAlvo), escopo: 'PLANOS', aParte: true, contaPlano: !!ap?.contaPlano };
+            }
             registro.grupos[grupoAlvo].total += qtd;
             if (!registro.grupos[grupoAlvo].itens[prodUpper]) {
                 registro.grupos[grupoAlvo].itens[prodUpper] = { total: 0, vendedores: {}, vendasAuditaveis: [] };
@@ -200,10 +234,12 @@ export const processarConsolidadas = ({
             const registrosServicosUnidade = [];
             const vistos = new Set();
 
+            // Planos à parte que contam como plano vendido entram na coluna "Outros pl." (os que não contam ficam fora das colunas)
+            const aParteQueContam = Object.entries(dados.grupos).filter(([, g]) => g.aParte && g.contaPlano).map(([nome]) => nome);
             COLUNAS_MATRIZ.forEach(col => {
                 let soma = 0;
                 const regs = [];
-                col.grupos.forEach(gName => {
+                (col.key === 'OUTROS_PLANOS' ? [...col.grupos, ...aParteQueContam] : col.grupos).forEach(gName => {
                     const grp = dados.grupos[gName];
                     if (grp) {
                         soma += grp.total || 0;

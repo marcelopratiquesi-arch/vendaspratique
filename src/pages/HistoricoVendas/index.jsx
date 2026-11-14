@@ -342,6 +342,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                     const { base, nutri } = decomporPlano(nomeExato);
                     if (base) somar(base, qtdReal, val);
                     if (nutri) somar('NUTRI', qtdReal, base ? 0 : val);
+                    if (!base && !nutri) somar('OUTROS PLANOS', qtdReal, val); // plano à parte que não conta como plano vendido
                 } else if (categoriaDB === 'produto') {
                     somar('PRODUTOS', qtdReal, val);
                 } else if (categoriaDB === 'servico' || categoriaDB === 'serviço') {

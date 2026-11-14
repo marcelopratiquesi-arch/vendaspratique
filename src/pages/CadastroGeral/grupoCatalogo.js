@@ -8,6 +8,7 @@ import { infoContaComo } from '../AnaliseVendas/regrasGrupos.js';
 const COR_NUTRI = 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/10 dark:border-emerald-500/30';
 const COR_PLANO = 'text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-300 dark:bg-blue-500/10 dark:border-blue-500/30';
 const COR_DOSE = 'text-amber-800 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-500/10 dark:border-amber-500/30';
+const COR_APARTE = 'text-sky-700 bg-sky-50 border-sky-200 dark:text-sky-300 dark:bg-sky-500/10 dark:border-sky-500/30';
 const COR_CINZA = 'text-slate-600 bg-slate-50 border-slate-200 dark:text-slate-300 dark:bg-slate-800/60 dark:border-slate-700';
 
 // Cor da etiqueta pelo "como conta"
@@ -15,6 +16,7 @@ export const corDoContaComo = (chave) => {
     const info = infoContaComo(chave);
     if (!info) return COR_CINZA;
     if (info.chave === 'NUTRI') return COR_NUTRI;
+    if (info.aParte) return COR_APARTE;
     if (info.categoria === 'PLANO') return COR_PLANO;
     if (info.dose) return COR_DOSE;
     return COR_CINZA;
@@ -49,6 +51,7 @@ const TEXTO_AUTOMATICO = {
     PLUS: 'Plus', PLUS_NUTRI: 'Plus + Nutri', FIT: 'Fit', FIT_NUTRI: 'Fit + Nutri', PERSONAL: 'Personal Class',
     PERSONAL_NUTRI: 'Personal Class + Nutri', OUTROS: 'Outros planos', NUTRI: 'Nutri (adicional)', PRODUTO: 'Produto',
     DOSE_UNICA: 'Dose única (limite 10/mês)', SERVICO: 'Serviço',
+    A_PARTE: 'Plano à parte', A_PARTE_FORA: 'Plano à parte (não conta)',
 };
 export const textoAutomatico = (chave) => TEXTO_AUTOMATICO[chave] || chave;
 

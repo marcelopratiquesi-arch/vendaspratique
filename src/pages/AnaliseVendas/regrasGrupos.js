@@ -20,6 +20,10 @@ export const CONTA_COMO = [
     { chave: 'PERSONAL', rotulo: 'Plano Personal Class', categoria: 'PLANO', base: 'PERSONAL CLASS', nutri: false, tipos: ['plano'] },
     { chave: 'PERSONAL_NUTRI', rotulo: 'Plano Personal Class + Nutri adicional', categoria: 'PLANO', base: 'PERSONAL CLASS', nutri: true, tipos: ['plano'] },
     { chave: 'OUTROS', rotulo: 'Outros planos', categoria: 'PLANO', base: 'OUTROS PLANOS', nutri: false, tipos: ['plano'] },
+    // Plano À PARTE (decisão do dono, 14/11/2026): aparece nos Relatórios e nas mensagens com o NOME DO GRUPO
+    // (ex.: "FÉRIAS"). O dono escolhe por grupo se conta como plano vendido (A_PARTE) ou não (A_PARTE_FORA).
+    { chave: 'A_PARTE', rotulo: 'Plano à parte · conta como plano vendido', categoria: 'PLANO', base: 'OUTROS PLANOS', nutri: false, aParte: true, tipos: ['plano'] },
+    { chave: 'A_PARTE_FORA', rotulo: 'Plano à parte · não conta como plano vendido', categoria: 'PLANO', base: null, nutri: false, aParte: true, tipos: ['plano'] },
     { chave: 'NUTRI', rotulo: 'Só Nutri adicional (não é plano vendido)', categoria: 'PLANO', base: null, nutri: true, tipos: ['plano', 'produto', 'servico'] },
     { chave: 'PRODUTO', rotulo: 'Produto', categoria: 'PRODUTO', base: null, nutri: false, tipos: ['produto'] },
     { chave: 'DOSE_UNICA', rotulo: 'Dose única (limite 10/mês)', categoria: 'PRODUTO', base: null, nutri: false, dose: true, tipos: ['produto'] },
@@ -54,3 +58,11 @@ export const regraDoGrupo = (nomeItem) => {
     return achou ? infoContaComo(achou.chave) : null;
 };
 export const grupoDoNome = (nomeItem) => porNome.get(normalizar(nomeItem))?.grupo || null;
+
+// Plano à parte: o nome do grupo que aparece nos Relatórios/mensagens + se conta como plano vendido (null = não é à parte)
+export const planoAParte = (nomeItem) => {
+    const achou = porNome.get(normalizar(nomeItem));
+    const info = achou && infoContaComo(achou.chave);
+    if (!info?.aParte) return null;
+    return { nome: String(achou.grupo.nome || '').trim().toUpperCase(), contaPlano: info.base !== null };
+};

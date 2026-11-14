@@ -4,7 +4,8 @@ import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import React, { useState, useRef, useMemo } from 'react';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import {
-    ORDEM_CLASSICA,
+    compararGruposClassicos,
+    totalPlanosDosGrupos,
     processarConsolidadas,
     filtrarEOrdenarRanking
 } from './relatorio/motorConsolidacao.js';
@@ -120,7 +121,7 @@ const RelatorioTab = ({
         const g = (nome) => dados.grupos[nome]?.total || 0;
         return [
             { rotulo: 'Vendas', valor: dados.totalGeralVendas, cor: 'text-slate-800 dark:text-white' },
-            { rotulo: 'Planos', valor: g('PLUS') + g('FIT') + g('PERSONAL CLASS') + g('PROMOÇÕES') + g('FÉRIAS') + g('OUTROS PLANOS'), cor: 'text-blue-700 dark:text-blue-400' },
+            { rotulo: 'Planos', valor: totalPlanosDosGrupos(dados.grupos), cor: 'text-blue-700 dark:text-blue-400' },
             { rotulo: 'Nutri (adicional)', valor: g('NUTRI'), cor: 'text-emerald-700 dark:text-emerald-400' },
             { rotulo: 'Produtos', valor: g('PRODUTOS'), cor: 'text-amber-700 dark:text-amber-400', produtos: true },
             { rotulo: 'Serviços', valor: g('SERVIÇOS') + g('NÃO CLASSIFICADOS'), cor: 'text-violet-700 dark:text-violet-400' },
@@ -349,7 +350,7 @@ const RelatorioTab = ({
                         const hasAvaliacoes = dados.avaliacoes.length > 0;
 
                         const gruposUnidadeFiltrados = Object.entries(dados.grupos)
-                            .sort((a, b) => ORDEM_CLASSICA.indexOf(a[0]) - ORDEM_CLASSICA.indexOf(b[0]))
+                            .sort(compararGruposClassicos)
                             .filter(([_, info]) => info.total > 0);
 
                         return (
