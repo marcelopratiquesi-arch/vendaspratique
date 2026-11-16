@@ -4078,4 +4078,11 @@ export default {
     "O banco ainda não aceita \"Plano à parte\". Rode o passo 2 do SQL da pasta sql/2026-11-14-grupos-catalogo no Supabase.": "La base todavía no acepta \"Plan aparte\". Ejecutá el paso 2 del SQL de la carpeta sql/2026-11-14-grupos-catalogo en Supabase.",
     "Plano à parte": "Plan aparte",
     "Plano à parte (não conta)": "Plan aparte (no cuenta)",
+    "Como conta no sistema (opcional)": "Cómo cuenta en el sistema (opcional)",
+    "Igual ao item (o grupo só organiza)": "Igual al ítem (el grupo solo organiza)",
+    "Igual ao item": "Igual al ítem",
+    "Deixe assim para um grupo comum (Férias, Piscina...): os itens dele contam como sempre e os Relatórios mostram um bloco com o nome do grupo.": "Dejalo así para un grupo común (Vacaciones, Pileta...): sus ítems cuentan como siempre y los Informes muestran un bloque con el nombre del grupo.",
+    "O banco ainda não aceita grupo sem \"como conta\". Rode o passo 3 do SQL da pasta sql/2026-11-14-grupos-catalogo no Supabase.": "La base todavía no acepta un grupo sin \"cómo cuenta\". Ejecutá el paso 3 del SQL de la carpeta sql/2026-11-14-grupos-catalogo en Supabase.",
+    "Ex: Férias, Piscina, PraticMed": "Ej.: Vacaciones, Pileta, PraticMed",
+    "O grupo organiza o item: os Relatórios mostram um bloco com o nome do grupo. Alguns grupos (ex.: Só Nutri adicional) também mudam como o item conta. Para criar um grupo, use a aba Grupos do catálogo.": "El grupo organiza el ítem: los Informes muestran un bloque con el nombre del grupo. Algunos grupos (ej.: Solo Nutri adicional) también cambian cómo cuenta el ítem. Para crear un grupo, usá la pestaña Grupos del catálogo.",
 };

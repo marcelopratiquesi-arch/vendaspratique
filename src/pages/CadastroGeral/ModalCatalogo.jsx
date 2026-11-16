@@ -45,14 +45,14 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, gru
 
     // Grupos que servem para a categoria escolhida (ex.: produto pode ir para "Nutri adicional")
     const temGrupos = Array.isArray(grupos);
-    const gruposDoTipo = (grupos || []).filter(g => infoContaComo(g.conta_como)?.tipos.includes(tipo))
+    const gruposDoTipo = (grupos || []).filter(g => !g.conta_como || infoContaComo(g.conta_como)?.tipos.includes(tipo))
         .sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
     const grupoEscolhido = gruposDoTipo.find(g => String(g.id) === grupoId) || null;
-    const contaComoAgora = grupoEscolhido ? infoContaComo(grupoEscolhido.conta_como)?.rotulo : textoAutomatico(contaComoAutomatico({ tipo, nome: nome.trim().toUpperCase() }));
+    const contaComoAgora = grupoEscolhido?.conta_como ? infoContaComo(grupoEscolhido.conta_como)?.rotulo : textoAutomatico(contaComoAutomatico({ tipo, nome: nome.trim().toUpperCase() }));
     const trocarTipo = (novo) => {
         setTipo(novo);
         const g = (grupos || []).find(x => String(x.id) === grupoId);
-        if (g && !infoContaComo(g.conta_como)?.tipos.includes(novo)) setGrupoId('');
+        if (g && g.conta_como && !infoContaComo(g.conta_como)?.tipos.includes(novo)) setGrupoId('');
     };
 
     const handleSubmit = (e) => {
@@ -132,9 +132,9 @@ const ModalCatalogo = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, gru
                                 <label className={labelBase}>{tx('Grupo')}</label>
                                 <select value={grupoEscolhido ? grupoId : ''} onChange={e => setGrupoId(e.target.value)} className={`${inputBase} normal-case`}>
                                     <option value="">{tx('Sem grupo (conta pelo nome)')}</option>
-                                    {gruposDoTipo.map(g => <option key={g.id} value={String(g.id)}>{g.nome} · {tx(infoContaComo(g.conta_como)?.rotulo || '')}</option>)}
+                                    {gruposDoTipo.map(g => <option key={g.id} value={String(g.id)}>{g.conta_como ? `${g.nome} · ${tx(infoContaComo(g.conta_como)?.rotulo || '')}` : g.nome}</option>)}
                                 </select>
-                                <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx('O grupo diz como o item conta nas metas e nos relatórios. Para criar um grupo, use a aba Grupos do catálogo.')}</p>
+                                <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx('O grupo organiza o item: os Relatórios mostram um bloco com o nome do grupo. Alguns grupos (ex.: Só Nutri adicional) também mudam como o item conta. Para criar um grupo, use a aba Grupos do catálogo.')}</p>
                             </div>
                         )}
 

@@ -1,7 +1,7 @@
 // src/pages/AnaliseVendas/relatorio/motorConsolidacao.js
 import { safeIsoDate, normalizeString, getCategoriaItem, decomporPlano } from '../utils.js';
 import { montarNomesCurtos } from '../../Lancamentos/seletores/setoresEquipe.js';
-import { planoAParte } from '../regrasGrupos.js';
+import { grupoProprioDoNome } from '../regrasGrupos.js';
 
 export const ORDEM_CLASSICA = [
     "NUTRI",
@@ -37,29 +37,45 @@ const subgrupoDeOutros = (nomeNorm) => {
     return 'OUTROS PLANOS';
 };
 
-// PLANO À PARTE (grupos do catálogo, decisão do dono 14/11/2026): o plano aparece num bloco com o NOME DO GRUPO
-// (ex.: "FÉRIAS"). Se o grupo conta como plano vendido, o bloco soma em "Planos" e na coluna Outros pl.; se não, fica
-// só à parte (soma em Vendas). Nome igual a um bloco fixo: junta quando conta igual; senão ganha "(À PARTE)".
-const FIXOS_QUE_CONTAM = ['PLUS', 'FIT', 'PERSONAL CLASS', 'PROMOÇÕES', 'FÉRIAS', 'OUTROS PLANOS'];
-const FIXOS_QUE_NAO_CONTAM = ['NUTRI', 'PRODUTOS', 'SERVIÇOS', 'NÃO CLASSIFICADOS', ROTULO_NUTRI_ADICIONAL];
-const chaveAParte = (ap) => {
-    if (!ap.nome) return null;
-    if (FIXOS_QUE_CONTAM.includes(ap.nome)) return ap.contaPlano ? ap.nome : `${ap.nome} (À PARTE)`;
-    if (FIXOS_QUE_NAO_CONTAM.includes(ap.nome)) return `${ap.nome} (À PARTE)`;
-    return ap.nome;
-};
-const iconeAParte = (nome) => (/F[ÉE]RIAS/.test(nome) ? '🏖️' : '📌');
+// GRUPO PRÓPRIO (grupos do catálogo sem "como conta", decisão do dono 14/11/2026): o item continua entrando nos
+// blocos de sempre (as contas não mudam); só na hora de MOSTRAR ele aparece num bloco com o NOME DO GRUPO.
+const iconeProprio = (nome) => (/F[ÉE]RIAS/.test(nome) ? '🏖️' : '📌');
 
-// Ordem dos blocos: a fixa; os planos à parte entram antes de "Outros planos", em ordem alfabética
+// Ordem dos blocos: a fixa; os blocos próprios entram antes de "Outros planos", em ordem alfabética
 const ordemDoGrupo = (nome) => {
     const i = ORDEM_CLASSICA.indexOf(nome);
     return i >= 0 ? i : ORDEM_CLASSICA.indexOf('OUTROS PLANOS') - 0.5;
 };
 export const compararGruposClassicos = (a, b) => ordemDoGrupo(a[0]) - ordemDoGrupo(b[0]) || String(a[0]).localeCompare(String(b[0]), 'pt-BR');
 
-// Planos vendidos de uma unidade = blocos que contam como plano (fixos + planos à parte que contam). Nutri não soma.
-export const totalPlanosDosGrupos = (grupos = {}) => Object.entries(grupos)
-    .reduce((soma, [nome, g]) => soma + ((g.aParte ? g.contaPlano : FIXOS_QUE_CONTAM.includes(nome)) ? (g.total || 0) : 0), 0);
+// Blocos para MOSTRAR (tela e WhatsApp): os de sempre, sem os itens que têm grupo próprio, mais um bloco por grupo próprio.
+// Só mexe na exibição: dados.grupos (que alimenta os totais e as colunas) fica como está.
+export const gruposParaExibir = (grupos = {}) => {
+    const saida = new Map();
+    const proprios = new Map();
+    const vistos = new Set(); // o combo (ex.: PLUS + NUTRI) está em dois blocos: vai para o grupo próprio uma vez só
+    Object.entries(grupos).forEach(([nome, info]) => {
+        const itens = {};
+        let total = 0;
+        Object.entries(info.itens || {}).forEach(([item, d]) => {
+            const proprio = grupoProprioDoNome(item);
+            if (!proprio) { itens[item] = d; total += d.total || 0; return; }
+            if (vistos.has(item)) return;
+            vistos.add(item);
+            const alvo = proprios.get(proprio) || { total: 0, itens: {}, cor: 'text-sky-600', bgIcone: 'bg-sky-100 text-sky-600', icone: iconeProprio(proprio), escopo: 'PLANOS', proprio: true };
+            alvo.total += d.total || 0;
+            alvo.itens[item] = d;
+            proprios.set(proprio, alvo);
+        });
+        saida.set(nome, { ...info, itens, total });
+    });
+    proprios.forEach((bloco, nome) => {
+        const existente = saida.get(nome); // grupo com o mesmo nome de um bloco fixo (ex.: FÉRIAS): junta
+        if (existente) saida.set(nome, { ...existente, total: existente.total + bloco.total, itens: { ...existente.itens, ...bloco.itens } });
+        else saida.set(nome, bloco);
+    });
+    return [...saida.entries()].filter(([, info]) => info.total > 0).sort(compararGruposClassicos);
+};
 
 // Grupos dos relatórios em que um lançamento entra. Plano: decomporPlano → grupo BASE e/ou NUTRI (adicional).
 // O mesmo combo (ex.: PLUS + NUTRI) entra no PLUS e no NUTRI; o total de vendas conta o lançamento 1 vez só.
@@ -67,9 +83,6 @@ export const gruposDoLancamento = (nome, categoria) => {
     if (categoria === 'PRODUTO') return ['PRODUTOS'];
     if (categoria === 'SERVICO') return ['SERVIÇOS'];
     if (categoria !== 'PLANO') return ['NÃO CLASSIFICADOS'];
-    const aParte = planoAParte(nome);
-    const chave = aParte && chaveAParte(aParte);
-    if (chave) return [chave];
     const nomeNorm = normalizeString(nome);
     const { base, nutri } = decomporPlano(nome);
     const lista = [];
@@ -92,8 +105,11 @@ const INFO_ADMIN = {
 };
 
 // Resumo executivo: lista de grupos (com ícone/ordem) em que o lançamento entra
-export const classificarParaAdmin = (nome, categoria) => gruposDoLancamento(nome, categoria)
-    .map(g => INFO_ADMIN[g] || { grupo: g, tipo: 'AGRUPADO', order: 70, icone: iconeAParte(g), cor: 'text-sky-600' });
+export const classificarParaAdmin = (nome, categoria) => {
+    const proprio = grupoProprioDoNome(nome);
+    if (proprio) return [INFO_ADMIN[proprio] || { grupo: proprio, tipo: 'AGRUPADO', order: 70, icone: iconeProprio(proprio), cor: 'text-sky-600' }];
+    return gruposDoLancamento(nome, categoria).map(g => INFO_ADMIN[g]);
+};
 
 export const processarConsolidadas = ({
     vendasFiltradas = [],
@@ -168,11 +184,6 @@ export const processarConsolidadas = ({
 
         // Plano: grupo base e/ou NUTRI (adicional). Produto, serviço e não classificado: como antes.
         gruposDoLancamento(prodUpper, categoriaMestre).forEach(grupoAlvo => {
-            if (!registro.grupos[grupoAlvo]) {
-                // Plano à parte (grupo do catálogo): bloco criado na hora, com o nome do grupo
-                const ap = planoAParte(prodUpper);
-                registro.grupos[grupoAlvo] = { total: 0, itens: {}, cor: 'text-sky-600', bgIcone: 'bg-sky-100 text-sky-600', icone: iconeAParte(grupoAlvo), escopo: 'PLANOS', aParte: true, contaPlano: !!ap?.contaPlano };
-            }
             registro.grupos[grupoAlvo].total += qtd;
             if (!registro.grupos[grupoAlvo].itens[prodUpper]) {
                 registro.grupos[grupoAlvo].itens[prodUpper] = { total: 0, vendedores: {}, vendasAuditaveis: [] };
@@ -234,12 +245,10 @@ export const processarConsolidadas = ({
             const registrosServicosUnidade = [];
             const vistos = new Set();
 
-            // Planos à parte que contam como plano vendido entram na coluna "Outros pl." (os que não contam ficam fora das colunas)
-            const aParteQueContam = Object.entries(dados.grupos).filter(([, g]) => g.aParte && g.contaPlano).map(([nome]) => nome);
             COLUNAS_MATRIZ.forEach(col => {
                 let soma = 0;
                 const regs = [];
-                (col.key === 'OUTROS_PLANOS' ? [...col.grupos, ...aParteQueContam] : col.grupos).forEach(gName => {
+                col.grupos.forEach(gName => {
                     const grp = dados.grupos[gName];
                     if (grp) {
                         soma += grp.total || 0;

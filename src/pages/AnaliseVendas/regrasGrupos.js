@@ -20,10 +20,6 @@ export const CONTA_COMO = [
     { chave: 'PERSONAL', rotulo: 'Plano Personal Class', categoria: 'PLANO', base: 'PERSONAL CLASS', nutri: false, tipos: ['plano'] },
     { chave: 'PERSONAL_NUTRI', rotulo: 'Plano Personal Class + Nutri adicional', categoria: 'PLANO', base: 'PERSONAL CLASS', nutri: true, tipos: ['plano'] },
     { chave: 'OUTROS', rotulo: 'Outros planos', categoria: 'PLANO', base: 'OUTROS PLANOS', nutri: false, tipos: ['plano'] },
-    // Plano À PARTE (decisão do dono, 14/11/2026): aparece nos Relatórios e nas mensagens com o NOME DO GRUPO
-    // (ex.: "FÉRIAS"). O dono escolhe por grupo se conta como plano vendido (A_PARTE) ou não (A_PARTE_FORA).
-    { chave: 'A_PARTE', rotulo: 'Plano à parte · conta como plano vendido', categoria: 'PLANO', base: 'OUTROS PLANOS', nutri: false, aParte: true, tipos: ['plano'] },
-    { chave: 'A_PARTE_FORA', rotulo: 'Plano à parte · não conta como plano vendido', categoria: 'PLANO', base: null, nutri: false, aParte: true, tipos: ['plano'] },
     { chave: 'NUTRI', rotulo: 'Só Nutri adicional (não é plano vendido)', categoria: 'PLANO', base: null, nutri: true, tipos: ['plano', 'produto', 'servico'] },
     { chave: 'PRODUTO', rotulo: 'Produto', categoria: 'PRODUTO', base: null, nutri: false, tipos: ['produto'] },
     { chave: 'DOSE_UNICA', rotulo: 'Dose única (limite 10/mês)', categoria: 'PRODUTO', base: null, nutri: false, dose: true, tipos: ['produto'] },
@@ -37,19 +33,29 @@ const normalizar = (s) => (typeof s === 'string' ? s.normalize('NFD').replace(/[
 
 // nome do item normalizado → { chave, grupo } (só itens com grupo válido)
 let porNome = new Map();
+// GRUPO PRÓPRIO (14/11/2026, decisão do dono): grupo só de nome, sem "como conta". O item continua contando como
+// sempre (pelo nome/categoria); o grupo só organiza: os Relatórios e as mensagens mostram um bloco com o nome dele.
+// nome do item normalizado → nome do grupo em maiúsculas
+let porNomeProprio = new Map();
 
 // Chamado pelo App sempre que o catálogo ou os grupos mudam.
 export const definirRegrasGrupos = (itens = [], grupos = []) => {
     const gruposPorId = new Map((grupos || []).map(g => [String(g.id), g]));
     const novo = new Map();
+    const novoProprio = new Map();
     (itens || []).forEach(item => {
         if (!item || item.grupo_id === null || item.grupo_id === undefined) return;
         const grupo = gruposPorId.get(String(item.grupo_id));
+        if (grupo && !grupo.conta_como) { // grupo próprio: não muda a contagem, só a organização
+            novoProprio.set(normalizar(item.nome), String(grupo.nome || '').trim().toUpperCase());
+            return;
+        }
         const info = grupo && infoContaComo(grupo.conta_como);
         if (!info || !info.tipos.includes(item.tipo)) return; // grupo que não serve para a categoria = regra antiga
         novo.set(normalizar(item.nome), { chave: info.chave, grupo });
     });
     porNome = novo;
+    porNomeProprio = novoProprio;
 };
 
 // Como o item conta pelo GRUPO (null = sem grupo, vale a regra antiga pelo nome)
@@ -59,10 +65,5 @@ export const regraDoGrupo = (nomeItem) => {
 };
 export const grupoDoNome = (nomeItem) => porNome.get(normalizar(nomeItem))?.grupo || null;
 
-// Plano à parte: o nome do grupo que aparece nos Relatórios/mensagens + se conta como plano vendido (null = não é à parte)
-export const planoAParte = (nomeItem) => {
-    const achou = porNome.get(normalizar(nomeItem));
-    const info = achou && infoContaComo(achou.chave);
-    if (!info?.aParte) return null;
-    return { nome: String(achou.grupo.nome || '').trim().toUpperCase(), contaPlano: info.base !== null };
-};
+// Grupo próprio do item (nome em maiúsculas) ou null: usado só para MOSTRAR (Relatórios e mensagens)
+export const grupoProprioDoNome = (nomeItem) => porNomeProprio.get(normalizar(nomeItem)) || null;

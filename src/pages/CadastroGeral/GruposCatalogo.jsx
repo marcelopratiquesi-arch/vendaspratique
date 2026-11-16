@@ -32,19 +32,18 @@ const JanelaGrupo = ({ grupo, qtdItens, onClose, onSalvo }) => {
         e.preventDefault();
         const nomeLimpo = nome.trim().replace(/\s+/g, ' ');
         if (!nomeLimpo) return avisar(tx('Digite o nome do grupo.'), 'erro');
-        if (!contaComo) return avisar(tx('Escolha como o grupo conta no sistema.'), 'erro');
-        if (grupo && grupo.conta_como !== contaComo && qtdItens > 0
+        if (grupo && (grupo.conta_como || '') !== contaComo && qtdItens > 0
             && !window.confirm(tx('O grupo "{nome}" tem {qtd} itens. Mudar "como conta" muda a contagem desses itens em todas as telas (Dashboard, Metas, Relatórios), inclusive nos meses que já passaram. Vendas e comissões não mudam.\n\nConfirmar?', { nome: grupo.nome, qtd: qtdItens }))) return;
         setSalvando(true);
-        const dados = { nome: nomeLimpo, conta_como: contaComo };
+        const dados = { nome: nomeLimpo, conta_como: contaComo || null };
         const { error } = grupo
             ? await supabase.from('catalogo_grupos').update(dados).eq('id', grupo.id)
             : await supabase.from('catalogo_grupos').insert([dados]);
         setSalvando(false);
         if (error) {
             if (error.code === '23505') return avisar(tx('Já existe um grupo com o nome "{nome}".', { nome: nomeLimpo }), 'erro');
-            // O banco ainda não aceita "Plano à parte": falta o passo 2 do SQL
-            if (error.code === '23514') return avisar(tx('O banco ainda não aceita "Plano à parte". Rode o passo 2 do SQL da pasta sql/2026-11-14-grupos-catalogo no Supabase.'), 'erro');
+            // O banco ainda não aceita grupo sem "como conta": falta o passo 3 do SQL
+            if (error.code === '23502') return avisar(tx('O banco ainda não aceita grupo sem "como conta". Rode o passo 3 do SQL da pasta sql/2026-11-14-grupos-catalogo no Supabase.'), 'erro');
             return avisar(tx('Erro ao salvar o grupo: {message}', { message: error.message }), 'erro');
         }
         avisar(tx('Grupo salvo.'), 'sucesso');
@@ -52,8 +51,6 @@ const JanelaGrupo = ({ grupo, qtdItens, onClose, onSalvo }) => {
     };
 
     const info = infoContaComo(contaComo);
-    // "Plano à parte" é UMA opção na lista; a pergunta "conta como plano vendido?" escolhe A_PARTE ou A_PARTE_FORA
-    const valorDaLista = contaComo === 'A_PARTE_FORA' ? 'A_PARTE' : contaComo;
     const inputBase = 'w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200';
     const labelBase = 'block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400';
 
@@ -68,33 +65,18 @@ const JanelaGrupo = ({ grupo, qtdItens, onClose, onSalvo }) => {
                 <div className="p-5 space-y-5">
                     <div>
                         <label className={labelBase}>{tx('Nome do grupo')}</label>
-                        <input type="text" autoFocus value={nome} onChange={e => setNome(e.target.value)} placeholder={tx('Ex: Férias, PraticMed, Nutri adicional')} className={inputBase} />
+                        <input type="text" autoFocus value={nome} onChange={e => setNome(e.target.value)} placeholder={tx('Ex: Férias, Piscina, PraticMed')} className={inputBase} />
                     </div>
                     <div>
-                        <label className={labelBase}>{tx('Como conta no sistema')}</label>
-                        <select value={valorDaLista} onChange={e => setContaComo(e.target.value)} className={inputBase}>
-                            <option value="">{tx('Escolha…')}</option>
-                            {CONTA_COMO.filter(c => c.chave !== 'A_PARTE_FORA').map(c => (
-                                <option key={c.chave} value={c.chave}>{c.chave === 'A_PARTE' ? tx('Plano à parte (aparece com o nome do grupo)') : tx(c.rotulo)}</option>
-                            ))}
+                        <label className={labelBase}>{tx('Como conta no sistema (opcional)')}</label>
+                        <select value={contaComo} onChange={e => setContaComo(e.target.value)} className={inputBase}>
+                            <option value="">{tx('Igual ao item (o grupo só organiza)')}</option>
+                            {CONTA_COMO.map(c => <option key={c.chave} value={c.chave}>{tx(c.rotulo)}</option>)}
                         </select>
-                        {info?.aParte && (
-                            <div className="mt-3">
-                                <span className={labelBase}>{tx('Conta como plano vendido?')}</span>
-                                <div className="grid grid-cols-2 gap-2">
-                                    {[['A_PARTE', 'Sim, conta'], ['A_PARTE_FORA', 'Não conta']].map(([chave, rotulo]) => (
-                                        <button key={chave} type="button" onClick={() => setContaComo(chave)} aria-pressed={contaComo === chave}
-                                            className={`h-10 rounded-xl border text-[11px] font-black uppercase tracking-widest ${contaComo === chave ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300'}`}>
-                                            {tx(rotulo)}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         <p className="text-[11px] font-semibold text-slate-500 mt-1.5 ml-1 dark:text-slate-400">
                             {info
                                 ? <>{tx('Serve para: {categorias}.', { categorias: info.tipos.map(t => tx(CATEGORIAS[t])).join(', ') })}{' '}{tx(EXPLICACAO[info.chave] || '')}</>
-                                : tx('É isto que diz em qual meta e em qual contagem o item entra.')}
+                                : tx('Deixe assim para um grupo comum (Férias, Piscina...): os itens dele contam como sempre e os Relatórios mostram um bloco com o nome do grupo.')}
                         </p>
                     </div>
                 </div>
@@ -117,8 +99,6 @@ const EXPLICACAO = {
     PERSONAL: 'Conta como plano vendido e na meta Personal Class.',
     PERSONAL_NUTRI: 'Conta como plano Personal Class vendido e também como adicional Nutri.',
     OUTROS: 'Conta como plano vendido, em Outros planos.',
-    A_PARTE: 'Aparece nos Relatórios e nas mensagens com o nome do grupo. Conta como plano vendido (Dashboard: em Outros planos).',
-    A_PARTE_FORA: 'Aparece nos Relatórios e nas mensagens com o nome do grupo. NÃO conta como plano vendido nem na produtividade; soma só no total de vendas.',
     NUTRI: 'Conta só como adicional Nutri (meta Nutri). Não conta como plano vendido nem como produto.',
     PRODUTO: 'Conta como produto (meta de produtos).',
     DOSE_UNICA: 'Conta como produto, com o limite de 10 doses únicas por unidade no mês.',
@@ -197,8 +177,8 @@ const GruposCatalogo = ({ grupos, catalogoCompleto = [], ehAdmin, recarregar }) 
 
     const alternar = (id) => setAbertos(atual => { const n = new Set(atual); if (n.has(id)) n.delete(id); else n.add(id); return n; });
     const ordenados = [...lista].sort((a, b) => {
-        const ia = CONTA_COMO.findIndex(c => c.chave === a.conta_como);
-        const ib = CONTA_COMO.findIndex(c => c.chave === b.conta_como);
+        const ia = a.conta_como ? CONTA_COMO.findIndex(c => c.chave === a.conta_como) : 999; // grupos próprios no fim
+        const ib = b.conta_como ? CONTA_COMO.findIndex(c => c.chave === b.conta_como) : 999;
         return ia - ib || String(a.nome).localeCompare(String(b.nome), 'pt-BR');
     });
     const th = 'px-4 py-2.5 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap dark:text-slate-400';
@@ -256,7 +236,7 @@ const GruposCatalogo = ({ grupos, catalogoCompleto = [], ehAdmin, recarregar }) 
                                                 </button>
                                             </td>
                                             <td className="px-4 py-2.5">
-                                                <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wide whitespace-nowrap ${corDoContaComo(grupo.conta_como)}`}>{info ? tx(info.rotulo) : grupo.conta_como}</span>
+                                                <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wide whitespace-nowrap ${corDoContaComo(grupo.conta_como)}`}>{info ? tx(info.rotulo) : (grupo.conta_como || tx('Igual ao item'))}</span>
                                             </td>
                                             <td className="px-4 py-2.5 text-right text-[13px] font-black tabular-nums text-slate-700 dark:text-slate-200">{itens.length || <span className="text-slate-300 dark:text-slate-600">0</span>}</td>
                                             {ehAdmin && (
