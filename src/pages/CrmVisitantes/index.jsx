@@ -19,7 +19,7 @@ import { buscarComprasDePlano, decidirPelasCompras, aplicarDecisoes } from './co
 import { JanelaNaoContatar, JanelaMotivoPerda, JanelaProximoContato } from './JanelasContato';
 import JanelaResultadoContato from './JanelaResultadoContato';
 import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas } from './contatosFeitos';
-import { FASE_ESPERA, estaEmEspera, ocupaVaga, DIAS_SEM_CAMINHO, diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO } from './utils';
+import { FASE_ESPERA, estaEmEspera, ocupaVaga, DIAS_SEM_CAMINHO, diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO, ehContatoDeFila } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
 import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy, ArrowRight } from 'lucide-react';
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
@@ -819,7 +819,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         setSelecionadosBase([]);
     };
     const distribuirLote = () => {
-        const ids = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v) && podeContatar(v))
+        const ids = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v))
             .sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, qtdEnvio).map(l => l.id);
         if (!ids.length) return avisar(tx("A Base de Leads está vazia!"));
         enviarPara(ids, recepEnvio);
@@ -827,7 +827,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // Dividir igualmente (rodízio): reparte TODA a Base da unidade entre as recepcionistas ativas, os mais antigos primeiro
     const dividirIgualmente = async () => {
         const ativas = recepcionistasAtivas;
-        const livres = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v) && podeContatar(v))
+        const livres = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v))
             .sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime());
         if (!livres.length) return avisar(tx("A Base de Leads está vazia!"));
         if (ativas.length < 2) return avisar(tx("É preciso ter pelo menos 2 recepcionistas ativas para dividir."));
@@ -958,10 +958,11 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             for (const grupo of gruposBanco) {
                 for (let b = 0; b < grupo.itens.length; b += 500) {
                     const banco = grupo.itens.slice(b, b + 500).map(v => v.id);
+                    const deFila = new Set(grupo.itens.filter(ehContatoDeFila).map(v => v.id)); // voltam para a aba de origem (16/11/2026)
                     const { error } = await atualizarLeads(banco, grupo.campos);
                     if (!error) {
                         setVisitantes(prev => prev.map(v => banco.includes(v.id) ? { ...v, ...grupo.campos } : v));
-                        await historicoSistema(banco.map(id => ({ lead_id: String(id), tipo_acao: 'Reciclagem', consultor: 'Sistema', observacao: `Voltou para o Banco Bruto: sem caminho há ${DIAS_SEM_CAMINHO}+ dias (sem data de volta e sem WhatsApp/ligação).` })));
+                        await historicoSistema(banco.map(id => ({ lead_id: String(id), tipo_acao: 'Reciclagem', consultor: 'Sistema', observacao: deFila.has(id) ? `Voltou para a aba de origem (Migração, Resgate ou Wellhub): sem caminho há ${DIAS_SEM_CAMINHO}+ dias (sem data de volta e sem WhatsApp/ligação).` : `Voltou para o Banco Bruto: sem caminho há ${DIAS_SEM_CAMINHO}+ dias (sem data de volta e sem WhatsApp/ligação).` })));
                         qtdBanco += banco.length;
                     } else { console.error('Carteira automática: erro ao devolver para o Banco Bruto', error); break; }
                 }
@@ -985,7 +986,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         const agora = Date.now();
         if (agora - (ultimaConferenciaCompras.current[unidadeOperacao] || 0) < 120000) return;
         const candidatos = visitantes.filter(v => daUnidadeOperacao(v) && ['Novo', 'Em Contato', 'Perdido'].includes(normalizarStatus(v.status))
-            && apenasDigitos(v.cpf).length === 11 && String(v.tipo_lead || '').toUpperCase() !== 'MIGRACAO');
+            && apenasDigitos(v.cpf).length === 11 && !['MIGRACAO', 'WELLHUB'].includes(String(v.tipo_lead || '').toUpperCase()));
         if (!candidatos.length) return;
         ultimaConferenciaCompras.current[unidadeOperacao] = agora;
         // Não cancela no meio: a gravação vale mesmo se a tela mudar (cada contato só muda uma vez)
@@ -1178,6 +1179,129 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         avisar(tx("{nome} foi para o seu funil (Em Espera, volta amanhã).", { nome: aluno.nome }), 'sucesso');
     };
 
+
+    // PUXAR NA MIGRAÇÃO / NO RESGATE / NO GRUPO WELLHUB (16/11/2026, decisão do dono): o aluno puxado vira contato do funil da
+    // recepcionista, na coluna "Novo", com a etiqueta do tipo (MIGRACAO, RESGATE ou WELLHUB). Aparece na Conversa, no Kanban e na
+    // Lista. Não conta na meta (histórico "Fila de Trabalho"). Reaproveita o contato que já existe com o mesmo CPF:
+    //   - em Novo/Em Contato com OUTRA dona → não mexe (resultado.jaComOutra); já é dela → não mexe (jaNoFunil);
+    //   - em Novo/Em Contato sem dona (voltou para a aba) → passa para ela;
+    //   - Perdido/Fechado → reabre em Novo.
+    // Cada linha pode trazer lead_id (contato já existente do grupo Wellhub). Se o banco não aceitar o tipo novo (trava 23514),
+    // grava sem o tipo e avisa (resultado.semTipo).
+    const levarPuxadosParaFunil = async (linhas, origem = 'MIGRACAO') => {
+        const resultado = { feitos: 0, jaComOutra: 0, jaNoFunil: 0, falhas: [], semTipo: false };
+        const operador = consultorAtivo?.nome;
+        if (!operador || !unidadeOperacao || !linhas?.length) return resultado;
+        const agora = new Date().toISOString();
+        const rotulo = origem === 'RESGATE' ? 'Resgate' : origem === 'WELLHUB' ? 'Wellhub / Gympass' : 'Migração';
+        const reabrir = [];
+        const novos = [];
+        linhas.forEach(a => {
+            const cpf = apenasDigitos(a.cpf);
+            const existente = a.lead_id
+                ? visitantes.find(v => String(v.id) === String(a.lead_id))
+                : (cpf.length === 11 ? visitantes.find(v => apenasDigitos(v.cpf) === cpf && normalizarStatus(v.status) !== 'Arquivado' && daUnidadeOperacao(v)) : null);
+            if (existente) {
+                if (FASES_EM_ATENDIMENTO.includes(normalizarStatus(existente.status))) {
+                    if (existente.puxado_por) {
+                        if (mesmoNome(existente.puxado_por, operador)) resultado.jaNoFunil++; else resultado.jaComOutra++;
+                        return;
+                    }
+                    reabrir.push({ id: existente.id, campos: { puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origem } });
+                } else {
+                    reabrir.push({ id: existente.id, campos: { ...camposDaFase('Novo'), puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origem, proximo_contato: null } });
+                }
+                return;
+            }
+            novos.push({
+                unidade: unidadeOperacao,
+                nome: a.nome,
+                telefone: apenasDigitos(a.telefone) || a.telefone || null,
+                cpf: cpf || null,
+                tipo_lead: origem,
+                origem: 'CRM',
+                vendedor: operador,
+                status: 'Novo',
+                data: new Date().toLocaleDateString('pt-BR'),
+                criado_em: agora,
+                puxado_em: agora,
+                puxado_por: operador,
+                perdido_em: null
+            });
+        });
+
+        const aplicados = [];
+        const grupos = new Map();
+        reabrir.forEach(r => { const k = JSON.stringify(r.campos); grupos.set(k, [...(grupos.get(k) || []), r.id]); });
+        for (const [k, ids] of grupos) {
+            let campos = JSON.parse(k);
+            let { error } = await atualizarLeads(ids, campos);
+            if (error && error.code === '23514') {
+                resultado.semTipo = true;
+                const { tipo_lead: _semTipo, ...resto } = campos; // eslint-disable-line no-unused-vars
+                campos = resto;
+                ({ error } = await atualizarLeads(ids, campos));
+            }
+            if (error) { ids.forEach(id => resultado.falhas.push(String(id))); continue; }
+            setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, ...campos } : v));
+            aplicados.push(...ids);
+        }
+        for (let i = 0; i < novos.length; i += 100) {
+            const lote = novos.slice(i, i + 100);
+            let { data, error } = await supabase.from('leads').insert(lote).select();
+            if (error && error.code === '23514') {
+                resultado.semTipo = true;
+                ({ data, error } = await supabase.from('leads').insert(lote.map(n => ({ ...n, tipo_lead: null }))).select());
+            }
+            if (error) {
+                // Um a um: se um deles tem CPF repetido em outra unidade, os outros entram
+                for (const n of lote) {
+                    let r = await supabase.from('leads').insert([n]).select();
+                    if (r.error && r.error.code === '23514') { resultado.semTipo = true; r = await supabase.from('leads').insert([{ ...n, tipo_lead: null }]).select(); }
+                    if (r.error || !r.data?.[0]) { resultado.falhas.push(n.nome); continue; }
+                    adicionarLeads(r.data);
+                    aplicados.push(r.data[0].id);
+                }
+            } else {
+                adicionarLeads(data);
+                aplicados.push(...data.map(d => d.id));
+            }
+        }
+        if (aplicados.length) await registrarHistoricoLote(aplicados, 'Fila de Trabalho', `Puxado da aba ${rotulo} para o funil (Novo, etiqueta ${origem}).`);
+        resultado.feitos = aplicados.length;
+        return resultado;
+    };
+
+    // "Wellhub / Gympass" na janela "Como foi o contato?" (16/11/2026, decisão do dono): o contato sai do funil e vai para o grupo
+    // WELLHUB / GYMPASS da aba Migração (sem dona, em Novo, tipo WELLHUB; fica fora do Banco Bruto). Lá quem puxar volta a
+    // trabalhá-lo no funil; a única coisa a oferecer é o Nutri.
+    const enviarParaWellhub = async (lead) => {
+        const campos = { status: 'Novo', puxado_por: null, puxado_em: null, perdido_em: null, motivo_perda: null, proximo_contato: null, tipo_lead: 'WELLHUB' };
+        const anteriores = Object.fromEntries(Object.keys(campos).map(k => [k, lead[k] ?? null]));
+        setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, ...campos } : v));
+        const { error } = await atualizarLeads([lead.id], campos);
+        if (error) {
+            setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, ...anteriores } : v));
+            avisar(error.code === '23514'
+                ? tx("O banco ainda não aceita o tipo Wellhub. Peça para rodar o SQL 2026-11-16-crm-wellhub no Supabase.")
+                : tx("Não foi possível mandar o contato para o grupo Wellhub / Gympass.\n\n{v1}", { v1: error.message || '' }), 'erro');
+            return false;
+        }
+        await registrarHistorico(lead.id, 'Agendamento', 'Resultado: cliente Wellhub/Gympass. Foi para o grupo WELLHUB / GYMPASS da aba Migração (oferecer Nutri).', true);
+        avisar(tx("{nome} foi para a aba Migração, no grupo WELLHUB / GYMPASS.", { nome: lead.nome }), 'sucesso');
+        return true;
+    };
+
+    // "Abrir no CRM" das abas Migração/Resgate: leva para a Conversa (ou para o Kanban com a ficha aberta) já no contato
+    const [abrirContatoId, setAbrirContatoId] = useState(null);
+    const abrirNoCrm = (lead) => {
+        if (!lead) return;
+        if (visaoLiberada.conversa) { setAbrirContatoId(lead.id); setVisaoAtiva('conversa'); return; }
+        setVisaoAtiva('kanban');
+        setModalDetalhe({ show: true, lead });
+        carregarHistoricoLead(lead.id);
+    };
+
     // Próximo contato (Bloco 4): data AAAA-MM-DD ou null para tirar. Não conta na meta nem tira do "parado".
     const salvarProximoContato = async (lead, data) => {
         const anterior = lead.proximo_contato ?? null;
@@ -1210,7 +1334,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const consultorLogado = consultorAtivo?.nome || '';
     // Alguém abrindo o CRM de outra pessoa (Líder/Admin/Mentor, ou uma recepcionista no cartão da colega)
     const lideraOuAcompanha = !mesmoNome(usuarioLogado?.nome, consultorLogado);
-    const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && daUnidadeOperacao(v) && podeContatar(v)).sort((a,b) => new Date(dataDoLead(b)) - new Date(dataDoLead(a)));
+    // Contatos das abas Migração/Resgate/Wellhub sem dona NÃO são Banco Bruto: ficam esperando na aba deles (16/11/2026)
+    const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v)).sort((a,b) => new Date(dataDoLead(b)) - new Date(dataDoLead(a)));
     // Nome comparado sem ligar para maiúsculas/acentos (o Novo Visitante grava o consultor em MAIÚSCULAS)
     const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por, consultorLogado) && v.status !== 'Arquivado' && podeContatar(v));
     // ultima_acao_em: data da última ação (só existe depois de ler o histórico; antes disso a etiqueta "parado" não aparece)
@@ -1237,6 +1362,16 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     }, [consultorAtivo, unidadeOperacao, pendentesHoje, pendentesProximo]);
 
     const meusLeadsGeladeira = meusLeads.filter(v => v.status === 'Perdido');
+    // Geladeira (16/11/2026, pedido do dono): os que já passaram dos 30 dias voltam para o Kanban (Novo) de uma vez, respeitando o limite de 300
+    const liberadosGeladeira = meusLeadsGeladeira.filter(v => Math.floor((new Date() - new Date(v.perdido_em)) / 86400000) >= 30);
+    const resgatarLiberados = () => {
+        if (!liberadosGeladeira.length) return;
+        const vaga = vagaDe(consultorLogado);
+        if (vaga <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
+        const ids = liberadosGeladeira.slice(0, vaga).map(v => v.id);
+        if (ids.length < liberadosGeladeira.length) avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vaga, limite: LIMITE_CARTEIRA }));
+        alterarStatusEmLote(ids, 'Novo');
+    };
     // Abas que ficam no menu "Mais" (pouco usadas no dia a dia; nada foi tirado)
     const abasMais = [
         visaoLiberada.geladeira && ['geladeira', Snowflake, `${tx("Geladeira")} (${meusLeadsGeladeira.length})`, tx("Perdidos: esperam 30 dias e podem voltar para o Kanban")],
@@ -1294,6 +1429,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         if (tipo === 'FECHOU') {
             await registrarHistorico(lead.id, 'Agendamento', 'Resultado: comprou / fechou.', true);
             await alterarStatus(lead.id, 'Fechado');
+            return;
+        }
+        if (tipo === 'WELLHUB') {
+            await enviarParaWellhub(lead);
             return;
         }
         if (tipo === 'NAO_QUER') {
@@ -1821,6 +1960,14 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                         </div>
                     </div>
 
+                    {liberadosGeladeira.length > 0 && (
+                        <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
+                            <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{tx("{qtd} contatos já passaram dos 30 dias e estão liberados.", { qtd: liberadosGeladeira.length })}</span>
+                            <button type="button" onClick={resgatarLiberados} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" title={tx("Leva todos os liberados para o Kanban, em Novo (até o limite de vagas da carteira)")}>
+                                <RotateCcw className="w-3.5 h-3.5" />{' '}{tx("Resgatar todos os liberados ({qtd})", { qtd: liberadosGeladeira.length })}
+                            </button>
+                        </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {meusLeadsGeladeira.length === 0 ? (
                             <p className="text-slate-400 font-bold col-span-3 text-center py-10 uppercase tracking-widest text-xs">{tx("Sua geladeira está vazia.")}</p>
@@ -1940,6 +2087,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     todosLeads={visitantes}
                     contatosDoDia={contatosDoDia}
                     unidade={unidadeOperacao}
+                    abrirContatoId={abrirContatoId}
+                    aoAbrirContato={() => setAbrirContatoId(null)}
                 />
             )}
 
@@ -1982,6 +2131,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     onNaoContatar={aoColocarNaoContatar}
                     onContatoFeito={somarNaMeta}
                     onInteressado={levarAlunoParaFunil}
+                    leads={visitantes}
+                    vagaCarteira={vagaDe(consultorLogado)}
+                    onPuxados={levarPuxadosParaFunil}
+                    onAbrirNoCrm={abrirNoCrm}
                 />
             )}
 
@@ -1996,6 +2149,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     onNaoContatar={aoColocarNaoContatar}
                     onContatoFeito={somarNaMeta}
                     onInteressado={(aluno) => levarAlunoParaFunil(aluno, 'RESGATE')}
+                    vagaCarteira={vagaDe(consultorLogado)}
+                    onPuxados={(linhas) => levarPuxadosParaFunil(linhas, 'RESGATE')}
+                    onAbrirNoCrm={abrirNoCrm}
                 />
             )}
 
@@ -2038,6 +2194,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     textoInteressado={tx('Vai para Em Espera e volta para você amanhã.')}
                     textoNaoQuer={tx('Vai para a Geladeira (sem interesse) e volta em 30 dias. Não entra no "Não contatar".')}
                     textoFechou={tx('Vai para Fechado.')}
+                    textoWellhub={tx('Cliente do Wellhub / Gympass: sai do funil e vai para a aba Migração (oferecer Nutri).')}
                     obrigatorio
                     onEscolher={aplicarResultadoFunil}
                     onFechar={fecharResultadoFunil}

@@ -34,6 +34,7 @@ const tipoDoLead = (tipoLead) => {
     const t = String(tipoLead || '').toUpperCase();
     if (t === 'CANCELADO') return 'CANCELADO';
     if (t === 'INATIVO') return 'INATIVO';
+    if (t === 'RESGATE') return 'RESGATE';
     return 'CANCELADO_INATIVO_ANTIGO';
 };
 

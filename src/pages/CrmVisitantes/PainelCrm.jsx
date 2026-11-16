@@ -51,7 +51,8 @@ const publicoDoLead = (tipoLead) => {
     if (t === 'CANCELADO') return 'CANCELADO';
     if (t === 'INATIVO' || t === 'CANCELADO/INATIVO') return 'INATIVO';
     if (t === 'VISITANTE') return 'VISITANTE';
-    if (t === 'MIGRACAO') return 'MIGRACAO';
+    if (t === 'MIGRACAO' || t === 'WELLHUB') return 'MIGRACAO';
+    if (t === 'RESGATE') return 'RESGATE';
     return null;
 };
 

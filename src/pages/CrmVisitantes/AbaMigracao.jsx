@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine } from 'lucide-react';
+import { Repeat, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine, MessagesSquare } from 'lucide-react';
 import { decomporPlano } from '../AnaliseVendas/utils.js';
-import { MENSAGENS_PADRAO, abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor } from './utils';
+import { MENSAGENS_PADRAO, abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, mesmoNome, normalizarNome, marcaFeitoPor, apenasDigitos, normalizarStatus, FASES_EM_ATENDIMENTO, GRUPO_WELLHUB, LIMITE_CARTEIRA } from './utils';
+import { indexarLeadsDeFila, situacaoNoFunil, leadsWellhubDisponiveis } from './filaNoFunil.js';
 import { montarMensagem } from './embaralhador.js';
 import {
     carregarUltimoPlanoAlunos, carregarAndamentoMigracao, salvarAndamentoMigracao, puxarParaFilaMigracao,
@@ -51,16 +52,24 @@ import { tx } from '../../i18n/traduzir.js';
 // 09/11/2026 (decisão do dono): botões Não respondeu · Vai pensar · Interessado direto na linha (+ "Mais" = janela,
 // onde fica o "Não quer"); a janela que abre depois do WhatsApp/Ligar é obrigatória (sem "Decidir depois");
 // "Pegar para mim" na linha dos Disponíveis/Todos; puxado e não contatado volta em 3 dias (DIAS_PARA_DEVOLVER).
+// 16/11/2026 (decisão do dono): PUXAR leva o aluno direto para o FUNIL da recepcionista (coluna Novo, etiqueta MIGRAÇÃO), onde
+// aparece na Conversa, no Kanban e na Lista; respeita o limite de 300 em trabalho. "Minha fila" aqui virou CONSULTA com o botão
+// "Abrir no CRM" (WhatsApp, ligação e resultado são feitos no funil). O grupo "WELLHUB / GYMPASS" lista os contatos que a
+// recepcionista marcou como Wellhub/Gympass na janela "Como foi o contato?" (sem dona, tipo WELLHUB): quem puxa volta a trabalhá-los
+// no funil, oferecendo só o Nutri. Alunos antigos que já estavam na fila continuam com os botões de antes e ganham "Enviar para o CRM".
+// Regras do aluno x contato do funil: filaNoFunil.js.
 // ==========================================
 
 // Etapa mostrada na linha (regras em resultadoContato.js, as mesmas do Resgate)
 const ANDAMENTOS = {
     ...ANDAMENTOS_BASE,
+    NO_FUNIL: { rotulo: 'No funil', classe: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
     MIGROU: { rotulo: 'Migrou', classe: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30' }
 };
 const FILTROS_ANDAMENTO = [
     { val: 'HOJE', label: 'Para hoje' },
     { val: 'AGUARDANDO', label: 'Aguardando' },
+    { val: 'NO_FUNIL', label: 'No funil' },
     { val: 'INTERESSADO', label: 'Interessados' },
     { val: 'GELADEIRA', label: 'Geladeira (desistiram)' },
     { val: 'MIGROU', label: 'Migrou' },
@@ -70,13 +79,14 @@ const FILTROS_ANDAMENTO = [
 const CONTADORES = [
     { chave: 'HOJE', filtro: 'HOJE', rotulo: 'Para hoje', classe: ANDAMENTOS.PARA_HOJE.classe },
     { chave: 'AGUARDANDO', filtro: 'AGUARDANDO', rotulo: 'Aguardando', classe: ANDAMENTOS.AGUARDANDO.classe },
+    { chave: 'NO_FUNIL', filtro: 'NO_FUNIL', rotulo: 'No funil', classe: ANDAMENTOS.NO_FUNIL.classe },
     { chave: 'INTERESSADO', filtro: 'INTERESSADO', rotulo: 'Interessados', classe: ANDAMENTOS.INTERESSADO.classe },
     { chave: 'MIGROU_MES', filtro: 'MIGROU', rotulo: 'Migraram no mês', classe: ANDAMENTOS.MIGROU.classe },
     { chave: 'DESISTIRAM', filtro: 'GELADEIRA', rotulo: 'Desistiram', classe: ANDAMENTOS.GELADEIRA.classe }
 ];
 const POR_PAGINA = 50;
 
-const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), onNaoContatar, onContatoFeito, onInteressado }) => {
+const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), onNaoContatar, onContatoFeito, onInteressado, leads = [], vagaCarteira = LIMITE_CARTEIRA, onPuxados, onAbrirNoCrm }) => {
     const [alunos, setAlunos] = useState(null);
     const [andamento, setAndamento] = useState(new Map());
     const [mensagem, setMensagem] = useState(MENSAGENS_PADRAO.MIGRACAO);
@@ -122,8 +132,29 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     const hoje = diaISO(0);
     const inicioMes = `${hoje.slice(0, 8)}01`;
 
+    // Contatos do funil (16/11/2026): os da Migração por CPF (mandam na situação do aluno) e quem já é contato de OUTRA recepcionista
+    const leadsDeFila = useMemo(() => indexarLeadsDeFila(leads, ['MIGRACAO']), [leads]);
+    const leadsComOutraDona = useMemo(() => {
+        const mapa = new Map();
+        (leads || []).forEach(l => {
+            const cpf = apenasDigitos(l.cpf);
+            if (cpf.length === 11 && l.puxado_por && FASES_EM_ATENDIMENTO.includes(normalizarStatus(l.status)) && !mesmoNome(l.puxado_por, operador)) mapa.set(cpf, l);
+        });
+        return mapa;
+    }, [leads, operador]);
+    const linhasWellhub = useMemo(() => leadsWellhubDisponiveis(leads, unidadeChave)
+        .filter(l => !estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id) }))
+        .map(l => {
+            const semTel = semTelefoneValido(l.telefone);
+            return {
+                chave: `lead-${l.id}`, lead_id: l.id, wellhub: true, nome: l.nome, cpf: l.cpf, telefone: l.telefone, matricula: '',
+                ultimo_plano: GRUPO_WELLHUB, data_compra: null, situacao: 'NAO_CONTATADO', etapa: 'NAO_CONTATADO', voltaEm: null,
+                paraHoje: true, registro: null, dono: '', semTel, noFunil: null, leadParaPuxar: null, disponivel: !semTel, minhaFila: false
+            };
+        }), [leads, unidadeChave, naoContatar]);
+
     // Monta cada aluno com: situação (andamento), dono da fila e se está disponível para puxar
-    const linhas = useMemo(() => {
+    const linhasAlunos = useMemo(() => {
         const limiteFila = new Date();
         limiteFila.setDate(limiteFila.getDate() - DIAS_PARA_DEVOLVER);
         return (alunos || [])
@@ -145,16 +176,32 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                     || (registro.puxado_em && new Date(registro.puxado_em) < limiteFila)
                     || desligadas.has(normalizarNome(registro.puxado_por))
                 );
-                const dono = filaVencida ? '' : (registro?.puxado_por || registro?.atualizado_por || '');
-                const disponivel = situacao !== 'MIGROU' && (!registro || filaVencida);
+                let dono = filaVencida ? '' : (registro?.puxado_por || registro?.atualizado_por || '');
+                let disponivel = situacao !== 'MIGROU' && (!registro || filaVencida);
                 const semTel = semTelefoneValido(a.telefone);
                 // Etapa e dia de volta: contatado volta na data marcada (sem data: 2 dias depois do último contato);
                 // geladeira (Não quer / Sem resposta) volta em 30 dias
-                const { etapa, voltaEm, paraHoje } = calcularEtapa(situacao, registro, hoje);
-                return { ...a, situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, disponivel: disponivel && !semTel, minhaFila: !semTel && !disponivel && mesmoNome(dono, operador) };
+                let { etapa, voltaEm, paraHoje } = calcularEtapa(situacao, registro, hoje);
+                // O contato do funil manda (16/11/2026): no funil = não está disponível; sem dona = voltou para esta aba
+                const cpfAluno = apenasDigitos(a.cpf);
+                const nf = situacao === 'MIGROU' ? null : situacaoNoFunil(leadsDeFila.get(cpfAluno), hoje);
+                let noFunil = null;
+                let leadParaPuxar = null;
+                if (nf?.tipo === 'NO_FUNIL' || nf?.tipo === 'FECHADO') {
+                    noFunil = nf; dono = nf.dono; disponivel = false; etapa = 'NO_FUNIL'; voltaEm = nf.voltaEm; paraHoje = false;
+                } else if (nf?.tipo === 'GELADEIRA') {
+                    dono = ''; disponivel = false; etapa = 'GELADEIRA'; voltaEm = nf.voltaEm; paraHoje = false; situacao = 'NAO_QUER';
+                } else if (nf?.tipo === 'DEVOLVIDO' || nf?.tipo === 'LIBERADO') {
+                    dono = ''; disponivel = true; leadParaPuxar = nf.lead; situacao = 'NAO_CONTATADO'; etapa = 'NAO_CONTATADO'; voltaEm = null; paraHoje = true;
+                }
+                // Já é contato de OUTRA recepcionista no funil: não fica disponível (evita chamar duas vezes)
+                const outra = !noFunil && !leadParaPuxar ? leadsComOutraDona.get(cpfAluno) : null;
+                if (outra) { disponivel = false; dono = dono || outra.puxado_por; }
+                return { ...a, chave: a.aluno_id, situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, noFunil, leadParaPuxar, disponivel: disponivel && !semTel, minhaFila: !semTel && !disponivel && mesmoNome(dono, operador) };
             })
             .filter(Boolean);
-    }, [alunos, andamento, naoContatar, desligadas, operador, hoje]);
+    }, [alunos, andamento, naoContatar, desligadas, operador, hoje, leadsDeFila, leadsComOutraDona]);
+    const linhas = useMemo(() => [...linhasAlunos, ...linhasWellhub], [linhasAlunos, linhasWellhub]);
 
     const daVisao = useMemo(() => linhas.filter(l => (
         visao === 'SEM_TELEFONE' ? l.semTel && l.situacao !== 'MIGROU'
@@ -187,10 +234,11 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     };
 
     const contagem = useMemo(() => {
-        const c = { HOJE: 0, AGUARDANDO: 0, INTERESSADO: 0, MIGROU_MES: 0, DESISTIRAM: 0 };
+        const c = { HOJE: 0, AGUARDANDO: 0, NO_FUNIL: 0, INTERESSADO: 0, MIGROU_MES: 0, DESISTIRAM: 0 };
         daVisao.forEach(l => {
             if (l.paraHoje) c.HOJE++;
             else if (l.etapa === 'AGUARDANDO') c.AGUARDANDO++;
+            else if (l.etapa === 'NO_FUNIL') c.NO_FUNIL++;
             else if (l.etapa === 'INTERESSADO') c.INTERESSADO++;
             else if (l.etapa === 'GELADEIRA') c.DESISTIRAM++;
             if (l.situacao === 'MIGROU' && String(l.data_compra || '') >= inicioMes) c.MIGROU_MES++;
@@ -206,33 +254,110 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
 
     // Puxa os N mais recentes (pela data da compra) do plano escolhido para a minha fila.
     // "Pegar para mim" (09/11/2026): passa um aluno só (escolhido na linha dos Disponíveis/Todos).
+    // PUXAR (16/11/2026, decisão do dono): o aluno puxado vai direto para o funil (Novo, etiqueta MIGRAÇÃO) e passa a aparecer na
+    // Conversa, no Kanban e na Lista. Respeita o limite de contatos em trabalho. O banco continua decidindo quem já foi pego por
+    // outra pessoa (crm_puxar_migracao). Contato do grupo Wellhub/Gympass é reaproveitado (mesmo contato, volta para o funil).
+    const textoResultadoPuxada = (r, pedidos, nomeUnico) => {
+        if (!r.feitos && !r.jaNoFunil && !r.jaComOutra && !r.falhas.length) return null;
+        const partes = [];
+        if (r.feitos) partes.push(nomeUnico
+            ? tx("{nome} foi para o seu funil (Novo, com a etiqueta).", { nome: nomeUnico })
+            : tx("{qtd} aluno(s) foram para o seu funil (coluna Novo, com a etiqueta). Já aparecem na Conversa, no Kanban e na Lista.", { qtd: r.feitos }));
+        if (r.jaNoFunil) partes.push(tx("{qtd} já estava(m) no seu funil.", { qtd: r.jaNoFunil }));
+        if (r.jaComOutra) partes.push(tx("{qtd} já é(são) contato de outra recepcionista e não foi(foram) puxado(s).", { qtd: r.jaComOutra }));
+        if (r.falhas.length) partes.push(tx("{qtd} não entrou(entraram) no funil: {nomes}.", { qtd: r.falhas.length, nomes: r.falhas.slice(0, 5).join(', ') }));
+        if (r.semTipo) partes.push(tx("O banco ainda não aceita a etiqueta nova: peça para rodar o SQL 2026-11-16-crm-wellhub no Supabase."));
+        return { texto: partes.join(' '), tipo: r.feitos && !r.falhas.length && !r.jaComOutra ? 'sucesso' : 'aviso', pedidos };
+    };
+    const juntarResultados = (a, b) => ({
+        feitos: a.feitos + b.feitos, jaNoFunil: a.jaNoFunil + b.jaNoFunil, jaComOutra: a.jaComOutra + b.jaComOutra,
+        falhas: [...a.falhas, ...b.falhas], semTipo: a.semTipo || b.semTipo
+    });
     const puxar = async (umAluno) => {
-        const candidatos = umAluno ? [umAluno] : linhas
+        let candidatos = umAluno ? [umAluno] : linhas
             .filter(l => l.disponivel && (!planoPuxar || l.ultimo_plano === planoPuxar))
             .sort((a, b) => String(b.data_compra || '').localeCompare(String(a.data_compra || '')))
             .slice(0, qtdPuxar);
         if (candidatos.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
+        if (!onPuxados) return avisar(tx("Não foi possível puxar."), 'erro');
+        if (vagaCarteira <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
+        if (candidatos.length > vagaCarteira) {
+            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
+            candidatos = candidatos.slice(0, vagaCarteira);
+        }
         setPuxando(true);
         try {
-            const confirmados = await puxarParaFilaMigracao({ alunoIds: candidatos.map(c => c.aluno_id), unidade: unidadeChave, operador });
+            const wellhub = candidatos.filter(c => c.wellhub);
+            const normais = candidatos.filter(c => !c.wellhub);
+            const devolvidos = normais.filter(c => c.leadParaPuxar); // contato que voltou para esta aba: não passa pelo banco da fila
+            const livres = normais.filter(c => !c.leadParaPuxar);
+            let confirmados = [];
+            if (livres.length) {
+                const ids = await puxarParaFilaMigracao({ alunoIds: livres.map(c => c.aluno_id), unidade: unidadeChave, operador });
+                const aceitos = new Set(ids.map(String));
+                confirmados = livres.filter(c => aceitos.has(String(c.aluno_id)));
+            }
+            const agora = new Date().toISOString();
+            for (const d of devolvidos) {
+                await salvarAndamentoMigracao({ aluno_id: d.aluno_id, unidade: unidadeChave, status: 'NA_FILA', quem: operador, puxado_por: operador, puxado_em: agora });
+            }
+            const doBanco = [...confirmados, ...devolvidos].map(c => ({ ...c, lead_id: c.leadParaPuxar?.id }));
+            const vazio = { feitos: 0, jaNoFunil: 0, jaComOutra: 0, falhas: [], semTipo: false };
+            let r = doBanco.length ? await onPuxados(doBanco, 'MIGRACAO') : vazio;
+            if (wellhub.length) r = juntarResultados(r, await onPuxados(wellhub, 'WELLHUB'));
             // Recarrega o andamento do banco: a tela mostra exatamente quem ficou com cada aluno
             const mapa = await carregarAndamentoMigracao();
             if (mapa) setAndamento(mapa);
-            if (umAluno) {
-                if (confirmados.length) avisar(tx("{nome} foi para a sua fila.", { nome: umAluno.nome }), 'sucesso');
-                else avisar(tx("Este aluno já foi pego por outra pessoa. A lista foi atualizada."));
-                return;
-            }
             setVisao('FILA');
-            setFiltroAndamento('HOJE');
-            const perdidos = candidatos.length - confirmados.length;
-            if (confirmados.length === 0) avisar(tx("Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada."));
-            else if (perdidos > 0) avisar(tx("{length} aluno(s) puxado(s). {perdidos} já tinha(m) sido puxado(s) por outra pessoa.", { length: confirmados.length, perdidos: perdidos }));
+            setFiltroAndamento('TODOS');
+            const perdidos = livres.length - confirmados.length;
+            const resumo = textoResultadoPuxada(r, candidatos.length, umAluno?.nome);
+            if (resumo) avisar(`${resumo.texto}${perdidos > 0 ? ' ' + tx("{perdidos} já tinha(m) sido puxado(s) por outra pessoa.", { perdidos }) : ''}`, resumo.tipo);
+            else if (candidatos.length) avisar(tx("Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada."));
         } catch (err) {
             console.error('Erro ao puxar alunos da migração:', err);
-            avisar(tx("Não foi possível puxar.\n\n{v1}", { v1: err?.message || '' }));
+            avisar(tx("Não foi possível puxar.\n\n{v1}", { v1: err?.message || '' }), 'erro');
         } finally {
             setPuxando(false);
+        }
+    };
+
+    // Todos os alunos ANTIGOS da fila que ainda não estão no funil, de uma vez (respeita o limite de contatos em trabalho)
+    const paraEnviar = useMemo(() => linhas.filter(l => l.minhaFila && !l.noFunil && !l.wellhub && l.situacao !== 'MIGROU' && l.etapa !== 'GELADEIRA'), [linhas]);
+    const enviarTodosParaCrm = async () => {
+        if (!onPuxados || !paraEnviar.length) return;
+        if (vagaCarteira <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
+        let lote = paraEnviar;
+        if (lote.length > vagaCarteira) {
+            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
+            lote = lote.slice(0, vagaCarteira);
+        }
+        setPuxando(true);
+        try {
+            const r = await onPuxados(lote.map(l => ({ ...l, lead_id: l.leadParaPuxar?.id })), 'MIGRACAO');
+            const resumo = textoResultadoPuxada(r, lote.length, null);
+            if (resumo) avisar(resumo.texto, resumo.tipo);
+            setFiltroAndamento('TODOS');
+        } catch (err) {
+            avisar(tx("Não foi possível enviar para o CRM.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setPuxando(false);
+        }
+    };
+
+    // Aluno que JÁ estava na fila (antes de 16/11/2026) e ainda não está no funil: manda para o CRM
+    const enviarParaCrm = async (linha) => {
+        if (!onPuxados) return;
+        if (vagaCarteira <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
+        setSalvando(linha.chave);
+        try {
+            const r = await onPuxados([{ ...linha, lead_id: linha.leadParaPuxar?.id }], 'MIGRACAO');
+            const resumo = textoResultadoPuxada(r, 1, linha.nome);
+            if (resumo) avisar(resumo.texto, resumo.tipo);
+        } catch (err) {
+            avisar(tx("Não foi possível enviar para o CRM.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setSalvando('');
         }
     };
 
@@ -340,7 +465,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                         <Repeat className="w-6 h-6 text-blue-500" />{' '}{tx("Migração para plano com nutricionista")}
                         {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1">{tx("Alunos de")}{' '}{unidadeChave}{' '}{tx("cujo último plano comprado não tem NUTRI. Puxe alguns para a sua fila e trabalhe aos poucos.")}</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1">{tx("Alunos de")}{' '}{unidadeChave}{' '}{tx("cujo último plano comprado não tem NUTRI. Puxe alguns: eles vão direto para o seu funil (Novo, com a etiqueta Migração).")}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {CONTADORES.map(c => (
@@ -363,7 +488,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
 
             {/* PUXAR PARA A MINHA FILA */}
             <div className="mb-5 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para a minha fila:")}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para o meu funil:")}</span>
                 <select value={planoPuxar} onChange={(e) => setPlanoPuxar(e.target.value)} className={seletor}>
                     <option value="">{tx("Todos os planos")}</option>
                     {planosDisponiveis.map(p => <option key={p} value={p}>{p}</option>)}
@@ -375,6 +500,11 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                     {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}{' '}{tx("Puxar")}
                 </button>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis}{' '}{tx("disponível(is)")}{planoPuxar ? " " + tx("em {planoPuxar}", { planoPuxar: planoPuxar }) + "" : ''}{' '}{tx("· os que compraram mais recentemente vêm primeiro")}</span>
+                {paraEnviar.length > 0 && (
+                    <button type="button" onClick={enviarTodosParaCrm} disabled={puxando} className="px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-500/40 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-60" title={tx("Passa para o seu funil (Novo, com a etiqueta) todos os alunos que já estavam na sua fila")}>
+                        <MessagesSquare className="w-4 h-4" />{' '}{tx("Enviar {qtd} da minha fila para o CRM", { qtd: paraEnviar.length })}
+                    </button>
+                )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -428,16 +558,17 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {filtradas.length === 0 ? (
                             <tr><td colSpan={visao === 'TODOS' ? 7 : 6} className="text-center py-12 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                {carregando ? tx("Carregando...") : visao === 'FILA' ? tx("Sua fila está vazia. Use \"Puxar\" para pegar alunos para trabalhar.") : tx("Nenhum aluno neste filtro.")}
+                                {carregando ? tx("Carregando...") : visao === 'FILA' ? tx("Sua lista está vazia. Use \"Puxar\": os alunos vão direto para o seu funil.") : tx("Nenhum aluno neste filtro.")}
                             </td></tr>
                         ) : filtradas.slice(0, limite).map(l => {
                             const a = ANDAMENTOS[l.etapa] || ANDAMENTOS.NAO_CONTATADO;
-                            const ocupado = salvando === l.aluno_id;
-                            // Só trabalha (WhatsApp, registrar, interessado) quem está na própria fila
-                            const podeTrabalhar = l.minhaFila && l.situacao !== 'MIGROU' && l.etapa !== 'GELADEIRA';
+                            const ocupado = salvando === (l.chave || l.aluno_id);
+                            // Só trabalha aqui (WhatsApp, registrar, interessado) o aluno ANTIGO da fila que ainda não está no funil
+                            // (16/11/2026: quem está no funil é trabalhado lá, com o botão "Abrir no CRM")
+                            const podeTrabalhar = l.minhaFila && !l.noFunil && !l.wellhub && l.situacao !== 'MIGROU' && l.etapa !== 'GELADEIRA';
                             const jaHoje = contatadosHoje.has(l.aluno_id);
                             return (
-                                <tr key={l.aluno_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                <tr key={l.chave || l.aluno_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                     <td className="px-4 py-3">
                                         <button type="button" onClick={() => setContatoFicha(l)} className="text-xs font-black text-slate-800 dark:text-white uppercase text-left hover:text-blue-600 dark:hover:text-blue-400 hover:underline underline-offset-2" title={tx("Abrir a ficha do aluno")}>{l.nome}</button>
                                         {l.semTel && (l.cpf || l.matricula) && (
@@ -451,7 +582,9 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{tx(a.rotulo)}</span>
-                                        {detalheEtapa(l) && <p className={`text-[10px] font-bold mt-1 ${l.paraHoje && l.voltaEm && l.voltaEm < hoje ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{detalheEtapa(l)}</p>}
+                                        {l.noFunil
+                                            ? <p className="text-[10px] font-bold mt-1 text-slate-400">{tx(l.noFunil.fase)}{l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}</p>
+                                            : detalheEtapa(l) && <p className={`text-[10px] font-bold mt-1 ${l.paraHoje && l.voltaEm && l.voltaEm < hoje ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{detalheEtapa(l)}</p>}
                                     </td>
                                     {visao === 'TODOS' && <td className="px-4 py-3 text-[10px] font-black uppercase text-slate-500 dark:text-slate-400">{l.disponivel ? tx("Disponível") : (l.dono ? String(l.dono).split(' ')[0] : '—')}</td>}
                                     <td className="px-4 py-3">
@@ -461,8 +594,19 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                                     <PencilLine className="w-3.5 h-3.5" />{' '}{tx("Atualizar telefone")}
                                                 </button>
                                             )}
+                                            {l.noFunil && l.minhaFila && (
+                                                <button type="button" onClick={() => onAbrirNoCrm?.(l.noFunil.lead)} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Abre este contato no CRM (Conversa): WhatsApp, ligação e resultado são feitos lá")}>
+                                                    <MessagesSquare className="w-3.5 h-3.5" />{' '}{tx("Abrir no CRM")}
+                                                </button>
+                                            )}
+                                            {l.noFunil && !l.minhaFila && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("No funil de {nome}", { nome: String(l.dono || '').split(' ')[0] })}</span>
+                                            )}
                                             {podeTrabalhar && (
                                                 <>
+                                                    <button type="button" onClick={() => enviarParaCrm(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title={tx("Passa este aluno para o seu funil (Novo, com a etiqueta Migração)")}>
+                                                        <MessagesSquare className="w-3.5 h-3.5" />{' '}{tx("Enviar para o CRM")}
+                                                    </button>
                                                     <button type="button" onClick={() => abrirWhatsApp(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Abre o WhatsApp com a mensagem de migração e já registra o contato")}>
                                                         {ocupado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>
@@ -493,12 +637,12 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                             )}
                                             {/* Pegar para mim (09/11/2026): aluno disponível vai direto para a minha fila */}
                                             {l.disponivel && visao !== 'FILA' && (
-                                                <button type="button" onClick={() => puxar(l)} disabled={puxando} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Passa este aluno para a sua fila (Minha fila)")}>
+                                                <button type="button" onClick={() => puxar(l)} disabled={puxando} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Puxa este aluno para o seu funil (Novo, com a etiqueta)")}>
                                                     <ArrowRightCircle className="w-3.5 h-3.5" />{' '}{tx("Pegar para mim")}
                                                 </button>
                                             )}
                                             {l.situacao !== 'MIGROU' && (
-                                                <button type="button" onClick={() => setBloqueando(l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title={tx("Não contatar")}>
+                                                <button type="button" onClick={() => setBloqueando(l.wellhub ? { ...l, lead_id: String(l.lead_id) } : l)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 dark:hover:text-rose-400" title={tx("Não contatar")}>
                                                     <Ban className="w-4 h-4" />
                                                 </button>
                                             )}

@@ -198,7 +198,9 @@ const Conversa = ({
     abrirFicha,
     versao = 0,
     todosLeads = [],
-    contatosDoDia = null
+    contatosDoDia = null,
+    abrirContatoId = null,
+    aoAbrirContato
 }) => {
     const [busca, setBusca] = useState('');
     const [filtro, setFiltro] = useState('Todos');
@@ -276,6 +278,17 @@ const Conversa = ({
     const pessoaPendente = pessoaDiaAtual && !pessoaDiaAtual.feito && pessoaDiaAtual.lead && contatosDoDia?.acoes ? pessoaDiaAtual : null;
     const mensagemPara = (l) => (pessoaPendente && String(pessoaPendente.lead.id) === String(l.id) ? contatosDoDia.acoes.textoDe(pessoaPendente) : gerarTextoWhatsApp(l));
     const rotuloPara = (l) => (pessoaPendente && String(pessoaPendente.lead.id) === String(l.id) ? contatosDoDia.acoes.rotuloDe(pessoaPendente) : rotuloMensagemDoLead(l));
+
+    // "Abrir no CRM" das abas Migração/Resgate (16/11/2026): abre a conversa já no contato pedido
+    useEffect(() => {
+        if (abrirContatoId == null) return;
+        const alvo = visitantes.find(v => v.id === abrirContatoId) || todosLeads.find(v => v.id === abrirContatoId);
+        if (!alvo) return;
+        setBusca('');
+        setFiltro('Todos');
+        escolher({ chave: `lead:${alvo.id}`, lead: alvo });
+        aoAbrirContato?.();
+    }, [abrirContatoId, visitantes, todosLeads]); // eslint-disable-line react-hooks/exhaustive-deps -- se o contato ainda não chegou, tenta de novo quando a lista chegar
 
     // Contato sumiu de todo o CRM (ex.: apagado): fecha a conversa
     useEffect(() => { if (selecionadoId && !lead) fecharSelecao(); }, [selecionadoId, lead]); // eslint-disable-line react-hooks/exhaustive-deps

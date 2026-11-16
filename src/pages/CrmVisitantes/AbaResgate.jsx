@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { LifeBuoy, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine } from 'lucide-react';
-import { abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, somarDiasISO, mesmoNome, normalizarNome, marcaFeitoPor, apenasDigitos } from './utils';
+import { LifeBuoy, Search, X, MessageCircle, Check, Ban, Loader2, AlertTriangle, ChevronDown, ArrowRightCircle, Undo2, PhoneCall, PhoneOff, Copy, PencilLine, MessagesSquare } from 'lucide-react';
+import { abrirNoWhatsApp, contatoCombinaComBusca, dataLocalISO, diaISO, somarDiasISO, mesmoNome, normalizarNome, marcaFeitoPor, apenasDigitos, normalizarStatus, FASES_EM_ATENDIMENTO, LIMITE_CARTEIRA } from './utils';
+import { indexarLeadsDeFila, situacaoNoFunil } from './filaNoFunil.js';
 import { montarMensagem } from './embaralhador.js';
 import {
     carregarAndamentoResgate, salvarAndamentoResgate, puxarParaFilaResgate, devolverDaFilaResgate,
@@ -34,15 +35,21 @@ import { tx } from '../../i18n/traduzir.js';
 // Ficam de fora: Não contatar, quem comprou plano nos últimos 30 dias e quem já está em aberto no funil do CRM.
 // Contato conta na meta (crm_contatos_feitos tipo RESGATE; sem o SQL grava com o tipo CANCELADO/INATIVO).
 // Tabelas: crm_resgate, crm_puxar_resgate, crm_resultados_contato (sql/2026-11-07-crm-resgate).
+// 16/11/2026 (decisão do dono): PUXAR leva o aluno direto para o FUNIL da recepcionista (coluna Novo, etiqueta RESGATE), onde aparece
+// na Conversa, no Kanban e na Lista; respeita o limite de 300 em trabalho. "Minha fila" aqui virou CONSULTA com o botão
+// "Abrir no CRM" (WhatsApp, ligação e resultado são feitos no funil). Alunos antigos que já estavam na fila continuam com os botões
+// de antes e ganham "Enviar para o CRM". Regras do aluno x contato do funil: filaNoFunil.js.
 // ==========================================
 
 const ANDAMENTOS = {
     ...ANDAMENTOS_BASE,
+    NO_FUNIL: { rotulo: 'No funil', classe: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
     VOLTOU: { rotulo: 'Voltou', classe: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30' }
 };
 const FILTROS_ANDAMENTO = [
     { val: 'HOJE', label: 'Para hoje' },
     { val: 'AGUARDANDO', label: 'Aguardando' },
+    { val: 'NO_FUNIL', label: 'No funil' },
     { val: 'INTERESSADO', label: 'Interessados' },
     { val: 'GELADEIRA', label: 'Geladeira (desistiram)' },
     { val: 'VOLTOU', label: 'Voltaram' },
@@ -51,6 +58,7 @@ const FILTROS_ANDAMENTO = [
 const CONTADORES = [
     { chave: 'HOJE', filtro: 'HOJE', rotulo: 'Para hoje', classe: ANDAMENTOS.PARA_HOJE.classe },
     { chave: 'AGUARDANDO', filtro: 'AGUARDANDO', rotulo: 'Aguardando', classe: ANDAMENTOS.AGUARDANDO.classe },
+    { chave: 'NO_FUNIL', filtro: 'NO_FUNIL', rotulo: 'No funil', classe: ANDAMENTOS.NO_FUNIL.classe },
     { chave: 'INTERESSADO', filtro: 'INTERESSADO', rotulo: 'Interessados', classe: ANDAMENTOS.INTERESSADO.classe },
     { chave: 'VOLTOU_MES', filtro: 'VOLTOU', rotulo: 'Voltaram no mês', classe: ANDAMENTOS.VOLTOU.classe },
     { chave: 'DESISTIRAM', filtro: 'GELADEIRA', rotulo: 'Desistiram', classe: ANDAMENTOS.GELADEIRA.classe }
@@ -67,7 +75,7 @@ const ETIQUETA_TIPO = {
 const DIAS_SEM_COMPRA = 30;
 const POR_PAGINA = 50;
 
-const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), leads = [], onNaoContatar, onContatoFeito, onInteressado }) => {
+const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), leads = [], onNaoContatar, onContatoFeito, onInteressado, vagaCarteira = LIMITE_CARTEIRA, onPuxados, onAbrirNoCrm }) => {
     const [alunos, setAlunos] = useState(null);
     const [andamento, setAndamento] = useState(new Map());
     const [compras, setCompras] = useState(new Map()); // cpf -> compra de plano mais recente
@@ -94,6 +102,17 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
     const desligadas = useMemo(() => new Set(colaboradores.filter(c => c.ativo === false).map(c => normalizarNome(c.nome))), [colaboradores]);
     // CPFs com contato EM ABERTO no funil do CRM (Novo / Em Contato): não entram no Resgate para não chamar duas vezes
     const cpfsNoFunil = useMemo(() => new Set(leads.filter(l => ['Novo', 'Em Contato'].includes(l.status)).map(l => apenasDigitos(l.cpf)).filter(c => c.length === 11)), [leads]);
+
+    // Contatos do funil (16/11/2026): os do Resgate por CPF (mandam na situação do aluno) e quem já é contato de OUTRA recepcionista
+    const leadsDeFila = useMemo(() => indexarLeadsDeFila(leads, ['RESGATE']), [leads]);
+    const leadsComOutraDona = useMemo(() => {
+        const mapa = new Map();
+        (leads || []).forEach(l => {
+            const cpf = apenasDigitos(l.cpf);
+            if (cpf.length === 11 && l.puxado_por && FASES_EM_ATENDIMENTO.includes(normalizarStatus(l.status)) && !mesmoNome(l.puxado_por, operador)) mapa.set(cpf, l);
+        });
+        return mapa;
+    }, [leads, operador]);
 
     const carregar = useCallback(async () => {
         if (!unidadeChave) return;
@@ -151,18 +170,32 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                     || (registro.puxado_em && new Date(registro.puxado_em) < limiteFila)
                     || desligadas.has(normalizarNome(registro.puxado_por))
                 );
-                const dono = filaVencida ? '' : (registro?.puxado_por || registro?.atualizado_por || '');
-                const disponivel = situacao !== 'VOLTOU' && (!registro || filaVencida);
+                let dono = filaVencida ? '' : (registro?.puxado_por || registro?.atualizado_por || '');
+                let disponivel = situacao !== 'VOLTOU' && (!registro || filaVencida);
                 const semTel = semTelefoneValido(a.telefone);
-                const { etapa, voltaEm, paraHoje } = situacao === 'VOLTOU' ? { etapa: 'VOLTOU', voltaEm: null, paraHoje: false } : calcularEtapa(situacao, registro, hoje);
+                let { etapa, voltaEm, paraHoje } = situacao === 'VOLTOU' ? { etapa: 'VOLTOU', voltaEm: null, paraHoje: false } : calcularEtapa(situacao, registro, hoje);
+                // O contato do funil manda (16/11/2026): no funil = não está disponível; sem dona = voltou para esta aba
+                const nf = situacao === 'VOLTOU' ? null : situacaoNoFunil(leadsDeFila.get(cpf), hoje);
+                let noFunil = null;
+                let leadParaPuxar = null;
+                if (nf?.tipo === 'NO_FUNIL' || nf?.tipo === 'FECHADO') {
+                    noFunil = nf; dono = nf.dono; disponivel = false; etapa = 'NO_FUNIL'; voltaEm = nf.voltaEm; paraHoje = false;
+                } else if (nf?.tipo === 'GELADEIRA') {
+                    dono = ''; disponivel = false; etapa = 'GELADEIRA'; voltaEm = nf.voltaEm; paraHoje = false; situacao = 'NAO_QUER';
+                } else if (nf?.tipo === 'DEVOLVIDO' || nf?.tipo === 'LIBERADO') {
+                    dono = ''; disponivel = true; leadParaPuxar = nf.lead; situacao = 'NAO_CONTATADO'; etapa = 'NAO_CONTATADO'; voltaEm = null; paraHoje = true;
+                }
+                // Já é contato de OUTRA recepcionista no funil: não fica disponível (evita chamar duas vezes)
+                const outra = !noFunil && !leadParaPuxar ? leadsComOutraDona.get(cpf) : null;
+                if (outra) { disponivel = false; dono = dono || outra.puxado_por; }
                 return {
                     ...a, aluno_id, tipo: tipoDoStatus(a.status_aluno), matricula: a.alunos_unidades?.[0]?.matricula || '',
-                    situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, compra,
+                    situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, compra, noFunil, leadParaPuxar,
                     disponivel: disponivel && !semTel, minhaFila: !semTel && !disponivel && mesmoNome(dono, operador)
                 };
             })
             .filter(Boolean);
-    }, [alunos, andamento, compras, naoContatar, cpfsNoFunil, desligadas, operador, hoje]);
+    }, [alunos, andamento, compras, naoContatar, cpfsNoFunil, desligadas, operador, hoje, leadsDeFila, leadsComOutraDona]);
 
     const daVisao = useMemo(() => linhas.filter(l => (
         visao === 'SEM_TELEFONE' ? l.semTel && l.situacao !== 'VOLTOU'
@@ -179,10 +212,11 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
     }).sort((a, b) => ordenarFila(a, b) || String(b.data_cadastro || '').localeCompare(String(a.data_cadastro || ''))), [daVisao, filtroAndamento, filtroTipo, busca]);
 
     const contagem = useMemo(() => {
-        const c = { HOJE: 0, AGUARDANDO: 0, INTERESSADO: 0, VOLTOU_MES: 0, DESISTIRAM: 0 };
+        const c = { HOJE: 0, AGUARDANDO: 0, NO_FUNIL: 0, INTERESSADO: 0, VOLTOU_MES: 0, DESISTIRAM: 0 };
         daVisao.forEach(l => {
             if (l.paraHoje) c.HOJE++;
             else if (l.etapa === 'AGUARDANDO') c.AGUARDANDO++;
+            else if (l.etapa === 'NO_FUNIL') c.NO_FUNIL++;
             else if (l.etapa === 'INTERESSADO') c.INTERESSADO++;
             else if (l.etapa === 'GELADEIRA') c.DESISTIRAM++;
             if (l.situacao === 'VOLTOU' && String(l.compra?.dia || '') >= inicioMes) c.VOLTOU_MES++;
@@ -197,32 +231,102 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
     });
 
     // umAluno = "Pegar para mim" na linha (09/11/2026)
+    // PUXAR (16/11/2026, decisão do dono): o aluno puxado vai direto para o funil (Novo, etiqueta RESGATE) e passa a aparecer na
+    // Conversa, no Kanban e na Lista. Respeita o limite de contatos em trabalho. O banco continua decidindo quem já foi pego por
+    // outra pessoa (crm_puxar_resgate).
+    const textoResultadoPuxada = (r, nomeUnico) => {
+        if (!r.feitos && !r.jaNoFunil && !r.jaComOutra && !r.falhas.length) return null;
+        const partes = [];
+        if (r.feitos) partes.push(nomeUnico
+            ? tx("{nome} foi para o seu funil (Novo, com a etiqueta).", { nome: nomeUnico })
+            : tx("{qtd} aluno(s) foram para o seu funil (coluna Novo, com a etiqueta). Já aparecem na Conversa, no Kanban e na Lista.", { qtd: r.feitos }));
+        if (r.jaNoFunil) partes.push(tx("{qtd} já estava(m) no seu funil.", { qtd: r.jaNoFunil }));
+        if (r.jaComOutra) partes.push(tx("{qtd} já é(são) contato de outra recepcionista e não foi(foram) puxado(s).", { qtd: r.jaComOutra }));
+        if (r.falhas.length) partes.push(tx("{qtd} não entrou(entraram) no funil: {nomes}.", { qtd: r.falhas.length, nomes: r.falhas.slice(0, 5).join(', ') }));
+        if (r.semTipo) partes.push(tx("O banco ainda não aceita a etiqueta nova: peça para rodar o SQL 2026-11-16-crm-wellhub no Supabase."));
+        return { texto: partes.join(' '), tipo: r.feitos && !r.falhas.length && !r.jaComOutra ? 'sucesso' : 'aviso' };
+    };
+    const mensagemSemVaga = () => tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA });
     const puxar = async (umAluno) => {
-        const candidatos = umAluno ? [umAluno] : linhas
+        let candidatos = umAluno ? [umAluno] : linhas
             .filter(l => l.disponivel && (!tipoPuxar || l.tipo === tipoPuxar))
             .sort((a, b) => String(b.data_cadastro || '').localeCompare(String(a.data_cadastro || '')))
             .slice(0, qtdPuxar);
         if (candidatos.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
+        if (!onPuxados) return avisar(tx("Não foi possível puxar."), 'erro');
+        if (vagaCarteira <= 0) return avisar(mensagemSemVaga(), 'erro');
+        if (candidatos.length > vagaCarteira) {
+            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
+            candidatos = candidatos.slice(0, vagaCarteira);
+        }
         setPuxando(true);
         try {
-            const confirmados = await puxarParaFilaResgate({ alunoIds: candidatos.map(c => c.aluno_id), unidade: unidadeChave, operador });
+            const devolvidos = candidatos.filter(c => c.leadParaPuxar); // contato que voltou para esta aba: não passa pelo banco da fila
+            const livres = candidatos.filter(c => !c.leadParaPuxar);
+            let confirmados = [];
+            if (livres.length) {
+                const ids = await puxarParaFilaResgate({ alunoIds: livres.map(c => c.aluno_id), unidade: unidadeChave, operador });
+                const aceitos = new Set(ids.map(String));
+                confirmados = livres.filter(c => aceitos.has(String(c.aluno_id)));
+            }
+            const agora = new Date().toISOString();
+            for (const d of devolvidos) {
+                await salvarAndamentoResgate({ aluno_id: d.aluno_id, unidade: unidadeChave, status: 'NA_FILA', quem: operador, puxado_por: operador, puxado_em: agora });
+            }
+            const doBanco = [...confirmados, ...devolvidos].map(c => ({ ...c, lead_id: c.leadParaPuxar?.id }));
+            const r = doBanco.length ? await onPuxados(doBanco) : { feitos: 0, jaNoFunil: 0, jaComOutra: 0, falhas: [], semTipo: false };
             const mapa = await carregarAndamentoResgate();
             if (mapa) setAndamento(mapa);
-            if (umAluno) {
-                if (confirmados.length) avisar(tx("{nome} foi para a sua fila.", { nome: umAluno.nome }), 'sucesso');
-                else avisar(tx("Este aluno já foi pego por outra pessoa. A lista foi atualizada."));
-                return;
-            }
             setVisao('FILA');
-            setFiltroAndamento('HOJE');
-            const perdidos = candidatos.length - confirmados.length;
-            if (confirmados.length === 0) avisar(tx("Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada."));
-            else if (perdidos > 0) avisar(tx("{length} aluno(s) puxado(s). {perdidos} já tinha(m) sido puxado(s) por outra pessoa.", { length: confirmados.length, perdidos }));
+            setFiltroAndamento('TODOS');
+            const perdidos = livres.length - confirmados.length;
+            const resumo = textoResultadoPuxada(r, umAluno?.nome);
+            if (resumo) avisar(`${resumo.texto}${perdidos > 0 ? ' ' + tx("{perdidos} já tinha(m) sido puxado(s) por outra pessoa.", { perdidos }) : ''}`, resumo.tipo);
+            else avisar(tx("Nenhum aluno foi puxado: todos já tinham sido puxados por outra pessoa. A lista foi atualizada."));
         } catch (err) {
             console.error('Erro ao puxar alunos do resgate:', err);
             avisar(tx("Não foi possível puxar.\n\n{v1}", { v1: err?.message || '' }), 'erro');
         } finally {
             setPuxando(false);
+        }
+    };
+
+    // Todos os alunos ANTIGOS da fila que ainda não estão no funil, de uma vez (respeita o limite de contatos em trabalho)
+    const paraEnviar = useMemo(() => linhas.filter(l => l.minhaFila && !l.noFunil && l.etapa !== 'VOLTOU' && l.etapa !== 'GELADEIRA'), [linhas]);
+    const enviarTodosParaCrm = async () => {
+        if (!onPuxados || !paraEnviar.length) return;
+        if (vagaCarteira <= 0) return avisar(mensagemSemVaga(), 'erro');
+        let lote = paraEnviar;
+        if (lote.length > vagaCarteira) {
+            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
+            lote = lote.slice(0, vagaCarteira);
+        }
+        setPuxando(true);
+        try {
+            const r = await onPuxados(lote.map(l => ({ ...l, lead_id: l.leadParaPuxar?.id })));
+            const resumo = textoResultadoPuxada(r, null);
+            if (resumo) avisar(resumo.texto, resumo.tipo);
+            setFiltroAndamento('TODOS');
+        } catch (err) {
+            avisar(tx("Não foi possível enviar para o CRM.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setPuxando(false);
+        }
+    };
+
+    // Aluno que JÁ estava na fila (antes de 16/11/2026) e ainda não está no funil: manda para o CRM
+    const enviarParaCrm = async (linha) => {
+        if (!onPuxados) return;
+        if (vagaCarteira <= 0) return avisar(mensagemSemVaga(), 'erro');
+        setSalvando(linha.aluno_id);
+        try {
+            const r = await onPuxados([{ ...linha, lead_id: linha.leadParaPuxar?.id }]);
+            const resumo = textoResultadoPuxada(r, linha.nome);
+            if (resumo) avisar(resumo.texto, resumo.tipo);
+        } catch (err) {
+            avisar(tx("Não foi possível enviar para o CRM.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setSalvando('');
         }
     };
 
@@ -340,7 +444,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                         <LifeBuoy className="w-6 h-6 text-blue-500" />{' '}{tx("Resgate de alunos")}
                         {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                     </h3>
-                    <p className="text-xs font-bold text-slate-400 mt-1">{tx("Alunos finalizados e inativos de {unidade}. Puxe alguns para a sua fila e chame de volta aos poucos.", { unidade: unidadeChave })}</p>
+                    <p className="text-xs font-bold text-slate-400 mt-1">{tx("Alunos finalizados e inativos de {unidade}. Puxe alguns: eles vão direto para o seu funil (Novo, com a etiqueta Resgate).", { unidade: unidadeChave })}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {CONTADORES.map(c => (
@@ -362,7 +466,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
 
             {/* PUXAR PARA A MINHA FILA */}
             <div className="mb-5 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para a minha fila:")}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para o meu funil:")}</span>
                 <select value={tipoPuxar} onChange={(e) => setTipoPuxar(e.target.value)} className={seletor}>
                     {TIPOS_RESGATE.map(t => <option key={t.val} value={t.val}>{tx(t.label)}</option>)}
                 </select>
@@ -373,6 +477,11 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                     {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}{' '}{tx("Puxar")}
                 </button>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis}{' '}{tx("disponível(is)")}{' '}{tx("· os cadastrados mais recentemente vêm primeiro")}</span>
+                {paraEnviar.length > 0 && (
+                    <button type="button" onClick={enviarTodosParaCrm} disabled={puxando} className="px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-500/40 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-60" title={tx("Passa para o seu funil (Novo, com a etiqueta) todos os alunos que já estavam na sua fila")}>
+                        <MessagesSquare className="w-4 h-4" />{' '}{tx("Enviar {qtd} da minha fila para o CRM", { qtd: paraEnviar.length })}
+                    </button>
+                )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -424,14 +533,16 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                         {filtradas.length === 0 ? (
                             <tr><td colSpan={visao === 'TODOS' ? 6 : 5} className="text-center py-12 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                {carregando ? tx("Carregando...") : visao === 'FILA' ? tx("Sua fila está vazia. Use \"Puxar\" para pegar alunos para trabalhar.") : tx("Nenhum aluno neste filtro.")}
+                                {carregando ? tx("Carregando...") : visao === 'FILA' ? tx("Sua lista está vazia. Use \"Puxar\": os alunos vão direto para o seu funil.") : tx("Nenhum aluno neste filtro.")}
                             </td></tr>
                         ) : filtradas.slice(0, limite).map(l => {
                             const a = ANDAMENTOS[l.etapa] || ANDAMENTOS.NAO_CONTATADO;
                             const ocupado = salvando === l.aluno_id;
-                            const podeTrabalhar = l.minhaFila && l.etapa !== 'VOLTOU' && l.etapa !== 'GELADEIRA';
+                            // Só trabalha aqui o aluno ANTIGO da fila que ainda não está no funil (16/11/2026: quem está no funil é trabalhado lá)
+                            const podeTrabalhar = l.minhaFila && !l.noFunil && l.etapa !== 'VOLTOU' && l.etapa !== 'GELADEIRA';
                             const jaHoje = contatadosHoje.has(l.aluno_id);
-                            const detalhe = l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) }) : detalheEtapa(l);
+                            const detalhe = l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) })
+                                : l.noFunil ? `${tx(l.noFunil.fase)}${l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}` : detalheEtapa(l);
                             return (
                                 <tr key={l.aluno_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                     <td className="px-4 py-3">
@@ -457,8 +568,19 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                                                     <PencilLine className="w-3.5 h-3.5" />{' '}{tx("Atualizar telefone")}
                                                 </button>
                                             )}
+                                            {l.noFunil && l.minhaFila && (
+                                                <button type="button" onClick={() => onAbrirNoCrm?.(l.noFunil.lead)} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Abre este contato no CRM (Conversa): WhatsApp, ligação e resultado são feitos lá")}>
+                                                    <MessagesSquare className="w-3.5 h-3.5" />{' '}{tx("Abrir no CRM")}
+                                                </button>
+                                            )}
+                                            {l.noFunil && !l.minhaFila && (
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("No funil de {nome}", { nome: String(l.dono || '').split(' ')[0] })}</span>
+                                            )}
                                             {podeTrabalhar && (
                                                 <>
+                                                    <button type="button" onClick={() => enviarParaCrm(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60" title={tx("Passa este aluno para o seu funil (Novo, com a etiqueta Resgate)")}>
+                                                        <MessagesSquare className="w-3.5 h-3.5" />{' '}{tx("Enviar para o CRM")}
+                                                    </button>
                                                     <button type="button" onClick={() => abrirWhatsApp(l)} disabled={ocupado} className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1" title={tx("Abre o WhatsApp com a mensagem e já registra o contato")}>
                                                         {ocupado ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>

@@ -51,7 +51,13 @@ export { MENSAGENS_PADRAO };
 // "CANCELADO/INATIVO" é o tipo antigo (antes da separação) e continua sendo aceito.
 // ==========================================
 export const TIPO_ANTIGO_CANCELADO_INATIVO = 'CANCELADO/INATIVO';
-export const ehCanceladoOuInativo = (tipo) => ['CANCELADO', 'INATIVO', TIPO_ANTIGO_CANCELADO_INATIVO].includes(String(tipo || '').toUpperCase());
+// RESGATE (16/11/2026): aluno puxado da aba Resgate; para mensagens e relatórios vale como cancelado/inativo
+export const ehCanceladoOuInativo = (tipo) => ['CANCELADO', 'INATIVO', 'RESGATE', TIPO_ANTIGO_CANCELADO_INATIVO].includes(String(tipo || '').toUpperCase());
+// Contatos que vieram das abas Migração, Resgate ou Wellhub/Gympass (decisão do dono, 16/11/2026). Ao puxar, entram no funil
+// (Novo) com a etiqueta do tipo. Sem dona, ficam FORA do Banco Bruto: voltam para os Disponíveis da própria aba.
+export const TIPOS_DE_FILA = ['MIGRACAO', 'RESGATE', 'WELLHUB'];
+export const ehContatoDeFila = (lead) => TIPOS_DE_FILA.includes(String(lead?.tipo_lead || '').toUpperCase());
+export const GRUPO_WELLHUB = 'WELLHUB / GYMPASS';
 
 // Status do TECACE → tipo no CRM (decisão do dono, 2026-10-28). ATIVO/CLIENTE ainda são alunos: não entram na Base.
 export const CLASSIFICACAO_STATUS_TECACE = {
@@ -73,6 +79,8 @@ export const classeTipoLead = (tipo) => {
     if (t === 'CANCELADO') return 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-500/30';
     if (t === 'INATIVO' || t === TIPO_ANTIGO_CANCELADO_INATIVO) return 'bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200 dark:border-orange-500/30';
     if (t === 'MIGRACAO') return 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/30';
+    if (t === 'RESGATE') return 'bg-teal-50 dark:bg-teal-500/10 text-teal-700 dark:text-teal-400 border-teal-200 dark:border-teal-500/30';
+    if (t === 'WELLHUB') return 'bg-fuchsia-50 dark:bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-400 border-fuchsia-200 dark:border-fuchsia-500/30';
     return 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800';
 };
 
@@ -252,8 +260,8 @@ export const getSaudacao = () => {
 // Cada clique monta uma mensagem NOVA (10 versões por situação, embaralhador.js), pela fase e pelo tipo do contato.
 // Os textos vêm de "Mensagens" (Admin/Líder/Mentor editam); sem nada no banco, valem as versões padrão.
 // Aluno que veio da Migração (Interessado), ainda em aberto: usa as mensagens de migração
-export const chaveMensagemDoLead = (lead) => (String(lead?.tipo_lead || '').toUpperCase() === 'MIGRACAO' && ['Novo', 'Em Contato'].includes(normalizarStatus(lead?.status))
-    ? 'MIGRACAO'
+export const chaveMensagemDoLead = (lead) => (['MIGRACAO', 'WELLHUB'].includes(String(lead?.tipo_lead || '').toUpperCase()) && ['Novo', 'Em Contato'].includes(normalizarStatus(lead?.status))
+    ? String(lead.tipo_lead).toUpperCase()
     : chaveDaFase(normalizarStatus(lead?.status), ehCanceladoOuInativo(lead?.tipo_lead)));
 // Histórico do WhatsApp com a situação da mensagem (06/11/2026): Mensagem enviada (Visitante 24h): "texto".
 // Assim a Conversa mostra no balão em que etapa o contato estava. Mensagens antigas não têm o rótulo.

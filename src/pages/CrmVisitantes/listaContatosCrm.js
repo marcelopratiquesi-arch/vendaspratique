@@ -164,7 +164,8 @@ export const contarContatos = async (unidade) => {
         return q;
     };
     const [semDona, emAtendimento, geladeira] = await Promise.all([
-        base().is('puxado_em', null).neq('status', 'Arquivado'),
+        // Contatos das abas Migração/Resgate/Wellhub não são Banco Bruto (16/11/2026); contato sem tipo continua contando
+        base().is('puxado_em', null).neq('status', 'Arquivado').or('tipo_lead.is.null,tipo_lead.not.in.("MIGRACAO","RESGATE","WELLHUB")'),
         base().not('puxado_em', 'is', null).filter('status', 'in', abertas),
         base().eq('status', 'Perdido')
     ]);

@@ -25,6 +25,7 @@ export const ROTULOS_MENSAGENS = {
     VISITANTE_48H: 'Visitante 48h',
     ANIVERSARIO: 'Aniversário',
     MIGRACAO: 'Migração (Nutri)',
+    WELLHUB: 'Wellhub / Gympass (Nutri)',
     VISITANTE_BOAS_VINDAS: 'Boas-vindas (visitante)'
 };
 
@@ -160,6 +161,19 @@ export const MENSAGENS_PADRAO = {
         'E aí, {nome}! 💪 Bora turbinar seus treinos? Com a nutricionista da Pratique {unidade} você treina e come do jeito certo. 🥗 Quer saber como trocar o plano?',
         'Oi, {nome}! 😊 Sua dedicação nos treinos merece ainda mais resultado! O plano com nutricionista pode te ajudar muito. Posso te contar como funciona?',
         '{saudacao}, {nome}! 🥗✨ Já pensou em ter um cardápio feito para o seu objetivo? Com o plano com Nutri da Pratique {unidade} você tem! Quer que eu te explique?'
+    ),
+    // Wellhub / Gympass (16/11/2026, decisão do dono): a única coisa que se oferece é o Nutri.
+    WELLHUB: v(
+        'Oi, {nome}! Tudo bem? Aqui é da equipe da Pratique {unidade}. 😊 Como você treina com a gente pelo Wellhub, tenho uma novidade: dá para somar o acompanhamento de um nutricionista ao seu treino! 🥗 Quer que eu te explique como funciona?',
+        '{saudacao}, {nome}! 💙 Sabia que, além do Wellhub, você pode ter nutricionista na Pratique {unidade}? Treino + alimentação certa traz muito mais resultado! Quer saber mais?',
+        'Oi, {nome}! ✨ Aqui é da Pratique {unidade}. Alunos que treinam pelo Wellhub e adicionam o Nutri estão amando os resultados! Posso te contar como funciona? 🥗',
+        '{nome}, tudo bem? 😄 Passando para contar que na Pratique {unidade} você pode incluir o acompanhamento nutricional mesmo treinando pelo Wellhub. Quer conhecer?',
+        'Olá, {nome}! 🥗 Que tal ter um nutricionista te acompanhando junto com os treinos? Na Pratique {unidade} isso já é possível, mesmo para quem vem pelo Wellhub! Posso te explicar?',
+        'Oi, {nome}! 🔥 Você já treina com a gente, agora imagina com a alimentação ajustada por um nutricionista! Quer saber como adicionar o Nutri?',
+        '{saudacao}, {nome}! 🌟 Uma novidade para quem treina pelo Wellhub na Pratique {unidade}: o acompanhamento com nutricionista! Resultado mais rápido e com orientação. Te explico?',
+        'E aí, {nome}! 💪 Bora turbinar seus treinos? Com a nutricionista da Pratique {unidade} você treina e come do jeito certo. 🥗 Quer saber como funciona?',
+        'Oi, {nome}! 😊 Sua dedicação nos treinos merece ainda mais resultado! Dá para incluir o Nutri no seu acesso pelo Wellhub. Posso te contar como?',
+        '{saudacao}, {nome}! 🥗✨ Já pensou em ter um cardápio feito para o seu objetivo? Na Pratique {unidade} você pode ter, mesmo treinando pelo Wellhub! Quer que eu te explique?'
     ),
     // Cadastro de Visitante (07/11/2026, decisão do dono): só recepcionar e colocar-se à disposição.
     // Não oferecer valores nem planos.

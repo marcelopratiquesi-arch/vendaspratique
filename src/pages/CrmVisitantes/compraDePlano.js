@@ -57,7 +57,7 @@ export const decidirPelasCompras = (leads, compras) => {
     const decisoes = [];
     (leads || []).forEach(lead => {
         const cpf = apenasDigitos(lead.cpf);
-        if (cpf.length !== 11 || String(lead.tipo_lead || '').toUpperCase() === 'MIGRACAO') return;
+        if (cpf.length !== 11 || ['MIGRACAO', 'WELLHUB'].includes(String(lead.tipo_lead || '').toUpperCase())) return;
         const fase = normalizarStatus(lead.status);
         const entrou = dataLocalISO(dataDoLead(lead)) || '0000-00-00';
         const depois = (porCpf.get(cpf) || []).filter(c => String(c.dia || '') >= entrou);

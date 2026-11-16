@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText, CheckCircle2 } from 'lucide-react';
+import { X, Star, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText, CheckCircle2, Dumbbell } from 'lucide-react';
 import { somarDiasISO } from './utils';
 import { tx } from '../../i18n/traduzir.js';
 import { DIAS_VOLTA_PENSANDO, DIAS_VOLTA_SEM_RESPOSTA, DIAS_GELADEIRA, MAX_TENTATIVAS, dataBR } from './resultadoContato.js';
@@ -8,7 +8,9 @@ import { DIAS_VOLTA_PENSANDO, DIAS_VOLTA_SEM_RESPOSTA, DIAS_GELADEIRA, MAX_TENTA
 // textoInteressado / textoNaoQuer: o que acontece em cada aba.
 // obrigatorio (funil, decisão do dono 09/11/2026): todo contato precisa de um caminho → sem "Decidir depois" e sem fechar.
 // textoFechou: mostra a opção "Comprou / fechou" (só no funil).
-const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoInteressado, textoNaoQuer, obrigatorio = false, textoFechou }) => {
+// textoWellhub (16/11/2026, decisão do dono): mostra a opção "Wellhub / Gympass" (só no funil): o contato sai do funil e vai
+// para o grupo WELLHUB / GYMPASS da aba Migração (a única coisa a oferecer é o Nutri).
+const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoInteressado, textoNaoQuer, obrigatorio = false, textoFechou, textoWellhub }) => {
     const tentativas = Number(aluno.registro?.tentativas) || 0;
     const proxima = Math.min(tentativas + 1, MAX_TENTATIVAS);
     const vaiParaGeladeira = proxima >= MAX_TENTATIVAS;
@@ -17,6 +19,7 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
         { tipo: 'SEM_RESPOSTA', icone: PhoneMissed, titulo: tx('Não respondeu / não atendeu'), texto: vaiParaGeladeira ? tx('{n}ª tentativa: vai para a geladeira e volta em {dias} dias.', { n: proxima, dias: DIAS_GELADEIRA }) : tx('Tentativa {n} de {max}. Volta em {dias} dias ({dia}).', { n: proxima, max: MAX_TENTATIVAS, dias: DIAS_VOLTA_SEM_RESPOSTA, dia: dataBR(somarDiasISO(hoje, DIAS_VOLTA_SEM_RESPOSTA)) }), cor: 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
         { tipo: 'INTERESSADO', icone: Star, titulo: tx('Interessado'), texto: textoInteressado, cor: 'border-amber-200 dark:border-amber-500/30 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-700 dark:text-amber-300' },
         { tipo: 'NAO_QUER', icone: ThumbsDown, titulo: tx('Não quer'), texto: textoNaoQuer, cor: 'border-cyan-200 dark:border-cyan-500/30 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' },
+        textoWellhub && { tipo: 'WELLHUB', icone: Dumbbell, titulo: tx('Wellhub / Gympass'), texto: textoWellhub, cor: 'border-fuchsia-200 dark:border-fuchsia-500/30 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300' },
         textoFechou && { tipo: 'FECHOU', icone: CheckCircle2, titulo: tx('Comprou / fechou'), texto: textoFechou, cor: 'border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' }
     ].filter(Boolean);
     return (
