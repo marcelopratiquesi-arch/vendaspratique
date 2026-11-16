@@ -208,11 +208,20 @@ export const resumoAvaliacoesColaborador = ({ avaliacoes = [], faixa, agora = ne
 // uma unidade no mês: "aprovado" só quando TODAS as unidades das vendas dela naquele mês tiveram o pagamento
 // aprovado; "parcial" quando só algumas. pagamentos = null quando a tabela ainda não existe (sem a coluna).
 // ------------------------------------------
+// Desde 16/11/2026 o pagamento também pode ser aprovado POR SETOR (campo "setor" + venda_ids): aí vale venda por
+// venda. "aprovado" = todas as vendas da pessoa no mês estão pagas; "parcial" = só algumas.
 export const situacaoPagamentoDoMes = ({ mes, vendas = [], pagamentos = [] }) => {
-    const unidades = [...new Set(vendas.filter(v => diaDaVenda(v).slice(0, 7) === mes).map(v => String(v.unidade || '').trim().toUpperCase()).filter(Boolean))];
-    if (!unidades.length) return { situacao: 'sem_vendas' };
-    const aprovados = unidades.map(u => pagamentos.find(p => p.ativo !== false && p.mes === mes && String(p.unidade || '').trim().toUpperCase() === u)).filter(Boolean);
+    const doMes = vendas.filter(v => diaDaVenda(v).slice(0, 7) === mes && String(v.unidade || '').trim());
+    if (!doMes.length) return { situacao: 'sem_vendas' };
+    const ativos = pagamentos.filter(p => p.ativo !== false && p.mes === mes);
+    const pagamentoDaVenda = (v) => {
+        const un = String(v.unidade || '').trim().toUpperCase();
+        return ativos.find(p => String(p.unidade || '').trim().toUpperCase() === un
+            && (!String(p.setor || '').trim() || (Array.isArray(p.venda_ids) && p.venda_ids.some(id => String(id) === String(v.id))))) || null;
+    };
+    const achados = doMes.map(pagamentoDaVenda);
+    const aprovados = achados.filter(Boolean);
     if (!aprovados.length) return { situacao: 'aberto' };
     const ultimo = aprovados.reduce((m, p) => (!m || String(p.aprovado_em) > String(m.aprovado_em) ? p : m), null);
-    return { situacao: aprovados.length === unidades.length ? 'aprovado' : 'parcial', aprovadoEm: ultimo.aprovado_em, aprovadoPor: ultimo.aprovado_por };
+    return { situacao: aprovados.length === achados.length ? 'aprovado' : 'parcial', aprovadoEm: ultimo.aprovado_em, aprovadoPor: ultimo.aprovado_por };
 };

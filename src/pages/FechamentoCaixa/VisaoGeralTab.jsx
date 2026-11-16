@@ -77,7 +77,8 @@ const Item = ({ rotulo, valor, cor = 'text-slate-800 dark:text-white', children 
     </div>
 );
 
-const VisaoGeralTab = ({ vendas = [], unidadesPermitidas = [], filtroUnidade = 'TODOS', mesReferencia, temVisaoGlobal, unidadeUsuario }) => {
+const VisaoGeralTab = ({ vendas = [], unidadesPermitidas = [], filtroUnidade = 'TODOS', mesReferencia, temVisaoGlobal, unidadeUsuario, passaSetor = null }) => {
+    // passaSetor (16/11/2026): com um setor escolhido no topo, função que diz se a venda é de alguém daquele setor (senão null)
     const ref = mesReferencia || new Date();
     const hoje = new Date();
     const emAndamento = chaveMes(ref) === chaveMes(hoje);
@@ -102,12 +103,20 @@ const VisaoGeralTab = ({ vendas = [], unidadesPermitidas = [], filtroUnidade = '
             setCarregando(true); setErro(false);
             const corte = new Date(); corte.setDate(corte.getDate() - 90);
             let todas = [];
+            // "vendedor" e "vendedor_cpf" servem ao filtro de setor. Se o banco ainda não tiver o campo vendedor_cpf
+            // (SQL de 11/11/2026), lê sem ele: o setor é achado pelo nome do vendedor.
+            let colunas = 'id, unidade, data, valor, conferiu, vendedor, vendedor_cpf';
             for (let inicio = 0; ; inicio += TAMANHO_PAGINA) {
-                let q = supabase.from('vendas').select('id, unidade, data, valor, conferiu')
+                let q = supabase.from('vendas').select(colunas)
                     .gte('data', inicioIso).lt('data', fimIso).lt('created_at', corte.toISOString())
                     .order('id', { ascending: true }).range(inicio, inicio + TAMANHO_PAGINA - 1);
                 if (!temVisaoGlobal && unidadeUsuario) q = q.eq('unidade', unidadeUsuario);
                 const { data, error } = await q;
+                if (error && inicio === 0 && colunas.includes('vendedor_cpf') && String(error.message || '').includes('vendedor_cpf')) {
+                    colunas = 'id, unidade, data, valor, conferiu, vendedor';
+                    inicio -= TAMANHO_PAGINA; // repete a primeira página sem o campo
+                    continue;
+                }
                 if (error) { console.error('Visão Geral: erro ao buscar vendas antigas', error); if (ativo) setErro(true); break; }
                 todas = todas.concat(data || []);
                 if (!data || data.length < TAMANHO_PAGINA) break;
@@ -136,6 +145,7 @@ const VisaoGeralTab = ({ vendas = [], unidadesPermitidas = [], filtroUnidade = '
             const unidade = v.unidade || 'MATRIZ';
             if (temVisaoGlobal ? !permitidas.has(unidade) : unidade !== unidadeUsuario) return;
             if (filtroUnidade !== 'TODOS' && unidade !== filtroUnidade) return;
+            if (passaSetor && !passaSetor(v)) return;
             const i = indiceMes[String(v.data).slice(0, 7)];
             if (i === undefined) return;
             const valor = Number(v.valor) || 0;
@@ -177,7 +187,7 @@ const VisaoGeralTab = ({ vendas = [], unidadesPermitidas = [], filtroUnidade = '
             anteriorRede: rede[ultimo - 1].total
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- "hoje" só serve para o dia de corte
-    }, [antigas, vendas, unidadesPermitidas, filtroUnidade, meses, inicioIso, fimIso, emAndamento, temVisaoGlobal, unidadeUsuario]);
+    }, [antigas, vendas, unidadesPermitidas, filtroUnidade, meses, inicioIso, fimIso, emAndamento, temVisaoGlobal, unidadeUsuario, passaSetor]);
 
     // Ordenação da tabela (clicando no título da coluna)
     const [ordem, setOrdem] = useState({ campo: 'atual', desc: true });

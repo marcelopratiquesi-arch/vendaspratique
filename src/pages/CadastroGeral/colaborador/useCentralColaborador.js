@@ -148,7 +148,9 @@ export const useCentralColaborador = ({ colaborador, faixa, ativo = true }) => {
                 })() : Promise.resolve([]),
                 // Pagamentos aprovados dos últimos 6 meses (sem o SQL de 11/11/2026 a tabela não existe: fica sem a coluna)
                 (async () => {
-                    const { data, error } = await supabase.from('comissoes_pagamentos').select('unidade, mes, aprovado_em, aprovado_por, ativo').eq('ativo', true).gte('mes', inicio6.slice(0, 7));
+                    // Com o pagamento por setor (16/11/2026) lê também o setor e as vendas pagas; sem o SQL, lê como antes
+                    let { data, error } = await supabase.from('comissoes_pagamentos').select('unidade, mes, aprovado_em, aprovado_por, ativo, setor, venda_ids').eq('ativo', true).gte('mes', inicio6.slice(0, 7));
+                    if (error) ({ data, error } = await supabase.from('comissoes_pagamentos').select('unidade, mes, aprovado_em, aprovado_por, ativo').eq('ativo', true).gte('mes', inicio6.slice(0, 7)));
                     if (error) { console.warn('Central do colaborador: pagamentos aprovados indisponíveis', error.message || error); return null; }
                     return data || [];
                 })(),

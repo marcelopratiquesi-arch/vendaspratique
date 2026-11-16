@@ -1,6 +1,6 @@
 // Teste das contas da Central do Colaborador (11/11/2026): node scripts/teste-central-colaborador.mjs
 import { resumoColaborador, comissaoPorMes, posicaoNaUnidade, nomesParecidos, resumoVisitantes, diasEntre, mesmoNomeColaborador, padraoBuscaNome, resumoCrmColaborador, resumoAvaliacoesColaborador, situacaoPagamentoDoMes } from '../src/pages/CadastroGeral/colaborador/contasColaborador.js';
-import { mesDaFaixa, mesJaTerminou, vendaTravada, pagamentoDe, mensagemDaTrava } from '../src/pages/FechamentoCaixa/regrasPagamento.js';
+import { mesDaFaixa, mesJaTerminou, vendaTravada, pagamentoDe, mensagemDaTrava, pagamentosDeSetor, idsPagosPorSetor, ehPagamentoDeSetor } from '../src/pages/FechamentoCaixa/regrasPagamento.js';
 
 let falhas = 0;
 const igual = (nome, obtido, esperado) => {
@@ -87,6 +87,27 @@ igual('mensagem da trava do banco', [mensagemDaTrava({ message: 'O pagamento de 
 const vendasPg = [{ data: '2026-10-03', unidade: 'PRADO' }, { data: '2026-10-09', unidade: 'NEVES' }, { data: '2026-09-09', unidade: 'PRADO' }];
 const pgs = [{ unidade: 'PRADO', mes: '2026-10', ativo: true, aprovado_em: '2026-11-10T12:00:00Z', aprovado_por: 'ADMIN' }, { unidade: 'PRADO', mes: '2026-09', ativo: true, aprovado_em: '2026-10-10T12:00:00Z' }];
 igual('situação do pagamento por mês', ['2026-10', '2026-09', '2026-08'].map(mes => situacaoPagamentoDoMes({ mes, vendas: vendasPg, pagamentos: pgs }).situacao), ['parcial', 'aprovado', 'sem_vendas']);
+
+// Pagamento POR SETOR (16/11/2026): a aprovação do setor trava só as vendas dela; a da unidade trava o mês inteiro
+const porSetor = [
+    { id: 10, unidade: 'VENEZA', mes: '2026-10', ativo: true, setor: 'RECEPCAO', setor_nome: 'Recepção', venda_ids: [1, 2], aprovado_em: '2026-11-16T10:00:00Z', aprovado_por: 'ADMIN' },
+    { id: 11, unidade: 'VENEZA', mes: '2026-10', ativo: false, setor: 'SAVER', venda_ids: [3] }, // reaberto
+    { id: 12, unidade: 'PRADO', mes: '2026-10', ativo: true }, // unidade inteira
+];
+igual('setor pago trava só as vendas dele', [
+    vendaTravada({ id: 1, unidade: 'VENEZA', data: '2026-10-05' }, porSetor),
+    vendaTravada({ id: '2', unidade: 'veneza', data: '2026-10-09' }, porSetor),
+    vendaTravada({ id: 3, unidade: 'VENEZA', data: '2026-10-09' }, porSetor), // setor reaberto
+    vendaTravada({ id: 4, unidade: 'VENEZA', data: '2026-10-09' }, porSetor), // outro setor, em aberto
+    vendaTravada({ id: 99, unidade: 'PRADO', data: '2026-10-09' }, porSetor), // unidade inteira aprovada
+], [true, true, false, false, true]);
+igual('aprovação da unidade inteira não se confunde com a do setor', [pagamentoDe('VENEZA', '2026-10', porSetor), pagamentoDe('PRADO', '2026-10', porSetor)?.id], [null, 12]);
+igual('aprovação do setor (reaberta não vale)', [pagamentoDe('VENEZA', '2026-10', porSetor, 'RECEPCAO')?.id, pagamentoDe('VENEZA', '2026-10', porSetor, 'SAVER'), pagamentoDe('VENEZA', '2026-10', porSetor, 'LIDER')], [10, null, null]);
+igual('setores aprovados e vendas já pagas da unidade e mês', [pagamentosDeSetor('VENEZA', '2026-10', porSetor).map(p => p.setor), [...idsPagosPorSetor('VENEZA', '2026-10', porSetor)], ehPagamentoDeSetor(porSetor[0]), ehPagamentoDeSetor(porSetor[2])], [['RECEPCAO'], ['1', '2'], true, false]);
+const vendasSetor = [{ id: 1, data: '2026-10-05', unidade: 'VENEZA' }, { id: 2, data: '2026-10-09', unidade: 'VENEZA' }];
+igual('Central: todas as vendas da pessoa no setor pago = aprovado', situacaoPagamentoDoMes({ mes: '2026-10', vendas: vendasSetor, pagamentos: porSetor }).situacao, 'aprovado');
+igual('Central: pessoa de outro setor (em aberto) não aparece como paga', situacaoPagamentoDoMes({ mes: '2026-10', vendas: [{ id: 4, data: '2026-10-05', unidade: 'VENEZA' }], pagamentos: porSetor }).situacao, 'aberto');
+igual('Central: parte das vendas paga = parcial', situacaoPagamentoDoMes({ mes: '2026-10', vendas: [...vendasSetor, { id: 4, data: '2026-10-11', unidade: 'VENEZA' }], pagamentos: porSetor }).situacao, 'parcial');
 
 console.log(falhas ? `\n${falhas} teste(s) falharam` : '\nTodos os testes passaram');
 process.exit(falhas ? 1 : 0);

@@ -9,8 +9,10 @@
 // ==========================================
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../supabaseClient.js';
-export { mesDaFaixa, mesJaTerminou, vendaTravada, pagamentoDe, mensagemDaTrava } from './regrasPagamento.js';
+export { mesDaFaixa, mesJaTerminou, vendaTravada, pagamentoDe, mensagemDaTrava, pagamentosDeSetor, idsPagosPorSetor, ehPagamentoDeSetor } from './regrasPagamento.js';
 
+
+export const MENSAGEM_FALTA_SQL_SETOR = 'Para aprovar o pagamento por setor, rode no Supabase os passos 0 e 1 de sql/2026-11-16-pagamento-por-setor. Nada foi aprovado.';
 
 // Lê as aprovações dos meses do período (ativas e reabertas). O banco só devolve as unidades da pessoa.
 export const usePagamentosComissao = ({ mesInicio, mesFim, ativo = true }) => {
@@ -41,9 +43,22 @@ export const usePagamentosComissao = ({ mesInicio, mesFim, ativo = true }) => {
         return () => { vivo = false; };
     }, [mesInicio, mesFim, ativo, versao]);
 
-    const aprovar = useCallback(async (unidade, mes) => {
-        const { data, error } = await supabase.rpc('comissao_aprovar_pagamento', { p_unidade: unidade, p_mes: mes });
-        if (error) return { error };
+    // Aprovar a unidade inteira (setor vazio) ou UM setor (16/11/2026). No setor, a tela manda o total e a quantidade
+    // de vendas que está mostrando: o banco calcula de novo sozinho e, se não bater, NÃO aprova (nada é pago errado).
+    const aprovar = useCallback(async (unidade, mes, setor = null, conferencia = {}) => {
+        const { data, error } = setor
+            ? await supabase.rpc('comissao_aprovar_pagamento_setor', {
+                p_unidade: unidade, p_mes: mes, p_setor: setor.chave, p_setor_nome: setor.rotulo,
+                p_total_esperado: Math.round((Number(conferencia.total) || 0) * 100) / 100, p_qtd_esperada: Number(conferencia.qtd) || 0,
+            })
+            : await supabase.rpc('comissao_aprovar_pagamento', { p_unidade: unidade, p_mes: mes });
+        if (error) {
+            // Função do setor ainda não criada no banco (falta o SQL de 16/11/2026)
+            if (setor && (error.code === 'PGRST202' || /could not find the function|comissao_aprovar_pagamento_setor/i.test(String(error.message || '')))) {
+                return { error: { message: MENSAGEM_FALTA_SQL_SETOR } };
+            }
+            return { error };
+        }
         recarregar();
         return { data };
     }, [recarregar]);

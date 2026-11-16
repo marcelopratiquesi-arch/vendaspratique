@@ -8,12 +8,13 @@ import ComissoesTab from './ComissoesTab.jsx';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
 import { vendaAtrasada, consumirConferenciaPedida, EVENTO_PEDIR_CONFERENCIA } from './cobrancaAuditoria.js';
-import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, ChevronDown } from 'lucide-react';
+import { RefreshCw, Building2, PieChart, ShieldAlert, ClipboardCheck, Users, ChevronDown, Briefcase } from 'lucide-react';
+import { criarLocalizadorDeSetor, listarSetores, vendaDoSetor, TODOS_SETORES } from './setorDaVenda.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import PainelPagamento from './PainelPagamento.jsx';
-import { usePagamentosComissao, mesDaFaixa, vendaTravada, pagamentoDe, mensagemDaTrava } from './pagamentosComissao.js';
+import { usePagamentosComissao, mesDaFaixa, pagamentoDe, mensagemDaTrava, pagamentosDeSetor, idsPagosPorSetor, ehPagamentoDeSetor } from './pagamentosComissao.js';
 import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [], avaliacoes = [], colaboradores = [] }) => {
@@ -37,6 +38,8 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
     // Filtro de período padrão do sistema (começa em "Este mês"). Faixa: início entra, fim não entra.
     const periodo = usePeriodoPadrao('este_mes');
+    // Setor escolhido (16/11/2026): vale para Conferência, Comissões e Visão Geral (regras mais abaixo)
+    const [filtroSetor, setFiltroSetor] = useState(TODOS_SETORES);
 
     // Janela de cobrança do Líder ("Fazer a conferência agora"): abre a aba Conferência no período das vendas pendentes
     const aplicarPeriodo = periodo.propsSeletor.onAplicar;
@@ -45,6 +48,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
             const pedido = consumirConferenciaPedida();
             if (!pedido) return;
             setSubAba('conferencia');
+            setFiltroSetor(TODOS_SETORES); // a cobrança é de todas as vendas pendentes, de qualquer setor
             aplicarPeriodo({ preset: 'personalizado', tipo: 'periodo', inicio: pedido.inicio, fim: pedido.fim });
         };
         atender();
@@ -62,6 +66,18 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     const mesPagamento = mesDaFaixa(inicioIso, fimIso);
     const pagamentos = usePagamentosComissao({ mesInicio: inicioIso ? inicioIso.slice(0, 7) : null, mesFim: fimIso ? fimIso.slice(0, 7) : null });
     const podeAprovarPagamento = (papelReal === 'ADMIN' || papelReal === 'MENTOR') && podeFazer(usuarioLogado, '407');
+    // Venda travada (paga): mês com pagamento da unidade inteira, ou venda dentro de um pagamento de setor (16/11/2026).
+    // Índices montados uma vez (a Conferência pergunta por cada linha da tabela).
+    const travas = useMemo(() => {
+        const meses = new Set();
+        const ids = new Set();
+        pagamentos.lista.filter(p => p.ativo !== false).forEach(p => {
+            if (ehPagamentoDeSetor(p)) (p.venda_ids || []).forEach(id => ids.add(String(id)));
+            else meses.add(`${String(p.unidade || '').trim().toUpperCase()}|${p.mes}`);
+        });
+        return { meses, ids };
+    }, [pagamentos.lista]);
+    const vendaEstaTravada = (v) => !!v && (travas.ids.has(String(v.id)) || travas.meses.has(`${String(v.unidade || '').trim().toUpperCase()}|${String(v.data || '').slice(0, 7)}`));
 
     const temVisaoGlobal = usuarioLogado?.role === 'ADMIN' || usuarioLogado?.role === 'MENTOR';
     // Aba Auditoria: Admin e Mentor de verdade (roleReal), mesmo quando escolhem uma unidade no topo
@@ -74,14 +90,32 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
     let colunasVisiveis = 10;
     if (temVisaoGlobal) colunasVisiveis++;
 
-    // Limpar volta ao jeito que a tela abre: "Este mês" e todas as unidades
+    // Filtro de SETOR (16/11/2026, decisão do dono): uma escolha só para Conferência, Comissões e Visão Geral.
+    // O setor da venda é o setor de quem vendeu no cadastro da Equipe (regra única em setorDaVenda.js). Só filtra a tela.
+    const setorDaVenda = useMemo(() => criarLocalizadorDeSetor(colaboradores), [colaboradores]);
+    const unidadeDoFiltro = temVisaoGlobal ? (filtroUnidadeIsolada !== 'TODOS' ? filtroUnidadeIsolada : null) : (usuarioLogado?.unidade || null);
+    const opcoesSetor = useMemo(() => listarSetores({
+        colaboradores,
+        vendas: unidadeDoFiltro ? vendas.filter(v => (v.unidade || 'MATRIZ') === unidadeDoFiltro) : vendas,
+        unidade: unidadeDoFiltro,
+        setorDaVenda,
+    }), [colaboradores, vendas, unidadeDoFiltro, setorDaVenda]);
+    // Trocou de unidade e o setor escolhido não existe nela: vale "todos" (sem apagar a escolha)
+    const setorAtivo = opcoesSetor.some(s => s.chave === filtroSetor) ? filtroSetor : TODOS_SETORES;
+    const passaSetor = useMemo(
+        () => (setorAtivo === TODOS_SETORES ? null : (v) => vendaDoSetor(v, setorAtivo, setorDaVenda)),
+        [setorAtivo, setorDaVenda]
+    );
+
+    // Limpar volta ao jeito que a tela abre: "Este mês", todas as unidades e todos os setores
     const limparFiltros = () => {
         periodo.propsSeletor.onAplicar(calcularPreset('este_mes'));
         if (temVisaoGlobal) setFiltroUnidadeIsolada('TODOS');
+        setFiltroSetor(TODOS_SETORES);
     };
-    const temFiltroAtivo = periodo.filtro.preset !== 'este_mes' || filtroUnidadeIsolada !== 'TODOS';
+    const temFiltroAtivo = periodo.filtro.preset !== 'este_mes' || filtroUnidadeIsolada !== 'TODOS' || setorAtivo !== TODOS_SETORES;
 
-    const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean); 
+    const unidadesUnicas = ['TODOS', ...new Set(vendas.map(v => v.unidade))].filter(Boolean);
     const vendasDataAvancada = vendas.filter(v => {
         if (!v.data) return false;
         if (inicioIso && v.data < inicioIso) return false;
@@ -93,12 +127,12 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         const unid = v.unidade || 'MATRIZ';
         const passUnidade = filtroUnidadeIsolada === 'TODOS' || unid === filtroUnidadeIsolada;
         const passSeguranca = temVisaoGlobal || unid === usuarioLogado?.unidade;
-        return passUnidade && passSeguranca;
+        return passUnidade && passSeguranca && (!passaSetor || passaSetor(v));
     });
 
     const toggleConferido = async (id, statusAtual) => {
         const venda = vendas.find(v => v.id === id);
-        if (venda && vendaTravada(venda, pagamentos.ativos)) { avisar(tx('O pagamento deste mês já foi aprovado: a conferência não pode mais ser mexida.'), 'atencao'); return; }
+        if (vendaEstaTravada(venda)) { avisar(tx('O pagamento desta venda já foi aprovado: a conferência não pode mais ser mexida.'), 'atencao'); return; }
         const novoStatus = !statusAtual;
         const validadorNome = novoStatus ? usuarioLogado.nome : null;
         const validadorData = novoStatus ? new Date().toISOString() : null;
@@ -179,13 +213,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
     // Vendas ainda sem conferir da unidade+mês do pagamento (o banco confere de novo ao aprovar)
     const pendentesPagamento = unidadePagamento && mesPagamento
-        ? vendas.filter(v => !v.conferiu && String(v.data || '').slice(0, 7) === mesPagamento && String(v.unidade || '').toUpperCase() === String(unidadePagamento).toUpperCase()).length
+        ? vendas.filter(v => !v.conferiu && String(v.data || '').slice(0, 7) === mesPagamento && String(v.unidade || '').toUpperCase() === String(unidadePagamento).toUpperCase() && (!passaSetor || passaSetor(v))).length
         : 0;
 
+    // Monta a tabela de comissões de uma lista de vendas conferidas. É chamada para a unidade inteira (quadro do
+    // pagamento, que NUNCA obedece ao filtro de setor) e, com um setor escolhido, de novo só com as vendas dele (tabela).
+    const montarComissoes = (listaVendas) => {
     let comissaoTotalGeral = 0;
     const relatorioVendedores = {};
 
-    vendasComissionadas.forEach(venda => {
+    listaVendas.forEach(venda => {
         const valorComissao = Number(venda.valor) || 0;
         if (valorComissao <= 0) return; 
 
@@ -255,6 +292,40 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         };
     }).sort((a, b) => b.totalComissao - a.totalComissao);
 
+    return { total: comissaoTotalGeral, linhas: dadosTabelaComissoes };
+    };
+
+    // Unidade inteira: é o que o quadro "Pagamento das comissões" mostra e aprova (não muda com o setor)
+    const comissoesDaUnidade = montarComissoes(vendasComissionadas);
+    // Tabela de comissões: com um setor escolhido, só as vendas das pessoas dele
+    const vendasDoSetor = passaSetor ? vendasComissionadas.filter(passaSetor) : vendasComissionadas;
+    const comissoesDoSetor = passaSetor ? montarComissoes(vendasDoSetor) : comissoesDaUnidade;
+
+    // PAGAMENTO POR SETOR (16/11/2026, decisão do dono): o quadro do pagamento segue o filtro de setor.
+    // "Todos" = unidade inteira (ou o que falta, se algum setor já foi aprovado); um setor = só ele, os outros ficam em aberto.
+    const setorEscolhido = setorAtivo === TODOS_SETORES ? null : (opcoesSetor.find(s => s.chave === setorAtivo) || null);
+    const temLugarDoPagamento = !!(unidadePagamento && mesPagamento);
+    const pagamentoDaUnidade = temLugarDoPagamento ? pagamentoDe(unidadePagamento, mesPagamento, pagamentos.ativos) : null;
+    const pagamentosPorSetor = temLugarDoPagamento ? pagamentosDeSetor(unidadePagamento, mesPagamento, pagamentos.ativos) : [];
+    const idsJaPagos = temLugarDoPagamento ? idsPagosPorSetor(unidadePagamento, mesPagamento, pagamentos.ativos) : new Set();
+    const pagamentoDoPainel = pagamentoDaUnidade || (setorEscolhido ? (pagamentosPorSetor.find(p => p.setor === setorEscolhido.chave) || null) : null);
+    // O que entra na aprovação agora: as vendas mostradas que ainda não foram pagas num setor
+    const vendasParaAprovar = idsJaPagos.size ? vendasDoSetor.filter(v => !idsJaPagos.has(String(v.id))) : vendasDoSetor;
+    const comissoesParaAprovar = idsJaPagos.size ? montarComissoes(vendasParaAprovar) : comissoesDoSetor;
+    // Linha "Por setor" do quadro: total conferido de cada setor e se já foi pago
+    const resumoSetores = temLugarDoPagamento ? (() => {
+        const totais = new Map();
+        vendasComissionadas.forEach(v => {
+            const valor = Number(v.valor) || 0;
+            if (valor <= 0) return;
+            const chave = setorDaVenda(v).chave;
+            totais.set(chave, (totais.get(chave) || 0) + valor);
+        });
+        return opcoesSetor
+            .map(s => ({ ...s, total: totais.get(s.chave) || 0, pagamento: pagamentoDaUnidade || pagamentosPorSetor.find(p => p.setor === s.chave) || null }))
+            .filter(s => s.total > 0 || (s.pagamento && ehPagamentoDeSetor(s.pagamento)));
+    })() : [];
+
     const relatorioAuditoria = {};
     let totalAuditoriaRegistrados = 0;
     let totalAuditoriaConferidos = 0;
@@ -310,6 +381,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
     const abrirConferenciaDaUnidade = (unidade) => {
         if (temVisaoGlobal) setFiltroUnidadeIsolada(unidade);
+        setFiltroSetor(TODOS_SETORES); // vindo da Auditoria: mostrar todas as pendentes da unidade
         setSubAba('conferencia');
     };
 
@@ -328,7 +400,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.4s_ease-out] max-w-[1400px] mx-auto pb-10">
-            
+
             {/* ABAS + FILTROS (versão compacta, mesmo padrão do Dashboard e do Histórico) */}
             <div className="bg-white rounded-[20px] border border-slate-200 shadow-sm p-4 md:p-5 relative z-20 flex flex-wrap items-center justify-between gap-3 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto custom-scrollbar gap-1 max-w-full dark:bg-slate-800" role="tablist" aria-label={tx("Seções")}>
@@ -349,9 +421,24 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
-                        {tx(periodo.rotulo)} · {temVisaoGlobal ? (filtroUnidadeIsolada === 'TODOS' ? tx("Todas as unidades") : filtroUnidadeIsolada) : (usuarioLogado?.unidade || '')}
-                    </span>
+                    {/* O texto "período · unidade · setor" saiu (decisão do dono, 16/11/2026): os próprios filtros já mostram
+                        a escolha e, sem ele, abas e filtros cabem numa linha só. Quem não troca de unidade vê só o nome dela. */}
+                    {!temVisaoGlobal && usuarioLogado?.unidade && (
+                        <span className="text-[12px] font-bold text-slate-500 dark:text-slate-400">{usuarioLogado.unidade}</span>
+                    )}
+                    {/* Filtro de setor no topo: Comissões e Visão Geral (na Conferência ele fica antes do Vendedor) */}
+                    {(abaMostrada === 'comissoes' || abaMostrada === 'geral') && (
+                        <div className="relative">
+                            <Briefcase className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${setorAtivo !== TODOS_SETORES ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
+                            <select value={setorAtivo} onChange={(e) => setFiltroSetor(e.target.value)} aria-label={tx("Filtrar por setor")}
+                                title={tx("O setor é o do cadastro da Equipe de quem vendeu. Escolhendo um, aparecem só as vendas das pessoas daquele setor.")}
+                                className={`h-[42px] pl-9 pr-8 rounded-xl border text-[13px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${setorAtivo !== TODOS_SETORES ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:text-slate-200'}`}>
+                                <option value={TODOS_SETORES}>{tx("Setor: todos")}</option>
+                                {opcoesSetor.map(s => <option key={s.chave} value={s.chave}>{tx(s.rotulo)}</option>)}
+                            </select>
+                            <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
+                        </div>
+                    )}
                     {temVisaoGlobal && (
                         <div className="relative">
                             <Building2 className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroUnidadeIsolada !== 'TODOS' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
@@ -376,11 +463,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                 <PainelPagamento
                     unidade={unidadePagamento}
                     mes={mesPagamento}
-                    pagamento={unidadePagamento && mesPagamento ? pagamentoDe(unidadePagamento, mesPagamento, pagamentos.ativos) : null}
+                    pagamento={pagamentoDoPainel}
                     semTabela={pagamentos.semTabela}
                     pendentes={pendentesPagamento}
-                    totalComissao={comissaoTotalGeral}
-                    pessoas={dadosTabelaComissoes}
+                    setor={setorEscolhido}
+                    totalComissao={comissoesDoSetor.total}
+                    totalAprovar={comissoesParaAprovar.total}
+                    qtdVendasAprovar={vendasParaAprovar.length}
+                    pessoas={comissoesParaAprovar.linhas}
+                    resumoSetores={resumoSetores}
+                    onEscolherSetor={setFiltroSetor}
                     podeAprovar={podeAprovarPagamento}
                     podeReabrir={papelReal === 'ADMIN'}
                     onAprovar={pagamentos.aprovar}
@@ -401,12 +493,15 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                     handleObsSaveDb={handleObsSaveDb}
                     onSalvarEdicao={handleSalvarEdicaoVenda}
                     onExcluirVenda={handleExcluirVenda}
-                    estaTravada={(v) => vendaTravada(v, pagamentos.ativos)}
+                    estaTravada={vendaEstaTravada}
+                    filtroSetor={setorAtivo}
+                    onMudarSetor={setFiltroSetor}
+                    opcoesSetor={opcoesSetor}
                 />
             )}
-            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={dadosTabelaComissoes} />}
+            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} />}
             {abaMostrada === 'auditoria' && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
-            {abaMostrada === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} />}
+            {abaMostrada === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} passaSetor={passaSetor} />}
         </div>
     );
 };

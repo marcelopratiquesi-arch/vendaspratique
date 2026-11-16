@@ -84,7 +84,12 @@ const ConferenciaTab = ({
     handleObsSaveDb,
     onSalvarEdicao,
     onExcluirVenda,
-    estaTravada = () => false // venda de mês com pagamento aprovado (11/11/2026): não altera, não apaga, não desconfere
+    estaTravada = () => false, // venda de mês com pagamento aprovado (11/11/2026): não altera, não apaga, não desconfere
+    // Filtro de setor (16/11/2026): a escolha fica no Fechamento (vale também em Comissões e Visão Geral) e a lista
+    // de vendas já chega filtrada por ele; aqui é só o seletor, antes do Vendedor
+    filtroSetor = 'TODOS',
+    onMudarSetor = () => {},
+    opcoesSetor = []
 }) => {
     // Ações pelas permissões (Configurações → Permissões, Etapa 2): 405 conferir/editar/excluir; 406 conferir a tela toda
     const podeAgir = podeFazer(usuarioLogado, '405');
@@ -525,7 +530,17 @@ const ConferenciaTab = ({
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full xl:w-auto flex-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 w-full xl:w-auto flex-1">
+                        <div>
+                            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Setor")}</label>
+                            {/* Trocar de setor volta o Vendedor para "todos" (o vendedor escolhido pode não ser do setor novo) */}
+                            <select value={filtroSetor} onChange={(e) => { onMudarSetor(e.target.value); setFiltroVendedor('TODOS'); }}
+                                title={tx("O setor é o do cadastro da Equipe de quem vendeu. Escolhendo um, aparecem só as vendas das pessoas daquele setor.")}
+                                className={`w-full rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase border ${filtroSetor !== 'TODOS' ? 'bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-slate-50 border-slate-200 text-slate-700 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200'}`}>
+                                <option value="TODOS">{tx("TODOS OS SETORES")}</option>
+                                {opcoesSetor.map(s => <option key={s.chave} value={s.chave}>{tx(s.rotulo)}</option>)}
+                            </select>
+                        </div>
                         <div>
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Vendedor")}</label>
                             <select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer uppercase dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200">
