@@ -5,6 +5,7 @@ import { usePeriodoPadrao } from '../../components/periodoPadrao.js';
 import { pedirMotivoExclusao, excluirVendaComMotivo } from '../HistoricoVendas/utils.js';
 import ConferenciaTab from './ConferenciaTab.jsx';
 import ComissoesTab from './ComissoesTab.jsx';
+import { periodoExato } from './periodoExato.js';
 import VisaoGeralTab from './VisaoGeralTab.jsx';
 import AuditoriaTab from './AuditoriaTab.jsx';
 import { vendaAtrasada, consumirConferenciaPedida, EVENTO_PEDIR_CONFERENCIA } from './cobrancaAuditoria.js';
@@ -504,7 +505,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                     opcoesSetor={opcoesSetor}
                 />
             )}
-            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} colaboradores={colaboradores} rotuloPeriodo={periodo.rotulo} />}
+            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} colaboradores={colaboradores} rotuloPeriodo={periodoExato(inicioIso, fimIso)} />}
             {abaMostrada === 'auditoria' && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
             {abaMostrada === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} passaSetor={passaSetor} />}
         </div>
