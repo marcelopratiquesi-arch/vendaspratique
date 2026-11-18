@@ -7,7 +7,7 @@ import { useVendasDaFaixa } from '../comparativoMesAnterior.js';
 import { useDosesValidas } from '../useDosesValidas.js';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
 import {
-    META_PADRAO, PERIODOS_DIAS, hojeBrasil, faixaDosDias, mesesDaFaixa, montarGestao, filtrarLinhas,
+    META_PADRAO, PERIODOS_DIAS, hojeBrasil, faixaDosDias, somarDias, ultimoDiaDoMes, mesesDaFaixa, montarGestao, filtrarLinhas,
     resumir, agruparPorUnidade, mensagemGestao, nomeCurto,
 } from './regrasGestao.js';
 
@@ -216,8 +216,19 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
         return () => { ativo = false; };
     }, []);
 
-    // Vendas: período + começo do mês mais antigo (para a meta do mês não ficar pela metade)
-    const faixa = useMemo(() => faixaDosDias(dias, hoje), [dias, hoje]);
+    // Meses que aparecem na lista de escolha: os do período terminando HOJE
+    const mesAtual = hoje.slice(0, 7);
+    const mesesOpcoes = useMemo(() => { const f = faixaDosDias(dias, hoje); return mesesDaFaixa(f.inicio, f.fim); }, [dias, hoje]);
+    const mesDoFiltro = mesesOpcoes.includes(mesFoco) ? mesFoco : '';
+    // O mês escolhido vira o FIM da janela (decisão do dono, 18/11/2026): 120 dias + Outubro = 120 dias para trás de 31/10,
+    // sem Novembro. Mês atual termina hoje. Com 30 dias ou menos, a janela não passa do começo do mês escolhido.
+    const faixa = useMemo(() => {
+        if (!mesDoFiltro) return faixaDosDias(dias, hoje);
+        const fim = mesDoFiltro === mesAtual ? hoje : ultimoDiaDoMes(mesDoFiltro);
+        let inicio = somarDias(fim, -(dias - 1));
+        if (dias <= 30 && inicio < `${mesDoFiltro}-01`) inicio = `${mesDoFiltro}-01`;
+        return { inicio, fim };
+    }, [dias, hoje, mesDoFiltro, mesAtual]);
     const faixaBusca = useMemo(() => ({ inicio: `${faixa.inicio.slice(0, 7)}-01`, fim: faixa.fim }), [faixa]);
     const { vendas, carregando, erro } = useVendasDaFaixa(faixaBusca, vendasTodas, unidadeAtual);
     const dosesValidas = useDosesValidas({ vendasCarregadas: vendasTodas, vendasDaTela: vendas, unidade: unidadeAtual, planos, produtos });
@@ -225,13 +236,9 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
     const nomesUnidades = useMemo(() => (unidades || []).map(u => String(u.nome || u).toUpperCase()), [unidades]);
     const unidadesPermitidas = useMemo(() => (visaoRede ? (nomesUnidades.length ? nomesUnidades : null) : [String(unidadeAtual || '').toUpperCase()]), [visaoRede, nomesUnidades, unidadeAtual]);
 
-    const meses = useMemo(() => mesesDaFaixa(faixa.inicio, faixa.fim), [faixa]);
-    const mesAtual = meses[meses.length - 1];
-    // Mês escolhido que saiu do período (ex.: trocou de 120 para 30 dias) volta para "todos os meses"
-    const mesDoFiltro = meses.includes(mesFoco) ? mesFoco : '';
 
-    const { linhas } = useMemo(() => montarGestao({ colaboradores, vendas, planos, produtos, dosesValidas, metasPorUnidade: metas, faixa, hoje, mesMeta: mesAtual, unidadesPermitidas }),
-        [colaboradores, vendas, planos, produtos, dosesValidas, metas, faixa, hoje, mesAtual, unidadesPermitidas]);
+    const { linhas } = useMemo(() => montarGestao({ colaboradores, vendas, planos, produtos, dosesValidas, metasPorUnidade: metas, faixa, hoje, mesMeta: mesDoFiltro || mesAtual, unidadesPermitidas }),
+        [colaboradores, vendas, planos, produtos, dosesValidas, metas, faixa, hoje, mesAtual, mesDoFiltro, unidadesPermitidas]);
 
     const linhasUnidade = useMemo(() => filtrarLinhas(linhas, { unidade: unidadeFiltro }), [linhas, unidadeFiltro]);
     const resumo = useMemo(() => resumir(linhasUnidade, mesDoFiltro), [linhasUnidade, mesDoFiltro]);
@@ -243,7 +250,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
     const metaDe = (u) => metas[u] ?? META_PADRAO;
     const aoSalvarMeta = (u, n) => setMetas(m => ({ ...m, [u]: n }));
 
-    const rotuloPeriodo = `${tx('ÚLTIMOS')} ${dias} ${tx('DIAS')}`;
+    const rotuloPeriodo = mesDoFiltro && dias > 30 ? `${dias} ${tx('DIAS')} ${tx('ATÉ')} ${mesLongo(mesDoFiltro).toUpperCase()}` : mesDoFiltro ? `${tx('ÚLTIMOS')} ${dias} ${tx('DIAS')} ${tx('DE')} ${mesLongo(mesDoFiltro).toUpperCase()}` : `${tx('ÚLTIMOS')} ${dias} ${tx('DIAS')}`;
     const enviarWhatsapp = () => {
         const txt = mensagemGestao({ grupos, situacao, rotuloPeriodo, mesAtual, mesFoco: mesDoFiltro });
         abrirModalWhatsapp?.(txt, { titulo: 'Gestão à Vista — Produtos', icone: 'send', cor: 'emerald' });
@@ -283,7 +290,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                 </select>
                 <select value={mesDoFiltro} onChange={(e) => setMesFoco(e.target.value)} className={selectCls} aria-label={tx('Mês')} title={tx('Olhar só um mês, ou todos os meses do período')}>
                     <option value="">{tx('Todos os meses')}</option>
-                    {meses.map(m => <option key={m} value={m}>{mesLongo(m)}</option>)}
+                    {mesesOpcoes.map(m => <option key={m} value={m}>{mesLongo(m)}</option>)}
                 </select>
                 <label className="relative inline-flex items-center flex-1 min-w-[160px] max-w-xs">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400 pointer-events-none" />

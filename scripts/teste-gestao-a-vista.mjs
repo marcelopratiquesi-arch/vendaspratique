@@ -73,4 +73,11 @@ assert.ok(filtrarLinhas(linhas, { situacao: 'abaixo', mesFoco: '2026-09' }).some
 const grp = agruparPorUnidade(filtrarLinhas(linhas, { situacao: 'abaixo', unidade: 'GUTIERREZ' }));
 const msg = mensagemGestao({ grupos: grp, situacao: 'abaixo', rotuloPeriodo: 'ÚLTIMOS 120 DIAS', mesAtual: '2026-11' });
 assert.ok(msg.includes('*GUTIERREZ* (meta: 3') && msg.includes('ANA SOUZA — faltou: ') && msg.includes('Set 1/3') && !/cpf/i.test(msg));
+// janela com mês escolhido: o mês vira o FIM (sem meses futuros)
+import { somarDias, ultimoDiaDoMes } from '../src/pages/AnaliseVendas/gestaoAVista/regrasGestao.js';
+const janela = (dias, mes) => { const fim = mes === hoje.slice(0, 7) ? hoje : ultimoDiaDoMes(mes); let inicio = somarDias(fim, -(dias - 1)); if (dias <= 30 && inicio < mes + '-01') inicio = mes + '-01'; return { inicio, fim }; };
+assert.deepEqual(mesesDaFaixa(...Object.values(janela(120, '2026-10'))), ['2026-07', '2026-08', '2026-09', '2026-10']);
+assert.deepEqual(mesesDaFaixa(...Object.values(janela(120, '2026-09'))), ['2026-06', '2026-07', '2026-08', '2026-09']);
+assert.deepEqual(mesesDaFaixa(...Object.values(janela(30, '2026-10'))), ['2026-10']);
+assert.deepEqual(mesesDaFaixa(...Object.values(janela(30, '2026-11'))), ['2026-11']);
 console.log('Gestão à Vista: todos os testes passaram.');

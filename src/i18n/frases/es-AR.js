@@ -4248,4 +4248,6 @@ export default {
     "Meta atingida em": "Meta alcanzada en",
     "Todos os meses": "Todos los meses",
     "Olhar só um mês, ou todos os meses do período": "Mirar solo un mes, o todos los meses del período",
+    "ATÉ": "HASTA",
+    "DE": "DE",
 };

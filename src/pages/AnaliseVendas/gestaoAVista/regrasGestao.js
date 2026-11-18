@@ -204,7 +204,8 @@ const mesLongoPt = (mes) => new Date(`${mes}-15T12:00:00`).toLocaleDateString('p
 // sem CPF, telefone ou comissão. Cada pessoa vem com o(s) mês(es) que faltou e quanto vendeu (ex.: "Set 1/3").
 export const mensagemGestao = ({ grupos, situacao, rotuloPeriodo, mesAtual, mesFoco = '' }) => {
     const titulo = { todos: 'RESUMO', atingida: 'META ATINGIDA', abaixo: 'META NÃO ATINGIDA' }[situacao] || 'RESUMO';
-    const periodo = mesFoco ? `MÊS DE ${mesLongoPt(mesFoco)}` : rotuloPeriodo;
+    const periodo = mesFoco ? `${rotuloPeriodo}
+MÊS ANALISADO: ${mesLongoPt(mesFoco)}` : rotuloPeriodo;
     let txt = `*GESTÃO À VISTA — PRODUTOS*\n_${titulo}_\n${periodo}\n`;
     let total = 0;
     grupos.forEach(g => {
