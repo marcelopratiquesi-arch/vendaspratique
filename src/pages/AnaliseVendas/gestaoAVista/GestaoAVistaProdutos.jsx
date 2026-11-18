@@ -23,7 +23,6 @@ const mesCurto = (mes) => {
     const n = new Date(`${mes}-15T12:00:00`).toLocaleDateString(localeAtual(), { month: 'short' }).replace('.', '');
     return n.charAt(0).toUpperCase() + n.slice(1);
 };
-const rotuloMesLongo = (mes) => new Date(`${mes}-15T12:00:00`).toLocaleDateString(localeAtual(), { month: 'long' }).toUpperCase();
 
 // ---------- gráfico pequeno da pessoa: uma barra por mês ----------
 const ALTURA_MAX = 36;
@@ -182,7 +181,6 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
     const [unidadeFiltro, setUnidadeFiltro] = useState('TODOS');
     const [situacao, setSituacao] = useState('todos');
     const [busca, setBusca] = useState('');
-    const [mesMeta, setMesMeta] = useState('');
     const [abertas, setAbertas] = useState({});
     const [detalhe, setDetalhe] = useState(null);
     const [metas, setMetas] = useState({});
@@ -217,10 +215,9 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
 
     const meses = useMemo(() => mesesDaFaixa(faixa.inicio, faixa.fim), [faixa]);
     const mesAtual = meses[meses.length - 1];
-    const mesEscolhido = meses.includes(mesMeta) ? mesMeta : mesAtual;
 
-    const { linhas } = useMemo(() => montarGestao({ colaboradores, vendas, planos, produtos, dosesValidas, metasPorUnidade: metas, faixa, hoje, mesMeta: mesEscolhido, unidadesPermitidas }),
-        [colaboradores, vendas, planos, produtos, dosesValidas, metas, faixa, hoje, mesEscolhido, unidadesPermitidas]);
+    const { linhas } = useMemo(() => montarGestao({ colaboradores, vendas, planos, produtos, dosesValidas, metasPorUnidade: metas, faixa, hoje, mesMeta: mesAtual, unidadesPermitidas }),
+        [colaboradores, vendas, planos, produtos, dosesValidas, metas, faixa, hoje, mesAtual, unidadesPermitidas]);
 
     const linhasUnidade = useMemo(() => filtrarLinhas(linhas, { unidade: unidadeFiltro }), [linhas, unidadeFiltro]);
     const resumo = useMemo(() => resumir(linhasUnidade), [linhasUnidade]);
@@ -235,7 +232,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
     const rotuloPeriodo = `${tx('ÚLTIMOS')} ${dias} ${tx('DIAS')}`;
     const enviarWhatsapp = () => {
         const metasUsadas = [...new Set(grupos.map(g => metaDe(g.unidade)))];
-        const txt = mensagemGestao({ grupos, situacao, rotuloPeriodo, mesRotulo: rotuloMesLongo(mesEscolhido), meta: metasUsadas.length === 1 ? metasUsadas[0] : META_PADRAO });
+        const txt = mensagemGestao({ grupos, situacao, rotuloPeriodo, mesAtual, meta: metasUsadas.length === 1 ? metasUsadas[0] : META_PADRAO });
         abrirModalWhatsapp?.(txt, { titulo: 'Gestão à Vista — Produtos', icone: 'send', cor: 'emerald' });
     };
     const selectCls = 'h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200';
@@ -268,18 +265,19 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                 )}
                 <select value={situacao} onChange={(e) => setSituacao(e.target.value)} className={selectCls} aria-label={tx('Situação')}>
                     <option value="todos">{tx('Todos')}</option>
-                    <option value="vendeu">{tx('Quem vendeu')}</option>
-                    <option value="semvendas">{tx('Quem não vendeu')}</option>
-                    <option value="atingida">{tx('Meta atingida')}</option>
+                    <option value="atingida">{tx('Meta atingida (todos os meses)')}</option>
                     <option value="abaixo">{tx('Meta não atingida')}</option>
-                </select>
-                <select value={mesEscolhido} onChange={(e) => setMesMeta(e.target.value)} className={selectCls} aria-label={tx('Mês da meta')} title={tx('Mês usado nos filtros "Meta atingida" e "Meta não atingida" e nos números do topo')}>
-                    {meses.map(m => <option key={m} value={m}>{tx('Meta de')} {rotuloMesLongo(m)}</option>)}
                 </select>
                 <label className="relative inline-flex items-center flex-1 min-w-[160px] max-w-xs">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400 pointer-events-none" />
                     <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome...')} className={`${selectCls} w-full pl-8`} />
                 </label>
+                {visaoRede && grupos.length > 1 && (
+                    <button type="button" onClick={() => setAbertas(grupos.every(g => abertas[g.unidade]) ? {} : Object.fromEntries(grupos.map(g => [g.unidade, true])))}
+                        className="h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        {grupos.every(g => abertas[g.unidade]) ? tx('Fechar todas') : tx('Abrir todas')}
+                    </button>
+                )}
                 {!visaoRede && podeAjustar && <EditorMeta unidade={String(unidadeAtual).toUpperCase()} meta={metaDe(String(unidadeAtual).toUpperCase())} usuario={usuario} onSalvou={aoSalvarMeta} />}
             </div>
 

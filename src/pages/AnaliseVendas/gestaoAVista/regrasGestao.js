@@ -120,13 +120,17 @@ export const montarGestao = ({ colaboradores = [], vendas = [], planos = [], pro
             return { mes, realizado, meta, obrigada, status };
         });
         const statusMes = meses.find(m => m.mes === mesDaMeta)?.status || 'inativo';
+        // Situação do PERÍODO inteiro (decisão do dono, 18/11/2026): bateu a meta em TODOS os meses em que era cobrada = atingida;
+        // faltou em algum mês (inclusive o atual, em andamento) = abaixo; nenhum mês cobrado = inativo.
+        const cobradosMeses = meses.filter(m => m.obrigada);
+        const geral = cobradosMeses.length === 0 ? 'inativo' : cobradosMeses.every(m => m.status === 'atingida') ? 'atingida' : 'abaixo';
         const ordenadas = [...l.itens].filter(i => i.dia >= faixa.inicio && i.dia <= faixa.fim && i.valida > 0).sort((a, b) => b.dia.localeCompare(a.dia));
         const ultima = ordenadas[0]?.dia || null;
         const efInicio = ini && ini > faixa.inicio ? ini : faixa.inicio;
         const efFim = fim && fim !== '0000-00-00' && fim < faixa.fim ? fim : faixa.fim;
         linhas.push({
             id: c.id ?? `${c.nome}|${c.unidade}`, colab: c, nome: c.nome, unidade, setor: String(c.role || c.setor || c.cargo || ''),
-            cobrado, meta, meses, statusMes, metaMes: meses.find(m => m.mes === mesDaMeta),
+            cobrado, meta, meses, statusMes, geral, metaMes: meses.find(m => m.mes === mesDaMeta),
             totalPeriodo: l.totalPeriodo, itens: l.itens, ultima, diasSemVender: ultima ? diasEntre(ultima, hoje) : null,
             semVendas: l.totalPeriodo === 0,
             inicio: ini, fim: fim === '0000-00-00' ? null : fim, desligadoSemData: fim === '0000-00-00',
@@ -146,18 +150,18 @@ export const filtrarLinhas = (linhas, { situacao = 'todos', busca = '', unidade 
         if (unidade !== 'TODOS' && l.unidade !== String(unidade).toUpperCase()) return false;
         if (q && !normalizeString(l.nome).includes(q)) return false;
         if (situacao === 'vendeu') return l.totalPeriodo > 0;
-        if (situacao === 'semvendas') return l.cobrado && l.semVendas && l.statusMes !== 'inativo';
-        if (situacao === 'atingida') return l.statusMes === 'atingida';
-        if (situacao === 'abaixo') return l.statusMes === 'abaixo';
+        if (situacao === 'semvendas') return l.cobrado && l.semVendas && l.geral !== 'inativo';
+        if (situacao === 'atingida') return l.geral === 'atingida';
+        if (situacao === 'abaixo') return l.geral === 'abaixo';
         return true;
     });
 };
 
 export const resumir = (linhas) => ({
-    cobrados: linhas.filter(l => l.cobrado && l.statusMes !== 'inativo').length,
-    atingiram: linhas.filter(l => l.statusMes === 'atingida').length,
-    abaixo: linhas.filter(l => l.statusMes === 'abaixo').length,
-    semVendas: linhas.filter(l => l.cobrado && l.semVendas && l.statusMes !== 'inativo').length,
+    cobrados: linhas.filter(l => l.cobrado && l.geral !== 'inativo').length,
+    atingiram: linhas.filter(l => l.geral === 'atingida').length,
+    abaixo: linhas.filter(l => l.geral === 'abaixo').length,
+    semVendas: linhas.filter(l => l.cobrado && l.semVendas && l.geral !== 'inativo').length,
     total: linhas.reduce((s, l) => s + l.totalPeriodo, 0),
 });
 
@@ -180,9 +184,15 @@ export const semanasDaPessoa = (linha, faixa) => {
     return semanas;
 };
 
-export const mensagemGestao = ({ grupos, situacao, rotuloPeriodo, mesRotulo, meta }) => {
-    const titulo = { todos: 'RESUMO', vendeu: 'QUEM VENDEU', semvendas: 'COLABORADORES SEM VENDAS', atingida: 'META ATINGIDA', abaixo: 'ABAIXO DA META' }[situacao] || 'RESUMO';
-    let txt = `*GESTÃO À VISTA — PRODUTOS*\n_${titulo}_\nPERÍODO: ${rotuloPeriodo}\nMETA DE ${mesRotulo}: ${meta} produtos por pessoa\n`;
+const mesCurtoPt = (mes) => {
+    const n = new Date(`${mes}-15T12:00:00`).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+    return n.charAt(0).toUpperCase() + n.slice(1);
+};
+
+// Mensagem de WhatsApp: respeita o filtro; só nome e sobrenome, sem CPF, telefone ou comissão
+export const mensagemGestao = ({ grupos, situacao, rotuloPeriodo, meta, mesAtual }) => {
+    const titulo = { todos: 'RESUMO', atingida: 'META ATINGIDA EM TODOS OS MESES', abaixo: 'META NÃO ATINGIDA' }[situacao] || 'RESUMO';
+    let txt = `*GESTÃO À VISTA — PRODUTOS*\n_${titulo}_\nPERÍODO: ${rotuloPeriodo}\nMETA: ${meta} produtos por pessoa por mês\n`;
     let total = 0;
     grupos.forEach(g => {
         if (g.linhas.length === 0) return;
@@ -190,8 +200,11 @@ export const mensagemGestao = ({ grupos, situacao, rotuloPeriodo, mesRotulo, met
         g.linhas.forEach(l => {
             total += 1;
             const nome = nomeCurto(l.nome);
-            if (situacao === 'semvendas') txt += `• ${nome}\n`;
-            else txt += `• ${nome} — ${l.metaMes?.realizado ?? 0} de ${l.metaMes?.meta ?? l.meta}${l.ultima ? '' : ' (sem vendas)'}\n`;
+            const faltou = l.meses.filter(m => m.obrigada && m.status === 'abaixo')
+                .map(m => mesCurtoPt(m.mes) + (m.mes === mesAtual ? ` (em andamento ${m.realizado}/${m.meta})` : ''));
+            if (l.cobrado && l.semVendas && l.geral !== 'inativo') txt += `• ${nome} — sem vendas no período\n`;
+            else if (faltou.length) txt += `• ${nome} — faltou: ${faltou.join(', ')}\n`;
+            else txt += `• ${nome}\n`;
         });
     });
     txt += `\nTOTAL: ${total} colaborador${total === 1 ? '' : 'es'}`;

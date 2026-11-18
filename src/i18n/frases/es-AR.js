@@ -4243,4 +4243,5 @@ export default {
     "ainda não tinha entrado / já tinha saído": "todavía no había ingresado / ya se había ido",
     "O número em cima de cada barra é quantos produtos vendeu no mês. O mês atual (com contorno) ainda está em andamento. Doses de Whey/Energy acima do limite da unidade não contam.": "El número arriba de cada barra es cuántos productos vendió en el mes. El mes actual (con contorno) todavía está en curso. Las dosis de Whey/Energy por encima del límite de la sede no cuentan.",
     "bateram": "alcanzaron",
+    "Meta atingida (todos os meses)": "Meta alcanzada (todos los meses)",
 };

@@ -21,7 +21,10 @@ const { linhas, mesDaMeta } = montarGestao({ colaboradores: colabs, vendas, plan
 const por = (n) => linhas.find(l => l.nome === n);
 
 assert.equal(mesDaMeta, '2026-11');
-assert.equal(por('ANA SOUZA').statusMes, 'atingida');          // 3 de 3
+assert.equal(por('ANA SOUZA').statusMes, 'atingida');          // 3 de 3 em novembro
+assert.equal(por('ANA SOUZA').geral, 'abaixo');                // mas em setembro vendeu 1: no período inteiro faltou
+assert.equal(por('BRUNO LIMA').geral, 'abaixo');
+assert.equal(por('LIDER UM').geral, 'inativo');
 assert.equal(por('BRUNO LIMA').statusMes, 'abaixo');           // vendeu 1, não é "sem vendas"
 assert.equal(por('BRUNO LIMA').semVendas, false);
 assert.equal(por('CARLA DIAS').semVendas, true);               // nenhuma venda
@@ -44,9 +47,14 @@ assert.equal(por('ANA SOUZA').meses.find(m => m.mes === '2026-09').status, 'abai
 const m5 = montarGestao({ colaboradores: colabs, vendas, planos: [], produtos, dosesValidas: null, faixa, hoje, metasPorUnidade: { GUTIERREZ: 5 } }).linhas;
 assert.equal(m5.find(l => l.nome === 'ANA SOUZA').statusMes, 'abaixo');
 // filtros
-assert.deepEqual(filtrarLinhas(linhas, { situacao: 'semvendas' }).map(l => l.nome), ['CARLA DIAS', 'NOVO NOME'].filter(n => por(n).semVendas));
-assert.ok(filtrarLinhas(linhas, { situacao: 'semvendas' }).every(l => l.cobrado && l.semVendas && l.statusMes !== 'inativo'));
-assert.ok(filtrarLinhas(linhas, { situacao: 'abaixo' }).every(l => l.statusMes === 'abaixo'));
+assert.deepEqual(filtrarLinhas(linhas, { situacao: 'semvendas' }).map(l => l.nome), ['CARLA DIAS', 'NOVO NOME', 'SAIU NO MEIO']);
+assert.ok(filtrarLinhas(linhas, { situacao: 'semvendas' }).every(l => l.cobrado && l.semVendas && l.geral !== 'inativo'));
+assert.ok(filtrarLinhas(linhas, { situacao: 'abaixo' }).every(l => l.geral === 'abaixo'));
+assert.ok(!filtrarLinhas(linhas, { situacao: 'atingida' }).some(l => l.nome === 'ANA SOUZA')); // vendeu mês sim, mês não: não é atingida
+// quem bateu a meta em todos os meses cobrados aparece em atingida
+const bom = montarGestao({ colaboradores: colabs, vendas: ['2026-07-05','2026-08-05','2026-09-05','2026-10-05','2026-11-05'].map(d => v('CARLA DIAS', d, 3)), planos: [], produtos, dosesValidas: null, faixa, hoje }).linhas;
+assert.equal(bom.find(l => l.nome === 'CARLA DIAS').geral, 'atingida');
+assert.ok(filtrarLinhas(bom, { situacao: 'atingida' }).some(l => l.nome === 'CARLA DIAS'));
 // vendas não duplicam: total do período da Ana = 3 + 1
 assert.equal(por('ANA SOUZA').totalPeriodo, 4);
 // agrupamento e resumo coerentes
