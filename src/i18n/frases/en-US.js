@@ -4244,4 +4244,8 @@ export default {
     "O número em cima de cada barra é quantos produtos vendeu no mês. O mês atual (com contorno) ainda está em andamento. Doses de Whey/Energy acima do limite da unidade não contam.": "The number above each bar is how many products were sold in the month. The current month (outlined) is still in progress. Whey/Energy doses above the unit limit do not count.",
     "bateram": "reached",
     "Meta atingida (todos os meses)": "Goal reached (every month)",
+    "Sem vendas em": "No sales in",
+    "Meta atingida em": "Goal reached in",
+    "Todos os meses": "All months",
+    "Olhar só um mês, ou todos os meses do período": "Look at one month only, or all months in the period",
 };

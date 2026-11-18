@@ -144,31 +144,40 @@ export const montarGestao = ({ colaboradores = [], vendas = [], planos = [], pro
     return { linhas, mesDaMeta, mesesFaixa };
 };
 
-export const filtrarLinhas = (linhas, { situacao = 'todos', busca = '', unidade = 'TODOS' } = {}) => {
+// Filtro de MÊS (18/11/2026): mesFoco = 'AAAA-MM' olha só aquele mês; vazio = período inteiro (todos os meses)
+export const situacaoDe = (l, mesFoco) => (mesFoco ? (l.meses.find(m => m.mes === mesFoco)?.status || 'inativo') : l.geral);
+export const semVendasDe = (l, mesFoco) => {
+    if (!l.cobrado) return false;
+    if (!mesFoco) return l.semVendas && l.geral !== 'inativo';
+    const m = l.meses.find(x => x.mes === mesFoco);
+    return !!m && m.obrigada && m.realizado === 0;
+};
+
+export const filtrarLinhas = (linhas, { situacao = 'todos', busca = '', unidade = 'TODOS', mesFoco = '' } = {}) => {
     const q = normalizeString(busca);
     return linhas.filter(l => {
         if (unidade !== 'TODOS' && l.unidade !== String(unidade).toUpperCase()) return false;
         if (q && !normalizeString(l.nome).includes(q)) return false;
         if (situacao === 'vendeu') return l.totalPeriodo > 0;
-        if (situacao === 'semvendas') return l.cobrado && l.semVendas && l.geral !== 'inativo';
-        if (situacao === 'atingida') return l.geral === 'atingida';
-        if (situacao === 'abaixo') return l.geral === 'abaixo';
+        if (situacao === 'semvendas') return semVendasDe(l, mesFoco);
+        if (situacao === 'atingida') return situacaoDe(l, mesFoco) === 'atingida';
+        if (situacao === 'abaixo') return situacaoDe(l, mesFoco) === 'abaixo';
         return true;
     });
 };
 
-export const resumir = (linhas) => ({
-    cobrados: linhas.filter(l => l.cobrado && l.geral !== 'inativo').length,
-    atingiram: linhas.filter(l => l.geral === 'atingida').length,
-    abaixo: linhas.filter(l => l.geral === 'abaixo').length,
-    semVendas: linhas.filter(l => l.cobrado && l.semVendas && l.geral !== 'inativo').length,
-    total: linhas.reduce((s, l) => s + l.totalPeriodo, 0),
+export const resumir = (linhas, mesFoco = '') => ({
+    cobrados: linhas.filter(l => l.cobrado && situacaoDe(l, mesFoco) !== 'inativo').length,
+    atingiram: linhas.filter(l => situacaoDe(l, mesFoco) === 'atingida').length,
+    abaixo: linhas.filter(l => situacaoDe(l, mesFoco) === 'abaixo').length,
+    semVendas: linhas.filter(l => semVendasDe(l, mesFoco)).length,
+    total: linhas.reduce((s, l) => s + (mesFoco ? (l.meses.find(m => m.mes === mesFoco)?.realizado || 0) : l.totalPeriodo), 0),
 });
 
-export const agruparPorUnidade = (linhas) => {
+export const agruparPorUnidade = (linhas, mesFoco = '') => {
     const mapa = new Map();
     linhas.forEach(l => { if (!mapa.has(l.unidade)) mapa.set(l.unidade, []); mapa.get(l.unidade).push(l); });
-    return [...mapa.entries()].map(([unidade, lista]) => ({ unidade, linhas: lista.sort((a, b) => a.nome.localeCompare(b.nome)), resumo: resumir(lista) }))
+    return [...mapa.entries()].map(([unidade, lista]) => ({ unidade, linhas: lista.sort((a, b) => a.nome.localeCompare(b.nome)), resumo: resumir(lista, mesFoco) }))
         .sort((a, b) => (b.resumo.abaixo + b.resumo.semVendas) - (a.resumo.abaixo + a.resumo.semVendas) || a.unidade.localeCompare(b.unidade));
 };
 
@@ -189,24 +198,31 @@ const mesCurtoPt = (mes) => {
     return n.charAt(0).toUpperCase() + n.slice(1);
 };
 
-// Mensagem de WhatsApp: respeita o filtro; só nome e sobrenome, sem CPF, telefone ou comissão
-export const mensagemGestao = ({ grupos, situacao, rotuloPeriodo, meta, mesAtual }) => {
-    const titulo = { todos: 'RESUMO', atingida: 'META ATINGIDA EM TODOS OS MESES', abaixo: 'META NÃO ATINGIDA' }[situacao] || 'RESUMO';
-    let txt = `*GESTÃO À VISTA — PRODUTOS*\n_${titulo}_\nPERÍODO: ${rotuloPeriodo}\nMETA: ${meta} produtos por pessoa por mês\n`;
+const mesLongoPt = (mes) => new Date(`${mes}-15T12:00:00`).toLocaleDateString('pt-BR', { month: 'long' }).toUpperCase();
+
+// Mensagem de cobrança no WhatsApp: respeita os filtros (unidade, mês, situação); só nome e sobrenome,
+// sem CPF, telefone ou comissão. Cada pessoa vem com o(s) mês(es) que faltou e quanto vendeu (ex.: "Set 1/3").
+export const mensagemGestao = ({ grupos, situacao, rotuloPeriodo, mesAtual, mesFoco = '' }) => {
+    const titulo = { todos: 'RESUMO', atingida: 'META ATINGIDA', abaixo: 'META NÃO ATINGIDA' }[situacao] || 'RESUMO';
+    const periodo = mesFoco ? `MÊS DE ${mesLongoPt(mesFoco)}` : rotuloPeriodo;
+    let txt = `*GESTÃO À VISTA — PRODUTOS*\n_${titulo}_\n${periodo}\n`;
     let total = 0;
     grupos.forEach(g => {
         if (g.linhas.length === 0) return;
-        txt += `\n*${g.unidade}*\n`;
+        const meta = g.linhas[0].meta;
+        txt += `\n*${g.unidade}* (meta: ${meta} produtos por pessoa por mês)\n`;
         g.linhas.forEach(l => {
             total += 1;
             const nome = nomeCurto(l.nome);
-            const faltou = l.meses.filter(m => m.obrigada && m.status === 'abaixo')
-                .map(m => mesCurtoPt(m.mes) + (m.mes === mesAtual ? ` (em andamento ${m.realizado}/${m.meta})` : ''));
-            if (l.cobrado && l.semVendas && l.geral !== 'inativo') txt += `• ${nome} — sem vendas no período\n`;
+            const mesesDaConta = mesFoco ? l.meses.filter(m => m.mes === mesFoco) : l.meses;
+            const faltou = mesesDaConta.filter(m => m.obrigada && m.status === 'abaixo')
+                .map(m => `${mesCurtoPt(m.mes)} ${m.realizado}/${m.meta}${m.mes === mesAtual ? ' (em andamento)' : ''}`);
+            if (semVendasDe(l, mesFoco)) txt += `• ${nome} — sem vendas${mesFoco ? '' : ' no período'}${faltou.length && !mesFoco ? ` · faltou: ${faltou.join(', ')}` : ''}\n`;
             else if (faltou.length) txt += `• ${nome} — faltou: ${faltou.join(', ')}\n`;
             else txt += `• ${nome}\n`;
         });
     });
     txt += `\nTOTAL: ${total} colaborador${total === 1 ? '' : 'es'}`;
+    if (situacao === 'abaixo' || situacao === 'todos') txt += '\n\nBora bater essa meta, pessoal! 💪';
     return txt;
 };

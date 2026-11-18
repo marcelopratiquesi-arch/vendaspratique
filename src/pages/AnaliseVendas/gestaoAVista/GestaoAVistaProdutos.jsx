@@ -24,9 +24,11 @@ const mesCurto = (mes) => {
     return n.charAt(0).toUpperCase() + n.slice(1);
 };
 
+const mesLongo = (mes) => { const n = new Date(`${mes}-15T12:00:00`).toLocaleDateString(localeAtual(), { month: 'long' }); return n.charAt(0).toUpperCase() + n.slice(1); };
+
 // ---------- gráfico pequeno da pessoa: uma barra por mês ----------
 const ALTURA_MAX = 36;
-const MiniGrafico = ({ meses, mesAtual }) => {
+const MiniGrafico = ({ meses, mesAtual, mesFoco }) => {
     const topo = Math.max(1, ...meses.map(m => Math.max(m.realizado, m.obrigada ? m.meta : 0)));
     return (
         <div className="flex items-end gap-1.5" role="img" aria-label={meses.map(m => `${mesCurto(m.mes)}: ${m.realizado}`).join(', ')}>
@@ -36,7 +38,7 @@ const MiniGrafico = ({ meses, mesAtual }) => {
                 const andamento = m.mes === mesAtual;
                 const dica = `${mesCurto(m.mes)}: ${m.realizado}${m.obrigada ? ` de ${m.meta}` : ` (${tx('fora do vínculo')})`}${andamento ? ` · ${tx('mês em andamento')}` : ''}`;
                 return (
-                    <div key={m.mes} title={dica} className="flex flex-col items-center w-8">
+                    <div key={m.mes} title={dica} className={`flex flex-col items-center w-8 ${mesFoco && m.mes !== mesFoco ? 'opacity-30' : ''}`}>
                         <span className={`text-[11px] font-black tabular-nums leading-none mb-0.5 ${m.status === 'atingida' ? 'text-emerald-600 dark:text-emerald-400' : m.status === 'abaixo' ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{m.obrigada || m.realizado ? m.realizado : '–'}</span>
                         <div className="flex items-end" style={{ height: ALTURA_MAX }}>
                             <div className={`w-5 rounded-t ${cor} ${andamento ? 'opacity-70 ring-1 ring-offset-1 ring-slate-400 dark:ring-offset-slate-900' : ''}`} style={{ height: altura }} />
@@ -50,6 +52,15 @@ const MiniGrafico = ({ meses, mesAtual }) => {
 };
 
 // Frase pronta: o que aconteceu com a pessoa
+const fraseDoMes = (l, mesFoco, mesAtual) => {
+    const m = l.meses.find(x => x.mes === mesFoco);
+    if (!l.cobrado) return { tipo: 'neutro', texto: tx('Não é cobrado (vendeu como outro setor)') };
+    if (!m || !m.obrigada) return { tipo: 'neutro', texto: `${mesCurto(mesFoco)}: ${tx('fora do vínculo')}` };
+    const andamento = mesFoco === mesAtual ? ` (${tx('em andamento')})` : '';
+    if (m.realizado === 0) return { tipo: 'alerta', texto: `${tx('Sem vendas em')} ${mesCurto(mesFoco)}${andamento}` };
+    if (m.status === 'atingida') return { tipo: 'ok', texto: `${tx('Meta atingida em')} ${mesCurto(mesFoco)} (${m.realizado}/${m.meta})${andamento}` };
+    return { tipo: mesFoco === mesAtual ? 'andamento' : 'ruim', texto: `${tx('Faltou bater meta em')} ${mesCurto(mesFoco)} (${m.realizado}/${m.meta})${andamento}` };
+};
 const fraseDaPessoa = (l, mesAtual, dias) => {
     const cobradosMeses = l.meses.filter(m => m.obrigada);
     if (!l.cobrado) return { tipo: 'neutro', texto: tx('Não é cobrado (vendeu como outro setor)') };
@@ -181,6 +192,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
     const [unidadeFiltro, setUnidadeFiltro] = useState('TODOS');
     const [situacao, setSituacao] = useState('todos');
     const [busca, setBusca] = useState('');
+    const [mesFoco, setMesFoco] = useState('');
     const [abertas, setAbertas] = useState({});
     const [detalhe, setDetalhe] = useState(null);
     const [metas, setMetas] = useState({});
@@ -215,14 +227,16 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
 
     const meses = useMemo(() => mesesDaFaixa(faixa.inicio, faixa.fim), [faixa]);
     const mesAtual = meses[meses.length - 1];
+    // Mês escolhido que saiu do período (ex.: trocou de 120 para 30 dias) volta para "todos os meses"
+    const mesDoFiltro = meses.includes(mesFoco) ? mesFoco : '';
 
     const { linhas } = useMemo(() => montarGestao({ colaboradores, vendas, planos, produtos, dosesValidas, metasPorUnidade: metas, faixa, hoje, mesMeta: mesAtual, unidadesPermitidas }),
         [colaboradores, vendas, planos, produtos, dosesValidas, metas, faixa, hoje, mesAtual, unidadesPermitidas]);
 
     const linhasUnidade = useMemo(() => filtrarLinhas(linhas, { unidade: unidadeFiltro }), [linhas, unidadeFiltro]);
-    const resumo = useMemo(() => resumir(linhasUnidade), [linhasUnidade]);
-    const visiveis = useMemo(() => filtrarLinhas(linhas, { situacao, busca, unidade: unidadeFiltro }), [linhas, situacao, busca, unidadeFiltro]);
-    const grupos = useMemo(() => agruparPorUnidade(visiveis), [visiveis]);
+    const resumo = useMemo(() => resumir(linhasUnidade, mesDoFiltro), [linhasUnidade, mesDoFiltro]);
+    const visiveis = useMemo(() => filtrarLinhas(linhas, { situacao, busca, unidade: unidadeFiltro, mesFoco: mesDoFiltro }), [linhas, situacao, busca, unidadeFiltro, mesDoFiltro]);
+    const grupos = useMemo(() => agruparPorUnidade(visiveis, mesDoFiltro), [visiveis, mesDoFiltro]);
     const listaUnidades = useMemo(() => [...new Set(linhas.map(l => l.unidade))].sort(), [linhas]);
 
     const podeAjustar = podeFazer(usuario, '307');
@@ -231,8 +245,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
 
     const rotuloPeriodo = `${tx('ÚLTIMOS')} ${dias} ${tx('DIAS')}`;
     const enviarWhatsapp = () => {
-        const metasUsadas = [...new Set(grupos.map(g => metaDe(g.unidade)))];
-        const txt = mensagemGestao({ grupos, situacao, rotuloPeriodo, mesAtual, meta: metasUsadas.length === 1 ? metasUsadas[0] : META_PADRAO });
+        const txt = mensagemGestao({ grupos, situacao, rotuloPeriodo, mesAtual, mesFoco: mesDoFiltro });
         abrirModalWhatsapp?.(txt, { titulo: 'Gestão à Vista — Produtos', icone: 'send', cor: 'emerald' });
     };
     const selectCls = 'h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200';
@@ -265,8 +278,12 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                 )}
                 <select value={situacao} onChange={(e) => setSituacao(e.target.value)} className={selectCls} aria-label={tx('Situação')}>
                     <option value="todos">{tx('Todos')}</option>
-                    <option value="atingida">{tx('Meta atingida (todos os meses)')}</option>
+                    <option value="atingida">{tx('Meta atingida')}</option>
                     <option value="abaixo">{tx('Meta não atingida')}</option>
+                </select>
+                <select value={mesDoFiltro} onChange={(e) => setMesFoco(e.target.value)} className={selectCls} aria-label={tx('Mês')} title={tx('Olhar só um mês, ou todos os meses do período')}>
+                    <option value="">{tx('Todos os meses')}</option>
+                    {meses.map(m => <option key={m} value={m}>{mesLongo(m)}</option>)}
                 </select>
                 <label className="relative inline-flex items-center flex-1 min-w-[160px] max-w-xs">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400 pointer-events-none" />
@@ -321,7 +338,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                         {aberta && (
                             <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                                 {g.linhas.map(l => {
-                                    const frase = fraseDaPessoa(l, mesAtual, dias);
+                                    const frase = mesDoFiltro ? fraseDoMes(l, mesDoFiltro, mesAtual) : fraseDaPessoa(l, mesAtual, dias);
                                     const aberto = detalhe === l.id;
                                     return (
                                         <li key={l.id}>
@@ -331,7 +348,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                                                     <span className="block text-[13px] font-black text-slate-800 dark:text-white truncate">{nomeCurto(l.nome)}</span>
                                                     <span className="block text-[10px] font-semibold text-slate-400 uppercase truncate">{l.setor}{l.fim ? ` · ${tx('desligado')} ${dataBr(l.fim)}` : ''}</span>
                                                 </span>
-                                                <MiniGrafico meses={l.meses} mesAtual={mesAtual} />
+                                                <MiniGrafico meses={l.meses} mesAtual={mesAtual} mesFoco={mesDoFiltro} />
                                                 <span className="flex-1 min-w-[180px]">
                                                     <span className={`block text-[12px] font-bold ${COR_FRASE[frase.tipo]}`}>{ICONE_FRASE[frase.tipo]} {frase.texto}</span>
                                                     <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">

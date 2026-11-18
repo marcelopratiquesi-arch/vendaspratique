@@ -62,4 +62,15 @@ const g = agruparPorUnidade(linhas);
 assert.equal(g.length, 1);
 assert.equal(g[0].resumo.cobrados, resumir(linhas).cobrados);
 assert.deepEqual(mesesDaFaixa('2026-07-01', '2026-11-18'), ['2026-07', '2026-08', '2026-09', '2026-10', '2026-11']);
+// filtro de mês: Ana bateu em novembro, mas faltou em setembro
+import { situacaoDe, mensagemGestao } from '../src/pages/AnaliseVendas/gestaoAVista/regrasGestao.js';
+assert.equal(situacaoDe(por('ANA SOUZA'), '2026-11'), 'atingida');
+assert.equal(situacaoDe(por('ANA SOUZA'), '2026-09'), 'abaixo');
+assert.ok(filtrarLinhas(linhas, { situacao: 'atingida', mesFoco: '2026-11' }).some(l => l.nome === 'ANA SOUZA'));
+assert.ok(!filtrarLinhas(linhas, { situacao: 'abaixo', mesFoco: '2026-11' }).some(l => l.nome === 'ANA SOUZA'));
+assert.ok(filtrarLinhas(linhas, { situacao: 'abaixo', mesFoco: '2026-09' }).some(l => l.nome === 'ANA SOUZA'));
+// mensagem: unidade única, mostra mês e quanto vendeu, sem CPF
+const grp = agruparPorUnidade(filtrarLinhas(linhas, { situacao: 'abaixo', unidade: 'GUTIERREZ' }));
+const msg = mensagemGestao({ grupos: grp, situacao: 'abaixo', rotuloPeriodo: 'ÚLTIMOS 120 DIAS', mesAtual: '2026-11' });
+assert.ok(msg.includes('*GUTIERREZ* (meta: 3') && msg.includes('ANA SOUZA — faltou: ') && msg.includes('Set 1/3') && !/cpf/i.test(msg));
 console.log('Gestão à Vista: todos os testes passaram.');
