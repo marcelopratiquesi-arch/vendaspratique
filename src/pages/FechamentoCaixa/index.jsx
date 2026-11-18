@@ -233,13 +233,16 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
         const cpfVenda = String(venda.vendedor_cpf || '').replace(/\D/g, '');
         const chave = cpfVenda.length === 11 ? `cpf:${cpfVenda}` : venda.vendedor;
         if (!relatorioVendedores[chave]) {
-            relatorioVendedores[chave] = { chave, vendedor: venda.vendedor, cpfVenda: cpfVenda.length === 11 ? cpfVenda : '', totalComissao: 0, itens: {} };
+            relatorioVendedores[chave] = { chave, vendedor: venda.vendedor, cpfVenda: cpfVenda.length === 11 ? cpfVenda : '', totalComissao: 0, itens: {}, detalhe: {} };
         }
 
         relatorioVendedores[chave].totalComissao += valorComissao;
         (relatorioVendedores[chave].unidades ||= new Set()).add(String(venda.unidade || '').toUpperCase());
         const qty = parseInt(venda.quantidade) || 1;
         relatorioVendedores[chave].itens[venda.produto] = (relatorioVendedores[chave].itens[venda.produto] || 0) + qty;
+        // Para o recibo: comissão somada de cada item (valor unitário = total ÷ quantidade)
+        const det = (relatorioVendedores[chave].detalhe[venda.produto] ||= { qtd: 0, total: 0 });
+        det.qtd += qty; det.total += valorComissao;
     });
 
     const normalizarTexto = (texto) => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
@@ -257,6 +260,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
             return {
                 ...restoCpf,
                 vendedor: pessoa?.nome || r.vendedor,
+                unidadeRecibo: unidades ? [...unidades][0] : '',
                 totalItens: Object.values(r.itens).reduce((acc, q) => acc + q, 0),
                 cpf: pessoa?.cpf || r.cpfVenda,
                 tipo_conta: pessoa?.tipo_conta || '',
@@ -282,6 +286,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
 
         return {
             ...resto,
+            unidadeRecibo: unidades ? [...unidades][0] : '',
             totalItens: Object.values(r.itens).reduce((acc, q) => acc + q, 0),
             cpf: infoColaborador.cpf || '',
             tipo_conta: infoColaborador.tipo_conta || '',
@@ -499,7 +504,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                     opcoesSetor={opcoesSetor}
                 />
             )}
-            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} />}
+            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} colaboradores={colaboradores} />}
             {abaMostrada === 'auditoria' && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
             {abaMostrada === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} passaSetor={passaSetor} />}
         </div>

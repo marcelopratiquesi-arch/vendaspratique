@@ -4158,4 +4158,8 @@ export default {
     "Total Nutri: {n}": "Total Nutri: {n}",
     "Tecace ({t}) menor que as vendas: conferir": "Tecace ({t}) es menor que las ventas: revisar",
     "Tecace menor que as vendas do sistema: conferir": "Tecace es menor que las ventas del sistema: revisar",
+    "Emitir recibo": "Emitir recibo",
+    "Emitir recibo de pagamento": "Emitir recibo de pago",
+    "Recibo de pagamento": "Recibo de pago",
+    "Imprimir / Salvar PDF": "Imprimir / Guardar PDF",
 };

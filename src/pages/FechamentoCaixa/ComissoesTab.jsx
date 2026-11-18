@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { formatMoney } from './utils.js'; 
-import { Check, Copy, Users, CheckCheck, Loader2, FileSpreadsheet, ChevronDown, ChevronRight, ChevronsUpDown, ChevronUp, Zap, Building, Inbox, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Check, Copy, Receipt, Users, CheckCheck, Loader2, FileSpreadsheet, ChevronDown, ChevronRight, ChevronsUpDown, ChevronUp, Zap, Building, Inbox, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { abrirCentralColaborador } from '../../components/centralColaborador.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import ReciboComissao from './ReciboComissao.jsx';
+import { lideresDaUnidade } from './cobrancaAuditoria.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Botão de Cópia Individual
@@ -56,7 +58,8 @@ const CopyButton = ({ textToCopy, label }) => {
     );
 };
 
-const ComissoesTab = ({ dadosTabelaComissoes }) => {
+const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [] }) => {
+    const [reciboDe, setReciboDe] = useState(null);
     const [expandedRow, setExpandedRow] = useState(null);
     const [copiadoId, setCopiadoId] = useState(null);
     const [copiadoTudo, setCopiadoTudo] = useState(false);
@@ -352,6 +355,13 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                                                         <><Copy className="w-3.5 h-3.5" />{' '}{tx("Copiar Tudo")}</>
                                                     )}
                                                 </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setReciboDe(row); }}
+                                                    title={tx("Emitir recibo de pagamento")}
+                                                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg transition-all border shrink-0 text-[10px] font-black uppercase tracking-wider bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50 shadow-sm dark:bg-slate-900 dark:text-emerald-400 dark:border-emerald-500/30 dark:hover:bg-emerald-500/10"
+                                                >
+                                                    <Receipt className="w-3.5 h-3.5" />{' '}{tx("Emitir recibo")}
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -399,6 +409,14 @@ const ComissoesTab = ({ dadosTabelaComissoes }) => {
                     </tbody>
                 </table>
             </div>
+            {reciboDe && (
+                <ReciboComissao
+                    row={reciboDe}
+                    unidade={reciboDe.unidadeRecibo || reciboDe.colaborador?.unidade || ''}
+                    lider={lideresDaUnidade(colaboradores, reciboDe.unidadeRecibo || reciboDe.colaborador?.unidade)[0]?.nome || ''}
+                    onFechar={() => setReciboDe(null)}
+                />
+            )}
         </div>
     );
 };
