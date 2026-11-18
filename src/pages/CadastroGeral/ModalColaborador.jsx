@@ -16,11 +16,17 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
     const [contaInter, setContaInter] = useState('');
     // Turno da recepcionista (Manhã/Noite): usado na cobrança do relatório de fechamento (decisão do dono, 05/11/2026)
     const [turno, setTurno] = useState('');
+    // Data de início = o "dia 1" da pessoa no sistema (18/11/2026). Novo cadastro = hoje; retroativo só pelo botão.
+    const hojeIso = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' });
+    const [dataInicio, setDataInicio] = useState(hojeIso);
+    const [retroativo, setRetroativo] = useState(false);
     const ehRecepcao = role.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes('RECEP');
 
     useEffect(() => {
         if (isOpen) {
             setTurno(dadosEdicao?.turno || '');
+            setDataInicio(dadosEdicao?.data_inicio ? String(dadosEdicao.data_inicio).slice(0, 10) : hojeIso);
+            setRetroativo(false);
             if (dadosEdicao) {
                 setNome(dadosEdicao.nome || '');
                 setCpf(dadosEdicao.cpf || '');
@@ -34,6 +40,7 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                 setUnidade(''); setTipoConta('INTER'); setContaInter('');
             }
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, dadosEdicao]);
 
     // Esc fecha a janela (revisão de 10/11/2026)
@@ -54,7 +61,11 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
         if (telefone.length < 14) return avisar(tx("Preencha o Telefone/WhatsApp corretamente."));
         if (tipoConta === 'INTER' && !contaInter.trim()) return avisar(tx("Preencha a conta Inter."));
         
+        if (!dataInicio || dataInicio > hojeIso) return avisar(tx('A data de início não pode ser no futuro.'), 'erro');
+        // Edição de quem ainda não tem data só grava se a pessoa escolheu uma (botão retroativo)
+        const campoInicio = (!dadosEdicao || retroativo || dadosEdicao.data_inicio) ? { data_inicio: dataInicio } : {};
         onSave({
+            ...campoInicio,
             id: dadosEdicao?.id,
             nome: nome.trim().toUpperCase(),
             cpf,
@@ -133,6 +144,21 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                     <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx("Usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.")}</p>
                                 </div>
                             )}
+
+                            <div className="sm:col-span-2">
+                                <label className={labelBase}>{tx("Data de início na equipe")}</label>
+                                {!retroativo ? (
+                                    <div className="flex flex-wrap items-center gap-3">
+                                        <span className="text-sm font-black text-slate-700 dark:text-slate-200">{dataInicio.split('-').reverse().join('/')}{!dadosEdicao && ` · ${tx('hoje')}`}</span>
+                                        <button type="button" onClick={() => setRetroativo(true)} className="h-9 px-3 rounded-xl border border-blue-200 text-blue-700 text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10">
+                                            {tx('Cadastrar com data retroativa')}
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <input type="date" value={dataInicio} max={hojeIso} onChange={e => setDataInicio(e.target.value)} className={inputBase} />
+                                )}
+                                <p className="text-[10px] font-semibold text-slate-400 mt-1.5 ml-1">{tx("É o primeiro dia da pessoa. A Gestão à Vista usa essa data (e a do desligamento) para não cobrar meta de antes de ela entrar nem depois de sair.")}</p>
+                            </div>
 
                             {temVisaoGlobal && (
                                 <div className="sm:col-span-1">

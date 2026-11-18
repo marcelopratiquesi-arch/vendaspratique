@@ -22,8 +22,9 @@ import QuadroPlanosPorUnidade from './visaoRede/QuadroPlanosPorUnidade.jsx';
 import RitmoPorUnidade from './visaoRede/RitmoPorUnidade.jsx';
 import {
     TrendingUp, X, Users, Loader2, Layers, Calculator, Box, Briefcase,
-    ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send, UserPlus, UserMinus, Wallet, HelpCircle
+    ChevronDown, ArrowRight, Pencil, MessageCircle, Search, Send, UserPlus, UserMinus, Wallet, HelpCircle, Eye
 } from 'lucide-react';
+import GestaoAVistaProdutos from './gestaoAVista/GestaoAVistaProdutos.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ==========================================
@@ -336,6 +337,9 @@ const DashboardTab = ({
     const escuro = useModoEscuro();
     const [modalProdOpen, setModalProdOpen] = useState(false);
     const [modalServicosOpen, setModalServicosOpen] = useState(false);
+    // Gestão à Vista — Produtos (18/11/2026): janela nova, só leitura
+    const [gestaoAVistaAberta, setGestaoAVistaAberta] = useState(false);
+    const fecharGestaoAVista = useCallback(() => setGestaoAVistaAberta(false), []);
     // Lista de planos aberta: null = fechada; { grupo: '' } = todos os planos base; { grupo, plano } = filtrada
     const [listaPlanosGrupo, setListaPlanosGrupo] = useState(null);
     const fecharListaPlanos = useCallback(() => setListaPlanosGrupo(null), []);
@@ -1268,9 +1272,14 @@ const DashboardTab = ({
                             );
                         })}
                     </div>
-                    <button type="button" onClick={dispararModalMetas} className="h-11 px-4 rounded-xl bg-[#1D4FD8] text-white text-[14px] font-bold inline-flex items-center gap-2 hover:bg-[#1A45BF] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-300">
-                        <MessageCircle className="w-4 h-4" />{tx('Alertar metas')}
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <button type="button" onClick={() => setGestaoAVistaAberta(true)} className="h-11 px-4 rounded-xl border border-[#1D4FD8] text-[#1D4FD8] bg-white text-[14px] font-bold inline-flex items-center gap-2 hover:bg-blue-50 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-300 dark:bg-slate-900 dark:text-blue-300 dark:border-blue-400 dark:hover:bg-blue-500/10">
+                            <Eye className="w-4 h-4" />{tx('Gestão à Vista — Produtos')}
+                        </button>
+                        <button type="button" onClick={dispararModalMetas} className="h-11 px-4 rounded-xl bg-[#1D4FD8] text-white text-[14px] font-bold inline-flex items-center gap-2 hover:bg-[#1A45BF] transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-300">
+                            <MessageCircle className="w-4 h-4" />{tx('Alertar metas')}
+                        </button>
+                    </div>
                 </div>
 
                 <div className="p-4 md:p-6">
@@ -1488,6 +1497,9 @@ const DashboardTab = ({
                     )}
                 </div>
             </section>
+
+            <GestaoAVistaProdutos aberto={gestaoAVistaAberta} onFechar={fecharGestaoAVista} usuario={usuario} colaboradores={colaboradores} vendasTodas={vendasTodas}
+                planos={planos} produtos={produtos} unidadeAtual={unidadeAtual} unidades={unidades} abrirModalWhatsapp={abrirModalWhatsapp} />
         </div>
     );
 };

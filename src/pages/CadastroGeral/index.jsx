@@ -102,11 +102,15 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
             const finalPayload = { ...payload, unidade: unidadeFinal };
             // Sem o campo "turno" no banco (falta rodar sql/2026-11-05-relatorio-fechamento), grava o resto e avisa
             const semTurno = (error) => /turno/i.test(error?.message || '');
+            // Sem o campo data_inicio no banco (falta rodar sql/2026-11-18-gestao-a-vista), grava o resto e avisa
+            const semInicio = (error) => /data_inicio/i.test(error?.message || '');
+            const avisarSemInicio = () => { console.warn('Equipe: campo data_inicio não existe no banco — rode sql/2026-11-18-gestao-a-vista/1_data_inicio_e_meta.sql'); avisar(tx('A data de início não foi gravada: falta criar o campo no banco (SQL da Gestão à Vista).'), 'atencao'); };
             const avisarSemTurno = () => { console.warn('Equipe: campo turno não existe no banco — rode sql/2026-11-05-relatorio-fechamento/1_envios_e_turno.sql'); if (payload.turno) avisar(tx('O turno não foi gravado: falta criar o campo no banco (SQL do relatório de fechamento).'), 'atencao'); };
 
             if (payload.id) {
                 let { data, error } = await supabase.from('colaboradores').update(finalPayload).eq('id', payload.id).select();
                 if (error && semTurno(error)) { delete finalPayload.turno; avisarSemTurno(); ({ data, error } = await supabase.from('colaboradores').update(finalPayload).eq('id', payload.id).select()); }
+                if (error && semInicio(error)) { delete finalPayload.data_inicio; avisarSemInicio(); ({ data, error } = await supabase.from('colaboradores').update(finalPayload).eq('id', payload.id).select()); }
                 if (error) throw error;
                 if (data) setColaboradores(colaboradores.map(c => c.id === payload.id ? data[0] : c));
             } else {
@@ -114,6 +118,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
                 finalPayload.ativo = true;
                 let { data, error } = await supabase.from('colaboradores').insert([finalPayload]).select();
                 if (error && semTurno(error)) { delete finalPayload.turno; avisarSemTurno(); ({ data, error } = await supabase.from('colaboradores').insert([finalPayload]).select()); }
+                if (error && semInicio(error)) { delete finalPayload.data_inicio; avisarSemInicio(); ({ data, error } = await supabase.from('colaboradores').insert([finalPayload]).select()); }
                 if (error) throw error;
                 if (data) setColaboradores([...colaboradores, data[0]]);
             }
