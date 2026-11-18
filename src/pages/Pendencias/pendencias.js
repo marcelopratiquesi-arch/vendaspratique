@@ -21,6 +21,7 @@ import { sistemaPausado } from '../../components/pausaSistema.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
 import { INICIO_COBRANCA_CONFERENCIA, semanaDaVenda, ultimaSextaVencida } from '../FechamentoCaixa/cobrancaAuditoria.js';
 import { ehDomingo, diaDeLancamentoAnterior } from '../AnaliseVendas/movimentoDiario.js';
+import { INICIO_COBRANCA_NUTRI } from '../AnaliseVendas/nutriTecace.js';
 import { buscarEnviosRelatorio, buscarConferenciasRelatorio, pendenciasRelatorio, nomesDoTurno, situacaoRelatorioDias } from './relatorioFechamento.js';
 
 export const INICIO_COBRANCA_MOVIMENTO = '2026-11-05';
@@ -67,10 +68,12 @@ const buscarVendasPendentes = async (hojeIso, inicioIso) => {
 const buscarMovimento = async () => {
     const consultar = (campos) => supabase.from('movimento_diario').select(campos).gte('data', INICIO_COBRANCA_MOVIMENTO);
     let temAtivos = true;
-    let { data, error } = await consultar('unidade, data, ativos, cancelamentos, faturamento');
+    let temNutri = true; // campo nutri_tecace (sql/2026-11-17-nutri-tecace): sem ele, o Nutri/Tecace não é cobrado
+    let { data, error } = await consultar('unidade, data, ativos, cancelamentos, faturamento, nutri_tecace');
+    if (error && /nutri_tecace/i.test(error.message || '')) { temNutri = false; ({ data, error } = await consultar('unidade, data, ativos, cancelamentos, faturamento')); }
     if (error && /ativos/i.test(error.message || '')) { temAtivos = false; ({ data, error } = await consultar('unidade, data, cancelamentos, faturamento')); }
     if (error) throw error;
-    return { linhas: data || [], temAtivos };
+    return { linhas: data || [], temAtivos, temNutri };
 };
 
 const buscarMetas = async (agora) => {
@@ -133,7 +136,7 @@ const conferenciaDaUnidade = (vendas, agora) => {
     };
 };
 
-const movimentoDaUnidade = (linhas, temAtivos, agora) => {
+const movimentoDaUnidade = (linhas, temAtivos, agora, temNutri = false) => {
     const hojeIso = paraIso(agora);
     const porDia = {};
     linhas.forEach(l => { porDia[String(l.data).slice(0, 10)] = l; });
@@ -147,9 +150,12 @@ const movimentoDaUnidade = (linhas, temAtivos, agora) => {
         const l = porDia[iso];
         const vazio = (v) => v === null || v === undefined;
         const falta = [];
-        if (!l) falta.push(...(temAtivos ? ['Ativos', 'Cancelamentos', 'Faturamento'] : ['Cancelamentos', 'Faturamento']));
+        // Nutri/Tecace: cobrado desde INICIO_COBRANCA_NUTRI; zero digitado vale; venda interna NÃO prova que o Tecace foi atualizado
+        const cobraNutri = temNutri && iso >= INICIO_COBRANCA_NUTRI;
+        if (!l) falta.push(...(temAtivos ? ['Ativos'] : []), ...(cobraNutri ? ['Nutri'] : []), 'Cancelamentos', 'Faturamento');
         else {
             if (temAtivos && vazio(l.ativos)) falta.push('Ativos');
+            if (cobraNutri && vazio(l.nutri_tecace)) falta.push('Nutri');
             if (vazio(l.cancelamentos)) falta.push('Cancelamentos');
             if (vazio(l.faturamento)) falta.push('Faturamento');
         }
@@ -212,7 +218,7 @@ export const montarPendencias = (dados, unidades = [], agora = new Date(), colab
     return unidades.filter(Boolean).map(nome => {
         const k = chave(nome);
         const conferencia = dados.vendas ? conferenciaDaUnidade(vendasPorUnidade[k] || [], agora) : null;
-        const movimento = dados.movimento ? movimentoDaUnidade(movPorUnidade[k] || [], dados.movimento.temAtivos, agora) : [];
+        const movimento = dados.movimento ? movimentoDaUnidade(movPorUnidade[k] || [], dados.movimento.temAtivos, agora, dados.movimento.temNutri) : [];
         const ultimoLancamento = ultimoLancamentoDe(movPorUnidade[k] || [], paraIso(agora));
         const movimentoDia = movimentoDoDia(movimento, agora, ultimoLancamento);
         const metas = dados.metas ? metasDaUnidade(metasPorUnidade[k], semPersonal.has(k), agora) : null;

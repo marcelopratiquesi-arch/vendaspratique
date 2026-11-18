@@ -24,6 +24,8 @@ import {
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
+import { nutriDaUnidade } from './nutriTecace.js';
+import { useNutriTecaceMes } from './useNutriTecace.js';
 
 // Visual limpo (decisão do dono, 29/10/2026): números em cinza escuro, uma cor só (azul) e
 // a célula fica mais azul quanto maior o número na coluna. Zero = "—".
@@ -47,6 +49,7 @@ const RankingGlobalTab = ({
     planos = [],
     produtos = [],
     temVisaoGlobal = false,
+    nutriTecace = null, // Nutri/Tecace (17/11/2026): Map UNIDADE → total do mês; null fora de um mês
     labelFiltroAtual = '',
     usuarioLogado = null,
     abrirModalWhatsapp
@@ -69,6 +72,8 @@ const RankingGlobalTab = ({
                 setMetasMes(mapa);
             });
     }, []);
+    // Mês atual do Tecace para o WhatsApp "Resumo" (ele sempre fala do mês atual, independente do filtro)
+    const tecaceMesAtual = useNutriTecaceMes({ ano: String(new Date().getFullYear()), mes: String(new Date().getMonth() + 1).padStart(2, '0'), ativo: true });
     const [criterioRanking, setCriterioRanking] = useState('TOTAL');
     const [colunaOrdemMatriz, setColunaOrdemMatriz] = useState(null);
 
@@ -86,8 +91,8 @@ const RankingGlobalTab = ({
         relatorioPorUnidade,
         unidadesOrdenadas,
         vendasGlobal,
-        baseRankingUnidades,
-        totaisRedeMatriz
+        baseRankingUnidades: baseRankingSemTecace,
+        totaisRedeMatriz: totaisSemTecace
     } = useMemo(() => {
         return processarConsolidadas({
             vendasFiltradas,
@@ -97,6 +102,24 @@ const RankingGlobalTab = ({
             produtos
         });
     }, [vendasFiltradas, visitantesFiltrados, avaliacoesFiltradas, planos, produtos]);
+
+    // Nutri consolidado (vendas do sistema + adicional Tecace): só na coluna Nutri; planos, total e comissão não mudam
+    const baseRankingUnidades = useMemo(() => (!nutriTecace ? baseRankingSemTecace : baseRankingSemTecace.map(u => {
+        const info = nutriDaUnidade(nutriTecace, u.nome, u.colunas.NUTRI || 0);
+        return info.tecace === null ? u : { ...u, nutriInfo: info, colunas: { ...u.colunas, NUTRI: info.total } };
+    })), [baseRankingSemTecace, nutriTecace]);
+    const totaisRedeMatriz = useMemo(() => ({ ...totaisSemTecace, NUTRI: baseRankingUnidades.reduce((s, u) => s + (u.colunas.NUTRI || 0), 0) }), [totaisSemTecace, baseRankingUnidades]);
+    // Para o WhatsApp detalhado: o total do grupo NUTRI de cada unidade já consolidado
+    const relatorioComTecace = useMemo(() => {
+        if (!nutriTecace) return relatorioPorUnidade;
+        const novo = {};
+        Object.entries(relatorioPorUnidade).forEach(([nome, dados]) => {
+            const g = dados.grupos?.NUTRI;
+            const info = g ? nutriDaUnidade(nutriTecace, nome, g.total || 0) : null;
+            novo[nome] = info && info.tecace !== null ? { ...dados, grupos: { ...dados.grupos, NUTRI: { ...g, total: info.total } } } : dados;
+        });
+        return novo;
+    }, [relatorioPorUnidade, nutriTecace]);
 
     // 🪝 Hook de Resgate de CPFs e Nomes no Supabase
     const {
@@ -192,7 +215,7 @@ const RankingGlobalTab = ({
     const handleGerarWhatsappGlobal = () => {
         // Resumo = metas do mês (Nutri e Produtos x Meta Start), sempre do mês atual até hoje
         if (!visaoDetalhada) {
-            abrirModalWhatsapp(montarMensagemMetasRede({ vendas: vendasTodas, metas: metasMes, planos, produtos }), { titulo: tx('Metas da rede (Nutri e Produtos)'), icone: 'share-2', cor: 'blue' });
+            abrirModalWhatsapp(montarMensagemMetasRede({ vendas: vendasTodas, metas: metasMes, planos, produtos, tecace: tecaceMesAtual }), { titulo: tx('Metas da rede (Nutri e Produtos)'), icone: 'share-2', cor: 'blue' });
             return;
         }
         if (unidadesOrdenadas.length === 0) {
@@ -201,7 +224,7 @@ const RankingGlobalTab = ({
         }
         const txt = montarTextoGlobalWhatsapp({
             rankingUnidades,
-            relatorioPorUnidade,
+            relatorioPorUnidade: relatorioComTecace,
             vendasGlobal,
             visaoDetalhada,
             labelFiltroAtual,
@@ -480,9 +503,12 @@ const RankingGlobalTab = ({
                                                         <td key={col.key} className={`py-3 px-2.5 text-center ${col.adicional ? CLASSE_ADICIONAL : ''}`}>
                                                             {valorCel > 0 ? (
                                                                 <button type="button"
-                                                                    onClick={() => abrirModalAuditoria(`${col.label} — ${uni.nome}`, uni.nome, 'VENDA', regsCel, valorCel)}
+                                                                    onClick={() => abrirModalAuditoria(`${col.label} — ${uni.nome}`, uni.nome, 'VENDA', regsCel, col.key === 'NUTRI' && uni.nutriInfo ? uni.nutriInfo.internas : valorCel)}
                                                                     className={`${classeBotaoNumero} ${tomDaCelula(valorCel, maximoPorColuna[col.key])}`}
-                                                                    title={tx("Clique para auditar {valorCel} registro(s) de {label} em {nome}", { valorCel: valorCel, label: col.label, nome: uni.nome })}>
+                                                                    title={col.key === 'NUTRI' && uni.nutriInfo ? `NUTRI — ${uni.nome}
+${tx('Vendas pelo sistema: {n}', { n: uni.nutriInfo.internas })}
+${tx('Adicional Tecace: {n}', { n: uni.nutriInfo.adicional })}
+${tx('Total Nutri: {n}', { n: uni.nutriInfo.total })}` : tx("Clique para auditar {valorCel} registro(s) de {label} em {nome}", { valorCel: valorCel, label: col.label, nome: uni.nome })}>
                                                                     {doisDigitos(valorCel)}
                                                                 </button>
                                                             ) : (

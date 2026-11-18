@@ -15,6 +15,7 @@ import { agruparProdutos } from './familiasProdutos.js';
 import { qtdValidaProduto, dosesValidasNoMes, LIMITE_DOSES_POR_UNIDADE_MES, INICIO_LIMITE_DOSES } from './limiteDoses.js';
 import { useDosesValidas } from './useDosesValidas.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo } from './movimentoDiario.js';
+import { nutriDaUnidade } from './nutriTecace.js';
 import { listaUnidadesRede, montarLinhasRede, ordenarLinhasRede, ultimoPlanoPorUnidade } from './visaoRede/calculosRede.js';
 import { montarMensagemPlanosRede } from './visaoRede/mensagemPlanosRede.js';
 import QuadroPlanosPorUnidade from './visaoRede/QuadroPlanosPorUnidade.jsx';
@@ -327,7 +328,9 @@ const DashboardTab = ({
     vendasTodas = [], faixa = null,
     vendedoresOcultos = [], planosOcultos = [], produtosOcultos = [], servicosOcultos = [],
     // Visão da Rede (Admin/Mentor com o topo em "Todas"): lista de unidades e troca do seletor do topo
-    unidades = [], onAbrirUnidade, usuario = null
+    unidades = [], onAbrirUnidade, usuario = null,
+    // Nutri/Tecace (17/11/2026): Map UNIDADE → total do mês no Tecace; null quando o período não é um mês (fica só o interno)
+    nutriTecace = null
 }) => {
     const { t, locale } = useI18n();
     const escuro = useModoEscuro();
@@ -622,10 +625,16 @@ const DashboardTab = ({
     const unidadesRede = useMemo(() => (visaoRede ? listaUnidadesRede(unidades, vendasFiltradas) : []), [visaoRede, unidades, vendasFiltradas]);
     // Último plano de cada unidade: vendas carregadas no sistema, sem filtro de tela (selo "Sem plano há X dias")
     const ultimoPlano = useMemo(() => (visaoRede ? ultimoPlanoPorUnidade(contarPlanosDoCard(vendasTodas, planos, produtos).contados) : new Map()), [visaoRede, vendasTodas, planos, produtos]);
-    const linhasRede = visaoRede ? ordenarLinhasRede(montarLinhasRede({
+    const linhasRedeBase = visaoRede ? ordenarLinhasRede(montarLinhasRede({
         unidadesRede, contagemPlanos, contagemAnterior: temComparativo ? contagemAnterior : null, vendasFiltradas, planos, produtos,
         qtdValidaProduto: (v) => qtdValidaProduto(v, dosesValidas), derivadosMovimento: movimento.derivados, faixa, ultimoPlano, hojeIso,
     })) : [];
+    // Nutri consolidado por unidade (vendas do sistema + adicional Tecace). Só mostra; não vira venda nem comissão.
+    const linhasRede = linhasRedeBase.map(l => {
+        const nutriInfo = nutriDaUnidade(nutriTecace, l.nome, l.nutri);
+        return { ...l, nutriInfo, nutri: nutriInfo.total };
+    });
+    const totalNutriRede = linhasRede.reduce((s, l) => s + l.nutri, 0);
     // Ativos da rede: soma do último lançamento de cada unidade até o fim do período
     const ativosRede = linhasRede.filter(l => l.ativos !== null);
     const somaAtivosRede = ativosRede.reduce((s, l) => s + l.ativos, 0);
@@ -640,14 +649,16 @@ const DashboardTab = ({
     const contadosRitmoRede = useMemo(() => (grupoRitmo === 'NUTRI' ? contagemPlanos.nutri.contados
         : contagemPlanos.contados.filter(it => grupoRitmo === 'TODOS' || it.base === grupoRitmo)), [grupoRitmo, contagemPlanos]);
     const enviarPlanosRedeWhatsapp = () => {
-        const txt = montarMensagemPlanosRede({ linhas: linhasRede, textoPeriodo, totalPlanos, totalNutri: contagemPlanos.nutri.total });
+        const txt = montarMensagemPlanosRede({ linhas: linhasRede, textoPeriodo, totalPlanos, totalNutri: totalNutriRede });
         abrirModalWhatsapp(txt, { titulo: tx('Planos por unidade'), icone: 'send', cor: 'emerald' });
     };
 
     const dispararModalMetas = () => {
         const mesAtual = new Date().toLocaleString(locale || 'pt-BR', { month: 'long' }).toUpperCase();
 
-        const nutriRealizado = gruposPlanos["NUTRI"]?.total || 0;
+        // Nutri da meta = vendas do sistema + adicional Tecace (só quando o período é um mês)
+        const nutriInterno = gruposPlanos["NUTRI"]?.total || 0;
+        const nutriRealizado = visaoRede ? totalNutriRede : nutriDaUnidade(nutriTecace, unidadeAtual, nutriInterno).total;
         const personalRealizado = gruposPlanos["PERSONAL CLASS"]?.total || 0;
         const produtosRealizado = totalProdutosValidos || 0; // meta de produtos: com o limite de doses únicas
 
@@ -1006,7 +1017,7 @@ const DashboardTab = ({
                     nomeMesAnterior={nomeMesAnterior}
                     textoPeriodo={textoPeriodo}
                     totalPlanos={totalPlanos}
-                    totalNutri={totalNutri}
+                    totalNutri={totalNutriRede}
                     semMovimento={movimento.semTabela}
                     onAbrirUnidade={(nome) => onAbrirUnidade?.(nome)}
                     onWhatsApp={enviarPlanosRedeWhatsapp}

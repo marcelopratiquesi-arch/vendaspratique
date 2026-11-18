@@ -7,6 +7,7 @@ import { getMeses, safeIsoDate } from './utils.js';
 import ModalTextoWhatsapp from './Modais.jsx';
 import DashboardTab from './DashboardTab.jsx';
 import MetasTab from './MetasTab.jsx';
+import { useNutriTecaceMes } from './useNutriTecace.js';
 import RelatorioTab from './RelatorioTab.jsx';
 import RankingGlobalTab from './RankingGlobalTab.jsx';
 import SaudeUnidadeTab from './SaudeUnidadeTab.jsx';
@@ -125,6 +126,8 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     const periodoEhUmMes = tipoFiltro === 'mes' && filtroMes && filtroMes !== 'TODOS' && filtroAno && filtroAno !== 'TODOS';
     const mesMetas = periodoEhUmMes ? filtroMes : hojeRelogio.slice(5, 7);
     const anoMetas = periodoEhUmMes ? filtroAno : hojeRelogio.slice(0, 4);
+    // Nutri/Tecace (17/11/2026): total do MÊS no Tecace; só vale quando o período é um mês (null = só as vendas do sistema)
+    const nutriTecace = useNutriTecaceMes({ ano: anoMetas, mes: mesMetas, ativo: !!periodoEhUmMes });
 
     const anosUnicos = ['TODOS', ...new Set(vendas.map(v => safeIsoDate(v.data).split('-')[0]))].filter(Boolean).sort((a,b) => b-a);
     if (anosUnicos.length === 1) anosUnicos.push(new Date().getFullYear().toString());
@@ -629,6 +632,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                 O "movimento da equipe" foi para o Histórico → aba Saúde da equipe. */}
             {abaMostrada === 'dashboard' && (
                 <DashboardTab
+                    nutriTecace={nutriTecace}
                     vendasTodas={vendas}
                     faixa={faixaSaude}
                     vendedoresOcultos={vendedoresOcultos}
@@ -662,6 +666,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     filtroMes={mesMetas}
                     filtroAno={anoMetas}
                     vendasFiltradas={vendasFiltradas}
+                    nutriTecace={nutriTecace}
                     unidadesUnicas={unidadesUnicas}
                     usuarioLogado={usuarioLogado}
                     metaNutri={metaNutri} setMetaNutri={setMetaNutri}
@@ -724,6 +729,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
 
             {abaMostrada === 'rankingGlobal' && (
                 <RankingGlobalTab
+                    nutriTecace={nutriTecace}
                     usuarioLogado={usuarioLogado}
                     vendasFiltradas={vendasFiltradas}
                     vendasTodas={vendas}

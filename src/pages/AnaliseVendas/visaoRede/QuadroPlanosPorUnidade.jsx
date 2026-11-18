@@ -274,7 +274,28 @@ const QuadroPlanosPorUnidade = ({
                                     {!resumido && tdNum(l.grupos.FIT)}
                                     {!resumido && tdNum(l.grupos['PERSONAL CLASS'])}
                                     {!resumido && temOutros && tdNum(l.grupos['OUTROS PLANOS'])}
-                                    <td className={td}>{l.nutri > 0 ? <span className="font-extrabold text-[#0B7A52] dark:text-emerald-400">{dois(l.nutri)}</span> : '—'}</td>
+                                    <td className={td}>
+                                        {l.nutri > 0 ? (
+                                            // Nutri consolidado = vendas do sistema + adicional Tecace; passar o mouse (ou focar) mostra a separação
+                                            <span className="group/nutri relative inline-flex items-center gap-1 cursor-default outline-none" tabIndex={l.nutriInfo?.tecace !== null && l.nutriInfo?.tecace !== undefined ? 0 : -1}
+                                                title={l.nutriInfo?.tecace !== null && l.nutriInfo?.tecace !== undefined ? `NUTRI — ${l.nome}
+${tx('Vendas pelo sistema: {n}', { n: l.nutriInfo.internas })}
+${tx('Adicional Tecace: {n}', { n: l.nutriInfo.adicional })}
+${tx('Total Nutri: {n}', { n: l.nutriInfo.total })}` : undefined}>
+                                                <span className="font-extrabold text-[#0B7A52] dark:text-emerald-400">{dois(l.nutri)}</span>
+                                                {l.nutriInfo?.divergencia && <span className="text-[11px]" aria-label={tx('Tecace menor que as vendas do sistema: conferir')}>⚠️</span>}
+                                                {l.nutriInfo?.tecace !== null && l.nutriInfo?.tecace !== undefined && (
+                                                    <span role="tooltip" className="pointer-events-none absolute left-0 top-full mt-1 z-40 hidden group-hover/nutri:block group-focus/nutri:block w-[210px] bg-slate-800 text-white text-[11px] font-semibold text-left leading-snug px-3 py-2 rounded-lg shadow-lg whitespace-normal dark:bg-slate-700">
+                                                        <b className="block uppercase tracking-widest text-[10px] mb-1">NUTRI — {l.nome}</b>
+                                                        {tx('Vendas pelo sistema: {n}', { n: l.nutriInfo.internas })}<br />
+                                                        {tx('Adicional Tecace: {n}', { n: l.nutriInfo.adicional })}<br />
+                                                        <b>{tx('Total Nutri: {n}', { n: l.nutriInfo.total })}</b>
+                                                        {l.nutriInfo.divergencia && <b className="block mt-1 text-amber-300">{tx('Tecace ({t}) menor que as vendas: conferir', { t: l.nutriInfo.tecace })}</b>}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        ) : '—'}
+                                    </td>
                                     <td className={td}><SeloProdutividade valor={l.produtividade} /></td>
                                     <td className={td}>
                                         <span className="inline-flex items-center gap-1.5">

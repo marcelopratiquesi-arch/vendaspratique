@@ -8,6 +8,7 @@
 // 🔴 "(sem meta)" para quem não cadastrou a Meta Start.
 import { contarPlanosDoCard, getCategoriaItem, safeIsoDate } from '../utils.js';
 import { aplicarLimiteDoses, qtdValidaProduto } from '../limiteDoses.js';
+import { nutriDaUnidade } from '../nutriTecace.js';
 
 const numero = (n) => Number(n || 0).toLocaleString('pt-BR');
 
@@ -31,7 +32,8 @@ const metaDaMaioria = (valores) => {
     return melhor;
 };
 
-export const montarMensagemMetasRede = ({ vendas = [], metas = {}, planos = [], produtos = [], hoje = new Date() }) => {
+// tecace = Map UNIDADE → total do mês atual no Tecace (17/11/2026): o Nutri da mensagem é o consolidado (só o total, sem separar)
+export const montarMensagemMetasRede = ({ vendas = [], metas = {}, planos = [], produtos = [], hoje = new Date(), tecace = null }) => {
     const mes = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
     const vendasMes = vendas.filter(v => safeIsoDate(v.data || v.created_at).slice(0, 7) === mes);
     const doses = aplicarLimiteDoses(vendasMes, planos, produtos);
@@ -39,7 +41,7 @@ export const montarMensagemMetasRede = ({ vendas = [], metas = {}, planos = [], 
 
     const linhas = unidades.map(u => {
         const daUnidade = vendasMes.filter(v => String(v.unidade || '').toUpperCase() === u);
-        const nutri = contarPlanosDoCard(daUnidade, planos, produtos).nutri.total;
+        const nutri = nutriDaUnidade(tecace, u, contarPlanosDoCard(daUnidade, planos, produtos).nutri.total).total;
         let prod = 0;
         daUnidade.forEach(v => { if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') prod += qtdValidaProduto(v, doses); });
         const m = metas[u] || {};

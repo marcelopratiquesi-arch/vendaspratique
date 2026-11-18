@@ -2,10 +2,11 @@
 // MovimentacaoForm = parte de baixo do card verde "Movimentação" (acumulado do mês digitado);
 // MovimentoDiarioPainel (padrão) = tabela por dia, com o valor do dia e o acumulado do mês.
 import React, { useEffect, useMemo, useState } from 'react';
-import { Save, Loader2, Check, Pencil, HelpCircle, AlertTriangle, ArrowDownRight, ArrowUpRight, Wallet, UserPlus, UserMinus, Users } from 'lucide-react';
+import { Save, Loader2, Check, Pencil, HelpCircle, AlertTriangle, ArrowDownRight, ArrowUpRight, Wallet, UserPlus, UserMinus, Users, Leaf } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
 import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, useHojeIso, ativosAntesDe } from './movimentoDiario.js';
+import { INICIO_COBRANCA_NUTRI } from './nutriTecace.js';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const diaCurto = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
@@ -107,7 +108,7 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
 
     // Lê o mês até a data (para o já gravado e o lançamento anterior)
     const faixaMes = useMemo(() => ({ inicio: inicioMes, fim: ate }), [inicioMes, ate]);
-    const { derivados, carregando, semTabela, semAtivos, recarregar } = useMovimentoDiario({ unidade, faixa: faixaMes });
+    const { derivados, carregando, semTabela, semAtivos, semNutri, recarregar } = useMovimentoDiario({ unidade, faixa: faixaMes });
     const doMes = derivados.filter(l => l.data >= inicioMes && l.data <= ate);
     const gravado = doMes.find(l => l.data === ate);
     const anterior = [...doMes].reverse().find(l => l.data < ate);
@@ -118,6 +119,11 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
     const valorMes = ativosMes === null || ativosMes === undefined || ativosMes === '' ? null : Number(ativosMes);
     const gravadoAtivos = semAtivos ? valorMes : (gravado && gravado.ativos !== null ? gravado.ativos : null);
     const ativosAnterior = semAtivos ? null : ativosAntesDe(derivados, unidade, ate);
+    // NUTRI / TECACE (17/11/2026): total do MÊS que aparece no Tecace (acumulado, não soma dos dias). O "+X" = quanto subiu desde o lançamento anterior.
+    const gravadoNutri = gravado && gravado.nutriTecace !== null && gravado.nutriTecace !== undefined ? gravado.nutriTecace : null;
+    const nutriAnterior = [...doMes].reverse().find(l => l.data < ate && l.nutriTecace !== null && l.nutriTecace !== undefined)?.nutriTecace ?? 0;
+    const cobraNutri = !semNutri && ate >= INICIO_COBRANCA_NUTRI;
+    const [nutri, setNutri] = useState('');
     const [ativos, setAtivos] = useState('');
     const [cancelamentos, setCancelamentos] = useState('');
     const [faturamento, setFaturamento] = useState('');
@@ -125,30 +131,34 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
     const [salvo, setSalvo] = useState(false);
     useEffect(() => {
         setAtivos(gravadoAtivos ?? '');
+        setNutri(gravadoNutri ?? '');
         setCancelamentos(gravadoCanc ?? '');
         setFaturamento(numeroParaCampo(gravadoFat));
-    }, [ate, gravadoAtivos, gravadoCanc, gravadoFat]);
+    }, [ate, gravadoAtivos, gravadoCanc, gravadoFat, gravadoNutri]);
 
     const cancNum = lerNumeroBR(cancelamentos);
     const fatNum = lerNumeroBR(faturamento);
     const ativosNum = lerNumeroBR(ativos);
-    const mudou = (cancNum ?? null) !== gravadoCanc || (fatNum ?? null) !== gravadoFat || (ativosNum ?? null) !== gravadoAtivos;
-    const invalido = Number.isNaN(cancNum) || Number.isNaN(fatNum) || Number.isNaN(ativosNum) || cancNum < 0 || fatNum < 0 || ativosNum < 0
-        || (cancNum !== null && !Number.isInteger(cancNum)) || (ativosNum !== null && !Number.isInteger(ativosNum));
+    const nutriNum = lerNumeroBR(nutri);
+    const mudou = (cancNum ?? null) !== gravadoCanc || (fatNum ?? null) !== gravadoFat || (ativosNum ?? null) !== gravadoAtivos || (!semNutri && (nutriNum ?? null) !== gravadoNutri);
+    const invalido = Number.isNaN(cancNum) || Number.isNaN(fatNum) || Number.isNaN(ativosNum) || Number.isNaN(nutriNum) || nutriNum < 0 || cancNum < 0 || fatNum < 0 || ativosNum < 0
+        || (cancNum !== null && !Number.isInteger(cancNum)) || (ativosNum !== null && !Number.isInteger(ativosNum)) || (nutriNum !== null && !Number.isInteger(nutriNum));
     const maisAtivos = ativosNum === null || Number.isNaN(ativosNum) || ativosAnterior === null ? null : ativosNum - ativosAnterior;
 
     // Aviso amarelo (decisão do dono, 05/11/2026): lançamento só fica completo com Ativos, Cancelamentos e Faturamento.
     // Não trava o botão: grava assim mesmo, mas avisa que vai aparecer como incompleto. Zero digitado vale como preenchido.
     const faltando = [];
     if (!semAtivos && ativosNum === null) faltando.push(tx('Ativos'));
+    if (cobraNutri && nutriNum === null) faltando.push(tx('Nutri (Tecace)'));
     if (cancNum === null) faltando.push(tx('Cancelamentos'));
     if (fatNum === null) faltando.push(tx('Faturamento'));
-    const algoPreenchido = ativosNum !== null || cancNum !== null || fatNum !== null || !!gravado;
+    const algoPreenchido = ativosNum !== null || (!semNutri && nutriNum !== null) || cancNum !== null || fatNum !== null || !!gravado;
     const textoFaltando = faltando.length > 1 ? `${faltando.slice(0, -1).join(', ')} ${tx('e')} ${faltando[faltando.length - 1]}` : faltando[0];
 
     const entradasMes = entradasAcumuladasAte(entradas, ate);
     const maisEntradas = entradas.get(ate) || 0;
     const maisCanc = cancNum === null || Number.isNaN(cancNum) ? null : cancNum - (anterior?.cancelamentosAcum ?? 0);
+    const maisNutri = nutriNum === null || Number.isNaN(nutriNum) ? null : nutriNum - nutriAnterior;
     const maisFat = fatNum === null || Number.isNaN(fatNum) ? null : centavos(fatNum - (anterior?.faturamentoAcum ?? 0));
 
     // Ativos mudou mais de 5% desde o último lançamento: pede conferência antes de gravar (decisão do dono, 05/11/2026)
@@ -165,7 +175,7 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
         if (pulouAtivos && !ativosConferidos) { setJanela('ativos'); return; }
         setJanela(null);
         setSalvando(true);
-        const erro = await salvarMovimentoDia({ unidade, data: ate, faturamento: fatNum, cancelamentos: cancNum, ativos: semAtivos ? undefined : ativosNum, usuario: usuarioLogado });
+        const erro = await salvarMovimentoDia({ unidade, data: ate, faturamento: fatNum, cancelamentos: cancNum, ativos: semAtivos ? undefined : ativosNum, nutriTecace: semNutri ? undefined : nutriNum, usuario: usuarioLogado });
         setSalvando(false);
         if (erro) {
             console.error('Movimentação: erro ao gravar', erro);
@@ -200,10 +210,11 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
                             {/* Uma linha por pendência, dizendo exatamente o que colocar (pedido do dono, 05/11/2026) */}
                             <ul className="space-y-2">
                                 {!semAtivos && ativosNum === null && <li>👉 {tx('Você precisa colocar os ativos deste dia ({dia}).', { dia: ddmmDe(ate) })}</li>}
+                                {cobraNutri && nutriNum === null && <li>👉 {tx('Você precisa colocar o total de Nutri que aparece no Tecace até este dia ({dia}). Se não tem nenhum, digite 0.', { dia: ddmmDe(ate) })}</li>}
                                 {cancNum === null && <li>👉 {tx('Você precisa colocar o cancelamento até este dia ({dia}).', { dia: ddmmDe(ate) })}</li>}
                                 {fatNum === null && <li>👉 {tx('Você precisa colocar o faturamento até este dia ({dia}).', { dia: ddmmDe(ate) })}</li>}
                             </ul>
-                            <p className="mt-4 text-[14px] text-slate-500 dark:text-slate-400">{tx('A movimentação só é gravada com Ativos, Cancelamentos e Faturamento preenchidos corretamente.')}</p>
+                            <p className="mt-4 text-[14px] text-slate-500 dark:text-slate-400">{tx('A movimentação só é gravada com todos os campos preenchidos corretamente.')}</p>
                         </>
                     ) : (
                         <>
@@ -242,6 +253,14 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
                 </div>
             </LinhaMov>
             {semAtivos && <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">{tx('Para guardar os ativos de cada dia, rode o arquivo sql/2026-10-31-movimento-diario/3_campo_ativos.sql no Supabase. Até lá, o número vale para o mês.')}</p>}
+            <LinhaMov icone={Leaf} corIcone="text-emerald-600 dark:text-emerald-400" rotulo={tx('Nutri')} etiqueta={tx('total do mês no Tecace')}
+                dica={tx('Digite o TOTAL de planos Nutri do mês que aparece no Tecace (acumulado do mês, não só as renovações). O sistema separa sozinho o que já foi vendido aqui e o que é renovação do Tecace, e isso não gera comissão. Se não tem nenhum, digite 0.')}>
+                <div className="flex items-center gap-2">
+                    <Mais valor={maisNutri} cor="text-emerald-600 dark:text-emerald-400" />
+                    <input type="text" inputMode="numeric" aria-label={tx('Nutri')} value={nutri} onChange={(e) => setNutri(e.target.value)} disabled={!podeGravar || semNutri} className={`${caixaNumero} w-[72px] text-center`} />
+                </div>
+            </LinhaMov>
+            {semNutri && <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400">{tx('Para lançar o Nutri do Tecace, rode o arquivo sql/2026-11-17-nutri-tecace/1_campo_nutri_tecace.sql no Supabase.')}</p>}
             <LinhaMov icone={UserPlus} corIcone="text-emerald-600 dark:text-emerald-400" rotulo={tx('Entradas')} etiqueta={tx('automático')}
                 dica={tx('Planos vendidos (igual ao Dashboard; o PRATIQUE NUTRI é adicional e não entra).')}>
                 <div className="flex items-center gap-2">
@@ -267,7 +286,7 @@ export const MovimentacaoForm = ({ unidade, diaPedido, entradas, usuarioLogado, 
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>
                         {tx('Falta preencher: {campos}.', { campos: textoFaltando })}
-                        {' '}{tx('Sem os 3 campos, não dá para gravar.')}
+                        {' '}{tx('Sem todos os campos, não dá para gravar.')}
                     </span>
                 </p>
             )}
@@ -298,7 +317,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
     const porDia = useMemo(() => {
         const dentro = (d) => (!faixa?.inicio || d >= faixa.inicio) && (!faixa?.fim || d <= faixa.fim);
         const mapa = new Map();
-        const linhaDe = (d) => mapa.get(d) || mapa.set(d, { dia: d, ativos: null, ativosVar: null, entradas: 0, cancDia: null, cancAcum: null, fatDia: null, fatAcum: null, diasCobertos: 1 }).get(d);
+        const linhaDe = (d) => mapa.get(d) || mapa.set(d, { dia: d, ativos: null, ativosVar: null, nutri: null, nutriVar: null, entradas: 0, cancDia: null, cancAcum: null, fatDia: null, fatAcum: null, diasCobertos: 1 }).get(d);
         entradas.forEach((qtd, d) => { if (dentro(d)) linhaDe(d).entradas += qtd; });
         derivados.forEach(l => {
             if (!dentro(l.data)) return;
@@ -308,6 +327,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
             r.fatDia = somar(r.fatDia, l.faturamentoDia); r.fatAcum = somar(r.fatAcum, l.faturamentoAcum);
             r.diasCobertos = Math.max(r.diasCobertos, l.diasCobertos || 1);
             r.ativos = somar(r.ativos, l.ativos ?? null); r.ativosVar = somar(r.ativosVar, l.ativosVar ?? null);
+            r.nutri = somar(r.nutri, l.nutriTecace ?? null); r.nutriVar = somar(r.nutriVar, l.nutriVar ?? null);
         });
         return [...mapa.values()].map(r => ({ ...r, entradasAcum: entradasAcumuladasAte(entradas, r.dia) })).sort((a, b) => b.dia.localeCompare(a.dia));
     }, [entradas, derivados, faixa]);
@@ -329,10 +349,10 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                 {porDia.length === 0 ? (
                     <p className="text-center text-[13px] font-semibold text-slate-500 py-10 dark:text-slate-400">{tx('Nenhum movimento no período escolhido.')}</p>
                 ) : (
-                    <table className="w-full min-w-[640px] text-left border-collapse">
+                    <table className="w-full min-w-[700px] text-left border-collapse">
                         <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
                             <tr>
-                                {[['Dia', 'left'], ['Ativos', 'right'], ['Entradas', 'right'], ['Cancelamentos', 'right'], ['Saldo', 'right'], ['Faturamento', 'right'], ['', 'right']].map(([c, al], i) => (
+                                {[['Dia', 'left'], ['Ativos', 'right'], ['Nutri', 'right'], ['Entradas', 'right'], ['Cancelamentos', 'right'], ['Saldo', 'right'], ['Faturamento', 'right'], ['', 'right']].map(([c, al], i) => (
                                     <th key={i} className={`px-2 py-2.5 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:text-slate-400 text-${al}`}>
                                         {c ? tx(c) : <span className="sr-only">{tx('Editar')}</span>}
                                         {c === 'Saldo' && <Dica texto={tx('Saldo = entradas − cancelamentos do dia.')} />}
@@ -353,6 +373,10 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                                             <span className="block text-[13px] font-bold text-slate-800 dark:text-white">{r.ativos === null ? <span className="text-slate-400">—</span> : r.ativos}</span>
                                             {r.ativosVar !== null && <span className={`block text-[10px] font-black ${r.ativosVar < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>{sinal(r.ativosVar)}</span>}
                                         </td>
+                                        <td className="px-2 py-2 text-right tabular-nums whitespace-nowrap">
+                                            <span className="block text-[13px] font-bold text-emerald-700 dark:text-emerald-400">{r.nutri === null ? <span className="text-slate-400">—</span> : r.nutri}</span>
+                                            {r.nutriVar !== null && r.nutriVar !== 0 && <span className="block text-[10px] font-black text-emerald-600 dark:text-emerald-400">{sinal(r.nutriVar)}</span>}
+                                        </td>
                                         <Celula dia={r.entradas} acum={r.entradasAcum} cor="text-emerald-700 dark:text-emerald-400" />
                                         <Celula dia={r.cancDia} acum={r.cancAcum} cor="text-rose-700 dark:text-rose-300" />
                                         <td className={`px-2 py-2 text-[13px] font-black text-right tabular-nums ${saldo > 0 ? 'text-emerald-700 dark:text-emerald-400' : saldo < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-600 dark:text-slate-300'}`}>{sinal(saldo)}</td>
@@ -372,6 +396,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                         <tfoot>
                             <tr className="sticky bottom-0 bg-slate-50 dark:bg-slate-800">
                                 <td className="px-2 py-2.5 text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Total do período')}</td>
+                                <td />
                                 <td />
                                 <td className="px-2 py-2.5 text-[13px] font-black text-emerald-700 text-right tabular-nums dark:text-emerald-400"><ArrowUpRight className="w-3.5 h-3.5 inline mr-0.5" />{total.entradas}</td>
                                 <td className="px-2 py-2.5 text-[13px] font-black text-rose-700 text-right tabular-nums dark:text-rose-300"><ArrowDownRight className="w-3.5 h-3.5 inline mr-0.5" />{total.cancelamentos}</td>

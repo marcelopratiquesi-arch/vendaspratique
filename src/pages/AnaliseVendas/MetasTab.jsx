@@ -13,6 +13,7 @@ import { Target, Activity, Share2, Award, Zap, Loader2, Save, Check, Building2, 
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { infoDoMes, avaliarMeta } from './painel/calculosPainel.js';
+import { nutriDaUnidade } from './nutriTecace.js';
 
 // ==========================================
 // 🧠 COMPONENTE REUTILIZÁVEL: Input com Auto-Save (CORRIGIDO)
@@ -257,7 +258,8 @@ const MetasTab = ({
     temVisaoGlobal, filtroUnidade, filtroMes, filtroAno, vendasFiltradas, unidadesUnicas, usuarioLogado,
     metaNutri, setMetaNutri, metaProdutos, setMetaProdutos, metaPersonal, setMetaPersonal,
     metaAtivosMensal, setMetaAtivosMensal, metaNutriMensal, setMetaNutriMensal, metaPlusMensal, setMetaPlusMensal, metaPersMensal, setMetaPersMensal,
-    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro, vendasTodas = [], faixa = null
+    ativosAtual, setAtivosAtual, planos, produtos, abrirModalWhatsapp, tipoFiltro, vendasTodas = [], faixa = null,
+    nutriTecace = null // Nutri/Tecace (17/11/2026): Map UNIDADE → total do mês; null fora de um mês (só vendas do sistema)
 }) => {
     const { locale } = useI18n();
     const [metasDoBanco, setMetasDoBanco] = useState({});
@@ -476,7 +478,8 @@ const MetasTab = ({
         // Nutri = todo adicional Nutri (combos + PRATIQUE NUTRI) → mesmo conjunto de antes, valor da meta não muda.
         // Plus = todo plano com base Plus, inclusive PLUS + NUTRI e AFILIADOS PLUS + NUTRI. Personal = base Personal.
         const contagem = contarPlanosDoCard(vendasDaUnidade, planos, produtos);
-        const nutriRealizado = contagem.nutri.total;
+        // Nutri da meta = vendas do sistema + adicional Tecace (só quando o período é um mês; comissão não muda)
+        const nutriRealizado = nutriDaUnidade(nutriTecace, unidade, contagem.nutri.total).total;
         const plusRealizado = contagem.grupos.PLUS.total;
         const personalRealizado = contagem.grupos['PERSONAL CLASS'].total;
         // Produto físico: cada item vendido, com o limite de doses únicas da unidade (limiteDoses.js)
@@ -678,7 +681,7 @@ const MetasTab = ({
                 </div>
             ) : podeFazer(usuarioLogado, '310') ? (
                 // Admin/Mentor em "Todas": monitoramento de quem lançou a movimentação (decisão do dono, 31/10/2026)
-                <MonitorMovimentacao unidades={unidadesUnicas.filter(u => u && u !== 'TODOS')} faixa={faixa} vendasFiltradas={vendasFiltradas} planos={planos} produtos={produtos} abrirModalWhatsapp={abrirModalWhatsapp} usuario={usuarioLogado} />
+                <MonitorMovimentacao nutriTecace={nutriTecace} unidades={unidadesUnicas.filter(u => u && u !== 'TODOS')} faixa={faixa} vendasFiltradas={vendasFiltradas} planos={planos} produtos={produtos} abrirModalWhatsapp={abrirModalWhatsapp} usuario={usuarioLogado} />
             ) : (
                 <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-12 flex flex-col items-center justify-center text-center mb-8 dark:bg-slate-900 dark:border-slate-800">
                     <div className="w-20 h-20 bg-slate-50 border border-slate-200 rounded-[20px] flex items-center justify-center mb-6 shadow-sm dark:bg-slate-800/60 dark:border-slate-800">

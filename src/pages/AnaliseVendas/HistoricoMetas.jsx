@@ -8,6 +8,7 @@ import { supabase } from '../../supabaseClient.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { contarPlanosDoCard, getCategoriaItem, safeIsoDate } from './utils.js';
 import { aplicarLimiteDoses, qtdValidaProduto } from './limiteDoses.js';
+import { consolidarNutri, tecaceVigentePorMes } from './nutriTecace.js';
 
 const VALOR_INDICADOR = 50;
 const nomeMes = (ano, mes) => new Date(Number(ano), Number(mes) - 1, 1).toLocaleDateString(localeAtual(), { month: 'short', year: 'numeric' });
@@ -26,6 +27,7 @@ const Celula = ({ meta, realizado }) => {
 const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) => {
     const [metas, setMetas] = useState([]);
     const [vendas, setVendas] = useState([]);
+    const [tecace, setTecace] = useState(new Map()); // 'AAAA-MM|UNIDADE' → total do mês no Tecace (só meses com lançamento)
     const [carregando, setCarregando] = useState(true);
     const u = String(unidade || '').toUpperCase();
 
@@ -53,7 +55,15 @@ const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) =
                     if (!data || data.length < 1000) break;
                 }
             }
+            // Nutri/Tecace (17/11/2026): só os meses que têm lançamento usam o consolidado; os demais ficam como estavam
+            let mapaTecace = new Map();
+            if (anteriores.length) {
+                const { data: movs, error: e3 } = await supabase.from('movimento_diario').select('unidade, data, nutri_tecace').eq('unidade', u)
+                    .gte('data', `${anteriores[anteriores.length - 1].chave}-01`).lt('data', `${mesAtual}-01`).not('nutri_tecace', 'is', null);
+                if (!e3) mapaTecace = tecaceVigentePorMes(movs || []);
+            }
             if (!ativo) return;
+            setTecace(mapaTecace);
             setMetas(anteriores);
             setVendas(todas);
             setCarregando(false);
@@ -68,7 +78,7 @@ const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) =
             const contagem = contarPlanosDoCard(doMes, planos, produtos);
             let prod = 0;
             doMes.forEach(v => { if (getCategoriaItem(v.produto, planos, produtos) === 'PRODUTO') prod += qtdValidaProduto(v, doses); });
-            const r = { nutri: contagem.nutri.total, plus: contagem.grupos.PLUS?.total || 0, personal: contagem.grupos['PERSONAL CLASS']?.total || 0, produto: prod, ativos: Number(m.ativos_atual) || 0 };
+            const r = { nutri: consolidarNutri(contagem.nutri.total, tecace.get(`${m.chave}|${u}`)).total, plus: contagem.grupos.PLUS?.total || 0, personal: contagem.grupos['PERSONAL CLASS']?.total || 0, produto: prod, ativos: Number(m.ativos_atual) || 0 };
             const bate = (meta, real) => Number(meta) > 0 && real >= Number(meta);
             const start = [['meta_nutri', r.nutri], ['meta_produtos', r.produto], ['meta_personal', r.personal]].filter(([c]) => Number(m[c]) > 0);
             const mensal = [['meta_ativos_mensal', r.ativos], ['meta_nutri_mensal', r.nutri], ['meta_plus_mensal', r.plus], ['meta_pers_mensal', r.personal]].filter(([c]) => Number(m[c]) > 0);
@@ -80,7 +90,7 @@ const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) =
                 indicadores: mensal.length,
             };
         });
-    }, [metas, vendas, planos, produtos, tipo]);
+    }, [metas, vendas, planos, produtos, tipo, tecace, u]);
 
     const th = 'px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 text-center dark:text-slate-400';
     return (

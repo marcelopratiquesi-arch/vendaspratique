@@ -127,6 +127,16 @@ export const derivarMovimento = (linhas = []) => {
         l.ativosVar = valor !== null && antes !== null ? valor - antes : null;
         if (valor !== null) ultimoAtivos.set(u, valor);
     });
+    // NUTRI / TECACE (17/11/2026): total do MÊS no Tecace (acumulado, igual ao faturamento). nutriVar = quanto subiu desde o
+    // lançamento anterior do mesmo mês (o 1º do mês = o próprio valor). Os dias nunca se somam.
+    const ultimoNutri = new Map();
+    saida.forEach(l => {
+        const chave = `${String(l.unidade).toUpperCase()}|${String(l.data).slice(0, 7)}`;
+        const valor = l.nutri_tecace === null || l.nutri_tecace === undefined ? null : Number(l.nutri_tecace);
+        l.nutriTecace = valor;
+        l.nutriVar = valor === null ? null : valor - (ultimoNutri.has(chave) ? ultimoNutri.get(chave) : 0);
+        if (valor !== null) ultimoNutri.set(chave, valor);
+    });
     return saida;
 };
 // Último ativos lançado de uma unidade antes de um dia (para o "+X" do card)
@@ -156,6 +166,7 @@ export const useMovimentoDiario = ({ unidade, faixa }) => {
     // Desde o dia 1º do MÊS ANTERIOR ao início: diferença do 1º dia do período e "+X" dos ativos no dia 1º
     const inicio = faixa?.inicio ? (() => { const d = new Date(`${faixa.inicio.slice(0, 8)}01T12:00:00`); d.setMonth(d.getMonth() - 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`; })() : null;
     const [semAtivos, setSemAtivos] = useState(false);
+    const [semNutri, setSemNutri] = useState(false); // falta o campo nutri_tecace no banco
     const fim = faixa?.fim || null;
 
     useEffect(() => {
@@ -169,7 +180,12 @@ export const useMovimentoDiario = ({ unidade, faixa }) => {
                 if (fim) q = q.lte('data', fim);
                 return q;
             };
-            let { data, error } = await consultar('unidade, data, faturamento, cancelamentos, ativos, atualizado_por, atualizado_em');
+            let { data, error } = await consultar('unidade, data, faturamento, cancelamentos, ativos, nutri_tecace, atualizado_por, atualizado_em');
+            // Campo "nutri_tecace" ainda não criado (falta rodar sql/2026-11-17-nutri-tecace): lê sem ele
+            if (error && /nutri_tecace/i.test(error.message || '')) {
+                if (ativo) setSemNutri(true);
+                ({ data, error } = await consultar('unidade, data, faturamento, cancelamentos, ativos, atualizado_por, atualizado_em'));
+            } else if (!error && ativo) setSemNutri(false);
             // Campo "ativos" ainda não criado (falta rodar 3_campo_ativos.sql): lê sem ele
             if (error && /ativos/i.test(error.message || '')) {
                 console.warn('Movimentação: falta rodar sql/2026-10-31-movimento-diario/3_campo_ativos.sql');
@@ -199,11 +215,11 @@ export const useMovimentoDiario = ({ unidade, faixa }) => {
     }, [unidadeFixa, recarregar]);
 
     const derivados = useMemo(() => derivarMovimento(linhas), [linhas]);
-    return { linhas, derivados, carregando, semTabela, semAtivos, recarregar };
+    return { linhas, derivados, carregando, semTabela, semAtivos, semNutri, recarregar };
 };
 
 // Grava (cria ou atualiza) o acumulado do mês até um dia. Devolve o erro (ou null).
-export const salvarMovimentoDia = async ({ unidade, data, faturamento, cancelamentos, ativos, usuario }) => {
+export const salvarMovimentoDia = async ({ unidade, data, faturamento, cancelamentos, ativos, nutriTecace, usuario }) => {
     const payload = {
         unidade: String(unidade || '').toUpperCase(),
         data,
@@ -211,6 +227,8 @@ export const salvarMovimentoDia = async ({ unidade, data, faturamento, cancelame
         cancelamentos: cancelamentos === null || Number.isNaN(cancelamentos) ? null : cancelamentos,
         // ativos só vai quando o campo existe no banco (undefined = não mexe)
         ...(ativos !== undefined ? { ativos: ativos === null || Number.isNaN(ativos) ? null : ativos } : {}),
+        // nutri_tecace (total do mês no Tecace) só vai quando o campo existe no banco (undefined = não mexe)
+        ...(nutriTecace !== undefined ? { nutri_tecace: nutriTecace === null || Number.isNaN(nutriTecace) ? null : nutriTecace } : {}),
         atualizado_por: usuario?.nome || null,
         atualizado_em: new Date().toISOString(),
     };
