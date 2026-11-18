@@ -504,7 +504,7 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                     opcoesSetor={opcoesSetor}
                 />
             )}
-            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} colaboradores={colaboradores} />}
+            {abaMostrada === 'comissoes' && <ComissoesTab dadosTabelaComissoes={comissoesDoSetor.linhas} colaboradores={colaboradores} rotuloPeriodo={periodo.rotulo} />}
             {abaMostrada === 'auditoria' && <AuditoriaTab dadosTabelaAuditoria={dadosTabelaAuditoria} totais={totaisAuditoria} rotuloPeriodo={periodo.rotulo} inicioIso={inicioIso} fimIso={fimIso} colaboradores={colaboradores} onAbrirUnidade={abrirConferenciaDaUnidade} />}
             {abaMostrada === 'geral' && <VisaoGeralTab vendas={vendas} unidadesPermitidas={unidadesPermitidas} filtroUnidade={temVisaoGlobal ? filtroUnidadeIsolada : 'TODOS'} mesReferencia={mesReferencia} temVisaoGlobal={temVisaoGlobal} unidadeUsuario={usuarioLogado?.unidade} passaSetor={passaSetor} />}
         </div>

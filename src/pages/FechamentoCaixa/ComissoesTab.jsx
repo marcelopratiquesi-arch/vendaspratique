@@ -58,7 +58,7 @@ const CopyButton = ({ textToCopy, label }) => {
     );
 };
 
-const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [] }) => {
+const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [], rotuloPeriodo = '' }) => {
     const [reciboDe, setReciboDe] = useState(null);
     const [expandedRow, setExpandedRow] = useState(null);
     const [copiadoId, setCopiadoId] = useState(null);
@@ -412,6 +412,7 @@ const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [] }) => {
             {reciboDe && (
                 <ReciboComissao
                     row={reciboDe}
+                    periodo={rotuloPeriodo}
                     unidade={reciboDe.unidadeRecibo || reciboDe.colaborador?.unidade || ''}
                     lider={lideresDaUnidade(colaboradores, reciboDe.unidadeRecibo || reciboDe.colaborador?.unidade)[0]?.nome || ''}
                     onFechar={() => setReciboDe(null)}

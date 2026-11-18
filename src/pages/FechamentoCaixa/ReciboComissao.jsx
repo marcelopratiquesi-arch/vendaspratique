@@ -20,12 +20,12 @@ const CSS_IMPRESSAO = `
   body > *:not(#recibo-overlay) { display: none !important; }
   #recibo-overlay { position: static !important; background: #fff !important; padding: 0 !important; overflow: visible !important; display: block !important; }
   #recibo-overlay .recibo-barra { display: none !important; }
-  #recibo-folha { box-shadow: none !important; border: 0 !important; margin: 0 auto !important; max-width: none !important; padding: 0 !important; }
-  @page { size: A4; margin: 12mm; }
+  #recibo-folha { box-shadow: none !important; border: 0 !important; margin: 0 auto !important; max-width: none !important; width: 100% !important; box-sizing: border-box !important; padding: 22mm 24mm !important; border-radius: 0 !important; }
+  @page { size: A4; margin: 0; }
 }`;
 
 // Recibo de pagamento de comissão de UM consultor. Só leitura: usa os mesmos números da tabela de Comissões.
-const ReciboComissao = ({ row, unidade, lider, onFechar }) => {
+const ReciboComissao = ({ row, unidade, lider, periodo, onFechar }) => {
     useEffect(() => {
         const esc = (e) => { if (e.key === 'Escape') onFechar(); };
         window.addEventListener('keydown', esc);
@@ -40,6 +40,11 @@ const ReciboComissao = ({ row, unidade, lider, onFechar }) => {
     const nomeRecebedora = nomeProprio(row.vendedor);
     const nomeLider = lider ? nomeProprio(nomeCurto(lider)) : '';
     const unidadeTxt = nomeProprio(unidade);
+
+    const hoje = new Date().toLocaleDateString('pt-BR');
+    const cpfDig = String(row.cpf || '').replace(/D/g, '');
+    const cpfTxt = cpfDig.length === 11 ? cpfDig.replace(/(d{3})(d{3})(d{3})(d{2})/, '$1.$2.$3-$4') : '';
+    const pagamentoTxt = row.tipo_conta === 'INTER' && row.conta_inter ? `Banco Inter · conta ${row.conta_inter}` : row.tipo_conta === 'PIX_CPF' ? 'PIX (chave CPF)' : '';
 
     const th = { padding: '8px 10px', textAlign: 'left', fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: '#fff', fontWeight: 700 };
     const td = { padding: '7px 10px', fontSize: 12, color: '#334155', borderBottom: '1px solid #e2e8f0' };
@@ -63,6 +68,7 @@ const ReciboComissao = ({ row, unidade, lider, onFechar }) => {
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 26, fontWeight: 800, color: '#1e3a5f', letterSpacing: 0.5 }}>RECIBO DE PAGAMENTO</div>
                     <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>Unidade Pratique {unidadeTxt}</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{periodo ? `Período: ${periodo} · ` : ''}Emitido em {hoje}</div>
                 </div>
 
                 <div style={{ marginTop: 24, border: '1px solid #cbd5e1', background: '#f1f5f9', padding: '10px 16px', textAlign: 'center' }}>
@@ -73,12 +79,14 @@ const ReciboComissao = ({ row, unidade, lider, onFechar }) => {
 
                 <div style={{ marginTop: 24, fontSize: 13, lineHeight: 1.7 }}>
                     <div>Recebedora: <b>{nomeRecebedora}</b></div>
+                    {cpfTxt && <div>CPF: <b>{cpfTxt}</b></div>}
+                    {pagamentoTxt && <div>Forma de pagamento: <b>{pagamentoTxt}</b></div>}
                     <div>Unidade: <b>Pratique {unidadeTxt}</b></div>
                     <div>Responsável pela conferência: <b>{nomeLider || '________________'}</b></div>
                 </div>
 
                 <p style={{ marginTop: 18, fontSize: 12.5, lineHeight: 1.6, color: '#334155' }}>
-                    Referente ao valor apurado nos lançamentos de vendas de planos e produtos informados na relação da unidade, conforme discriminação abaixo.
+                    Referente às comissões apuradas no Sistema Pratique Vendas, com base nos lançamentos de planos, produtos e serviços da unidade, já conferidos pelo responsável, conforme discriminação abaixo.
                 </p>
 
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 12 }}>
@@ -109,7 +117,7 @@ const ReciboComissao = ({ row, unidade, lider, onFechar }) => {
                 </table>
 
                 <p style={{ marginTop: 22, fontSize: 12.5, lineHeight: 1.6, color: '#334155' }}>
-                    Declaro, para os devidos fins, que o valor acima descrito corresponde ao montante apurado para pagamento referente aos lançamentos discriminados neste recibo. A confirmação do recebimento deverá ocorrer mediante assinatura abaixo.
+                    Declaro ter recebido da Pratique {unidadeTxt} o valor acima, referente às comissões de vendas discriminadas neste recibo, dando plena quitação do período indicado. A confirmação do recebimento ocorre mediante assinatura abaixo.
                 </p>
 
                 <div style={{ marginTop: 26, fontSize: 13 }}>Data do pagamento: ____ / ____ / ________</div>
@@ -124,6 +132,7 @@ const ReciboComissao = ({ row, unidade, lider, onFechar }) => {
                         <div style={{ fontSize: 11, color: '#64748b' }}>Responsável pelo pagamento · Assinatura</div>
                     </div>
                 </div>
+                <div style={{ marginTop: 28, textAlign: 'center', fontSize: 10, color: '#94a3b8' }}>Documento gerado pelo Sistema Pratique Vendas · Vendas conferidas no sistema</div>
             </div>
         </div>,
         document.body
