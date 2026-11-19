@@ -15,6 +15,16 @@ export const avisarContatos = (eventos) => {
     try { window.dispatchEvent(new CustomEvent(EVENTO_CONTATOS, { detail: eventos })); } catch { /* sem janela */ }
 };
 
+// Unidade do "ao vivo" (economia de dados, 19/11/2026): com uma unidade escolhida no topo, o App só recebe as mudanças
+// DAQUELA unidade. As listas do CRM guardadas de OUTRAS unidades deixam de ser atualizadas, então o CRM as esquece
+// (na próxima vez que forem abertas, são baixadas de novo). '' = todas as unidades (recebe tudo, não esquece nada).
+export const EVENTO_UNIDADE_AO_VIVO = 'pratique:unidade-ao-vivo';
+
+/** App → CRM: de qual unidade o "ao vivo" está recebendo agora ('' = todas). */
+export const avisarUnidadeAoVivo = (unidade) => {
+    try { window.dispatchEvent(new CustomEvent(EVENTO_UNIDADE_AO_VIVO, { detail: unidade || '' })); } catch { /* sem janela */ }
+};
+
 /** App → CRM: "recarregue a lista inteira" (pode ter perdido avisos). */
 export const pedirRecargaContatos = () => {
     try { window.dispatchEvent(new Event(EVENTO_CONTATOS_RECARREGAR)); } catch { /* sem janela */ }

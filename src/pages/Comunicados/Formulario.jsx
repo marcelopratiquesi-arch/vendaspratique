@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { reduzirImagem } from '../../components/reduzirImagem.js';
 
 export default function FormularioComunicado({ usuarioLogado, unidades = [], onVoltar, onSalvo }) {
     const { t } = useI18n();
@@ -147,8 +148,10 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             const emailReal = user.email;
 
             // Função helper de upload
-            const uploadMidia = async (arquivo, prefixo) => {
-                if (!arquivo) return null;
+            const uploadMidia = async (arquivoOriginal, prefixo) => {
+                if (!arquivoOriginal) return null;
+                // Imagem diminuída antes de guardar (19/11/2026); PDF e vídeo ficam iguais
+                const arquivo = await reduzirImagem(arquivoOriginal);
                 const ext = arquivo.name.split('.').pop();
                 const nome = `${prefixo}_${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
                 const { error } = await supabase.storage.from('comunicados-media').upload(nome, arquivo);

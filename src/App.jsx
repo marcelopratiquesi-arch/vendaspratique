@@ -15,7 +15,7 @@ import { MINUTOS_PARA_PAUSAR, SEGUNDOS_DE_AVISO, pausarSistema, sistemaPausado, 
 import { buscarPerfilDoLogin, lerLugarSalvo, salvarLugar, esquecerLugar, lerLocal, gravarLocal } from './components/sessaoLogin.js';
 import ProtecaoTela from './components/ProtecaoTela.jsx';
 import AvisoConexao from './components/AvisoConexao.jsx';
-import { avisarContatos, pedirRecargaContatos, ehContatoDeLista, ORIGENS_DE_LISTA } from './components/aoVivoContatos.js';
+import { avisarContatos, pedirRecargaContatos, avisarUnidadeAoVivo, ehContatoDeLista, ORIGENS_DE_LISTA } from './components/aoVivoContatos.js';
 import BlockingGate from './components/BlockingGate/index.jsx';
 
 import LancamentoVendas from './pages/Lancamentos/index.jsx';
@@ -705,10 +705,24 @@ export default function App() {
         // Contatos: recarregar tudo = a lista do App e a do CRM (aoVivoContatos.js)
         const recarregarLeads = (ativo) => { fetchLeads(ativo); pedirRecargaContatos(); };
 
-        const realtimeChannel = supabase.channel('sistema-pratique-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, encaixar('vendas', setDadosAssinaturas, fetchVendas, fetchAlunosEspecificos))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, encaixar('leads', setDadosVisitantes, recarregarLeads, null, (l) => !ehContatoDeLista(l), avisarContatos))
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'avaliacoes_realizadas' }, encaixar('avaliacoes', setDadosAvaliacoes, fetchAvaliacoes, fetchAlunosEspecificos))
+        // ECONOMIA DE DADOS (19/11/2026, decisão do dono): com uma unidade escolhida (ou Líder/Recepção), o banco manda
+        // só as mudanças DAQUELA unidade (antes mandava as da rede inteira para cada computador, que jogava fora).
+        // Na visão "Todas", recebe tudo como antes. Exclusão não pode ser filtrada no Supabase: vem de todas as
+        // unidades, mas só com o número da linha (leve). O CRM esquece as listas guardadas de outras unidades.
+        const filtroUnidade = deveFiltrar && unidadeFiltro ? `unidade=eq.${unidadeFiltro}` : null;
+        avisarUnidadeAoVivo(filtroUnidade ? unidadeFiltro : '');
+        const escutar = (canal, tabela, aoAviso) => {
+            if (!filtroUnidade) return canal.on('postgres_changes', { event: '*', schema: 'public', table: tabela }, aoAviso);
+            return canal
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: tabela, filter: filtroUnidade }, aoAviso)
+                .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: tabela, filter: filtroUnidade }, aoAviso)
+                .on('postgres_changes', { event: 'DELETE', schema: 'public', table: tabela }, aoAviso);
+        };
+        let realtimeChannel = supabase.channel('sistema-pratique-realtime');
+        realtimeChannel = escutar(realtimeChannel, 'vendas', encaixar('vendas', setDadosAssinaturas, fetchVendas, fetchAlunosEspecificos));
+        realtimeChannel = escutar(realtimeChannel, 'leads', encaixar('leads', setDadosVisitantes, recarregarLeads, null, (l) => !ehContatoDeLista(l), avisarContatos));
+        realtimeChannel = escutar(realtimeChannel, 'avaliacoes_realizadas', encaixar('avaliacoes', setDadosAvaliacoes, fetchAvaliacoes, fetchAlunosEspecificos));
+        realtimeChannel = realtimeChannel
             .on('postgres_changes', { event: '*', schema: 'public', table: 'colaboradores' }, agendar('colaboradores', fetchColaboradores))
             .subscribe((status) => {
                 // Aviso de conexão: o "ao vivo" caiu (o Supabase tenta voltar sozinho). CLOSED não conta: é a própria

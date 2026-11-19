@@ -12,6 +12,7 @@ import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.js
 import { pendenciasCadastroAluno } from '../Alunos/utils.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { reduzirImagem } from '../../components/reduzirImagem.js';
 
 const IconBraco = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.2 10.4a4.1 4.1 0 0 0-1.8-1.8 19 19 0 0 0-6.1-1.7c-2.4-.3-4.6-.2-6.5.6a4.1 4.1 0 0 0-2.3 2.3 4.1 4.1 0 0 0 .5 3.6c.9 1.4 2.5 2.4 4.5 2.8 1.9.4 4.1.2 6.5-.6.5-.2 1-.3 1.5-.5.6-.2 1.3-.4 1.9-.7a11.1 11.1 0 0 0 3-2 4 4 0 0 0 .6-3.8z" /></svg>);
 const IconPerna = ({ className }) => (<svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v9l-3 4-2 6h4l1-3 3-1V2h-3z" /></svg>);
@@ -350,9 +351,11 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
             let urlArquivoInBody = avaliacaoEditando?.arquivo_inbody_url || null;
 
             if (arquivoInBody && arquivoInBody instanceof File) {
-                const extensao = arquivoInBody.name.split('.').pop();
+                // Foto do exame: diminuída antes de guardar (19/11/2026); 2000 px mantém os números do exame legíveis. PDF fica igual.
+                const arquivoParaGuardar = await reduzirImagem(arquivoInBody, { ladoMaximo: 2000, qualidade: 0.85 });
+                const extensao = arquivoParaGuardar.name.split('.').pop();
                 const nomeArquivo = `${alunoEncontrado.id}_${Date.now()}.${extensao}`;
-                const { data: uploadData, error: uploadError } = await supabase.storage.from('exames_inbody').upload(`avaliacoes/${nomeArquivo}`, arquivoInBody);
+                const { data: uploadData, error: uploadError } = await supabase.storage.from('exames_inbody').upload(`avaliacoes/${nomeArquivo}`, arquivoParaGuardar);
                 if (uploadError) {
                     console.error("Erro ao subir arquivo no Storage:", uploadError);
                     avisar(tx("A avaliação será salva, mas houve um erro ao guardar o anexo PDF/Imagem. Confirme as permissões do Bucket."));

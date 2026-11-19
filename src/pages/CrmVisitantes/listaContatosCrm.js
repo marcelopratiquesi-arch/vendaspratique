@@ -14,7 +14,7 @@
 // Download em paralelo: 6 pedidos de 1.000 ao mesmo tempo.
 // ==========================================
 import { supabase } from '../../supabaseClient.js';
-import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR } from '../../components/aoVivoContatos.js';
+import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR, EVENTO_UNIDADE_AO_VIVO } from '../../components/aoVivoContatos.js';
 
 export const DIAS_CORTE_APP = 90;
 export const STATUS_ENCERRADOS = ['Fechado', 'Arquivado'];
@@ -61,6 +61,20 @@ export const esquecerListas = () => guardadas.clear();
 
 /** Regra da lista (para a tela encaixar os avisos do tempo real com o mesmo critério). */
 export const ficaNaLista = (tipo, unidade, lead) => Boolean(lead) && REGRAS[tipo](lead, unidade);
+
+/** Esquece as listas que não são da unidade pedida (inclusive o resumo de todas as unidades). */
+export const esquecerListasForaDe = (unidade) => {
+    const alvo = String(unidade || '').toUpperCase().trim();
+    if (!alvo) return;
+    [...guardadas.entries()].forEach(([chave, g]) => {
+        if (String(g.unidade || '').toUpperCase().trim() !== alvo) guardadas.delete(chave);
+    });
+};
+
+// O "ao vivo" do App passou a receber só uma unidade: as listas das outras deixam de ficar em dia (aoVivoContatos.js)
+if (typeof window !== 'undefined') {
+    window.addEventListener(EVENTO_UNIDADE_AO_VIVO, (e) => esquecerListasForaDe(e?.detail));
+}
 
 // Avisos do tempo real: mantêm as listas guardadas em dia, mesmo com o CRM fechado
 if (typeof window !== 'undefined') {

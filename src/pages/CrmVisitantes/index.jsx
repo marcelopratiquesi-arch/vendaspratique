@@ -32,6 +32,8 @@ import { avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas
 
 // Mudanças feitas por outras pessoas (tempo real) recarregam os números no máximo 1 vez por minuto
 const INTERVALO_ATUALIZACAO = 60000;
+// "Não contatar" e mensagens prontas: no máximo a cada 10 minutos (economia de dados, 19/11/2026)
+const INTERVALO_LISTAS_LENTAS = 10 * 60 * 1000;
 // Ações que contam na meta diária (a meta soma PESSOAS diferentes que receberam alguma dessas ações) (puxar fila, capturar e importar não contam)
 const ACOES_DA_META = ['WhatsApp', 'Ligação', 'Observação', 'Mudança de Fase'];
 
@@ -52,6 +54,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const [versaoDados, setVersaoDados] = useState(0);
     const ultimaAtualizacao = useRef(0);
     const timerVersao = useRef(null);
+    // "Parado há X dias": id do contato → quando o histórico dele foi lido (ISO). Ver o efeito de idsCarteira.
+    const acoesLidasEm = useRef(new Map());
     const marcarMudancaDeFora = useCallback(() => {
         if (timerVersao.current) return; // já tem atualização marcada
         const espera = Math.max(1500, ultimaAtualizacao.current + INTERVALO_ATUALIZACAO - Date.now());
@@ -85,15 +89,29 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     useEffect(() => { listaProntaRef.current = listaPronta; }, [listaPronta]);
     // Barra de progresso da carga: quantos já chegaram de quantos (o total vem na 1ª página)
     const [progressoCarga, setProgressoCarga] = useState({ feitos: 0, total: null });
+    // Listas que quase não mudam ("Não contatar" e mensagens prontas): antes eram baixadas de novo a cada atualização
+    // (até 1 vez por minuto). Desde 19/11/2026 (economia de dados, decisão do dono): ao abrir o CRM, no máximo a cada
+    // 10 minutos junto com as atualizações, no "Atualizar" e na hora quando a própria pessoa muda o "Não contatar".
+    const [versaoListasLentas, setVersaoListasLentas] = useState(0);
+    const listasLentasLidasEm = useRef(Date.now());
+    useEffect(() => {
+        if (Date.now() - listasLentasLidasEm.current < INTERVALO_LISTAS_LENTAS) return;
+        listasLentasLidasEm.current = Date.now();
+        setVersaoListasLentas(v => v + 1);
+    }, [versaoDados]);
+
     const atualizarAgora = useCallback(() => {
         esquecerListas();
+        acoesLidasEm.current = new Map(); // "Parado há X dias": lê o histórico inteiro de novo
         ultimaAtualizacao.current = Date.now();
+        listasLentasLidasEm.current = Date.now();
+        setVersaoListasLentas(v => v + 1);
         setVersaoDados(v => v + 1);
         setVersaoRecarga(v => v + 1);
     }, []);
 
     // Mensagens prontas do WhatsApp (versões do embaralhador): carrega ao abrir o CRM para o Kanban/Lista/Hoje usarem
-    useEffect(() => { carregarMensagensProntas(); }, [versaoDados]);
+    useEffect(() => { carregarMensagensProntas(); }, [versaoListasLentas]);
 
     // Avisos do tempo real (repassados pelo App): encaixa só o contato que mudou, com a mesma regra da lista na tela
     useEffect(() => {
@@ -263,6 +281,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
 
     // "Parado há X dias" (Bloco 4): data da última ação de cada contato da carteira (Novo/Em Contato), lida do histórico.
     // A lista de ids vira texto para só buscar de novo quando a carteira mudar (ou a cada atualização dos dados).
+    // ECONOMIA DE DADOS (19/11/2026, decisão do dono): antes, a cada atualização (até 1 vez por minuto, com qualquer
+    // mudança na rede) baixava de novo o histórico INTEIRO da carteira (até 300 contatos). Agora o contato que ainda
+    // não foi lido é lido inteiro uma vez; os já lidos só buscam as ações NOVAS desde a última leitura deles.
+    // "Atualizar" (atualizarAgora) esquece tudo e lê inteiro de novo.
     const [ultimasAcoes, setUltimasAcoes] = useState({ carregado: false, mapa: {} });
     const idsCarteira = useMemo(() => (consultorAtivo
         ? visitantes.filter(v => v.puxado_em && mesmoNome(v.puxado_por, consultorAtivo.nome) && ['Novo', 'Em Contato'].includes(v.status)).map(v => String(v.id)).sort().join(',')
@@ -272,19 +294,39 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         let cancelado = false;
         (async () => {
             const ids = idsCarteira.split(',');
+            const lidasEm = acoesLidasEm.current;
+            // Margem de 2 minutos para diferença de relógio entre o computador e o banco
+            const marcaDestaLeitura = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+            const novos = ids.filter(id => !lidasEm.has(id));
+            const jaLidos = ids.filter(id => lidasEm.has(id));
+            const desdeJaLidos = jaLidos.reduce((menor, id) => (!menor || lidasEm.get(id) < menor ? lidasEm.get(id) : menor), null);
             const mapa = {};
-            // De 100 em 100 contatos (cada um pode ter muitas ações no histórico)
-            for (let i = 0; i < ids.length; i += 100) {
-                const { data, error } = await supabase.from('historico_leads').select('lead_id, data_registro')
-                    .in('lead_id', ids.slice(i, i + 100))
-                    .in('tipo_acao', ACOES_QUE_TIRAM_DO_PARADO)
-                    .order('data_registro', { ascending: false })
-                    .limit(5000);
-                if (cancelado) return;
-                if (error) { console.error('Erro ao ler a última ação dos contatos (parado há X dias):', error); return; }
-                (data || []).forEach(h => { if (!mapa[h.lead_id]) mapa[h.lead_id] = h.data_registro; });
-            }
-            if (!cancelado) setUltimasAcoes(prev => ({ carregado: true, mapa: { ...prev.mapa, ...mapa } }));
+            const ler = async (lista, desde) => {
+                // De 100 em 100 contatos (cada um pode ter muitas ações no histórico)
+                for (let i = 0; i < lista.length; i += 100) {
+                    let consulta = supabase.from('historico_leads').select('lead_id, data_registro')
+                        .in('lead_id', lista.slice(i, i + 100))
+                        .in('tipo_acao', ACOES_QUE_TIRAM_DO_PARADO);
+                    if (desde) consulta = consulta.gte('data_registro', desde);
+                    const { data, error } = await consulta.order('data_registro', { ascending: false }).limit(5000);
+                    if (cancelado) return false;
+                    if (error) { console.error('Erro ao ler a última ação dos contatos (parado há X dias):', error); return false; }
+                    (data || []).forEach(h => { if (!mapa[h.lead_id]) mapa[h.lead_id] = h.data_registro; });
+                }
+                return true;
+            };
+            if (!(await ler(novos, null))) return;
+            if (jaLidos.length && !(await ler(jaLidos, desdeJaLidos))) return;
+            if (cancelado) return;
+            ids.forEach(id => lidasEm.set(id, marcaDestaLeitura));
+            // Só troca a data se a nova for mais recente (a leitura parcial não traz as ações antigas)
+            setUltimasAcoes(prev => {
+                const novoMapa = { ...prev.mapa };
+                Object.entries(mapa).forEach(([id, data]) => {
+                    if (!novoMapa[id] || Date.parse(data) > Date.parse(novoMapa[id])) novoMapa[id] = data;
+                });
+                return { carregado: true, mapa: novoMapa };
+            });
         })();
         return () => { cancelado = true; };
     }, [idsCarteira, versaoDados]);
@@ -369,7 +411,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         let cancelado = false;
         carregarNaoContatar().then(lista => { if (!cancelado) setNaoContatar(lista); });
         return () => { cancelado = true; };
-    }, [versaoDados, versaoNaoContatar]);
+    }, [versaoListasLentas, versaoNaoContatar]);
     const aoColocarNaoContatar = useCallback((pessoa) => {
         setNaoContatar(prev => incluirNaoContatar(prev, { cpf: pessoa?.cpf, leadId: pessoa?.lead_id || (pessoa?.id ? String(pessoa.id) : null), alunoId: pessoa?.aluno_id }));
         setVersaoNaoContatar(v => v + 1);
