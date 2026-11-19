@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Settings, Shield, KeyRound, UserPlus, Globe } from 'lucide-react';
+import { Settings, Shield, KeyRound, UserPlus, Globe, DatabaseBackup } from 'lucide-react';
+import AbaBackup from './AbaBackup.jsx';
+import { EVENTO_ABRIR_BACKUP, consumirPedidoBackup } from './backup.js';
 import { supabase, conexaoParaCriarLogin } from '../../supabaseClient.js';
 import ModalUnidadesMentor from '../../components/Modals/ModalUnidadesMentor.jsx';
 import AbaPermissoes from '../../permissoes/AbaPermissoes.jsx';
@@ -19,8 +21,14 @@ import { mudarSituacao } from '../../components/acesso/acessoBanco.js';
 //   unidades do Mentor em mentor_unidades). Novo: Editar sem redigitar a senha e o atalho "Permissões deste login".
 // ==========================================
 
-const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidadesAcesso = [] }) => {
-    const [abaAtiva, setAbaAtiva] = useState('logins'); // 'logins' | 'permissoes'
+const Configuracoes = ({ unidades = [], emailLogado = '', nomeLogado = '', acessos = null, unidadesAcesso = [] }) => {
+    // 'logins' | 'entradas' | 'permissoes' | 'backup' (o aviso de backup ao entrar abre direto na aba Backup)
+    const [abaAtiva, setAbaAtiva] = useState(() => (consumirPedidoBackup() ? 'backup' : 'logins'));
+    useEffect(() => {
+        const abrir = () => { consumirPedidoBackup(); setAbaAtiva('backup'); };
+        window.addEventListener(EVENTO_ABRIR_BACKUP, abrir);
+        return () => window.removeEventListener(EVENTO_ABRIR_BACKUP, abrir);
+    }, []);
     const [usuariosAcesso, setUsuariosAcesso] = useState([]);
     const [carregando, setCarregando] = useState(true);
     const [vinculosMentor, setVinculosMentor] = useState({});
@@ -177,7 +185,7 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
     // Voltando para Logins, relê as exceções (podem ter mudado na aba Permissões)
     const trocarAba = (aba) => { if (aba === 'permissoes') setLoginPermissoes(''); else carregarExcecoes(); setAbaAtiva(aba); };
 
-    const ABAS = [['logins', tx('Logins'), Shield], ['entradas', tx('Entradas e senha'), Globe], ['permissoes', tx('Permissões'), KeyRound]];
+    const ABAS = [['logins', tx('Logins'), Shield], ['entradas', tx('Entradas e senha'), Globe], ['permissoes', tx('Permissões'), KeyRound], ['backup', tx('Backup'), DatabaseBackup]];
 
     return (
         <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto pb-10">
@@ -188,7 +196,7 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
                         <span className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30"><Settings className="w-4 h-4" /></span>
                         <div className="min-w-0">
                             <h2 className="text-xl font-black text-slate-800 tracking-tight leading-tight dark:text-white">{tx('Configurações')}</h2>
-                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Logins, entradas e permissões · só o Admin')}</p>
+                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Logins, entradas, permissões e backup · só o Admin')}</p>
                         </div>
                     </div>
                     <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="tablist" aria-label={tx('Configurações')}>
@@ -220,6 +228,8 @@ const Configuracoes = ({ unidades = [], emailLogado = '', acessos = null, unidad
                     onPermissoes={abrirPermissoesDo}
                     onRevogar={revogar}
                 />
+            ) : abaAtiva === 'backup' ? (
+                <AbaBackup nomeLogado={nomeLogado} emailLogado={emailLogado} />
             ) : abaAtiva === 'entradas' ? (
                 <PaginaAcessos acessos={acessos} ehAdmin somenteAbas={['logins']} unidades={unidadesAcesso} />
             ) : (

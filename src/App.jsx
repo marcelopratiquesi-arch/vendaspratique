@@ -26,6 +26,8 @@ import CrmVisitantes from './pages/CrmVisitantes/index.jsx';
 import ModuloAlunos360 from './pages/Alunos/index.jsx';
 import CadastroGeral from './pages/CadastroGeral'; 
 import Configuracoes from './pages/Configuracoes/index.jsx';
+import AvisoBackup from './pages/Configuracoes/AvisoBackup.jsx';
+import { pedirAbaBackup } from './pages/Configuracoes/backup.js';
 import Login from './pages/Login.jsx';
 import AvaliacaoFisica from './pages/AvaliacaoFisica/index.jsx';
 import CentralComunicados from './pages/Comunicados/index.jsx';
@@ -1146,6 +1148,9 @@ export default function App() {
             {/* Recepção: lembrete para fazer o CRM (seg-sex 8h, 10h, 12h, 14h30, 15h30, 17h30, 19h30; sáb/dom/feriado 9h e 11h; permissão 909; 06/11/2026) */}
             <LembreteCrm usuario={usuarioComPode} aoIrCrm={() => handleNavigation('crm')} />
 
+            {/* Admin: aviso ao entrar quando a última cópia de segurança passou de 7 dias (Configurações → Backup; permissão 912; 19/11/2026) */}
+            <AvisoBackup usuario={usuarioComPode} aoFazerBackup={() => { pedirAbaBackup(); handleNavigation('config'); }} />
+
             <SidebarDesktop 
                 isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
                 abasPermitidas={abasPermitidas} activeTab={telaAtual} setActiveTab={handleNavigation} abrirSubaba={abrirSubaba}
@@ -1263,7 +1268,7 @@ export default function App() {
                     {telaAtual === 'pendencias' && ehChefe && <PaginaPendencias pendencias={pendencias} colaboradores={colaboradores} unidadeGlobal={unidadeGlobal} ehMentor={ehMentor} lideresAcesso={acessos.contas?.lideres} />}
                     {telaAtual === 'acessos' && (papelCobranca === 'ADMIN' || papelCobranca === 'MENTOR') && <PaginaAcessos acessos={acessos} esconderAbas={papelCobranca === 'ADMIN' ? ['logins'] : []} ehAdmin={papelCobranca === 'ADMIN'} unidades={unidadesVisiveis.map(u => u.nome)} colaboradores={colaboradores}
                         podeLiberar={pode('911') && ['ADMIN', 'MENTOR'].includes(String(usuarioLogado && 'roleFixo' in usuarioLogado ? usuarioLogado.roleFixo : usuarioLogado?.role).toUpperCase())} />}
-                    {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} acessos={acessos} unidadesAcesso={unidadesVisiveis.map(u => u.nome)} />}
+                    {telaAtual === 'config' && <Configuracoes unidades={unidades} emailLogado={usuarioLogado?.email} nomeLogado={usuarioLogado?.nome} acessos={acessos} unidadesAcesso={unidadesVisiveis.map(u => u.nome)} />}
                     </>)}
                     </ProtecaoTela>
                 </main>
