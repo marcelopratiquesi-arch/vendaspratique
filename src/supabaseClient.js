@@ -15,10 +15,16 @@ const supabaseAnonKey = 'sb_publishable_rHWR5B0R5enSblJVhn3pLg_XbgEPL1V';
 // - Ao ler, procura primeiro na aba e depois no computador (assim ninguém é deslogado no dia da mudança).
 // definirLoginLembrado(true/false) é chamado pelo App depois de saber quem entrou.
 // ==========================================
+// APP NO CELULAR (25/11/2026, decisão do dono): aberto pelo ícone, o login fica SEMPRE guardado no celular (fechar o
+// app não sai; o App.jsx corta depois de 12 horas, components/appInstalado.js). O app usa uma chave própria
+// ('sb-app-...'), porque no Android o app e o Chrome dividem o mesmo armazenamento: assim o login do app não vaza
+// para o navegador (que continua saindo ao fechar) e o navegador não apaga o do app.
 const MARCA_LEMBRAR = 'pratique_lembrar_login';
-const ehChaveDoLogin = (k) => String(k).startsWith('sb-');
+const CHAVE_LOGIN_APP = 'sb-app-pratique-auth';
 const seguro = (fn, padrao = null) => { try { return fn(); } catch { return padrao; } };
-const lembrado = () => seguro(() => localStorage.getItem(MARCA_LEMBRAR) !== '0', true);
+const NO_APP = seguro(() => Boolean(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true), false);
+const ehChaveDoLogin = (k) => String(k).startsWith('sb-') && (NO_APP ? String(k).startsWith(CHAVE_LOGIN_APP) : !String(k).startsWith(CHAVE_LOGIN_APP));
+const lembrado = () => NO_APP || seguro(() => localStorage.getItem(MARCA_LEMBRAR) !== '0', true);
 
 const armazenamentoDoLogin = {
     getItem: (k) => seguro(() => sessionStorage.getItem(k)) ?? seguro(() => localStorage.getItem(k)),
@@ -30,8 +36,9 @@ const armazenamentoDoLogin = {
     removeItem: (k) => { seguro(() => sessionStorage.removeItem(k)); seguro(() => localStorage.removeItem(k)); },
 };
 
-export const definirLoginLembrado = (lembrar) => {
-    seguro(() => localStorage.setItem(MARCA_LEMBRAR, lembrar ? '1' : '0'));
+export const definirLoginLembrado = (pedido) => {
+    const lembrar = NO_APP || pedido;
+    if (!NO_APP) seguro(() => localStorage.setItem(MARCA_LEMBRAR, lembrar ? '1' : '0'));
     const chaves = seguro(() => Object.keys(sessionStorage).filter(ehChaveDoLogin), []);
     chaves.forEach(k => {
         if (lembrar) seguro(() => localStorage.setItem(k, sessionStorage.getItem(k)));
@@ -42,7 +49,10 @@ export const definirLoginLembrado = (lembrar) => {
 
 // Cria e exporta a conexão para o resto do aplicativo usar
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { storage: armazenamentoDoLogin, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    auth: {
+        storage: armazenamentoDoLogin, persistSession: true, autoRefreshToken: true, detectSessionInUrl: true,
+        ...(NO_APP ? { storageKey: CHAVE_LOGIN_APP } : {}),
+    },
 });
 
 // Conexão separada, SÓ para criar login novo (Configurações → Acessos).

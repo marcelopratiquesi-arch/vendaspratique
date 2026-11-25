@@ -59,6 +59,7 @@ import JanelaConfirmarDados from './components/acesso/JanelaConfirmarDados.jsx';
 import JanelaPedidosAcesso from './components/acesso/JanelaPedidosAcesso.jsx';
 import MeusAcessos from './components/acesso/MeusAcessos.jsx';
 import PaginaAcessos from './pages/Acessos/index.jsx';
+import { ehAppInstalado, marcarInicioLoginApp, loginDoAppVenceu, esquecerInicioLoginApp, HORAS_LOGIN_APP } from './components/appInstalado.js';
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface").
 // Desde 09/11/2026 cada computador escolhe na barra do topo (guardado no computador). Pequeno = 0.8, o tamanho
@@ -253,6 +254,7 @@ export default function App() {
     const sairComAviso = useCallback(async (mensagem) => {
         try { if (mensagem) sessionStorage.setItem('pratique_aviso_login', mensagem); } catch { /* sem armazenamento */ }
         esquecerLugar();
+        esquecerInicioLoginApp();
         esquecerRegistroDoLogin();
         try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
         recarregarNaVersaoMaisNova();
@@ -280,6 +282,7 @@ export default function App() {
         }
         definirLoginLembrado(!chaves.login_google || String(p.role).toUpperCase() === 'RECEPCAO');
         await registrarLoginUmaVez();
+        marcarInicioLoginApp(); // app no celular: conta as 12 horas a partir desta entrada
         entrar({ ...p, email: p.email || email, unidade: p.unidade || 'MATRIZ' });
     }, [entrar, sairComAviso]);
     const atualizarAcessoPendente = useCallback(async () => {
@@ -297,8 +300,14 @@ export default function App() {
             try {
                 const { data } = await supabase.auth.getSession();
                 const email = data?.session?.user?.email;
-                if (!email) return;
+                if (!email) { esquecerInicioLoginApp(); return; }
                 if (!ativo) return;
+                // App no celular (25/11/2026): login com mais de 12 horas sai antes de entrar
+                if (loginDoAppVenceu()) {
+                    await registrarEvento('EXPIROU', `${HORAS_LOGIN_APP} h no aplicativo`);
+                    await sairComAviso(tx('Seu login no aplicativo vale {horas} horas. Entre de novo.', { horas: HORAS_LOGIN_APP }));
+                    return;
+                }
                 await conferirEEntrar({ email });
             } catch (err) {
                 console.error('Não foi possível reabrir o login guardado:', err);
@@ -307,7 +316,7 @@ export default function App() {
             }
         })();
         return () => { ativo = false; };
-    }, [conferirEEntrar]);
+    }, [conferirEEntrar, sairComAviso]);
 
     // Login encerrado em outra aba ("Sair") ou expirado: recarrega e mostra a tela de login
     useEffect(() => {
@@ -368,7 +377,22 @@ export default function App() {
     // parados (aviso 1 min antes) e marcam "estou ativo" no banco no máximo a cada 5 min. A Recepção continua com a
     // cortina de 30 min.
     const temLogin = Boolean(usuarioLogado);
-    const sessaoCurta = Boolean(chavesLogin?.login_google) && temLogin && String(usuarioLogado?.role || '').toUpperCase() !== 'RECEPCAO';
+    // App no celular (25/11/2026, decisão do dono): no app instalado não vale a saída de 15 min; vale o limite de 12 horas
+    // (efeito logo abaixo) e a cortina de 30 min, como a Recepção.
+    const sessaoCurta = Boolean(chavesLogin?.login_google) && temLogin && String(usuarioLogado?.role || '').toUpperCase() !== 'RECEPCAO' && !ehAppInstalado();
+    useEffect(() => {
+        if (!temLogin || !ehAppInstalado()) return undefined;
+        let saindo = false;
+        const conferirApp = () => {
+            if (saindo || !loginDoAppVenceu()) return;
+            saindo = true;
+            registrarEvento('EXPIROU', `${HORAS_LOGIN_APP} h no aplicativo`).finally(() => sairComAviso(tx('Seu login no aplicativo vale {horas} horas. Entre de novo.', { horas: HORAS_LOGIN_APP })));
+        };
+        conferirApp();
+        const relogio = setInterval(conferirApp, 60 * 1000);
+        document.addEventListener('visibilitychange', conferirApp);
+        return () => { clearInterval(relogio); document.removeEventListener('visibilitychange', conferirApp); };
+    }, [temLogin, sairComAviso]);
     useEffect(() => {
         if (isIdle || !temLogin) return undefined;
         const LIMITE = (sessaoCurta ? MINUTOS_SESSAO : MINUTOS_PARA_PAUSAR) * 60 * 1000;
@@ -975,6 +999,7 @@ export default function App() {
         setIsMobileMenuOpen(false);
         await registrarEvento('LOGOUT'); // histórico de acessos (12/11/2026); sem o SQL só avisa no console
         esquecerRegistroDoLogin();
+        esquecerInicioLoginApp();
         try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
         recarregarNaVersaoMaisNova();
     };

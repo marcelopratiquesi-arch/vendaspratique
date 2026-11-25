@@ -4321,4 +4321,10 @@ export default {
     "Configurações: Backup": "Settings: Backup",
     "não existe no banco": "does not exist in the database",
     "erro ao ler": "read error",
+    "Instale o Vendas Pratique no seu celular": "Install Vendas Pratique on your phone",
+    "Instalar": "Install",
+    "Agora não": "Not now",
+    "No iPhone: toque em": "On iPhone: tap",
+    "Compartilhar e depois em \"Adicionar à Tela de Início\".": "Share and then \"Add to Home Screen\".",
+    "Seu login no aplicativo vale {horas} horas. Entre de novo.": "Your login in the app lasts {horas} hours. Please sign in again.",
 };

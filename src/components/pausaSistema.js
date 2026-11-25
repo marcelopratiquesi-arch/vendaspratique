@@ -40,9 +40,11 @@ export async function recarregarNaVersaoMaisNova() {
             await Promise.all(chaves.map(c => window.caches.delete(c)));
         }
     } catch { /* sem cache para limpar */ }
+    // App no celular (25/11/2026): o ajudante do navegador (public/sw.js) NÃO é apagado (o app instalado precisa
+    // dele); só pede a versão nova dele. Ele não guarda telas, então não segura versão velha.
     try {
         const regs = await navigator.serviceWorker?.getRegistrations?.();
-        await Promise.all((regs || []).map(r => r.unregister()));
+        await Promise.all((regs || []).map(r => r.update().catch(() => {})));
     } catch { /* sem service worker */ }
     try {
         await Promise.all([

@@ -7,6 +7,7 @@ import { CentralDeAvisos } from './components/Avisos.jsx'
 import AvisoVersaoNova from './components/AvisoVersaoNova.jsx'
 import { limparMarcaDeAtualizacao } from './components/pausaSistema.js'
 import ProtecaoTela from './components/ProtecaoTela.jsx'
+import BotaoInstalar from './components/BotaoInstalar.jsx'
 
 // Veio de "recarregar na versão mais nova": tira a marca ?atualizado= do endereço
 limparMarcaDeAtualizacao()
@@ -19,6 +20,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       </ProtecaoTela>
       <CentralDeAvisos />
       <AvisoVersaoNova />
+      <BotaoInstalar />
     </I18nProvider>
   </React.StrictMode>,
 )
