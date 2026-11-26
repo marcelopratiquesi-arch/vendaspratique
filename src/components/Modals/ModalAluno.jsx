@@ -7,6 +7,7 @@ import { useI18n } from '../../i18n/I18nContext.jsx';
 import { avisar } from '../avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { CamadaDoApp } from '../../pages/Lancamentos/celular/camada.jsx';
 
 const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogado, unidadeDestino }) => {
     const { t } = useI18n(); 
@@ -429,18 +430,20 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
     const labelClass = "block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5";
     const inputClassBase = "w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2.5 text-sm text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm placeholder:text-slate-400 disabled:bg-slate-50 disabled:text-slate-500 dark:disabled:bg-slate-800/60 dark:disabled:text-slate-400 disabled:cursor-not-allowed font-medium";
 
+    // Celular (26/11/2026): janela em tela cheia, com o meio rolando e os botões sempre à vista (antes não dava para chegar no Salvar)
     return (
-        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl w-full max-w-lg flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out]">
+        <CamadaDoApp>
+        <div className="fixed inset-0 z-[300] flex items-stretch sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm sm:p-4 animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-white dark:bg-slate-900 rounded-none sm:rounded-[24px] shadow-2xl w-full max-w-lg h-[100dvh] sm:h-auto sm:max-h-full flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out]">
                 
-                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center relative overflow-hidden">
-                    <div className="flex items-center gap-3 relative z-10">
+                <div className="shrink-0 p-4 pt-[max(1rem,env(safe-area-inset-top))] sm:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex justify-between items-center gap-3 relative overflow-hidden">
+                    <div className="flex items-center gap-3 min-w-0 relative z-10">
                         <div className={`p-2.5 rounded-lg border ${formData.id ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400' : 'bg-emerald-50 dark:bg-emerald-500/10 border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400'}`}>
                             {formData.id ? <UserRoundPen className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{formData.id ? tx("Editar Dados do Cliente") : tx("Cadastrar Novo Cliente")}</h3>
-                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1.5">
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 flex flex-wrap items-center gap-1.5">
                                 {tx("Vínculo:")}{' '}<span className="text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-500/20 px-2 py-0.5 rounded-md uppercase tracking-wider text-[10px]">
                                     {situacao === 'CARREGANDO' ? '...'
                                         : (situacao === 'NOVO' || situacao === 'SEM_VINCULO' || modoTransferir) ? (unidadeAtiva || tx("NENHUMA"))
@@ -449,9 +452,10 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                             </p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 rounded-full transition-colors relative z-10"><X className="w-5 h-5" /></button>
+                    <button onClick={onClose} type="button" aria-label={tx('Fechar')} className="shrink-0 w-10 h-10 sm:w-auto sm:h-auto flex items-center justify-center p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200 rounded-full transition-colors relative z-10"><X className="w-5 h-5" /></button>
                 </div>
 
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                 {/* ALUNO DE OUTRA UNIDADE (ou ligado a mais de uma): editar não cria vínculo; transferir move */}
                 {(situacao === 'OUTRA' || (situacao === 'MINHA' && vinculoMultiplo)) && (
                     <div className={`border-b p-4 flex items-start gap-3 ${modoTransferir ? 'bg-blue-50 dark:bg-blue-500/10 border-blue-200 dark:border-blue-500/30' : 'bg-amber-50 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/30'}`}>
@@ -463,7 +467,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                     <p className="text-xs font-medium text-blue-700 dark:text-blue-300 leading-snug mt-1">
                                         {tx("Ao salvar, o vínculo sai de")}{' '}<strong>{unidadesDeFora.join(' + ')}</strong>{' '}{tx("e passa a ser só de")}{' '}<strong>{unidadeAtiva}</strong>{tx(". Informe a matrícula do aluno nesta unidade.")}
                                     </p>
-                                    <button type="button" onClick={cancelarTransferencia} className="mt-2 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
+                                    <button type="button" onClick={cancelarTransferencia} className="mt-2 min-h-10 sm:min-h-0 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors">
                                         {tx("Cancelar transferência")}
                                     </button>
                                 </>
@@ -478,7 +482,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                                             : tx("Este aluno também está ligado a {v1}. Cada aluno deve ter um vínculo só.", { v1: unidadesDeFora.join(' + ') })}
                                     </p>
                                     {podeTransferir && (
-                                        <button type="button" onClick={iniciarTransferencia} className="mt-3 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2">
+                                        <button type="button" onClick={iniciarTransferencia} className="mt-3 min-h-11 sm:min-h-0 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold shadow-sm transition-colors flex items-center gap-2">
                                             <ArrowRightLeft className="w-4 h-4" /> {situacao === 'OUTRA' ? tx("Transferir para minha unidade") : tx("Deixar só em {unidadeAtiva}", { unidadeAtiva: unidadeAtiva })}
                                         </button>
                                     )}
@@ -497,31 +501,31 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                     </div>
                 )}
 
-                <form onSubmit={handleSave} className="p-6 space-y-5" noValidate>
-                    <div className="grid grid-cols-2 gap-5">
-                        <div className="col-span-2">
+                <form onSubmit={handleSave} className="p-4 pb-0 sm:p-6 space-y-5" noValidate>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+                        <div className="sm:col-span-2">
                             <label className={labelClass}>{tx("CPF *")}</label>
                             <input type="text" name="cpf" value={formData.cpf} onChange={handleChange} disabled={!!formData.id} className={`${inputClassBase} uppercase`} placeholder="000.000.000-00" />
                         </div>
                         
-                        <div className="col-span-2">
+                        <div className="sm:col-span-2">
                             <label className={labelClass}>{tx("Nome Completo *")}</label>
                             <input type="text" name="nome" value={formData.nome} onChange={handleChange} className={`${inputClassBase} uppercase`} placeholder={tx("Ex: João da Silva")} />
                         </div>
                         
-                        <div className="col-span-1">
+                        <div>
                             <label className={labelClass}>{tx("Data de Nascimento *")}</label>
                             <input type="date" name="data_nascimento" value={formData.data_nascimento} onChange={handleChange} className={inputClassBase} />
                         </div>
                         
-                        <div className="col-span-1">
+                        <div>
                             <label className={labelClass}>{tx("Idade")}</label>
                             <div className="w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-500 dark:text-slate-400 flex items-center shadow-sm">
                                 {idade !== null ? tx("{idade} anos", { idade: idade }) : '—'}
                             </div>
                         </div>
 
-                        <div className="col-span-1 relative">
+                        <div className="relative">
                             <label className={labelClass}>{tx("Telefone / WhatsApp *")}</label>
                             <div className="relative">
                                 <input 
@@ -539,7 +543,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                             {erroTelefone && <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroTelefone}</p>}
                         </div>
 
-                        <div className="col-span-1 relative">
+                        <div className="relative">
                             <label className={labelClass}>
                                 {somenteDadosPessoais ? tx("Matrícula (de {v1})", { v1: vinculosAluno[0] || 'outra unidade' }) : modoTransferir ? tx("Matrícula em {unidadeAtiva} *", { unidadeAtiva: unidadeAtiva }) : tx("Matrícula (Nesta Unidade) *")}
                             </label>
@@ -561,7 +565,7 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                             {erroMatricula && <p className="text-[10px] font-bold text-rose-600 dark:text-rose-400 uppercase tracking-tight mt-1.5 ml-1 animate-[fadeIn_0.2s_ease-out]">{erroMatricula}</p>}
                         </div>
 
-                        <div className="col-span-2 relative">
+                        <div className="sm:col-span-2 relative">
                             <label className={labelClass}>{tx("E-mail corporativo ou pessoal *")}</label>
                             <div className="relative">
                                 <input 
@@ -580,17 +584,19 @@ const ModalAluno = ({ isOpen, onClose, alunoInicial, onSaveSuccess, usuarioLogad
                         </div>
                     </div>
 
-                    <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 mt-4">
-                        <button type="button" onClick={onClose} className="px-6 py-2.5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-white rounded-lg text-sm font-semibold transition-colors">{tx("Cancelar")}</button>
+                    <div className="max-sm:sticky max-sm:bottom-0 max-sm:z-20 max-sm:-mx-4 max-sm:px-4 max-sm:pt-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-sm:bg-white max-sm:dark:bg-slate-900 sm:pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 mt-4">
+                        <button type="button" onClick={onClose} className="h-11 sm:h-auto px-6 py-2.5 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/40 hover:text-slate-800 dark:hover:text-white rounded-lg text-sm font-semibold transition-colors">{tx("Cancelar")}</button>
                         
-                        <button type="submit" disabled={isSubmitting || situacao === 'CARREGANDO' || !!erroMatricula || !!erroTelefone || !!erroEmail} className={`px-6 py-2.5 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${formData.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                        <button type="submit" disabled={isSubmitting || situacao === 'CARREGANDO' || !!erroMatricula || !!erroTelefone || !!erroEmail} className={`h-11 sm:h-auto px-6 py-2.5 text-white rounded-lg text-sm font-semibold shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed ${formData.id ? 'bg-blue-600 hover:bg-blue-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                             {isSubmitting || situacao === 'CARREGANDO' ? <Loader2 className="w-4 h-4 animate-spin" /> : modoTransferir ? <ArrowRightLeft className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                             {isSubmitting ? tx("Processando...") : modoTransferir ? tx("Salvar e Transferir") : somenteDadosPessoais ? tx("Salvar Dados Pessoais") : tx("Salvar Cliente")}
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
+        </CamadaDoApp>
     );
 };
 
