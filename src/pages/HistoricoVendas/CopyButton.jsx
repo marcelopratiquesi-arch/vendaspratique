@@ -44,11 +44,11 @@ const CopyButton = ({ textToCopy, label }) => {
             onClick={handleCopy}
             onMouseDown={(e) => e.stopPropagation()} 
             onPointerDown={(e) => e.stopPropagation()} 
-            className="p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded transition-all flex-shrink-0 dark:hover:bg-blue-500/10"
+            className="p-2.5 -m-1.5 md:m-0 md:p-1 text-slate-300 hover:text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/40 rounded transition-all flex-shrink-0 dark:hover:bg-blue-500/10"
             title={copied ? tx("Copiado!") : label}
             aria-label={copied ? tx("Copiado") : label}
         >
-            {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+            {copied ? <Check className="w-4 h-4 md:w-3 md:h-3 text-emerald-500" /> : <Copy className="w-4 h-4 md:w-3 md:h-3" />}
         </button>
     );
 };

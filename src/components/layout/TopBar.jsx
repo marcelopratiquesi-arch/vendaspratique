@@ -198,7 +198,7 @@ export default function TopBar({
         ? `${pendentesTotais} ${tr('topbar.pendingCommunications', 'comunicados pendentes')}`
         : tr('topbar.noPendingCommunications', 'Nenhum comunicado pendente');
 
-    const botaoIcone = 'w-8 h-8 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
+    const botaoIcone = 'w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
 
     return (
         <>
@@ -215,7 +215,8 @@ export default function TopBar({
                         <Menu className="w-5 h-5" />
                     </button>
                     {/* Topo: só a unidade (o nome da página saiu, decisão do dono 30/10/2026) */}
-                    <div className="hidden sm:flex items-center min-w-0">
+                    {/* Celular (26/11/2026): quem não troca de unidade vê o nome dela no topo (antes sumia); o seletor continua no menu */}
+                    <div className={`${mostrarSeletor ? 'hidden sm:flex' : 'flex'} items-center min-w-0`}>
                         {mostrarSeletor ? (
                             <SeletorUnidadeTopo
                                 unidadeGlobal={unidadeGlobal}
@@ -225,7 +226,7 @@ export default function TopBar({
                                 rotuloTodas={rotuloTodas}
                             />
                         ) : (
-                            <span className="inline-flex items-center gap-1.5 px-3 h-9 rounded-lg bg-slate-100 text-[13px] font-bold text-slate-700 truncate dark:bg-slate-800 dark:text-slate-200">
+                            <span className="inline-flex items-center gap-1.5 px-3 h-9 max-w-[42vw] sm:max-w-none rounded-lg bg-slate-100 text-[13px] font-bold text-slate-700 truncate dark:bg-slate-800 dark:text-slate-200">
                                 <Building2 className="w-4 h-4 shrink-0" aria-hidden="true" />{usuarioLogado?.unidade || ''}
                             </span>
                         )}

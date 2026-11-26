@@ -54,6 +54,13 @@ export default function BotaoInstalar() {
         }
     };
 
+    // Avisa as outras peças (cartões do canto, fim da tela) da altura da faixa, para ela não tapar nada (26/11/2026)
+    useEffect(() => {
+        const raiz = document.documentElement;
+        raiz.style.setProperty('--faixa-instalar', mostrar ? (ajudaIphone ? '104px' : '68px') : '0px');
+        return () => raiz.style.setProperty('--faixa-instalar', '0px');
+    }, [mostrar, ajudaIphone]);
+
     if (!mostrar) return null;
 
     return (
@@ -65,10 +72,10 @@ export default function BotaoInstalar() {
                     {tx('Instale o Vendas Pratique no seu celular')}
                 </span>
                 <button type="button" onClick={instalar}
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3 py-2 text-xs font-black uppercase tracking-widest">
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 px-3 h-10 text-xs font-black uppercase tracking-widest">
                     <Download size={14} /> {tx('Instalar')}
                 </button>
-                <button type="button" onClick={dispensar} aria-label={tx('Agora não')} title={tx('Agora não')} className="shrink-0 p-1 text-white/70 hover:text-white">
+                <button type="button" onClick={dispensar} aria-label={tx('Agora não')} title={tx('Agora não')} className="shrink-0 -mr-1 p-2.5 text-white/70 hover:text-white">
                     <X size={18} />
                 </button>
             </div>

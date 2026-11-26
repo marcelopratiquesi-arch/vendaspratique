@@ -6,7 +6,8 @@
 // Desde 11/11/2026 fica dentro da coluna de cartões do canto (App.jsx), junto com o aviso de cadastro da equipe.
 // ==========================================
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, ChevronUp, X } from 'lucide-react';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
 import { tx } from '../../i18n/traduzir.js';
 import { pedirConferirRelatorio } from './relatorioFechamento.js';
 
@@ -64,6 +65,9 @@ const Linhas = ({ u, aoIr, podeConferirRelatorio }) => {
 
 const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas, podeConferirRelatorio = false }) => {
     const [escondidoAte, setEscondidoAte] = useState(0);
+    // Celular (26/11/2026): começa recolhido numa pílula, para não tapar a tela; tocar abre o cartão inteiro
+    const celular = useEhCelular();
+    const [abertoCelular, setAbertoCelular] = useState(false);
     // O relógio de 1 minuto faz o cartão voltar depois de 1 hora
     const [, setTique] = useState(0);
     useEffect(() => { const id = setInterval(() => setTique(t => t + 1), 60 * 1000); return () => clearInterval(id); }, []);
@@ -74,9 +78,21 @@ const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas, p
     const visiveis = ehMentor ? comAlgo.slice(0, MAX_UNIDADES_MENTOR) : comAlgo.slice(0, 1);
     const resto = comAlgo.length - visiveis.length;
     const depois = () => setEscondidoAte(Date.now() + UMA_HORA);
+    const totalItens = comAlgo.reduce((s, u) => s + (u.total || 0) + (u.lembretes || 0), 0);
+
+    if (celular && !abertoCelular) {
+        return (
+            <button type="button" onClick={() => setAbertoCelular(true)}
+                className={`pointer-events-auto self-end h-11 px-4 rounded-full shadow-xl border flex items-center gap-2 text-[11px] font-black uppercase tracking-widest ${temAtraso ? 'bg-rose-50 border-rose-300 text-rose-800 dark:bg-slate-900 dark:border-rose-500/40 dark:text-rose-300' : 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-slate-900 dark:border-amber-500/40 dark:text-amber-300'}`}>
+                <AlertTriangle className="w-4 h-4" />
+                {totalItens === 1 ? tx('1 pendência') : tx('{qtd} pendências', { qtd: totalItens })}
+                <ChevronUp className="w-4 h-4" />
+            </button>
+        );
+    }
 
     return (
-        <div role="alert" className={`pointer-events-auto w-full max-h-[60vh] overflow-y-auto custom-scrollbar rounded-2xl shadow-xl p-4 border ${temAtraso ? 'bg-rose-50 border-rose-300 dark:bg-slate-900 dark:border-rose-500/40' : 'bg-amber-50 border-amber-300 dark:bg-slate-900 dark:border-amber-500/40'}`}>
+        <div role="alert" className={`pointer-events-auto w-full max-h-[50vh] md:max-h-[60vh] overflow-y-auto custom-scrollbar rounded-2xl shadow-xl p-4 border ${temAtraso ? 'bg-rose-50 border-rose-300 dark:bg-slate-900 dark:border-rose-500/40' : 'bg-amber-50 border-amber-300 dark:bg-slate-900 dark:border-amber-500/40'}`}>
             <div className="flex items-start gap-3">
                 <AlertTriangle className={`w-5 h-5 shrink-0 mt-0.5 ${temAtraso ? 'text-rose-600 dark:text-rose-400' : 'text-amber-600 dark:text-amber-400'}`} />
                 <div className="min-w-0 flex-1">
@@ -100,7 +116,7 @@ const CartaoPendencias = ({ lista = [], ehMentor, escondido, aoIr, aoVerTodas, p
                         <button type="button" onClick={depois} className="h-9 px-3 rounded-xl border border-slate-300 bg-white text-slate-700 text-[11px] font-black uppercase tracking-widest hover:bg-slate-100 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">{tx('Depois')}</button>
                     </div>
                 </div>
-                <button type="button" onClick={depois} aria-label={tx('Fechar')} className="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"><X className="w-4 h-4" /></button>
+                <button type="button" onClick={celular ? () => setAbertoCelular(false) : depois} aria-label={tx('Fechar')} className="-m-2 p-2 md:m-0 md:p-0 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white"><X className="w-4 h-4" /></button>
             </div>
         </div>
     );

@@ -47,3 +47,27 @@ body {
 @supports not selector(::-webkit-scrollbar) {
   .rolagem-grossa { scrollbar-width: auto; scrollbar-color: #94a3b8 transparent; }
 }
+/* ==========================================================================
+   CELULAR (26/11/2026, projeto "todas as telas no celular", decisão do dono)
+   Tudo aqui só vale com a tela até 767px: o computador não muda.
+   ========================================================================== */
+:root { --faixa-instalar: 0px; } /* altura da faixa "Instale o app" (BotaoInstalar grava quando aparece) */
+
+@media (max-width: 767px) {
+  /* iPhone dá zoom sozinho ao tocar em campo com letra menor que 16px */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea { font-size: 16px !important; }
+
+  /* Tabelas de Admin (decisão do dono): arrastar para o lado com a 1ª coluna parada.
+     Uso: <div className="overflow-x-auto"><table className="tabela-arrasta ..."> */
+  .tabela-arrasta tr > :first-child {
+    position: sticky; left: 0; z-index: 5;
+    background-color: #fff;
+    box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.18);
+  }
+  .dark .tabela-arrasta tr > :first-child { background-color: #0f172a; }
+
+  /* Faixa de abas que rola para o lado em vez de quebrar em várias linhas */
+  .abas-rolaveis { flex-wrap: nowrap !important; overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none; max-width: 100%; }
+  .abas-rolaveis::-webkit-scrollbar { display: none; }
+  .abas-rolaveis > * { flex-shrink: 0; scroll-snap-align: start; }
+}

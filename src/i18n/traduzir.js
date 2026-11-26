@@ -10,8 +10,16 @@
 // ==========================================
 import frasesEn from './frases/en-US.js';
 import frasesEs from './frases/es-AR.js';
+// Versão celular (26/11/2026): um arquivo de frases por grupo de telas, para as conversas em paralelo não se cruzarem
+import celA from './frases/celular/A-vendas-historico-alunos.js';
+import celB from './frases/celular/B-dashboard.js';
+import celC from './frases/celular/C-crm.js';
+import celD from './frases/celular/D-fechamento-pendencias-comunicados.js';
+import celE from './frases/celular/E-avaliacao-cadastros-config.js';
 
-const FRASES = { 'en-US': frasesEn, 'es-AR': frasesEs };
+const CELULAR = [celA, celB, celC, celD, celE];
+const juntar = (base, locale) => Object.assign({}, base, ...CELULAR.map(g => g[locale] || {}));
+const FRASES = { 'en-US': juntar(frasesEn, 'en-US'), 'es-AR': juntar(frasesEs, 'es-AR') };
 let idiomaAtual = 'pt-BR';
 
 // Chamado pelo I18nProvider sempre que o idioma muda (antes de desenhar as telas)

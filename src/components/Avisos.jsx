@@ -31,7 +31,7 @@ export const CentralDeAvisos = () => {
     if (avisos.length === 0) return null;
 
     return (
-        <div className="fixed z-[9999] top-4 inset-x-4 sm:inset-x-auto sm:right-4 sm:w-[400px] flex flex-col gap-2 pointer-events-none" role="status" aria-live="polite">
+        <div className="fixed z-[9999] top-[calc(1rem+env(safe-area-inset-top))] md:top-4 inset-x-4 sm:inset-x-auto sm:right-4 sm:w-[400px] flex flex-col gap-2 pointer-events-none" role="status" aria-live="polite">
             {avisos.map(a => {
                 const e = ESTILO[a.tipo] || ESTILO.atencao;
                 const Icone = e.icone;
@@ -44,7 +44,7 @@ export const CentralDeAvisos = () => {
                                 <p className={`text-[10px] font-black uppercase tracking-widest ${e.cor}`}>{tx(e.titulo)}</p>
                                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200 whitespace-pre-line break-words max-h-60 overflow-y-auto custom-scrollbar mt-0.5">{tx(a.texto)}</p>
                             </div>
-                            <button type="button" onClick={() => fechar(a.id)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar aviso">
+                            <button type="button" onClick={() => fechar(a.id)} className="-m-1.5 p-2.5 md:m-0 md:p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Fechar aviso">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>

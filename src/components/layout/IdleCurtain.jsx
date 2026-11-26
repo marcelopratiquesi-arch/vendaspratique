@@ -25,7 +25,7 @@ export default function IdleCurtain({ isIdle, segundosParaPausar = null, modoSai
                     <div className="min-w-0 flex-1">
                         <p className="text-xs font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Sua sessão vai expirar em {seg} s', { seg: segundosParaPausar })}</p>
                         <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1">{tx('Sem uso há quase 15 minutos. Continuar?')}</p>
-                        <button type="button" className="mt-2 h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Continuar')}</button>
+                        <button type="button" className="mt-2 h-10 md:h-8 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Continuar')}</button>
                     </div>
                 ) : (
                 <div className="min-w-0">

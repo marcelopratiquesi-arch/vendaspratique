@@ -103,10 +103,10 @@ const CobrancaRelatorioRecepcao = ({ usuario, colaboradores = [], aoIrRelatorio 
 
     // Cartão discreto no canto enquanto a janela está adiada
     return (
-        <div role="alert" className={`fixed bottom-4 left-4 z-[70] w-[min(320px,calc(100%-32px))] rounded-2xl shadow-xl p-4 border ${atrasado ? 'bg-rose-50 border-rose-300 dark:bg-slate-900 dark:border-rose-500/40' : 'bg-amber-50 border-amber-300 dark:bg-slate-900 dark:border-amber-500/40'}`}>
+        <div role="alert" className={`fixed top-[68px] inset-x-3 md:top-auto md:inset-x-auto md:bottom-4 md:left-4 z-[70] md:w-[min(320px,calc(100%-32px))] rounded-2xl shadow-xl p-4 border ${atrasado ? 'bg-rose-50 border-rose-300 dark:bg-slate-900 dark:border-rose-500/40' : 'bg-amber-50 border-amber-300 dark:bg-slate-900 dark:border-amber-500/40'}`}>
             <p className={`text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 ${atrasado ? 'text-rose-800 dark:text-rose-300' : 'text-amber-800 dark:text-amber-300'}`}><Send className="w-3.5 h-3.5" />{titulo}</p>
             <p className="mt-1 text-[12px] font-semibold text-slate-700 dark:text-slate-200">{prazo}</p>
-            <button type="button" onClick={ir} className="mt-3 h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Ir para o relatório')}</button>
+            <button type="button" onClick={ir} className="mt-3 h-10 md:h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Ir para o relatório')}</button>
         </div>
     );
 };

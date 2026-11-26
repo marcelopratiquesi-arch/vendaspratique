@@ -34,7 +34,7 @@ const AvisoAcessoTemporario = ({ temporarios = [] }) => {
         <>
             {!escondida && (
                 <button type="button" onClick={() => setEscondida(true)} title={tx('Clique para esconder')}
-                    className={`fixed bottom-3 left-3 z-[150] max-w-[min(420px,calc(100%-24px))] px-3 py-2 rounded-xl shadow-lg text-left text-[11px] font-black uppercase tracking-wide flex items-start gap-2 ${cor}`}>
+                    className={`fixed top-[68px] inset-x-3 md:inset-x-auto md:top-auto md:bottom-3 md:left-3 z-[150] md:max-w-[min(420px,calc(100%-24px))] px-3 py-2.5 md:py-2 rounded-xl shadow-lg text-left text-[11px] font-black uppercase tracking-wide flex items-start gap-2 ${cor}`}>
                     <Timer className="w-4 h-4 shrink-0 mt-0.5" />
                     <span className="min-w-0">
                         {itens.map(t => (

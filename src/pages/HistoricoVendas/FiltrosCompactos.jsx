@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CalendarDays, ChevronDown, ChevronRight, Check, Search } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { CalendarDays, ChevronDown, ChevronRight, Check, Search, X } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
 
 // ==========================================
 // Datas locais (sem bug de fuso)
@@ -49,10 +51,13 @@ const ATALHOS = [
 export const ROTULO_ATALHO = Object.fromEntries(ATALHOS);
 
 // Fecha ao clicar fora ou apertar Esc
-const useFecharFora = (ref, aberto, fechar) => {
+const useFecharFora = (ref, aberto, fechar, refMenu) => {
     useEffect(() => {
         if (!aberto) return undefined;
-        const aoClicar = (e) => { if (ref.current && !ref.current.contains(e.target)) fechar(); };
+        const aoClicar = (e) => {
+            if (refMenu?.current && refMenu.current.contains(e.target)) return;
+            if (ref.current && !ref.current.contains(e.target)) fechar();
+        };
         const aoTeclar = (e) => { if (e.key === 'Escape') fechar(); };
         document.addEventListener('mousedown', aoClicar);
         document.addEventListener('keydown', aoTeclar);
@@ -60,13 +65,28 @@ const useFecharFora = (ref, aberto, fechar) => {
             document.removeEventListener('mousedown', aoClicar);
             document.removeEventListener('keydown', aoTeclar);
         };
-    }, [ref, aberto, fechar]);
+    }, [ref, aberto, fechar, refMenu]);
 };
 
-const itemMenu = 'w-full h-9 px-3 rounded-lg text-left text-[13px] font-semibold transition-colors flex items-center justify-between gap-2 outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
-const campo = 'w-full h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-[13px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-800 dark:text-white';
+// Celular (26/11/2026): o menu vira uma FOLHA QUE SOBE DE BAIXO, desenhada direto na tela (portal), porque
+// dentro de caixas com fundo desfocado uma caixa "fixa" fica presa. No computador nada muda.
+const FolhaCelular = ({ titulo, fechar, refMenu, children }) => createPortal(
+    <div className="fixed inset-0 z-[300] flex items-end bg-slate-900/50" onMouseDown={(e) => { if (e.target === e.currentTarget) fechar(); }}>
+        <div ref={refMenu} className="w-full max-h-[85dvh] overflow-y-auto bg-white rounded-t-2xl shadow-2xl pb-[env(safe-area-inset-bottom)] dark:bg-slate-900">
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 px-4 h-12 bg-white border-b border-slate-100 dark:bg-slate-900 dark:border-slate-800">
+                <span className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 truncate">{tx(titulo)}</span>
+                <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="-mr-2 w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            {children}
+        </div>
+    </div>,
+    document.body
+);
+
+const itemMenu = 'w-full h-11 md:h-9 px-3 rounded-lg text-left text-[13px] font-semibold transition-colors flex items-center justify-between gap-2 outline-none focus-visible:ring-2 focus-visible:ring-blue-500';
+const campo = 'w-full h-11 md:h-9 bg-white border border-slate-200 rounded-lg px-2.5 text-[13px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-800 dark:text-white';
 const rotuloCampo = 'flex flex-col gap-1 text-[11px] font-bold text-slate-500 dark:text-slate-400';
-const botaoAplicar = 'w-full h-9 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[12px] font-black transition-colors';
+const botaoAplicar = 'w-full h-11 md:h-9 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[12px] font-black transition-colors';
 
 // ==========================================
 // MENU DE PERÍODO
@@ -77,9 +97,11 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
     const [painel, setPainel] = useState(null); // 'mes' | 'dia' | 'personalizado'
     const [rascunho, setRascunho] = useState({ dia, inicio, fim, mes, ano });
     const ref = useRef(null);
+    const refMenu = useRef(null);
+    const celular = useEhCelular();
 
     const fechar = () => { setAberto(false); setPainel(null); };
-    useFecharFora(ref, aberto, fechar);
+    useFecharFora(ref, aberto, fechar, refMenu);
 
     const abrir = () => {
         setRascunho({ dia, inicio, fim, mes, ano });
@@ -104,7 +126,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                 onClick={abrir}
                 aria-haspopup="menu"
                 aria-expanded={aberto}
-                className={`h-10 ${larguraTotal ? 'w-full' : 'min-w-[200px]'} px-3.5 bg-blue-50 border border-blue-200 hover:border-blue-300 rounded-xl text-[13px] font-bold text-blue-700 flex items-center justify-between gap-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:border-blue-500/30 dark:text-blue-400`}
+                className={`h-10 ${larguraTotal ? 'w-full' : 'sm:min-w-[200px]'} px-3.5 bg-blue-50 border border-blue-200 hover:border-blue-300 rounded-xl text-[13px] font-bold text-blue-700 flex items-center justify-between gap-3 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-500/10 dark:border-blue-500/30 dark:hover:border-blue-500/30 dark:text-blue-400`}
             >
                 <span className="flex items-center gap-2 min-w-0">
                     <CalendarDays className="w-4 h-4 shrink-0" />
@@ -113,8 +135,8 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                 <ChevronDown className={`w-4 h-4 shrink-0 transition-transform ${aberto ? 'rotate-180' : ''}`} />
             </button>
 
-            {aberto && (
-                <div role="menu" className={`absolute ${larguraTotal ? 'left-0' : 'right-0'} top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.12s_ease-out] dark:bg-slate-900 dark:border-slate-800`}>
+            {aberto && (() => { const conteudoMenu = (
+                <div role="menu" className={celular ? '' : `absolute ${larguraTotal ? 'left-0' : 'right-0'} top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.12s_ease-out] dark:bg-slate-900 dark:border-slate-800`}>
                     <div className="p-1.5">
                         {ATALHOS.filter(([id]) => !ocultar.includes(id)).map(([id, texto]) => (
                             <button key={id} type="button" role="menuitem" onClick={() => escolherAtalho(id)} className={classeItem(preset === id)}>
@@ -179,7 +201,7 @@ export const SeletorPeriodo = ({ rotulo, preset, tipo, dia, inicio, fim, mes, an
                         </div>
                     )}
                 </div>
-            )}
+            ); return celular ? <FolhaCelular titulo="Período" fechar={fechar} refMenu={refMenu}>{conteudoMenu}</FolhaCelular> : conteudoMenu; })()}
         </div>
     );
 };
@@ -191,9 +213,11 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
     const [aberto, setAberto] = useState(false);
     const [busca, setBusca] = useState('');
     const ref = useRef(null);
+    const refMenu = useRef(null);
+    const celular = useEhCelular();
 
     const fechar = () => { setAberto(false); setBusca(''); };
-    useFecharFora(ref, aberto, fechar);
+    useFecharFora(ref, aberto, fechar, refMenu);
 
     const ocultosValidos = ocultos.filter((o) => options.includes(o));
     const visiveis = options.length - ocultosValidos.length;
@@ -237,8 +261,8 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
                 )}
             </button>
 
-            {aberto && (
-                <div role="listbox" aria-multiselectable="true" className={`absolute top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.12s_ease-out] dark:bg-slate-900 dark:border-slate-800 ${alinhar === 'right' ? 'right-0' : 'left-0'}`}>
+            {aberto && (() => { const conteudoMenu = (
+                <div role="listbox" aria-multiselectable="true" className={celular ? '' : `absolute top-full mt-2 w-72 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-[fadeIn_0.12s_ease-out] dark:bg-slate-900 dark:border-slate-800 ${alinhar === 'right' ? 'right-0' : 'left-0'}`}>
                     {options.length > 8 && (
                         <div className="p-2 border-b border-slate-100 dark:border-slate-800">
                             <div className="relative">
@@ -248,14 +272,14 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
                         </div>
                     )}
                     <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
-                        <button type="button" onClick={() => setOcultos([])} className="text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-400">{tx("Marcar todos")}</button>
-                        <button type="button" onClick={() => setOcultos([...options])} className="text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">{tx("Desmarcar todos")}</button>
+                        <button type="button" onClick={() => setOcultos([])} className="min-h-10 md:min-h-0 px-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-400">{tx("Marcar todos")}</button>
+                        <button type="button" onClick={() => setOcultos([...options])} className="min-h-10 md:min-h-0 px-1 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">{tx("Desmarcar todos")}</button>
                     </div>
-                    <div className="max-h-64 overflow-y-auto custom-scrollbar p-1.5">
+                    <div className={`${celular ? '' : 'max-h-64 overflow-y-auto custom-scrollbar'} p-1.5`}>
                         {lista.map((item) => {
                             const marcado = !ocultos.includes(item);
                             return (
-                                <button key={item} type="button" role="option" aria-selected={marcado} onClick={() => alternar(item)} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors dark:text-slate-200 dark:hover:bg-slate-800/60">
+                                <button key={item} type="button" role="option" aria-selected={marcado} onClick={() => alternar(item)} className="w-full flex items-center gap-2.5 px-2.5 py-3 md:py-2 rounded-lg text-left text-[12px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors dark:text-slate-200 dark:hover:bg-slate-800/60">
                                     <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${marcado ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-transparent dark:bg-slate-900 dark:border-slate-700'}`}>
                                         <Check className="w-3 h-3" strokeWidth={3} />
                                     </span>
@@ -266,7 +290,7 @@ export const FiltroMultiplo = ({ rotulo, icone: Icone, options = [], ocultos = [
                         {lista.length === 0 && <p className="px-3 py-4 text-center text-[12px] font-medium text-slate-400">{tx("Nada encontrado")}</p>}
                     </div>
                 </div>
-            )}
+            ); return celular ? <FolhaCelular titulo={rotulo} fechar={fechar} refMenu={refMenu}>{conteudoMenu}</FolhaCelular> : conteudoMenu; })()}
         </div>
     );
 };

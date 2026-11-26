@@ -383,10 +383,20 @@ export default function App() {
             raiz.style.setProperty('--escala-interface', '1');
             return undefined;
         }
-        const escala = TAMANHOS_INTERFACE[tamanhoTela] || TAMANHOS_INTERFACE[TAMANHO_PADRAO];
-        raiz.style.zoom = String(escala);
-        raiz.style.setProperty('--escala-interface', String(escala));
-        return () => { raiz.style.zoom = ''; raiz.style.setProperty('--escala-interface', '1'); };
+        // Celular (26/11/2026, decisão do dono): sempre no tamanho Grande (1). O Pequeno deixava a letra de 10px com 8px.
+        // O computador continua com a escolha da barra do topo.
+        const mql = window.matchMedia ? window.matchMedia('(max-width: 767px)') : null;
+        const aplicar = () => {
+            const escala = mql?.matches ? 1 : (TAMANHOS_INTERFACE[tamanhoTela] || TAMANHOS_INTERFACE[TAMANHO_PADRAO]);
+            raiz.style.zoom = escala === 1 ? '' : String(escala);
+            raiz.style.setProperty('--escala-interface', String(escala));
+        };
+        aplicar();
+        mql?.addEventListener?.('change', aplicar);
+        return () => {
+            mql?.removeEventListener?.('change', aplicar);
+            raiz.style.zoom = ''; raiz.style.setProperty('--escala-interface', '1');
+        };
     }, [usuarioLogado, tamanhoTela]);
 
     // Inatividade (decisão do dono, 07/11/2026): 30 min sem uso = PAUSA de verdade (desliga o "ao vivo" e as
@@ -1161,7 +1171,8 @@ export default function App() {
             )}
 
             {/* Cartões do canto direito (lado oposto ao menu), um em cima do outro: cobranças e cadastro da equipe */}
-            <div className="fixed bottom-4 right-4 z-[70] w-[min(360px,calc(100%-32px))] flex flex-col gap-3 pointer-events-none">
+            {/* Celular (26/11/2026): largura toda, acima da faixa "Instalar" e da barra do iPhone */}
+            <div className="fixed bottom-[calc(0.75rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] inset-x-3 md:inset-x-auto md:bottom-4 md:right-4 z-[70] md:w-[min(360px,calc(100%-32px))] flex flex-col gap-3 pointer-events-none">
                 {cobradoNaTela && (
                     <CartaoPendencias lista={pendencias.lista} ehMentor={ehMentor} escondido={!janelaPendenciasFechada} podeConferirRelatorio={pode('313')}
                         aoIr={irParaPendencia} aoVerTodas={() => handleNavigation('pendencias')} />
@@ -1238,7 +1249,7 @@ export default function App() {
                 {/* Avisos no celular (25/11/2026): faixa "Ative os avisos" até este aparelho receber; sem fechar */}
                 <FaixaAvisos papelReal={usuarioLogado?.role} />
 
-                <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-5 relative z-0 h-full w-full">
+                <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-3 pb-[calc(0.75rem+var(--faixa-instalar))] sm:p-4 lg:p-5 relative z-0 h-full w-full">
                     {/* Rede de segurança: erro numa tela mostra o aviso só nela; o menu continua (zera ao trocar de tela) */}
                     <ProtecaoTela key={telaAtual || 'nenhuma'}>
                     {(mentorCarregando || mentorSemUnidade) ? (
