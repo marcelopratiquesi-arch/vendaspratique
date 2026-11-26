@@ -18,6 +18,7 @@ import { podeFazer, podeVer } from '../../permissoes/catalogoPermissoes.js';
 import { FaixaAvaliacao, AbasAvaliacao, BotaoFaixa, BotaoLaranjaFaixa, EtiquetaSaude, TituloSaude } from './FaixaAvaliacao.jsx';
 import { carregarTodasAvaliacoes, carregarAvaliacaoCompleta, cpfCombina, soNumerosCpf, COLUNAS_LISTA, usePerguntasAvaliacao } from './carregarAvaliacoes.js';
 import { ModalVerAvaliacao } from './PainelInicial.jsx';
+import { CartaoCelular, GradeCartao, NumeroCartao, OrdenarCelular } from '../../components/celular/Cartao.jsx';
 
 // Planilha (CSV) que o Excel abre direto: separador ";" e acentos certos
 const celulaCsv = (v) => {
@@ -478,9 +479,9 @@ const PainelAvaliador = ({
             {/* MODAL PADRÃO EXECUTIVO PRATIQUE - RELATÓRIO DO WHATSAPP */}
             {modalRelatorioAberto && (
                 <div className="fixed inset-0 z-[9999] bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]" onClick={(e) => { if (e.target === e.currentTarget) setModalRelatorioAberto(false); }}>
-                    <div className="bg-white dark:bg-[#111827] rounded-[28px] shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-lg overflow-hidden flex flex-col animate-[slideDown_0.3s_ease-out]">
+                    <div className="bg-white dark:bg-[#111827] rounded-[28px] shadow-2xl border border-slate-200 dark:border-white/10 w-full max-w-lg max-h-[90dvh] overflow-hidden flex flex-col animate-[slideDown_0.3s_ease-out]">
                         
-                        <div className="bg-[#0f172a] dark:bg-[#090d16] px-6 py-5 flex items-center justify-between border-b border-slate-800">
+                        <div className="shrink-0 bg-[#0f172a] dark:bg-[#090d16] px-4 py-3 md:px-6 md:py-5 flex items-center justify-between border-b border-slate-800">
                             <div className="flex items-center gap-3">
                                 <div className="w-9 h-9 bg-blue-600/20 text-blue-400 rounded-xl flex items-center justify-center border border-blue-500/20">
                                     <BarChart3 className="w-5 h-5" />
@@ -489,12 +490,12 @@ const PainelAvaliador = ({
                                     {professorAtivo.id === 'GLOBAL' ? tx("RESUMO GLOBAL") : tx("RESUMO - {v1}", { v1: professorAtivo.nome.toUpperCase() })}
                                 </h3>
                             </div>
-                            <button onClick={() => setModalRelatorioAberto(false)} className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
+                            <button onClick={() => setModalRelatorioAberto(false)} className="shrink-0 w-10 h-10 md:w-8 md:h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
 
-                        <div className="p-6 bg-slate-50 dark:bg-[#0c101a]">
+                        <div className="flex-1 min-h-0 overflow-y-auto p-3 md:p-6 bg-slate-50 dark:bg-[#0c101a]">
                             <div className="bg-white dark:bg-[#151c2e] p-5 rounded-2xl border border-slate-200/80 dark:border-white/5 shadow-inner">
                                 <pre className="font-mono text-xs text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed select-all">
                                     {textoRelatorioFormatado}
@@ -502,15 +503,15 @@ const PainelAvaliador = ({
                             </div>
                         </div>
 
-                        <div className="px-6 py-4 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-white/5 flex items-center justify-end gap-3">
-                            <button onClick={() => setModalRelatorioAberto(false)} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                        <div className="shrink-0 px-3 py-3 md:px-6 md:py-4 bg-white dark:bg-[#111827] border-t border-slate-100 dark:border-white/5 flex flex-wrap items-center justify-end gap-2 md:gap-3">
+                            <button onClick={() => setModalRelatorioAberto(false)} className="max-md:h-10 max-md:w-full max-md:order-last px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
                                 {tx("FECHAR")}
                             </button>
-                            <button onClick={handleCopiarRelatorio} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5 active:scale-95">
+                            <button onClick={handleCopiarRelatorio} className="max-md:h-10 max-md:flex-1 max-md:justify-center px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-blue-600 hover:bg-blue-500 shadow-md shadow-blue-600/20 transition-all flex items-center gap-1.5 active:scale-95">
                                 {copiado ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                                 {copiado ? tx("COPIADO!") : tx("COPIAR")}
                             </button>
-                            <button onClick={handleEnviarWhatsApp} className="px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 active:scale-95">
+                            <button onClick={handleEnviarWhatsApp} className="max-md:h-10 max-md:flex-1 max-md:justify-center px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider text-white bg-emerald-500 hover:bg-emerald-400 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-1.5 active:scale-95">
                                 <Send className="w-3.5 h-3.5" />
                                 {tx("ENVIAR")}
                             </button>
@@ -548,7 +549,7 @@ const PainelAvaliador = ({
                         <BotaoFaixa onClick={limparFiltros} title={tx("Limpar Filtros")} className="w-10 justify-center !px-0"><RefreshCw className="w-3.5 h-3.5" /></BotaoFaixa>
                         <BotaoFaixa onClick={() => { setProfessorAtivo(null); handleVoltar(); }}><LogOut className="w-3.5 h-3.5" />{tx("Trocar Professor")}</BotaoFaixa>
                         {professorAtivo.id !== 'GERAL' && professorAtivo.id !== 'GLOBAL' && (
-                            <BotaoLaranjaFaixa onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }}><PlusCircle className="w-4 h-4" />{tx("Nova Avaliação")}</BotaoLaranjaFaixa>
+                            <BotaoLaranjaFaixa className="max-md:w-full max-md:justify-center" onClick={() => { setAvaliacaoEditando(null); setAbaAtiva('nova'); }}><PlusCircle className="w-4 h-4" />{tx("Nova Avaliação")}</BotaoLaranjaFaixa>
                         )}
                     </>}
                     numeros={[
@@ -580,21 +581,47 @@ const PainelAvaliador = ({
                     {/* RANKING GLOBAL */}
                     {(professorAtivo.id === 'GERAL' || professorAtivo.id === 'GLOBAL') && metricas.ranking.length > 0 && (
                         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-                            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between">
+                            <div className="px-3 md:px-5 py-3 border-b border-slate-100 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-800/30 flex flex-wrap items-center justify-between gap-2">
                                 <div>
                                     <h3 className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-widest flex items-center gap-2">
                                         <Trophy className="w-3.5 h-3.5 text-orange-500" /> {professorAtivo.id === 'GLOBAL' ? tx("Ranking de Unidades") : tx("Ranking de Avaliadores")}
                                     </h3>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button onClick={() => setModalRelatorioAberto(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-3">
+                                    <button onClick={() => setModalRelatorioAberto(true)} className="max-md:h-10 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-colors border border-emerald-200 dark:border-emerald-800 shadow-sm">
                                         <Send className="w-3 h-3" />{' '}{tx("Relatório WPP")}
                                     </button>
                                     <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest bg-white dark:bg-slate-800 px-3 py-1 rounded-lg border border-slate-200/60 dark:border-slate-700 shadow-sm">{metricas.totalEntidades}{' '}{tx("Ativos")}{metricas.zerados.length > 0 && <span className="text-rose-600 dark:text-rose-400"> · {tx("{qtd} sem avaliação", { qtd: metricas.zerados.length })}</span>}</span>
                                 </div>
                             </div>
                             {/* Tabela enxuta: posição, quantidade com barrinha, última avaliação; quem fez zero embaixo, em vermelho */}
-                            <div className="overflow-x-auto custom-scrollbar">
+                            {/* Celular: uma linha por unidade/avaliador (26/11/2026) */}
+                            <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                                {metricas.ranking.map((item, index) => {
+                                    const zero = item.qtd === 0;
+                                    const maior = metricas.ranking[0]?.qtd || 1;
+                                    return (
+                                        <button type="button" key={item.nome} onClick={() => { if (professorAtivo.id === 'GLOBAL') { setFiltroUnidadeTabela(item.nome); setPaginaAtual(1); document.getElementById('tabela-historico')?.scrollIntoView({ behavior: 'smooth' }); } }}
+                                            className={`w-full text-left px-3 py-2.5 flex items-center gap-3 ${zero ? 'bg-rose-50/40 dark:bg-rose-500/5' : ''}`}>
+                                            <span className="w-7 shrink-0 text-[12px] font-black text-slate-500 dark:text-slate-400">{zero ? '—' : `${index + 1}º`}</span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className={`block text-[12px] font-black uppercase break-words ${zero ? 'text-rose-700 dark:text-rose-400' : 'text-slate-800 dark:text-white'}`}>{item.nome}</span>
+                                                <span className={`block text-[10px] font-bold ${item.ultima ? 'text-slate-500 dark:text-slate-400' : 'text-rose-600 dark:text-rose-400'}`}>{tx("Última avaliação")}: {haQuanto(item.ultima)}</span>
+                                                {!zero && <span className="mt-1 block h-1.5 rounded-full bg-slate-100 overflow-hidden dark:bg-slate-800"><span className="block h-full rounded-full bg-blue-600" style={{ width: `${(item.qtd / maior) * 100}%` }} /></span>}
+                                            </span>
+                                            <span className="shrink-0 text-right">
+                                                {zero ? <span className="text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400">{tx("Nenhuma")}</span> : (
+                                                    <>
+                                                        <span className="block text-base font-black tabular-nums text-slate-800 dark:text-white">{item.qtd}</span>
+                                                        <span className="block text-[10px] font-bold text-slate-400">{item.percentual}%</span>
+                                                    </>
+                                                )}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="hidden md:block overflow-x-auto custom-scrollbar">
                                 <table className="w-full min-w-[560px] border-collapse text-left">
                                     <thead>
                                         <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
@@ -634,7 +661,7 @@ const PainelAvaliador = ({
 
                     {/* HISTÓRICO E TABELA */}
                     <div id="tabela-historico" className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col relative">
-                        <div className="px-5 py-5 border-b border-slate-100 dark:border-slate-800/50 flex flex-col gap-5 shrink-0">
+                        <div className="px-3 py-3 md:px-5 md:py-5 border-b border-slate-100 dark:border-slate-800/50 flex flex-col gap-3 md:gap-5 shrink-0">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-xl flex items-center justify-center border border-blue-100 dark:border-blue-800">
@@ -646,8 +673,8 @@ const PainelAvaliador = ({
                                     </div>
                                 </div>
                                 <div className="flex items-center bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/50 dark:border-slate-700/50">
-                                    <button onClick={() => setModoExibicao('resumo')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" />{' '}{tx("Resumo")}</button>
-                                    <button onClick={() => setModoExibicao('detalhado')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" />{' '}{tx("Avançado")}</button>
+                                    <button onClick={() => setModoExibicao('resumo')} className={`max-md:h-10 max-md:flex-1 max-md:justify-center px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'resumo' ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><ListChecks className="w-3.5 h-3.5" />{' '}{tx("Resumo")}</button>
+                                    <button onClick={() => setModoExibicao('detalhado')} className={`max-md:h-10 max-md:flex-1 max-md:justify-center px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${modoExibicao === 'detalhado' ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 shadow-sm border border-blue-200 dark:border-blue-800' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}><Activity className="w-3.5 h-3.5" />{' '}{tx("Avançado")}</button>
                                 </div>
                             </div>
                             <div className="flex flex-col lg:flex-row gap-3 items-center w-full">
@@ -657,17 +684,17 @@ const PainelAvaliador = ({
                                 </div>
                                 {totalIncompletas > 0 && (
                                     <button type="button" onClick={() => { setSoIncompletas(v => !v); setPaginaAtual(1); }} title={tx('Avaliações sem bioimpedância ou sem anamnese')}
-                                        className={`shrink-0 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${soIncompletas ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
+                                        className={`shrink-0 max-md:w-full max-md:h-10 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-colors ${soIncompletas ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
                                         ⚠️ {tx('{qtd} incompletas', { qtd: totalIncompletas })}
                                     </button>
                                 )}
                                 <div className="flex gap-2 w-full lg:w-auto">
                                     <button type="button" onClick={() => setFiltrosAbertos(v => !v)} aria-expanded={filtrosAbertos}
-                                        className={`flex-1 lg:flex-none px-4 py-2.5 border rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${filtrosAbertos || filtrosAtivos > 0 ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                                        className={`max-md:h-10 flex-1 lg:flex-none px-4 py-2.5 border rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${filtrosAbertos || filtrosAtivos > 0 ? 'bg-blue-600 border-blue-600 text-white hover:bg-blue-700' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                                         <Filter className="w-3.5 h-3.5" />{' '}{tx("Filtros")}
                                         {filtrosAtivos > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-white text-blue-700 text-[10px] font-black flex items-center justify-center">{filtrosAtivos}</span>}
                                     </button>
-                                    <button type="button" onClick={exportarPlanilha} title={tx("Baixa uma planilha com todas as avaliações da lista (com a busca e os filtros)")} className="flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}</button>
+                                    <button type="button" onClick={exportarPlanilha} title={tx("Baixa uma planilha com todas as avaliações da lista (com a busca e os filtros)")} className="max-md:h-10 flex-1 lg:flex-none px-4 py-2.5 bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-800/50 rounded-xl flex items-center justify-center gap-1.5 text-[10px] font-black uppercase tracking-widest shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors"><Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}</button>
                                 </div>
                             </div>
                             {filtrosAbertos && (
@@ -675,7 +702,7 @@ const PainelAvaliador = ({
                                     {professorAtivo.id === 'GLOBAL' && (
                                         <label className="flex flex-col gap-1">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Unidade")}</span>
-                                            <select value={filtroUnidadeTabela} onChange={(e) => { setFiltroUnidadeTabela(e.target.value); setPaginaAtual(1); }} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                                            <select value={filtroUnidadeTabela} onChange={(e) => { setFiltroUnidadeTabela(e.target.value); setPaginaAtual(1); }} className="h-10 md:h-9 w-full min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                                                 <option value="TODOS">{tx("Todas")}</option>
                                                 {opcoesUnidade.map(u => <option key={u} value={u}>{u}</option>)}
                                             </select>
@@ -684,7 +711,7 @@ const PainelAvaliador = ({
                                     {(professorAtivo.id === 'GLOBAL' || professorAtivo.id === 'GERAL') && (
                                         <label className="flex flex-col gap-1">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Avaliador")}</span>
-                                            <select value={filtroProfTabela} onChange={(e) => { setFiltroProfTabela(e.target.value); setPaginaAtual(1); }} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                                            <select value={filtroProfTabela} onChange={(e) => { setFiltroProfTabela(e.target.value); setPaginaAtual(1); }} className="h-10 md:h-9 w-full min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                                                 <option value="TODOS">{tx("Todos")}</option>
                                                 {opcoesAvaliador.map(n => <option key={n} value={n}>{n}</option>)}
                                             </select>
@@ -692,7 +719,7 @@ const PainelAvaliador = ({
                                     )}
                                     <label className="flex flex-col gap-1">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Sexo")}</span>
-                                        <select value={filtroSexo} onChange={(e) => { setFiltroSexo(e.target.value); setPaginaAtual(1); }} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
+                                        <select value={filtroSexo} onChange={(e) => { setFiltroSexo(e.target.value); setPaginaAtual(1); }} className="h-10 md:h-9 w-full min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500">
                                             <option value="TODOS">{tx("Todos")}</option>
                                             <option value="M">{tx("Masculino")}</option>
                                             <option value="F">{tx("Feminino")}</option>
@@ -703,41 +730,118 @@ const PainelAvaliador = ({
                                         { rotulo: 'Peso (kg)', valor: filtroPeso, mudar: setFiltroPeso, ex: ['50', '120'] },
                                         { rotulo: 'SMI', valor: filtroSmi, mudar: setFiltroSmi, ex: ['5', '9'] },
                                     ].map(({ rotulo, valor, mudar, ex }) => (
-                                        <div key={rotulo} className="flex flex-col gap-1">
+                                        <div key={rotulo} className="max-md:col-span-2 flex flex-col gap-1">
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx(rotulo)}</span>
                                             <div className="flex items-center gap-1">
-                                                <input type="text" inputMode="decimal" value={valor.min} onChange={(e) => { mudar(v => ({ ...v, min: e.target.value.replace(',', '.') })); setPaginaAtual(1); }} placeholder={tx("de {v1}", { v1: ex[0] })} aria-label={tx("{v1} mínimo", { v1: tx(rotulo) })} className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
-                                                <input type="text" inputMode="decimal" value={valor.max} onChange={(e) => { mudar(v => ({ ...v, max: e.target.value.replace(',', '.') })); setPaginaAtual(1); }} placeholder={tx("até {v1}", { v1: ex[1] })} aria-label={tx("{v1} máximo", { v1: tx(rotulo) })} className="w-full h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <input type="text" inputMode="decimal" value={valor.min} onChange={(e) => { mudar(v => ({ ...v, min: e.target.value.replace(',', '.') })); setPaginaAtual(1); }} placeholder={tx("de {v1}", { v1: ex[0] })} aria-label={tx("{v1} mínimo", { v1: tx(rotulo) })} className="w-full min-w-0 h-10 md:h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                                <input type="text" inputMode="decimal" value={valor.max} onChange={(e) => { mudar(v => ({ ...v, max: e.target.value.replace(',', '.') })); setPaginaAtual(1); }} placeholder={tx("até {v1}", { v1: ex[1] })} aria-label={tx("{v1} máximo", { v1: tx(rotulo) })} className="w-full min-w-0 h-10 md:h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
                                             </div>
                                         </div>
                                     ))}
                                     <label className="flex flex-col gap-1 col-span-2">
                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Busca na anamnese")}</span>
-                                        <input type="text" value={buscaAnamnese} onChange={(e) => { setBuscaAnamnese(e.target.value); setPaginaAtual(1); }} placeholder={tx("Ex.: joelho, hipertensão")} className="h-9 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
+                                        <input type="text" value={buscaAnamnese} onChange={(e) => { setBuscaAnamnese(e.target.value); setPaginaAtual(1); }} placeholder={tx("Ex.: joelho, hipertensão")} className="h-10 md:h-9 w-full min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 text-[11px] font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-blue-500" />
                                     </label>
                                     {filtrosAtivos > 0 && (
                                         <div className="flex items-end">
-                                            <button type="button" onClick={limparFiltrosDoPainel} className="h-9 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline">{tx("Limpar filtros")}</button>
+                                            <button type="button" onClick={limparFiltrosDoPainel} className="h-10 md:h-9 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline">{tx("Limpar filtros")}</button>
                                         </div>
                                     )}
                                 </div>
                             )}
                         </div>
 
-                        <div ref={tableScrollRef} className="flex-1 overflow-x-auto custom-scrollbar relative min-h-[350px]">
+                        <div ref={tableScrollRef} className="flex-1 overflow-x-auto custom-scrollbar relative min-h-[200px] md:min-h-[350px]">
                             {loading ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 dark:bg-slate-900/90 z-10">
                                     <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-3" />
                                     <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{tx("Carregando...")}</p>
                                 </div>
                             ) : (
+                                <>
+                                {/* Celular, modo Resumo: um cartão por avaliação. No Avançado a tabela arrasta, com o aluno parado (26/11/2026) */}
+                                {modoExibicao === 'resumo' && (
+                                    <div className="md:hidden p-2 space-y-2">
+                                        <OrdenarCelular valor={`${sortConfig.key}:${sortConfig.direction}`}
+                                            onChange={(v) => { const [key, direction] = v.split(':'); setSortConfig({ key, direction }); setPaginaAtual(1); }}
+                                            opcoes={[
+                                                { valor: 'data:desc', rotulo: tx("Mais novas primeiro") },
+                                                { valor: 'data:asc', rotulo: tx("Mais antigas primeiro") },
+                                                { valor: 'aluno:asc', rotulo: tx("Aluno (A→Z)") },
+                                                { valor: 'estrutura:desc', rotulo: tx("Maior peso") },
+                                                { valor: 'indices:desc', rotulo: tx("Maior SMI") },
+                                                { valor: 'avaliador:asc', rotulo: tx("Avaliador (A→Z)") },
+                                                ...(professorAtivo.id === 'GLOBAL' ? [{ valor: 'unidade:asc', rotulo: tx("Unidade (A→Z)") }] : []),
+                                            ]} />
+                                        {dadosPaginados.length === 0 && (
+                                            <p className="py-10 text-center text-xs font-bold text-slate-500 dark:text-slate-400">{tx("Nenhum registro encontrado neste período.")}</p>
+                                        )}
+                                        {dadosPaginados.map((a, idx) => {
+                                            const d = new Date(a.created_at || a.criado_em);
+                                            const faltas = pendenciasAvaliacao(a);
+                                            const botao = 'h-10 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5';
+                                            const azul = `${botao} border-blue-200 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300`;
+                                            return (
+                                                <CartaoCelular key={a.id || idx}
+                                                    titulo={<span className="uppercase">{a.aluno || tx("NÃO INFORMADO")}</span>}
+                                                    subtitulo={`${d.toLocaleDateString(langAtual)} · ${d.toLocaleTimeString(langAtual, { hour: '2-digit', minute: '2-digit' })}${professorAtivo.id === 'GLOBAL' && a.unidade ? ` · ${a.unidade}` : ''}`}
+                                                    direita={<EtiquetaSaude avaliacao={a} />}>
+                                                    {faltas.length > 0 && (
+                                                        <span className="inline-flex mb-2 px-1.5 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-black uppercase tracking-wider dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30">
+                                                            ⚠️ {tx('Sem')} {faltas.map(f => tx(f)).join(' · ')}
+                                                        </span>
+                                                    )}
+                                                    <GradeCartao colunas={4}>
+                                                        <NumeroCartao rotulo={tx("Peso")} valor={a.peso || '—'} />
+                                                        <NumeroCartao rotulo={tx("Altura")} valor={a.altura || '—'} />
+                                                        <NumeroCartao rotulo={<span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${getStatusDot(a.smi_status)}`} />SMI</span>} valor={a.smi_resultado || '—'} />
+                                                        <NumeroCartao rotulo={<span className="inline-flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${getStatusDot(a.hidratacao_status)}`} />HID</span>} valor={a.hidratacao_resultado ? `${a.hidratacao_resultado}%` : '—'} />
+                                                    </GradeCartao>
+                                                    <div className="mt-2">
+                                                        {editingAvaliadorId === a.id ? (
+                                                            <select autoFocus onChange={(e) => handleSalvarNovoAvaliador(a.id, e.target.value)} defaultValue={a.professor}
+                                                                className="w-full h-10 bg-white dark:bg-slate-800 border border-blue-400 rounded-xl px-2 font-black uppercase text-slate-800 dark:text-white outline-none">
+                                                                <option value="" disabled>{tx("Selecione...")}</option>
+                                                                {colaboradores.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
+                                                            </select>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="min-w-0 flex-1">
+                                                                    <span className="block text-[11px] font-black uppercase text-slate-800 dark:text-slate-100 break-words">{a.professor || tx("SISTEMA")}</span>
+                                                                    <span className="block text-[10px] font-bold uppercase text-slate-400 break-words">{tx("REG:")}{' '}{a.registrado_por_nome || tx("SISTEMA")}</span>
+                                                                </div>
+                                                                {podeEditar && (
+                                                                    <button type="button" onClick={() => setEditingAvaliadorId(a.id)} aria-label={tx("Alterar Avaliador")} className="shrink-0 w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-blue-600">
+                                                                        <UserRoundPen className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <div className="mt-2 grid grid-cols-2 gap-2">
+                                                        <button type="button" onClick={() => setVerIndice((paginaAtual - 1) * ITENS_POR_PAGINA + idx)} className={`${botao} border-blue-600 bg-blue-600 text-white`}><Eye className="w-4 h-4" />{tx("Visualizar Detalhes")}</button>
+                                                        <button type="button" onClick={() => setAlunoEvolucaoModal({ id: a.aluno_id, nome: a.aluno, cpf: a.cpf })} className={azul}><LineChart className="w-4 h-4" />{tx("Evolução")}</button>
+                                                        {a.arquivo_inbody_url && (
+                                                            <a href={a.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className={`${botao} border-emerald-200 bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-300`}><FileText className="w-4 h-4" />{tx("Exame")}</a>
+                                                        )}
+                                                        {podeEditar && (<>
+                                                            <button type="button" onClick={() => handleEditar(a)} className={azul}><Edit3 className="w-4 h-4" />{tx("Editar Avaliação")}</button>
+                                                            <button type="button" onClick={() => removerAvaliacao(a.id)} className={`${botao} border-rose-200 bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-300`}><Trash2 className="w-4 h-4" />{tx("Excluir")}</button>
+                                                        </>)}
+                                                    </div>
+                                                </CartaoCelular>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                <div className={modoExibicao === 'resumo' ? 'hidden md:block' : ''}>
                                 <table className={`w-full text-left border-collapse ${modoExibicao === 'detalhado' ? 'min-w-[max-content]' : 'min-w-[900px]'}`}>
                                     <thead className="bg-white dark:bg-slate-900 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                                         <tr>
                                             <th onClick={() => handleSort('data')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">{tx("Data")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'data' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
-                                            <th onClick={() => handleSort('aluno')} className="cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                                            <th onClick={() => handleSort('aluno')} className="max-md:sticky max-md:left-0 max-md:z-20 max-md:bg-white max-md:dark:bg-slate-900 cursor-pointer group px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap">
                                                 <div className="flex items-center gap-1.5">{tx("Aluno(a)")}{' '}<ArrowUpDown className={`w-3 h-3 ${sortConfig.key === 'aluno' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-300 dark:text-slate-600'}`} /></div>
                                             </th>
                                             <th className="px-4 py-4 text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest whitespace-nowrap"><TituloSaude /></th>
@@ -785,9 +889,9 @@ const PainelAvaliador = ({
                                                                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 mt-0.5">{horaStr}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-4 py-3 whitespace-nowrap align-middle">
+                                                        <td className="px-4 py-3 whitespace-nowrap max-md:whitespace-normal max-md:sticky max-md:left-0 max-md:z-[5] max-md:bg-white max-md:dark:bg-slate-900 max-md:w-[160px] max-md:min-w-[160px] max-md:max-w-[160px] max-md:px-3 max-md:break-words align-middle">
                                                             <div className="flex items-center gap-3">
-                                                                <div className="w-8 h-8 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center font-black text-sm border border-blue-100 dark:border-blue-800 shrink-0">
+                                                                <div className="max-md:hidden w-8 h-8 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center font-black text-sm border border-blue-100 dark:border-blue-800 shrink-0">
                                                                     {(a.aluno || 'U').charAt(0)}
                                                                 </div>
                                                                 <div className="flex flex-col items-start gap-1">
@@ -912,14 +1016,14 @@ const PainelAvaliador = ({
                                                         
                                                             <td className="px-4 py-3 text-center whitespace-nowrap align-middle">
                                                                 <div className="flex items-center justify-center gap-1.5 opacity-100 xl:opacity-0 xl:group-hover:opacity-100 transition-opacity">
-                                                                    <button type="button" onClick={() => setVerIndice((paginaAtual - 1) * ITENS_POR_PAGINA + idx)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Visualizar Detalhes")}>
+                                                                    <button type="button" onClick={() => setVerIndice((paginaAtual - 1) * ITENS_POR_PAGINA + idx)} className="max-md:p-3 p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Visualizar Detalhes")}>
                                                                         <Eye className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     {podeEditar && (<>
-                                                                    <button onClick={() => handleEditar(a)} className="p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Editar Avaliação")}>
+                                                                    <button onClick={() => handleEditar(a)} className="max-md:p-3 p-2 text-blue-500 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/40 rounded-lg transition-colors border border-transparent hover:border-blue-200 dark:hover:border-blue-700" title={tx("Editar Avaliação")}>
                                                                         <Edit3 className="w-3.5 h-3.5" />
                                                                     </button>
-                                                                    <button onClick={() => removerAvaliacao(a.id)} className="p-2 text-rose-400 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-300 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-700" title={tx("Excluir Permanentemente")}>
+                                                                    <button onClick={() => removerAvaliacao(a.id)} className="max-md:p-3 p-2 text-rose-400 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/40 hover:text-rose-600 dark:hover:text-rose-300 rounded-lg transition-colors border border-transparent hover:border-rose-200 dark:hover:border-rose-700" title={tx("Excluir Permanentemente")}>
                                                                         <Trash2 className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     </>)}
@@ -940,6 +1044,8 @@ const PainelAvaliador = ({
                                         )}
                                     </tbody>
                                 </table>
+                                </div>
+                                </>
                             )}
                         </div>
                         
@@ -949,13 +1055,13 @@ const PainelAvaliador = ({
                                 
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-1">
-                                        <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+                                        <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
                                             <ArrowLeft className="w-3.5 h-3.5" />
                                         </button>
-                                        <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs shadow-md">
+                                        <div className="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-lg bg-blue-600 text-white font-bold text-xs shadow-md">
                                             {paginaAtual}
                                         </div>
-                                        <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors transform rotate-180">
+                                        <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 disabled:opacity-40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors transform rotate-180">
                                             <ArrowLeft className="w-3.5 h-3.5" />
                                         </button>
                                     </div>

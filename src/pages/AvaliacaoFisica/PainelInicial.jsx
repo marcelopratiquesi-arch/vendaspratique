@@ -14,6 +14,7 @@ import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 import { MESES_FILTRO, faixaDoFiltro, rotuloDoFiltro } from '../../components/periodoPadrao.js';
 import { consultaSeguraOuDireta } from '../../components/consultaSegura.js';
 import { carregarTodasAvaliacoes, cpfCombina, COLUNAS_LISTA, usePerguntasAvaliacao } from './carregarAvaliacoes.js';
+import { CartaoCelular, GradeCartao, NumeroCartao } from '../../components/celular/Cartao.jsx';
 
 
 // ==========================================
@@ -329,9 +330,9 @@ export const ModalVerAvaliacao = ({ avaliacoes, initialIndex, onClose, perguntas
                     <div className="flex items-center gap-2">
                         {avaliacoes.length > 1 && (
                             <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-                                <button type="button" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0} aria-label={tx("Avaliação anterior")} className="p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0} aria-label={tx("Avaliação anterior")} className="max-md:p-3 p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronLeft className="w-4 h-4" /></button>
                                 <span className="px-2 text-[10px] font-black text-slate-500 dark:text-slate-300">{currentIndex + 1} / {avaliacoes.length}</span>
-                                <button type="button" onClick={() => setCurrentIndex((i) => Math.min(avaliacoes.length - 1, i + 1))} disabled={currentIndex === avaliacoes.length - 1} aria-label={tx("Próxima avaliação")} className="p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => setCurrentIndex((i) => Math.min(avaliacoes.length - 1, i + 1))} disabled={currentIndex === avaliacoes.length - 1} aria-label={tx("Próxima avaliação")} className="max-md:p-3 p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronRight className="w-4 h-4" /></button>
                             </div>
                         )}
                         <button ref={fecharRef} type="button" onClick={onClose} aria-label={tx("Fechar")} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300 rounded-full flex items-center justify-center transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><X className="w-5 h-5" /></button>
@@ -641,7 +642,7 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                             <div className={`h-full rounded-full ${lider ? 'bg-orange-500' : 'bg-blue-600'}`} style={{ width: `${maiorDoMes > 0 ? Math.round((metrica.mes / maiorDoMes) * 100) : 0}%` }} />
                                         </div>
                                     </div>
-                                    <button type="button" onClick={() => { abrirPainel(); setAbaAtiva('nova'); }} className="h-8 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(249,115,22,0.25)] transition-colors">
+                                    <button type="button" onClick={() => { abrirPainel(); setAbaAtiva('nova'); }} className="h-10 md:h-8 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(249,115,22,0.25)] transition-colors">
                                         <PlusCircle className="w-3.5 h-3.5" />{tx("Nova Avaliação")}
                                     </button>
                                 </div>
@@ -662,11 +663,11 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                         </div>
                         <div className="relative w-full sm:w-64">
                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                            <input type="text" value={buscaTabela} onChange={(e) => { setBuscaTabela(e.target.value); setPaginaAtual(1); }} placeholder={tx("Buscar aluno, CPF ou avaliador")} className="w-full h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 text-[12px] font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
+                            <input type="text" value={buscaTabela} onChange={(e) => { setBuscaTabela(e.target.value); setPaginaAtual(1); }} placeholder={tx("Buscar aluno, CPF ou avaliador")} className="w-full h-10 md:h-9 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-3 text-[12px] font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500" />
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto custom-scrollbar max-h-[500px]">
+                    <div className="md:overflow-x-auto custom-scrollbar md:max-h-[500px]">
                         {loadingTabela ? (
                             <div className="py-20 flex flex-col items-center justify-center">
                                 <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-3" />
@@ -679,6 +680,47 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                 <p className="text-xs font-medium text-slate-400 mt-1">{tx("Não houve avaliações no período selecionado.")}</p>
                             </div>
                         ) : (
+                            <>
+                            {/* Celular: um cartão por avaliação (26/11/2026) */}
+                            <div className="md:hidden p-2 space-y-2">
+                                {dadosPaginados.map(av => {
+                                    const medida = (v) => (v ? parseFloat(String(v).replace(',', '.')).toFixed(1) : null);
+                                    const faltas = pendenciasAvaliacao(av);
+                                    return (
+                                        <CartaoCelular key={av.id}
+                                            titulo={<span className="uppercase">{av.aluno || 'N/I'}</span>}
+                                            subtitulo={`${formatarDataBR(av.data || av.created_at)}${av.hora ? ` · ${String(av.hora).substring(0, 5)}` : ''}${av.cpf ? ` · ${mascararCPF(av.cpf)}` : ''}`}
+                                            direita={<EtiquetaSaude avaliacao={av} />}>
+                                            <p className="text-[11px] font-bold uppercase text-slate-600 dark:text-slate-300 break-words">
+                                                {formatarNomeAvaliador(av.professor)}{temVisaoGlobal && av.unidade ? ` · ${av.unidade}` : ''}
+                                            </p>
+                                            {faltas.length > 0 && (
+                                                <span className="inline-flex mt-1 px-1.5 py-0.5 rounded-md border bg-amber-50 text-amber-700 border-amber-200 text-[10px] font-black uppercase tracking-wider dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30">
+                                                    ⚠️ {tx('Sem')} {faltas.map(f => tx(f)).join(' · ')}
+                                                </span>
+                                            )}
+                                            <div className="mt-2">
+                                                <GradeCartao>
+                                                    <NumeroCartao rotulo={tx("Peso")} valor={medida(av.peso) ? tx("{v1} kg", { v1: medida(av.peso) }) : '—'} />
+                                                    <NumeroCartao rotulo="MME" cor="text-blue-600 dark:text-blue-400" valor={medida(av.mme) ? tx("{v1} kg", { v1: medida(av.mme) }) : '—'} />
+                                                    <NumeroCartao rotulo={tx("% Gordura")} cor="text-rose-600 dark:text-rose-400" valor={medida(av.pgc) ? `${medida(av.pgc)}%` : '—'} />
+                                                </GradeCartao>
+                                            </div>
+                                            <div className="mt-2 flex gap-2">
+                                                <button type="button" onClick={() => openModal(av.id)} className="flex-1 h-10 rounded-xl bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5">
+                                                    <Eye className="w-4 h-4" />{tx("Ver Avaliação Completa")}
+                                                </button>
+                                                {av.arquivo_inbody_url && (
+                                                    <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="h-10 px-4 rounded-xl border border-blue-200 bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-400">
+                                                        <FileText className="w-4 h-4" /> PDF
+                                                    </a>
+                                                )}
+                                            </div>
+                                        </CartaoCelular>
+                                    );
+                                })}
+                            </div>
+                            <div className="hidden md:block">
                             <table className="w-full text-left whitespace-nowrap">
                                 <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
                                     <tr>
@@ -756,16 +798,18 @@ const PainelInicial = ({ usuarioLogado, colaboradores, setProfessorAtivo, setAba
                                     })}
                                 </tbody>
                             </table>
+                            </div>
+                            </>
                         )}
                     </div>
                     {totalPaginas > 1 && (
-                        <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                        <div className="px-3 md:px-6 py-3 md:py-4 gap-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                 {tx("Exibindo")}{' '}{(paginaAtual - 1) * ITENS_POR_PAGINA + 1} a {Math.min(paginaAtual * ITENS_POR_PAGINA, listaTabela.length)}{' '}{tx("de")}{' '}{listaTabela.length}
                             </span>
                             <div className="flex items-center gap-2">
-                                <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronLeft className="w-4 h-4"/></button>
-                                <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronRight className="w-4 h-4"/></button>
+                                <button onClick={() => setPaginaAtual(p => Math.max(1, p - 1))} disabled={paginaAtual === 1} className="max-md:p-3 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronLeft className="w-4 h-4"/></button>
+                                <button onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))} disabled={paginaAtual === totalPaginas} className="max-md:p-3 p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-white dark:hover:bg-slate-800 disabled:opacity-50 transition-colors dark:text-slate-400"><ChevronRight className="w-4 h-4"/></button>
                             </div>
                         </div>
                     )}

@@ -51,11 +51,11 @@ export const AbasAvaliacao = ({ ativa, onAvaliadores, onUnidade, onGlobal }) => 
     ].filter(a => a.id === ativa || a.acao);
     if (abas.length === 0) return null;
     return (
-        <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/20 p-1">
+        <div className="abas-rolaveis max-md:w-full flex flex-wrap items-center gap-1 rounded-xl bg-black/20 p-1">
             {abas.map(a => (a.id === ativa ? (
-                <span key={a.id} className="px-3 py-1.5 rounded-lg bg-white text-[#0B1F4B] text-[10px] font-black uppercase tracking-widest">{tx(a.rotulo)}</span>
+                <span key={a.id} className="max-md:h-10 max-md:flex max-md:items-center px-3 py-1.5 rounded-lg bg-white text-[#0B1F4B] text-[10px] font-black uppercase tracking-widest">{tx(a.rotulo)}</span>
             ) : (
-                <button key={a.id} type="button" onClick={a.acao} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">{tx(a.rotulo)}</button>
+                <button key={a.id} type="button" onClick={a.acao} className="max-md:h-10 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">{tx(a.rotulo)}</button>
             )))}
         </div>
     );
@@ -63,9 +63,9 @@ export const AbasAvaliacao = ({ ativa, onAvaliadores, onUnidade, onGlobal }) => 
 
 // Número dentro da faixa
 const NumeroFaixa = ({ rotulo, valor, extra, amarelo }) => (
-    <div className={`rounded-xl border px-3 py-2 min-w-[120px] ${amarelo ? 'bg-amber-400/20 border-amber-300/50' : 'bg-white/10 border-white/15'}`}>
+    <div className={`rounded-xl border px-3 py-2 min-w-0 md:min-w-[120px] ${amarelo ? 'bg-amber-400/20 border-amber-300/50' : 'bg-white/10 border-white/15'}`}>
         <span className={`block text-[10px] font-black uppercase tracking-widest ${amarelo ? 'text-amber-200' : 'text-blue-100/80'}`}>{rotulo}</span>
-        <strong className={`block text-xl font-black leading-tight ${amarelo ? 'text-amber-200' : ''}`}>
+        <strong className={`block text-lg md:text-xl font-black leading-tight ${amarelo ? 'text-amber-200' : ''}`}>
             {valor}
             {extra && <span className="text-[12px] font-bold text-blue-100/70"> {extra}</span>}
         </strong>
@@ -96,7 +96,7 @@ export const FaixaAvaliacao = ({ antes, icone, titulo, subtitulo, acoes, numeros
             </div>
             {(numeros.length > 0 || abas) && (
                 <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div className="flex flex-wrap items-stretch gap-2">
+                    <div className="grid grid-cols-2 max-md:w-full md:flex md:flex-wrap md:items-stretch gap-2">
                         {numeros.map((n, i) => <NumeroFaixa key={i} {...n} />)}
                     </div>
                     {abas}

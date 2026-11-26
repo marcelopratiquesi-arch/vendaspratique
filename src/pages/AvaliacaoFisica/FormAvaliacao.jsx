@@ -28,7 +28,7 @@ const CopyButton = ({ textToCopy, label }) => {
         } catch (err) { console.error('Erro ao copiar', err); }
     };
     return (
-        <button type="button" onClick={handleCopy} className="p-1.5 text-slate-300 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title={label}>
+        <button type="button" onClick={handleCopy} className="max-md:p-2.5 max-md:opacity-100 p-1.5 text-slate-300 dark:text-slate-600 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-all opacity-0 group-hover:opacity-100 focus:opacity-100" title={label}>
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
     );
@@ -36,10 +36,12 @@ const CopyButton = ({ textToCopy, label }) => {
 
 const InfoTooltip = ({ text }) => (
     <div className="relative flex items-center group cursor-pointer">
-        <Info className="w-3.5 h-3.5 text-blue-400 hover:text-blue-600 transition-colors dark:hover:text-blue-400" />
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] leading-relaxed rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all shadow-xl font-medium normal-case pointer-events-none z-[9999]">
+        <button type="button" aria-label={text} className="-m-2 p-2 outline-none">
+            <Info className="w-3.5 h-3.5 text-blue-400 hover:text-blue-600 transition-colors dark:hover:text-blue-400" />
+        </button>
+        <div className="max-md:fixed max-md:left-4 max-md:right-4 max-md:bottom-[calc(1rem+var(--faixa-instalar))] max-md:top-auto max-md:w-auto max-md:translate-x-0 max-md:mb-0 max-md:group-focus-within:opacity-100 max-md:group-focus-within:visible absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-slate-900 text-white text-[11px] leading-relaxed rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all shadow-xl font-medium normal-case pointer-events-none z-[9999]">
             {text}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
+            <div className="max-md:hidden absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-slate-900"></div>
         </div>
     </div>
 );
@@ -492,7 +494,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                     <span className="text-[10px] font-bold opacity-80 leading-tight">{tx("Proceda com o cadastro.")}</span>
                                                 </div>
                                             </div>
-                                            <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">{tx("Cadastrar")}</button>
+                                            <button type="button" onClick={() => setModalAlunoAberto(true)} className="w-full max-md:h-10 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors shadow-sm">{tx("Cadastrar")}</button>
                                         </div>
                                     )}
                                 </div>
@@ -518,12 +520,12 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
 
                         <div className="flex-1 w-full min-h-[140px]">
                             {alunoEncontrado ? (
-                                <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 shadow-[inset_0_2px_10px_rgba(0,0,0,0.01)] animate-[slideLeft_0.3s_ease-out]">
+                                <div className="bg-slate-50/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 md:p-6 shadow-[inset_0_2px_10px_rgba(0,0,0,0.01)] animate-[slideLeft_0.3s_ease-out]">
                                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/80 dark:border-slate-700/80 pb-5 mb-5">
                                         <div className="flex items-center gap-4">
                                             <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900/50 text-blue-500 dark:text-blue-400 rounded-full flex items-center justify-center shrink-0 border-2 border-white dark:border-slate-800 shadow-sm"><User className="w-6 h-6" /></div>
-                                            <div className="flex flex-col gap-0.5">
-                                                <div className="flex items-center gap-2 group">
+                                            <div className="flex flex-col gap-0.5 min-w-0">
+                                                <div className="flex flex-wrap md:flex-nowrap items-center gap-2 group">
                                                     <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight">{alunoEncontrado.nome}</h4>
                                                     <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center shrink-0"><Check className="w-3 h-3 text-white stroke-[3]" /></div>
                                                     <CopyButton textToCopy={alunoEncontrado.nome} label={tx("Copiar Nome")} />
@@ -615,7 +617,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                             {arquivoInBody.name}
                                         </span>
                                     </div>
-                                    <button type="button" onClick={removerArquivo} className="text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors dark:hover:text-rose-400">
+                                    <button type="button" onClick={removerArquivo} className="max-md:h-10 text-[10px] font-bold text-rose-500 hover:text-rose-700 uppercase tracking-widest transition-colors dark:hover:text-rose-400">
                                         {tx("Remover Arquivo")}
                                     </button>
                                 </div>
@@ -634,14 +636,14 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Registre o peso e a altura atual do aluno.")}</p>
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className="grid grid-cols-2 gap-3 md:gap-5 items-end md:items-stretch">
                                 <InputComIcone label={tx("Peso (Kg)")} name="peso" value={form.peso} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={Scale} example="Ex.: 75.5" />
                                 <InputComIcone label={tx("Altura (m)")} name="altura" value={form.altura} onChange={handleChange} disabled={!alunoEncontrado} req={true} icon={PersonStanding} example="Ex.: 1.75" />
                             </div>
                         </div>
 
                         <div className={sectionClass}>
-                            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
+                            <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-2 md:gap-0 border-b border-slate-100 dark:border-slate-800 pb-3 mb-4">
                                 <div className="flex items-center gap-4">
                                     <div className="w-9 h-9 bg-rose-50 dark:bg-rose-500/10 text-rose-500 dark:text-rose-400 rounded-xl flex items-center justify-center shrink-0">
                                         <HeartPulse className="w-5 h-5" />
@@ -657,7 +659,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-200 dark:border-slate-700 shrink-0">{tx("Não Aferida")}</span>
                                 )}
                             </div>
-                            <div className="grid grid-cols-2 gap-5">
+                            <div className="grid grid-cols-2 gap-3 md:gap-5 items-end md:items-stretch">
                                 <InputComIcone label={tx("Sistólica (mmHg)")} name="sistolica" value={form.sistolica} onChange={handleChange} disabled={!alunoEncontrado} icon={HeartPulse} example="Ex.: 120" />
                                 <InputComIcone label={tx("Diastólica (mmHg)")} name="diastolica" value={form.diastolica} onChange={handleChange} disabled={!alunoEncontrado} icon={HeartPulse} example="Ex.: 80" />
                             </div>
@@ -746,8 +748,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                             </div>
                             
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                <div className="bg-orange-50/30 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-800/50 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
-                                    <div className="flex items-start gap-5 mb-5">
+                                <div className="bg-orange-50/30 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-800/50 rounded-[20px] p-4 md:p-6 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-3 md:gap-5 mb-4 md:mb-5">
                                         <div className="w-16 h-16 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-500 dark:text-orange-400 flex items-center justify-center shrink-0 shadow-inner"><Dumbbell className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
@@ -764,8 +766,8 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                     </div>
                                 </div>
                                 
-                                <div className="bg-rose-50/30 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50 rounded-[20px] p-6 shadow-sm flex flex-col justify-between">
-                                    <div className="flex items-start gap-5 mb-5">
+                                <div className="bg-rose-50/30 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/50 rounded-[20px] p-4 md:p-6 shadow-sm flex flex-col justify-between">
+                                    <div className="flex items-start gap-3 md:gap-5 mb-4 md:mb-5">
                                         <div className="w-16 h-16 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-500 dark:text-rose-400 flex items-center justify-center shrink-0 shadow-inner"><Droplet className="w-8 h-8" /></div>
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-1.5 mb-1.5">
@@ -840,7 +842,7 @@ const FormAvaliacao = ({ usuarioLogado, professorAtivo, voltar, avaliacaoEditand
                                                                             <input type={p.tipo === 'SELECT' ? 'radio' : 'checkbox'} name={p.tipo === 'SELECT' ? p.id : undefined} value={o} checked={isChecked} onChange={(e) => handleRespostaDinamica(p.id, e.target.value, p.tipo)} className="hidden" disabled={!alunoEncontrado} />
                                                                             {isChecked && <CheckCircle2 className="w-4 h-4 fill-blue-500 text-white dark:text-slate-900 shrink-0" />} {o || tx("Opção Vazia")}
                                                                         </label>
-                                                                        {isOutro && isChecked && (<input type="text" placeholder={tx("Especifique a resposta...")} disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
+                                                                        {isOutro && isChecked && (<input type="text" placeholder={tx("Especifique a resposta...")} disabled={!alunoEncontrado} className="w-full sm:w-auto flex-1 min-w-0 md:min-w-[250px] bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 focus:bg-white dark:focus:bg-slate-800 focus:border-blue-400 focus:ring-2 focus:ring-blue-500/50 rounded-xl text-sm font-bold text-slate-700 dark:text-white outline-none py-2 px-4 transition-all shadow-sm placeholder:text-slate-400 animate-[fadeIn_0.2s_ease-out]" value={respostasOutros[p.id] || ''} onChange={(e) => setRespostasOutros({...respostasOutros, [p.id]: e.target.value})} autoFocus />)}
                                                                     </React.Fragment>
                                                                 )
                                                             })}

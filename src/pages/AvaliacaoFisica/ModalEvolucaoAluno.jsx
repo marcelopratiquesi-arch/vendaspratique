@@ -183,8 +183,8 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
     if (!aluno) return null;
 
     return (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 md:p-6 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-slate-50 w-full max-w-[95vw] lg:max-w-5xl h-full max-h-[90vh] md:max-h-[85vh] rounded-[24px] shadow-2xl flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-[#0a0f1c]">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-0 md:p-6 animate-[fadeIn_0.2s_ease-out]">
+            <div className="bg-slate-50 w-full md:max-w-[95vw] lg:max-w-5xl h-[100dvh] md:h-full md:max-h-[85vh] rounded-none md:rounded-[24px] shadow-2xl flex flex-col overflow-y-auto md:overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-[#0a0f1c]">
 
                 {/* FAIXA DE DESTAQUE da Avaliação (peça única, 09/11/2026): aluno, período e os 3 números com a evolução */}
                 <div className="p-3 md:p-4 shrink-0">
@@ -197,14 +197,14 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                         ].filter(Boolean).join(' · ') || tx("Evolução do aluno")}
                         acoes={<>
                             {historicoTotal.length > 0 && (
-                                <div className="flex flex-wrap items-center gap-1 rounded-xl bg-black/20 p-1">
+                                <div className="abas-rolaveis flex flex-wrap items-center gap-1 rounded-xl bg-black/20 p-1">
                                     {[3, 6, 12, 'TODO'].map(meses => (
                                         periodo === meses ? (
-                                            <span key={meses} className="px-3 py-1.5 rounded-lg bg-white text-[#0B1F4B] text-[10px] font-black uppercase tracking-widest">
+                                            <span key={meses} className="max-md:h-10 max-md:flex max-md:items-center px-3 py-1.5 rounded-lg bg-white text-[#0B1F4B] text-[10px] font-black uppercase tracking-widest">
                                                 {meses === 'TODO' ? tx("Todo o Histórico") : tx("{meses} Meses", { meses })}
                                             </span>
                                         ) : (
-                                            <button key={meses} type="button" onClick={() => setPeriodo(meses)} className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">
+                                            <button key={meses} type="button" onClick={() => setPeriodo(meses)} className="max-md:h-10 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-white/90 hover:bg-white/15 transition-colors">
                                                 {meses === 'TODO' ? tx("Todo o Histórico") : tx("{meses} Meses", { meses })}
                                             </button>
                                         )
@@ -222,7 +222,7 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
                 </div>
 
                 {/* CONTEÚDO SCROLLÁVEL */}
-                <div className="flex-1 overflow-x-hidden overflow-y-auto custom-scrollbar px-3 pb-4 md:px-4 md:pb-6">
+                <div className="shrink-0 md:shrink md:flex-1 overflow-x-hidden md:overflow-y-auto custom-scrollbar px-3 pb-4 md:px-4 md:pb-6">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-64">
                             <RefreshCw className="w-8 h-8 text-blue-500 animate-spin mb-4"/>
@@ -328,6 +328,10 @@ const ModalEvolucaoAluno = ({ aluno, onClose }) => {
 
                         </div>
                     )}
+                </div>
+                {/* Celular: a janela rola inteira, então o Fechar fica preso embaixo */}
+                <div className="md:hidden sticky bottom-0 shrink-0 mt-auto px-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] bg-slate-50 border-t border-slate-200 dark:bg-[#0a0f1c] dark:border-slate-800">
+                    <button type="button" onClick={onClose} className="w-full h-11 rounded-xl bg-slate-800 text-white text-[11px] font-black uppercase tracking-widest dark:bg-slate-700">{tx("Fechar")}</button>
                 </div>
             </div>
         </div>

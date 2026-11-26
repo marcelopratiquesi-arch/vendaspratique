@@ -189,7 +189,7 @@ const TabPerguntasAvaliacao = ({ usuarioLogado }) => {
                 </div>
             )}
             
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-slate-200 p-6 rounded-[24px] shadow-sm sticky top-4 z-50 dark:bg-slate-900 dark:border-slate-800">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white border border-slate-200 p-4 md:p-6 rounded-[24px] shadow-sm md:sticky md:top-4 z-50 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex items-center gap-4">
                     <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center shadow-inner dark:bg-blue-500/10 dark:text-blue-400"><ListChecks className="w-6 h-6" /></div>
                     <div>
@@ -209,13 +209,13 @@ const TabPerguntasAvaliacao = ({ usuarioLogado }) => {
                     <div className="bg-white border border-slate-200 p-10 rounded-[24px] text-center shadow-sm dark:bg-slate-900 dark:border-slate-800"><p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">{tx("O formulário está vazio. Clique em \"Nova Pergunta\" para começar.")}</p></div>
                 ) : (
                     perguntas.map((p, index) => (
-                        <div key={p.id} id={`pergunta-${p.id}`} className="bg-white border border-slate-200 rounded-[24px] p-6 shadow-sm flex flex-col gap-4 relative group dark:bg-slate-900 dark:border-slate-800">
+                        <div key={p.id} id={`pergunta-${p.id}`} className="bg-white border border-slate-200 rounded-[24px] p-4 md:p-6 shadow-sm flex flex-col gap-4 relative group dark:bg-slate-900 dark:border-slate-800">
                             
                             <div className="flex flex-wrap sm:flex-nowrap justify-between items-center gap-4 border-b border-slate-100 pb-4 dark:border-slate-800">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex flex-col gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
-                                        <button onClick={() => moverPergunta(index, 'UP')} disabled={index === 0} className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-colors dark:hover:text-blue-400"><ArrowUp className="w-3 h-3" /></button>
-                                        <button onClick={() => moverPergunta(index, 'DOWN')} disabled={index === perguntas.length - 1} className="p-1 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-colors dark:hover:text-blue-400"><ArrowDown className="w-3 h-3" /></button>
+                                <div className="flex flex-wrap md:flex-nowrap items-center gap-3">
+                                    <div className="flex md:flex-col gap-1 bg-slate-50 p-1 rounded-lg border border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
+                                        <button onClick={() => moverPergunta(index, 'UP')} disabled={index === 0} className="max-md:p-3 p-1 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-colors dark:hover:text-blue-400"><ArrowUp className="w-3 h-3" /></button>
+                                        <button onClick={() => moverPergunta(index, 'DOWN')} disabled={index === perguntas.length - 1} className="max-md:p-3 p-1 text-slate-400 hover:text-blue-600 disabled:opacity-30 transition-colors dark:hover:text-blue-400"><ArrowDown className="w-3 h-3" /></button>
                                     </div>
                                     <select value={p.tipo} onChange={(e) => atualizarPergunta(index, 'tipo', e.target.value)} className="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-black uppercase tracking-widest px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200">
                                         <option value="TEXTO_CURTO">{tx("Texto Curto")}</option>
@@ -246,11 +246,11 @@ const TabPerguntasAvaliacao = ({ usuarioLogado }) => {
                                     {p.opcoes.map((opcao, optIndex) => (
                                         <div key={optIndex} className="flex items-center gap-3">
                                             <div className={`w-4 h-4 shrink-0 border-2 border-slate-300 dark:border-slate-700 ${p.tipo === 'SELECT' ? 'rounded-full' : 'rounded'}`}></div>
-                                            <input type="text" value={opcao} onChange={(e) => atualizarOpcao(index, optIndex, e.target.value)} placeholder={tx("Opção {v1}", { v1: optIndex + 1 })} className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"/>
-                                            <button onClick={() => removerOpcao(index, optIndex)} className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors"><X className="w-4 h-4"/></button>
+                                            <input type="text" value={opcao} onChange={(e) => atualizarOpcao(index, optIndex, e.target.value)} placeholder={tx("Opção {v1}", { v1: optIndex + 1 })} className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-700 outline-none focus:border-blue-500 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"/>
+                                            <button onClick={() => removerOpcao(index, optIndex)} className="max-md:p-3 p-1.5 text-slate-400 hover:text-rose-500 transition-colors"><X className="w-4 h-4"/></button>
                                         </div>
                                     ))}
-                                    <button onClick={() => adicionarOpcao(index)} className="flex items-center gap-2 text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest mt-2 ml-1 dark:text-blue-400 dark:hover:text-blue-400"><Plus className="w-3 h-3" />{' '}{tx("Adicionar Opção")}</button>
+                                    <button onClick={() => adicionarOpcao(index)} className="max-md:h-10 flex items-center gap-2 text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest mt-2 ml-1 dark:text-blue-400 dark:hover:text-blue-400"><Plus className="w-3 h-3" />{' '}{tx("Adicionar Opção")}</button>
                                     <p className="text-[10px] font-bold text-slate-400 mt-2 ml-1">{tx("💡 Dica: Se quiser um campo aberto para justificativa, cadastre uma opção chamada exatamente")}{' '}<strong className="text-slate-600 dark:text-slate-300">{tx("\"Outro\"")}</strong>.</p>
                                 </div>
                             )}
@@ -266,17 +266,17 @@ const TabPerguntasAvaliacao = ({ usuarioLogado }) => {
             </div>
 
             {showPreview && (
-                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
-                    <div className="bg-slate-100 rounded-[32px] shadow-2xl w-full max-w-4xl flex flex-col h-full max-h-[85vh] overflow-hidden border border-slate-200 dark:bg-slate-800 dark:border-slate-800">
-                        <div className="p-6 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 shadow-sm z-10 dark:border-slate-800 dark:bg-slate-900">
+                <div className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-0 md:p-4 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-slate-100 rounded-none md:rounded-[32px] shadow-2xl w-full max-w-4xl flex flex-col h-[100dvh] md:h-full md:max-h-[85vh] overflow-hidden border border-slate-200 dark:bg-slate-800 dark:border-slate-800">
+                        <div className="p-3 md:p-6 gap-2 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 shadow-sm z-10 dark:border-slate-800 dark:bg-slate-900">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-blue-100 text-blue-600 rounded-xl dark:bg-blue-500/20 dark:text-blue-400"><Eye className="w-5 h-5" /></div>
                                 <div><h3 className="text-lg font-black text-slate-800 uppercase tracking-tight dark:text-white">{tx("Modo de Visualização")}</h3><p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 dark:text-slate-400">{tx("É assim que o professor verá a Anamnese")}</p></div>
                             </div>
-                            <button onClick={() => setShowPreview(false)} className="p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 rounded-full transition-colors dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-rose-500/10 dark:hover:border-rose-500/30"><X className="w-5 h-5" /></button>
+                            <button onClick={() => setShowPreview(false)} className="shrink-0 max-md:p-2.5 p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 rounded-full transition-colors dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-rose-500/10 dark:hover:border-rose-500/30"><X className="w-5 h-5" /></button>
                         </div>
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                            <div className="bg-white p-8 rounded-[24px] border border-slate-200 shadow-sm space-y-8 max-w-3xl mx-auto dark:bg-slate-900 dark:border-slate-800">
+                        <div className="flex-1 overflow-y-auto custom-scrollbar p-3 md:p-6">
+                            <div className="bg-white p-4 md:p-8 rounded-[24px] border border-slate-200 shadow-sm space-y-8 max-w-3xl mx-auto dark:bg-slate-900 dark:border-slate-800">
                                 <div className="flex items-center gap-2 border-b border-slate-100 pb-4 mb-6 dark:border-slate-800"><ListChecks className="w-5 h-5 text-blue-500" /><h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx("Questionário de Anamnese")}</h3></div>
                                 <div className="flex flex-col gap-10">
                                     {perguntas.map((p) => (

@@ -110,7 +110,7 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
                     <div className="relative w-full sm:w-72">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar: aluno, CPF ou avaliador")}
-                            className="w-full h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
+                            className="w-full h-10 md:h-9 pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
                     </div>
                 </div>
 
@@ -126,7 +126,7 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
                     <div className="py-16 text-center text-xs font-black uppercase tracking-widest text-slate-400">{tx("Nenhuma avaliação na lixeira neste período.")}</div>
                 ) : (
                     <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full min-w-[860px] border-collapse">
+                        <table className="tabela-arrasta w-full min-w-[860px] border-collapse">
                             <thead className="bg-slate-50 dark:bg-slate-800/60">
                                 <tr>
                                     <th className={th}>{tx("Aluno")}</th>
@@ -140,7 +140,7 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
                             <tbody>
                                 {visiveis.map(l => (
                                     <tr key={l.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
-                                        <td className="px-4 py-3">
+                                        <td className="px-4 py-3 max-md:px-3 max-md:w-[140px] max-md:min-w-[140px] max-md:break-words">
                                             <span className="block text-[12px] font-black uppercase text-slate-800 dark:text-white">{l.aluno || tx("NÃO INFORMADO")}</span>
                                             {l.cpf && <span className="block text-[10px] font-bold font-mono text-slate-400">{mascaraCPF(String(l.cpf))}</span>}
                                         </td>
@@ -157,7 +157,7 @@ const LixeiraAvaliacoes = ({ usuarioLogado, onVoltar }) => {
                                         {podeRestaurar && (
                                             <td className="px-4 py-3 text-center">
                                                 <button type="button" onClick={() => restaurar(l)} disabled={restaurandoId === l.id}
-                                                    className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                                                    className="h-10 md:h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
                                                     {restaurandoId === l.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}{tx("Restaurar")}
                                                 </button>
                                             </td>
