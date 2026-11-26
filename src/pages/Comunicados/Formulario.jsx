@@ -268,7 +268,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             
             {/* HEADER COMPACTO */}
             <div className="flex flex-col gap-2 mb-8">
-                <button onClick={onVoltar} className="w-fit flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-white/60 dark:bg-white/5 px-4 py-2 rounded-lg border border-slate-200/50 dark:border-white/5 shadow-sm backdrop-blur-md dark:text-slate-400 dark:hover:text-blue-400">
+                <button onClick={onVoltar} className="max-md:min-h-10 w-fit flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors bg-white/60 dark:bg-white/5 px-4 py-2 rounded-lg border border-slate-200/50 dark:border-white/5 shadow-sm backdrop-blur-md dark:text-slate-400 dark:hover:text-blue-400">
                     <ArrowLeft className="w-3.5 h-3.5" /> {t('communications.back', {defaultValue: 'Voltar'})}
                 </button>
                 <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight leading-tight mt-2">{t('communications.new', {defaultValue: 'Novo Comunicado Operacional'})}</h2>
@@ -278,7 +278,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
             <form onSubmit={handleSubmit} className="space-y-8">
                 
                 {/* 1. SECTION: CONTEÚDO */}
-                <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-6 md:p-8">
+                <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] max-md:rounded-2xl border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-4 md:p-8">
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 border-b border-slate-200/50 dark:border-white/5 pb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center text-xs">1</span>
                         {t('communications.form.contentSection', {defaultValue: 'Mensagem e Mídia'})}
@@ -325,7 +325,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                 </section>
 
                 {/* 2. SECTION: COMPORTAMENTO (Agora apenas Aviso ou Questionário) */}
-                <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-6 md:p-8">
+                <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] max-md:rounded-2xl border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-4 md:p-8">
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 border-b border-slate-200/50 dark:border-white/5 pb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center text-xs">2</span>
                         {tx("Requisito de Desbloqueio")}
@@ -356,30 +356,31 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                             {perguntas.map((p, pIdx) => (
                                 <div key={p.id} className="p-5 bg-slate-50/80 dark:bg-black/20 border border-slate-200/70 dark:border-white/10 rounded-2xl relative group">
                                     {perguntas.length > 1 && (
-                                        <button type="button" onClick={() => removerPergunta(p.id)} className="absolute top-4 right-4 p-2 text-slate-400 hover:text-rose-500 transition-colors" title={tx("Remover Pergunta")}><Trash2 className="w-4 h-4" /></button>
+                                        <button type="button" onClick={() => removerPergunta(p.id)} className="absolute top-4 right-4 max-md:top-2 max-md:right-2 p-2 max-md:p-3 text-slate-400 hover:text-rose-500 transition-colors" title={tx("Remover Pergunta")}><Trash2 className="w-4 h-4" /></button>
                                     )}
                                     
                                     <label className="block text-[11px] font-black text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-3">{tx("Pergunta")}{' '}{pIdx + 1}</label>
                                     <input type="text" value={p.texto} onChange={(e) => atualizarPergunta(p.id, 'texto', e.target.value)} placeholder={tx("Ex: Qual é o desconto máximo permitido?")} className={`${inputClasses} mb-4`} />
                                     
+                                    <p className="md:hidden mb-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx("Marcar como Resposta Certa")}: {tx("toque na bolinha")}</p>
                                     <div className="space-y-3 pl-2 border-l-2 border-purple-200 dark:border-purple-500/30">
                                         {p.alternativas.map((alt, aIdx) => (
                                             <div key={aIdx} className="flex items-center gap-3">
                                                 <div 
                                                     onClick={() => atualizarPergunta(p.id, 'correta', alt)}
-                                                    className={`w-5 h-5 flex-shrink-0 rounded-full border-2 cursor-pointer transition-all flex items-center justify-center ${p.correta === alt && alt.trim() !== '' ? 'border-purple-600 bg-purple-600 dark:border-purple-500 dark:bg-purple-500' : 'border-slate-300 dark:border-white/20 hover:border-purple-400'}`}
+                                                    className={`w-5 h-5 max-md:w-8 max-md:h-8 flex-shrink-0 rounded-full border-2 cursor-pointer transition-all flex items-center justify-center ${p.correta === alt && alt.trim() !== '' ? 'border-purple-600 bg-purple-600 dark:border-purple-500 dark:bg-purple-500' : 'border-slate-300 dark:border-white/20 hover:border-purple-400'}`}
                                                     title={tx("Marcar como Resposta Certa")}
                                                 >
                                                     {p.correta === alt && alt.trim() !== '' && <div className="w-2 h-2 bg-white rounded-full"></div>}
                                                 </div>
-                                                <input type="text" value={alt} onChange={(e) => atualizarAlternativa(p.id, aIdx, e.target.value)} placeholder={tx("Alternativa {v1}", { v1: aIdx + 1 })} className="w-full bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500" />
+                                                <input type="text" value={alt} onChange={(e) => atualizarAlternativa(p.id, aIdx, e.target.value)} placeholder={tx("Alternativa {v1}", { v1: aIdx + 1 })} className="w-full min-w-0 max-md:h-10 bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-lg px-3 py-2 text-sm font-medium text-slate-800 dark:text-slate-200 outline-none focus:border-purple-500" />
                                                 {p.alternativas.length > 2 && (
-                                                    <button type="button" onClick={() => removerAlternativa(p.id, aIdx)} className="text-slate-400 hover:text-rose-400 p-1"><X className="w-4 h-4" /></button>
+                                                    <button type="button" onClick={() => removerAlternativa(p.id, aIdx)} className="shrink-0 text-slate-400 hover:text-rose-400 p-1 max-md:p-3 max-md:-mr-2"><X className="w-4 h-4" /></button>
                                                 )}
                                             </div>
                                         ))}
                                         {p.alternativas.length < 6 && (
-                                            <button type="button" onClick={() => adicionarAlternativa(p.id)} className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-purple-600 dark:hover:text-purple-400 transition-colors mt-2 ml-1">
+                                            <button type="button" onClick={() => adicionarAlternativa(p.id)} className="max-md:min-h-10 text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest flex items-center gap-1.5 hover:text-purple-600 dark:hover:text-purple-400 transition-colors mt-2 ml-1">
                                                 <Plus className="w-3 h-3" />{' '}{tx("Adicionar Opção")}
                                             </button>
                                         )}
@@ -397,7 +398,7 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                 </section>
 
                 {/* 3. SECTION: PÚBLICO E DATA */}
-                <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-6 md:p-8">
+                <section className="bg-white/70 dark:bg-[#111827]/65 backdrop-blur-2xl rounded-[32px] max-md:rounded-2xl border border-white/80 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] p-4 md:p-8">
                     <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest mb-6 border-b border-slate-200/50 dark:border-white/5 pb-4 flex items-center gap-2">
                         <span className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400 flex items-center justify-center text-xs">3</span>
                         {t('communications.form.targetSection', {defaultValue: 'Público e Agendamento'})}

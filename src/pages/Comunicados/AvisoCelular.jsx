@@ -3,6 +3,7 @@ import { ArrowLeft, BellRing, Send, Loader2, Users, X, CheckCircle2, AlertTriang
 import { supabase } from '../../supabaseClient.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
+import { CartaoCelular, LinhaCartao } from '../../components/celular/Cartao.jsx';
 import {
     enviarAvisoCelular, lerHistoricoAvisos, lerModoAvisos, definirModoAvisos, TELAS_DO_AVISO, linkDaTela,
 } from '../../components/avisosCelular/avisosPush.js';
@@ -27,7 +28,7 @@ const nomeNivel = (id) => NIVEIS.find(n => n.id === id)?.nome || id;
 const cartao = 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5';
 const rotulo = 'block text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1.5';
 const campo = 'w-full bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-800 dark:text-white outline-none focus:border-blue-500';
-const chip = (ativo) => `px-3 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-widest border transition-colors ${ativo
+const chip = (ativo) => `px-3 py-1.5 max-md:min-h-10 rounded-xl text-[11px] font-black uppercase tracking-widest border transition-colors ${ativo
     ? 'bg-blue-600 border-blue-600 text-white'
     : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-blue-400'}`;
 
@@ -147,7 +148,7 @@ export default function AvisoCelular({ usuarioLogado, unidades = [], onVoltar })
         <div className="space-y-4 max-w-[1100px] mx-auto pb-10 font-sans">
             {/* Topo compacto */}
             <div className="flex flex-wrap items-center gap-3">
-                <button type="button" onClick={onVoltar} className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 dark:text-slate-400">
+                <button type="button" onClick={onVoltar} className="max-md:min-h-10 inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 dark:text-slate-400">
                     <ArrowLeft className="w-4 h-4" /> {tx('Comunicados')}
                 </button>
                 <div className="flex items-center gap-2">
@@ -163,7 +164,7 @@ export default function AvisoCelular({ usuarioLogado, unidades = [], onVoltar })
                     </span>
                 )}
                 {ehAdmin && modo && !semSql && (
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-1.5 max-md:flex-wrap max-md:[&>button]:min-h-10 max-md:[&>button]:min-w-10 max-md:[&>button]:justify-center">
                         {modo !== 'ligado' && <button type="button" onClick={() => trocarModo('ligado')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest"><Users className="w-3.5 h-3.5" /> {tx('Liberar para a equipe')}</button>}
                         {modo !== 'teste' && <button type="button" onClick={() => trocarModo('teste')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-amber-300 text-amber-700 dark:text-amber-300 text-[10px] font-black uppercase tracking-widest hover:bg-amber-50 dark:hover:bg-amber-500/10"><FlaskConical className="w-3.5 h-3.5" /> {tx('Modo teste')}</button>}
                         {modo !== 'desligado' && <button type="button" onClick={() => trocarModo('desligado')} title={tx('Desligar a faixa de ativar')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800"><Power className="w-3.5 h-3.5" /></button>}
@@ -269,7 +270,35 @@ export default function AvisoCelular({ usuarioLogado, unidades = [], onVoltar })
                 {historico.lista.length === 0 ? (
                     <p className="text-xs font-bold text-slate-400">{tx('Nenhum aviso enviado ainda.')}</p>
                 ) : (
-                    <div className="overflow-x-auto">
+                    <>
+                    {/* CELULAR (26/11/2026): um cartão por aviso enviado */}
+                    <div className="md:hidden space-y-2">
+                        {historico.lista.map(h => {
+                            const sem = Array.isArray(h.sem_aparelho) ? h.sem_aparelho : [];
+                            return (
+                                <CartaoCelular key={h.id} titulo={h.titulo} subtitulo={dataHora(h.criado_em)}>
+                                    <p className="text-[12px] font-bold text-slate-600 break-words dark:text-slate-300">{h.texto}</p>
+                                    <div className="mt-2">
+                                        <LinhaCartao rotulo={tx('Chegou')} valor={`${h.entregues}/${h.aparelhos}`} cor={h.falhas ? 'text-amber-600' : 'text-emerald-600'} />
+                                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx('Aparelhos que receberam / aparelhos ativados')}</p>
+                                        <p className="mt-1 text-[11px] font-bold text-slate-600 break-words dark:text-slate-300">{tx('Para quem')}: {h.destino_resumo || '—'}{h.comunicado_id ? ` · ${tx('comunicado')}` : ''}</p>
+                                    </div>
+                                    {sem.length ? (
+                                        <button type="button" onClick={() => setAberto(aberto === h.id ? null : h.id)} aria-expanded={aberto === h.id}
+                                            className="mt-2 w-full h-10 rounded-xl border border-rose-200 text-rose-600 text-[11px] font-black uppercase tracking-widest dark:border-rose-500/30 dark:text-rose-400">
+                                            {tx('Sem ativar')}: {sem.length}
+                                        </button>
+                                    ) : <LinhaCartao rotulo={tx('Sem ativar')} valor={0} cor="text-emerald-600" />}
+                                    {aberto === h.id && (
+                                        <p className="mt-2 rounded-xl bg-rose-50/60 dark:bg-rose-500/5 p-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                                            {sem.map(p => `${p.nome || p.email} (${p.unidade || '—'})`).join(' · ')}
+                                        </p>
+                                    )}
+                                </CartaoCelular>
+                            );
+                        })}
+                    </div>
+                    <div className="hidden md:block overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
                                 <tr className="text-left text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200 dark:border-slate-800">
@@ -310,16 +339,17 @@ export default function AvisoCelular({ usuarioLogado, unidades = [], onVoltar })
                             </tbody>
                         </table>
                     </div>
+                    </>
                 )}
             </div>
 
             {/* Janela de conferência */}
             {conferencia && (
                 <div className="fixed inset-0 z-[200] bg-slate-900/60 flex items-center justify-center p-4" onClick={() => !enviando && setConferencia(null)}>
-                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-[min(560px,100%)] max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 w-[min(560px,100%)] max-h-[90vh] max-md:max-h-[90dvh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-800">
                             <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Conferir antes de enviar')}</h3>
-                            <button type="button" onClick={() => !enviando && setConferencia(null)} className="p-1 text-slate-400 hover:text-rose-600"><X className="w-5 h-5" /></button>
+                            <button type="button" onClick={() => !enviando && setConferencia(null)} aria-label={tx('Fechar')} className="p-1 max-md:p-2.5 max-md:-m-2 text-slate-400 hover:text-rose-600"><X className="w-5 h-5" /></button>
                         </div>
                         <div className="p-5 space-y-4">
                             {/* Como vai aparecer no celular */}
@@ -358,7 +388,7 @@ export default function AvisoCelular({ usuarioLogado, unidades = [], onVoltar })
                                 <p className="text-xs font-bold text-rose-600">{tx('Ninguém desta lista ativou os avisos ainda: o aviso não chegaria em ninguém.')}</p>
                             )}
                         </div>
-                        <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-200 dark:border-slate-800">
+                        <div className="flex justify-end gap-2 px-5 py-4 border-t border-slate-200 dark:border-slate-800 max-md:sticky max-md:bottom-0 max-md:bg-white max-md:dark:bg-slate-900 max-md:[&>button]:flex-1 max-md:[&>button]:min-h-11 max-md:[&>button]:justify-center">
                             <button type="button" onClick={() => setConferencia(null)} disabled={enviando} className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{tx('Voltar')}</button>
                             <button type="button" onClick={enviar} disabled={enviando || conferencia.aparelhos === 0}
                                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black uppercase tracking-widest disabled:opacity-50">

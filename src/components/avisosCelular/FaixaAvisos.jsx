@@ -76,13 +76,13 @@ export default function FaixaAvisos({ papelReal }) {
             </div>
             {situacao === 'ativar' && (
                 <button type="button" onClick={ativar} disabled={ativando}
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-white text-blue-700 px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-blue-50 disabled:opacity-60">
+                    className="shrink-0 inline-flex items-center gap-1.5 max-md:w-full max-md:min-h-10 max-md:justify-center rounded-xl bg-white text-blue-700 px-4 py-2 text-xs font-black uppercase tracking-widest hover:bg-blue-50 disabled:opacity-60">
                     {ativando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <BellRing className="w-3.5 h-3.5" />} {tx('Ativar avisos')}
                 </button>
             )}
             {situacao === 'bloqueado' && (
                 <button type="button" onClick={conferir}
-                    className="shrink-0 rounded-xl border border-rose-300 dark:border-rose-500/40 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/20">
+                    className="shrink-0 max-md:w-full max-md:min-h-10 rounded-xl border border-rose-300 dark:border-rose-500/40 px-3 py-1.5 text-[11px] font-black uppercase tracking-widest hover:bg-rose-100 dark:hover:bg-rose-500/20">
                     {tx('Já liberei')}
                 </button>
             )}

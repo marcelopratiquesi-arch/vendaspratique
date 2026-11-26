@@ -22,6 +22,7 @@ export default {
         "Quem mais caiu": "Biggest drop",
         "Mais a conferir": "Most left to check",
         "toque na barra": "tap a bar",
+        "toque na bolinha": "tap the circle",
     },
     'es-AR': {
         "Maior valor": "Mayor monto",
@@ -43,5 +44,6 @@ export default {
         "Quem mais caiu": "Quién más bajó",
         "Mais a conferir": "Más por controlar",
         "toque na barra": "tocá una barra",
+        "toque na bolinha": "tocá el círculo",
     },
 };

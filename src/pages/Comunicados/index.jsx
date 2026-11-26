@@ -3,6 +3,7 @@ import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import FormularioComunicado from './Formulario.jsx';
 import AvisoCelular from './AvisoCelular.jsx';
+import { CartaoCelular } from '../../components/celular/Cartao.jsx';
 import { 
     Megaphone, Plus, Search, Calendar, CheckCircle, 
     HelpCircle, Info, ShieldAlert, X, Loader2, Trash2, Eye, FileText,
@@ -103,14 +104,31 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
         });
     }, [inboxes, busca, filtroStatus]);
 
+    // Usados na tabela (computador) e nos cartões (celular)
+    const bolinhaTentativas = (item) => (
+        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${item.tentativas >= 5 ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : item.tentativas > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-400 dark:bg-white/5'}`}>
+            {item.tentativas}
+        </span>
+    );
+    const etiquetaStatus = (item) => (
+        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
+            item.status_leitura === 'CONCLUIDO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' :
+            item.status_leitura === 'BLOQUEADO' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400' :
+            item.status_leitura === 'PENDENTE' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400' :
+            'bg-slate-100 text-slate-500 border-slate-200 dark:bg-white/5 dark:border-white/10 dark:text-slate-400'
+        }`}>
+            {item.status_leitura}
+        </span>
+    );
+
     const totalPaginas = Math.ceil(dadosFiltrados.length / ITENS_POR_PAGINA);
     const dadosPaginados = dadosFiltrados.slice((pagina - 1) * ITENS_POR_PAGINA, pagina * ITENS_POR_PAGINA);
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out]">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl p-6 rounded-[32px] border border-slate-200/50 dark:border-white/5 shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl p-4 md:p-6 rounded-[32px] max-md:rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm">
                 <div>
-                    <button onClick={onVoltar} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors mb-4 dark:text-slate-400 dark:hover:text-blue-400">
+                    <button onClick={onVoltar} className="max-md:min-h-10 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 transition-colors mb-4 max-md:mb-2 dark:text-slate-400 dark:hover:text-blue-400">
                         <ArrowLeft className="w-3.5 h-3.5" />{' '}{tx("Voltar para Central")}
                     </button>
                     <div className="flex items-center gap-3 mb-1">
@@ -119,31 +137,31 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                         </span>
                         <span className="text-xs font-bold text-slate-400">{new Date(comunicado.inicio_em).toLocaleDateString(langAtual)}</span>
                     </div>
-                    <h2 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{comunicado.titulo_pt || comunicado.titulo}</h2>
+                    <h2 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight break-words">{comunicado.titulo_pt || comunicado.titulo}</h2>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 max-md:[&>div]:p-3">
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Users className="w-3.5 h-3.5" />{' '}{tx("Enviados")}</span>
-                    <span className="text-3xl font-black text-slate-800 dark:text-white">{loading ? '-' : totalEnviados}</span>
+                    <span className="text-lg md:text-3xl font-black text-slate-800 dark:text-white">{loading ? '-' : totalEnviados}</span>
                 </div>
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Eye className="w-3.5 h-3.5" />{' '}{tx("Abertos")}</span>
-                    <span className="text-3xl font-black text-blue-600 dark:text-blue-400">{loading ? '-' : totalAbertos}</span>
+                    <span className="text-lg md:text-3xl font-black text-blue-600 dark:text-blue-400">{loading ? '-' : totalAbertos}</span>
                 </div>
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 shadow-sm flex flex-col">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5 mb-1"><CheckCircle className="w-3.5 h-3.5" />{' '}{tx("Concluídos")}</span>
-                    <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400">{loading ? '-' : totalConcluidos}</span>
+                    <span className="text-lg md:text-3xl font-black text-emerald-600 dark:text-emerald-400">{loading ? '-' : totalConcluidos}</span>
                 </div>
                 <div className="bg-white/80 dark:bg-[#111827]/80 p-5 rounded-2xl border border-rose-200/50 dark:border-rose-500/20 shadow-sm flex flex-col bg-rose-50/30 dark:bg-rose-500/5">
                     <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest flex items-center gap-1.5 mb-1"><Lock className="w-3.5 h-3.5" />{' '}{tx("Bloqueados (Falhas)")}</span>
-                    <span className="text-3xl font-black text-rose-600 dark:text-rose-400">{loading ? '-' : totalBloqueados}</span>
+                    <span className="text-lg md:text-3xl font-black text-rose-600 dark:text-rose-400">{loading ? '-' : totalBloqueados}</span>
                 </div>
             </div>
 
             <div className="bg-white/80 dark:bg-[#111827]/80 backdrop-blur-xl rounded-[32px] border border-slate-200/70 dark:border-white/10 shadow-sm overflow-hidden flex flex-col">
-                <div className="p-5 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row gap-4 justify-between bg-slate-50/50 dark:bg-black/10">
+                <div className="p-3 md:p-5 border-b border-slate-200/50 dark:border-white/5 flex flex-col sm:flex-row gap-2 md:gap-4 justify-between bg-slate-50/50 dark:bg-black/10">
                     <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input type="text" placeholder={tx("Buscar destinatário...")} value={busca} onChange={(e) => { setBusca(e.target.value); setPagina(1); }} className="w-full bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 rounded-xl pl-9 pr-4 py-2.5 text-xs font-bold text-slate-700 dark:text-white outline-none focus:border-blue-500" />
@@ -161,7 +179,25 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                     {loading ? (
                         <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
                     ) : (
-                        <table className="w-full text-left border-collapse min-w-[800px]">
+                        <>
+                        {/* CELULAR (26/11/2026): um cartão por destinatário */}
+                        <div className="md:hidden p-2 space-y-2">
+                            {dadosPaginados.map(item => (
+                                <CartaoCelular key={item.id} titulo={item.nome} subtitulo={`${item.email_usuario} • ${item.unidade}`}>
+                                    <div className="flex items-center justify-between gap-2">
+                                        {etiquetaStatus(item)}
+                                        <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Tentativas")} {bolinhaTentativas(item)}</span>
+                                    </div>
+                                    {item.status_leitura === 'BLOQUEADO' && (
+                                        <button type="button" onClick={() => handleResetarTentativas(item.id, item.nome)} className="mt-2 w-full h-10 inline-flex items-center justify-center gap-1.5 bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-400 rounded-xl text-[11px] font-black uppercase tracking-widest">
+                                            <Unlock className="w-3.5 h-3.5" /> {tx("Liberar")}
+                                        </button>
+                                    )}
+                                </CartaoCelular>
+                            ))}
+                            {dadosPaginados.length === 0 && <p className="py-10 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">{tx("Nenhum destinatário encontrado.")}</p>}
+                        </div>
+                        <table className="max-md:hidden w-full text-left border-collapse min-w-[800px]">
                             <thead>
                                 <tr className="bg-slate-50 dark:bg-white/5 border-b border-slate-200/50 dark:border-white/5">
                                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Destinatário")}</th>
@@ -178,19 +214,10 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                                             <p className="text-[10px] font-semibold text-slate-500 mt-0.5 dark:text-slate-400">{item.email_usuario} • {item.unidade}</p>
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-black ${item.tentativas >= 5 ? 'bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400' : item.tentativas > 0 ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400' : 'bg-slate-100 text-slate-400 dark:bg-white/5'}`}>
-                                                {item.tentativas}
-                                            </span>
+                                            {bolinhaTentativas(item)}
                                         </td>
                                         <td className="px-6 py-4 text-center">
-                                            <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
-                                                item.status_leitura === 'CONCLUIDO' ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/20 dark:text-emerald-400' :
-                                                item.status_leitura === 'BLOQUEADO' ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-500/10 dark:border-rose-500/20 dark:text-rose-400' :
-                                                item.status_leitura === 'PENDENTE' ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-400' :
-                                                'bg-slate-100 text-slate-500 border-slate-200 dark:bg-white/5 dark:border-white/10 dark:text-slate-400'
-                                            }`}>
-                                                {item.status_leitura}
-                                            </span>
+                                            {etiquetaStatus(item)}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             {item.status_leitura === 'BLOQUEADO' ? (
@@ -212,6 +239,7 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                                 )}
                             </tbody>
                         </table>
+                        </>
                     )}
                 </div>
 
@@ -219,8 +247,8 @@ function RelatorioComunicado({ comunicado, usuarioLogado, onVoltar }) {
                     <div className="p-4 border-t border-slate-200/50 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-black/10">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Página")}{' '}{pagina}{' '}{tx("de")}{' '}{totalPaginas}</span>
                         <div className="flex gap-2">
-                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
-                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="p-1.5 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
+                            <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="p-1.5 max-md:p-3 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronLeft className="w-4 h-4" /></button>
+                            <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="p-1.5 max-md:p-3 rounded-lg bg-white dark:bg-[#1a1f2e] border border-slate-200 dark:border-white/10 text-slate-500 disabled:opacity-50 hover:bg-slate-50 dark:hover:bg-white/5 dark:text-slate-400"><ChevronRight className="w-4 h-4" /></button>
                         </div>
                     </div>
                 )}
@@ -403,20 +431,20 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto font-sans pb-10">
             
-            <div className="bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl rounded-[32px] shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-2xl border border-white/80 dark:border-white/5 p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <div className="flex items-center gap-5">
-                    <div className="w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center border border-blue-100 dark:border-blue-500/20 shadow-inner shrink-0">
+            <div className="bg-white/70 dark:bg-[#111827]/60 backdrop-blur-2xl rounded-[32px] max-md:rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.04)] dark:shadow-2xl border border-white/80 dark:border-white/5 p-4 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex items-center gap-3 md:gap-5">
+                    <div className="max-md:w-11 max-md:h-11 w-16 h-16 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center border border-blue-100 dark:border-blue-500/20 shadow-inner shrink-0">
                         <Megaphone className="w-8 h-8" strokeWidth={2} />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{t('communications.title', { defaultValue: 'Central de Comunicados' })}</h2>
+                        <h2 className="text-lg md:text-2xl font-black text-slate-900 dark:text-white tracking-tight">{t('communications.title', { defaultValue: 'Central de Comunicados' })}</h2>
                         <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1.5">
                             {tx("Comunicação Corporativa e Operacional")}
                         </p>
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row w-full md:w-auto items-center gap-4">
+                <div className="flex flex-col sm:flex-row w-full md:w-auto items-center gap-2 md:gap-4">
                     <div className="relative w-full sm:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input type="text" placeholder={t('communications.search', { defaultValue: 'Buscar...' })} value={filtroTexto} onChange={(e) => setFiltroTexto(e.target.value)} className="w-full bg-white dark:bg-white/5 border border-slate-200/70 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-slate-700 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm" />
@@ -442,7 +470,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                     <p className="text-sm font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">{t('communications.empty', {defaultValue: 'Nenhum comunicado encontrado.'})}</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 md:gap-6">
                     {cardsVisiveis.map(card => {
                         const com = card.comunicado;
                         const isUnread = card.inboxStatus === 'NAO_LIDO';
@@ -452,7 +480,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                         const isAuthor = card.isAuthor;
 
                         return (
-                            <div key={com.id} className="bg-white/90 dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200/70 dark:border-white/10 shadow-sm rounded-3xl p-5 flex flex-col relative transition-all hover:shadow-lg">
+                            <div key={com.id} className="bg-white/90 dark:bg-[#111827]/80 backdrop-blur-xl border border-slate-200/70 dark:border-white/10 shadow-sm rounded-3xl max-md:rounded-2xl overflow-hidden md:overflow-visible p-4 md:p-5 flex flex-col relative transition-all hover:shadow-lg">
                                 
                                 {(isUnread || isPending) && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-blue-500"></div>}
                                 {isBlocked && !isAuthor && <div className="absolute top-0 left-0 w-full h-1 bg-rose-500"></div>}
@@ -465,7 +493,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(com.inicio_em).toLocaleDateString(langAtual)}</span>
                                 </div>
 
-                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight line-clamp-1 mb-1" title={getTextoLocalizado(com, 'titulo')}>
+                                <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-tight line-clamp-1 max-md:line-clamp-3 mb-1" title={getTextoLocalizado(com, 'titulo')}>
                                     {getTextoLocalizado(com, 'titulo')}
                                 </h3>
                                 <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 line-clamp-2 mb-4 flex-1">
@@ -482,7 +510,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                 )}
 
                                 {isAuthor && card.metrics && (
-                                    <div className="mb-4 py-3 border-t border-b border-slate-100 dark:border-white/5 grid grid-cols-4 gap-1 text-center">
+                                    <div className="mb-4 py-3 border-t border-b border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-1 text-center">
                                         <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Enviados")}</span><span className="text-xs font-black text-slate-700 dark:text-slate-200">{card.metrics.total}</span></div>
                                         <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Abertos")}</span><span className="text-xs font-black text-blue-600 dark:text-blue-400">{card.metrics.lidos}</span></div>
                                         <div className="flex flex-col"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{tx("Ok")}</span><span className="text-xs font-black text-emerald-600 dark:text-emerald-400">{card.metrics.concluidos}</span></div>
@@ -490,7 +518,7 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                     </div>
                                 )}
 
-                                <div className="flex items-center justify-end gap-2 mt-auto">
+                                <div className="flex items-center justify-end gap-2 mt-auto max-md:[&>button]:h-10 max-md:[&>button]:flex-1 max-md:[&>button]:justify-center max-md:[&>button:last-child:not(:first-child)]:flex-none max-md:[&>button:last-child:not(:first-child)]:w-10">
                                     <button onClick={() => abrirViewer(card)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-300 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center gap-1.5">
                                         <Eye className="w-3.5 h-3.5" />{' '}{tx("Ver")}
                                     </button>
@@ -526,10 +554,10 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                 const urlVideoExterno = getEmbedUrl(com.video_externo);
 
                 return (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-xl p-4 sm:p-8 animate-[fadeIn_0.2s_ease-out]">
-                        <div className="bg-white dark:bg-[#0c101a] w-full max-w-4xl max-h-[90vh] rounded-[32px] shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col overflow-hidden animate-[slideDown_0.3s_ease-out]">
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/90 dark:bg-slate-950/95 backdrop-blur-xl p-4 sm:p-8 max-md:p-0 animate-[fadeIn_0.2s_ease-out]">
+                        <div className="bg-white dark:bg-[#0c101a] w-full max-w-4xl max-h-[90vh] max-md:max-h-none max-md:h-[100dvh] rounded-[32px] max-md:rounded-none shadow-2xl border border-slate-200 dark:border-white/10 flex flex-col overflow-hidden animate-[slideDown_0.3s_ease-out]">
                             
-                            <div className="flex justify-between items-center p-6 border-b border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-[#090b11]/50 shrink-0">
+                            <div className="flex justify-between items-center gap-3 p-4 md:p-6 max-md:pt-[max(1rem,env(safe-area-inset-top))] border-b border-slate-200/50 dark:border-white/5 bg-slate-50/50 dark:bg-[#090b11]/50 shrink-0">
                                 <div className="flex items-center gap-3">
                                     <div className="p-2 bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl"><Eye className="w-5 h-5" /></div>
                                     <div>
@@ -537,17 +565,17 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                                         <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{new Date(com.inicio_em).toLocaleString(langAtual)}</p>
                                     </div>
                                 </div>
-                                <button onClick={() => setVisualizando(null)} className="p-2 bg-slate-200/50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                                <button onClick={() => setVisualizando(null)} aria-label={tx("Fechar")} className="shrink-0 p-2 max-md:p-2.5 bg-slate-200/50 dark:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-500 rounded-full transition-colors"><X className="w-5 h-5" /></button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 bg-white dark:bg-transparent">
+                            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 md:p-10 max-md:pb-[calc(1rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] bg-white dark:bg-transparent">
                                 <h1 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">{getTextoLocalizado(com, 'titulo')}</h1>
                                 <div className="text-sm md:text-base font-semibold text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-wrap mb-10">{getTextoLocalizado(com, 'conteudo')}</div>
 
                                 <div className="space-y-6 mb-10">
                                     {com.imagem_url && <img src={com.imagem_url} alt={tx("Banner")} className="w-full h-auto rounded-3xl shadow-md object-cover border border-slate-200 dark:border-white/5" />}
                                     {com.pdf_url && (
-                                        <div className="flex items-center justify-between p-5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
+                                        <div className="flex items-center justify-between gap-3 max-md:flex-col max-md:items-stretch max-md:text-center p-4 md:p-5 bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 rounded-xl flex items-center justify-center"><FileText className="w-6 h-6" /></div>
                                                 <div>
