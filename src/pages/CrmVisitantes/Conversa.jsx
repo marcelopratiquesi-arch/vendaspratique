@@ -13,9 +13,11 @@ import { carregarContatosDoAluno } from './contatosFeitos';
 import {
     Search, MessageCircle, PhoneCall, Send, StickyNote, RefreshCw, PenTool, ArrowLeft, ChevronLeft, ChevronRight,
     Info, CalendarPlus, Ban, Trash2, Loader2, MoveRight, CalendarClock, Inbox, PanelRightOpen, PanelRightClose, AlertTriangle,
-    CheckCircle2, Clock, Cake, UserCheck, Repeat, AlarmClock
+    CheckCircle2, Clock, Cake, UserCheck, Repeat, AlarmClock, X
 } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
+import { ligarPara } from '../../components/celular/telefone.js';
 
 // ==========================================
 // MODO CONVERSA DO CRM (decisão do dono, 06/11/2026)
@@ -97,6 +99,9 @@ const corDaEtapa = (rotulo) => {
     if (/^Em Contato/i.test(r)) return 'bg-amber-500 text-white';
     return 'bg-slate-700 text-white dark:bg-slate-600';
 };
+
+// No celular a conversa ocupa a tela toda, acima dos cartões flutuantes (z-70) e abaixo das janelas (z-80+)
+const TELA_CHEIA = 'flex-1 min-w-0 flex flex-col max-md:fixed max-md:inset-x-0 max-md:top-0 max-md:bottom-[var(--faixa-instalar)] max-md:z-[75] max-md:bg-white max-md:dark:bg-slate-900';
 
 const iniciais = (nome) => String(nome || '?').trim().split(/\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
 
@@ -269,6 +274,9 @@ const Conversa = ({
         setSelecionadoId(item.lead ? item.lead.id : null);
     };
     const fecharSelecao = () => { setSelecionadoId(null); setChaveAtiva(null); setPessoaDia(null); };
+    const celular = useEhCelular();
+    const fecharRef = useRef(fecharSelecao);
+    useEffect(() => { fecharRef.current = fecharSelecao; });
 
     // O contato pode não estar na carteira (visitante 24h/48h da unidade): procura em todos os contatos do CRM
     const lead = selecionadoId ? (visitantes.find(v => v.id === selecionadoId) || todosLeads.find(v => v.id === selecionadoId) || null) : null;
@@ -278,6 +286,20 @@ const Conversa = ({
     const pessoaPendente = pessoaDiaAtual && !pessoaDiaAtual.feito && pessoaDiaAtual.lead && contatosDoDia?.acoes ? pessoaDiaAtual : null;
     const mensagemPara = (l) => (pessoaPendente && String(pessoaPendente.lead.id) === String(l.id) ? contatosDoDia.acoes.textoDe(pessoaPendente) : gerarTextoWhatsApp(l));
     const rotuloPara = (l) => (pessoaPendente && String(pessoaPendente.lead.id) === String(l.id) ? contatosDoDia.acoes.rotuloDe(pessoaPendente) : rotuloMensagemDoLead(l));
+
+    // CELULAR (26/11/2026): a conversa abre em tela cheia e o botão "voltar" do aparelho volta para a lista
+    const conversaEmTelaCheia = celular && Boolean(lead || pessoaDiaAtual);
+    useEffect(() => {
+        if (!conversaEmTelaCheia) return undefined;
+        window.history.pushState({ ...window.history.state, crmConversa: true }, '');
+        const aoVoltar = () => fecharRef.current();
+        window.addEventListener('popstate', aoVoltar);
+        return () => {
+            window.removeEventListener('popstate', aoVoltar);
+            // Fechou pelo botão da tela: tira a "página" que foi acrescentada no histórico do aparelho
+            if (window.history.state?.crmConversa) window.history.back();
+        };
+    }, [conversaEmTelaCheia]);
 
     // "Abrir no CRM" das abas Migração/Resgate (16/11/2026): abre a conversa já no contato pedido
     useEffect(() => {
@@ -393,7 +415,7 @@ const Conversa = ({
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
         if (doDia) await contatosDoDia.acoes.marcarFeito(doDia, { canal: 'LIGACAO' });
         carregarHistorico(lead.id, true);
-        window.location.href = `sip:${lead.telefone.replace(/\D/g, '')}`;
+        ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     };
 
     const mudarFase = async (novo) => {
@@ -441,14 +463,14 @@ const Conversa = ({
             <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx('Fase')}</label>
                 <select value={faseNaTela(lead)} onChange={(e) => mudarFase(e.target.value)}
-                    className="mt-1 w-full text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-2 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
+                    className="mt-1 w-full max-md:h-11 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-2 bg-slate-50 dark:bg-slate-800/60 focus:ring-2 focus:ring-blue-500 outline-none cursor-pointer">
                     {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                 </select>
             </div>
             <div>
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx('Próximo contato')}</label>
                 <button type="button" onClick={() => onProximoContato?.(lead)}
-                    className="mt-1 w-full h-9 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:border-blue-400 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+                    className="mt-1 w-full h-9 max-md:h-11 px-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 hover:border-blue-400 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
                     <CalendarPlus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                     {lead.proximo_contato ? formatarDiaCurto(lead.proximo_contato) : tx('Marcar data')}
                     <span className="ml-auto"><EtiquetaProximo lead={lead} /></span>
@@ -467,16 +489,16 @@ const Conversa = ({
                 <Dado rotulo={tx('Última ação')}>{lead.ultima_acao_em ? haQuanto(lead.ultima_acao_em) : ''}</Dado>
             </div>
             <div className="flex flex-col gap-2">
-                <button type="button" onClick={() => abrirFicha?.(lead)} className="h-9 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                <button type="button" onClick={() => abrirFicha?.(lead)} className="h-9 max-md:h-11 max-md:shrink-0 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
                     <Info className="w-4 h-4" />{tx('Ficha completa')}
                 </button>
                 {onNaoContatar && (
-                    <button type="button" onClick={() => onNaoContatar(lead)} className="h-9 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                    <button type="button" onClick={() => onNaoContatar(lead)} className="h-9 max-md:h-11 max-md:shrink-0 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
                         <Ban className="w-4 h-4" />{tx('Não contatar')}
                     </button>
                 )}
                 {podeApagar && deletarLead && (
-                    <button type="button" onClick={() => deletarLead(lead.id)} className="h-9 rounded-lg border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                    <button type="button" onClick={() => deletarLead(lead.id)} className="h-9 max-md:h-11 max-md:shrink-0 rounded-lg border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
                         <Trash2 className="w-4 h-4" />{tx('Apagar contato')}
                     </button>
                 )}
@@ -485,7 +507,7 @@ const Conversa = ({
     );
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex h-[78vh] min-h-[560px] animate-[fadeIn_0.3s_ease-out]">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex h-[78vh] min-h-[560px] max-md:h-auto max-md:min-h-0 animate-[fadeIn_0.3s_ease-out]">
             {editandoMensagens && lead && (
                 <MensagensProntas
                     usuarioLogado={usuarioLogado}
@@ -496,20 +518,20 @@ const Conversa = ({
             )}
 
             {/* ===== LISTA DE CONTATOS (esquerda) ===== */}
-            <aside className={`${lead || pessoaDiaAtual ? 'hidden md:flex' : 'flex'} w-full md:w-[320px] lg:w-[340px] shrink-0 flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60`}>
+            <aside className={`flex w-full md:w-[320px] lg:w-[340px] shrink-0 flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60`}>
                 <div className="p-3 space-y-2 border-b border-slate-200 dark:border-slate-800">
                     <div className="relative">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome, CPF ou telefone')}
-                            className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500" />
+                            className="w-full h-9 max-md:h-11 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
-                    <select value={ordem} onChange={(e) => setOrdem(e.target.value)} title={tx('Ordem da lista')} className="w-full h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+                    <select value={ordem} onChange={(e) => setOrdem(e.target.value)} title={tx('Ordem da lista')} className="w-full h-8 max-md:h-11 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
                         {ORDENS_CONTATOS.map(o => <option key={o.val} value={o.val}>{tx(o.label)}</option>)}
                     </select>
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1 abas-rolaveis">
                         {FILTROS.map(f => (
                             <button key={f} type="button" onClick={() => setFiltro(f)}
-                                className={`px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${filtro === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
+                                className={`max-md:h-10 max-md:px-3 whitespace-nowrap px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${filtro === f ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
                                 {tx(f)} <span className="opacity-70">{contagem[f] || 0}</span>
                             </button>
                         ))}
@@ -593,15 +615,15 @@ const Conversa = ({
                     )}
                 </div>
                 <div className="px-3 py-2 text-[10px] font-bold text-slate-400 text-center border-t border-slate-200 dark:border-slate-800">
-                    {modoHoje ? tx('{qtd} contato(s) do dia', { qtd: totalDoDia }) : tx('{qtd} contato(s)', { qtd: lista.length })} · <span title={tx('Use as setas do teclado para passar de um contato para outro')}>{tx('↑ ↓ trocam de contato')}</span>
+                    {modoHoje ? tx('{qtd} contato(s) do dia', { qtd: totalDoDia }) : tx('{qtd} contato(s)', { qtd: lista.length })}<span className="max-md:hidden"> · </span><span className="max-md:hidden" title={tx('Use as setas do teclado para passar de um contato para outro')}>{tx('↑ ↓ trocam de contato')}</span>
                 </div>
             </aside>
 
             {/* ===== CONVERSA (meio) ===== */}
             {!lead && pessoaDiaAtual ? (
-                <section className="flex-1 min-w-0 flex flex-col">
+                <section className={TELA_CHEIA}>
                     <div className="px-3 md:px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-white dark:bg-slate-900">
-                        <button type="button" onClick={fecharSelecao} className="md:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title={tx('Voltar para a lista')}>
+                        <button type="button" onClick={fecharSelecao} aria-label={tx('Voltar para a lista')} className="md:hidden w-10 h-10 shrink-0 -ml-1.5 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title={tx('Voltar para a lista')}>
                             <ArrowLeft className="w-5 h-5" />
                         </button>
                         <div className="w-9 h-9 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0"><Cake className="w-4 h-4" /></div>
@@ -610,7 +632,7 @@ const Conversa = ({
                             <p className="text-[10px] font-bold text-slate-400 truncate">{pessoaDiaAtual.telefone || tx('sem telefone')} · {pessoaDiaAtual.detalhe}</p>
                         </div>
                     </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar px-3 md:px-6 py-4 space-y-3 bg-slate-100/70 dark:bg-slate-950/40">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar px-3 md:px-6 py-4 space-y-3 bg-slate-100/70 dark:bg-slate-950/40">
                         <div className="flex justify-center">
                             {pessoaDiaAtual.feito ? (
                                 <span className={`text-[11px] font-black uppercase tracking-widest bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 ${corMeio(pessoaDiaAtual.feito.canal)}`}>
@@ -634,13 +656,13 @@ const Conversa = ({
                             </div>
                         ))}
                     </div>
-                    <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 flex flex-wrap gap-2 justify-end">
+                    <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-wrap gap-2 justify-end">
                         <button type="button" onClick={() => contatosDoDia?.acoes?.ligar(pessoaDiaAtual)} disabled={!pessoaDiaAtual.telefone}
-                            className="h-11 px-4 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
+                            className="h-11 max-md:flex-1 max-md:justify-center px-4 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
                             <PhoneCall className="w-4 h-4" />{tx('Ligar')}
                         </button>
                         <button type="button" onClick={() => contatosDoDia?.acoes?.abrirWhatsApp(pessoaDiaAtual)} disabled={!pessoaDiaAtual.telefone}
-                            className="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm disabled:opacity-50" title={tx('Abre o WhatsApp com a mensagem e registra o contato')}>
+                            className="h-11 max-md:flex-1 max-md:justify-center max-md:min-w-[200px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm disabled:opacity-50" title={tx('Abre o WhatsApp com a mensagem e registra o contato')}>
                             <Send className="w-4 h-4" />{tx('Enviar parabéns no WhatsApp')}
                         </button>
                     </div>
@@ -652,13 +674,13 @@ const Conversa = ({
                     <p className="text-xs text-slate-400 mt-1 max-w-sm">{tx('Aqui aparece tudo o que já foi feito com ele (mensagens, ligações, notas e mudanças de fase) e você manda a próxima mensagem.')}</p>
                 </div>
             ) : (
-                <section className="flex-1 min-w-0 flex flex-col">
+                <section className={TELA_CHEIA}>
                     {/* Cabeçalho do contato */}
                     <div className="px-3 md:px-4 py-2.5 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 bg-white dark:bg-slate-900">
-                        <button type="button" onClick={fecharSelecao} className="md:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title={tx('Voltar para a lista')}>
+                        <button type="button" onClick={fecharSelecao} aria-label={tx('Voltar para a lista')} className="md:hidden w-10 h-10 shrink-0 -ml-1.5 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800" title={tx('Voltar para a lista')}>
                             <ArrowLeft className="w-5 h-5" />
                         </button>
-                        <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-black shrink-0">{iniciais(lead.nome)}</div>
+                        <div className="max-md:hidden w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center text-[11px] font-black shrink-0">{iniciais(lead.nome)}</div>
                         <div className="min-w-0 flex-1">
                             <button type="button" onClick={() => abrirFicha?.(lead)} className="block max-w-full text-left text-sm font-black uppercase text-slate-800 dark:text-white truncate hover:text-blue-600 dark:hover:text-blue-400" title={tx('Ver Ficha e Histórico Completo')}>{lead.nome}</button>
                             <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-400">
@@ -672,27 +694,34 @@ const Conversa = ({
                                 )}
                             </div>
                         </div>
-                        <button type="button" onClick={ligar} disabled={!lead.telefone} className="h-9 w-9 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center disabled:opacity-40" title={tx('Ligar (MicroSIP)')}>
+                        <button type="button" onClick={ligar} disabled={!lead.telefone} className="h-9 w-9 max-md:h-10 max-md:w-10 shrink-0 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center disabled:opacity-40" title={tx('Ligar (MicroSIP)')} aria-label={tx('Ligar')}>
                             <PhoneCall className="w-4 h-4" />
                         </button>
                         <div className="hidden sm:flex items-center">
                             <button type="button" onClick={() => irPara(-1)} disabled={posicao <= 0} className="h-9 w-8 rounded-l-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center disabled:opacity-40" title={tx('Contato anterior')}><ChevronLeft className="w-4 h-4" /></button>
                             <button type="button" onClick={() => irPara(1)} disabled={posicao < 0 || posicao >= itensNav.length - 1} className="h-9 w-8 rounded-r-lg border border-l-0 border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center disabled:opacity-40" title={tx('Próximo contato da lista')}><ChevronRight className="w-4 h-4" /></button>
                         </div>
-                        <button type="button" onClick={() => setDetalhesAbertos(a => !a)} className="xl:hidden h-9 w-9 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center" title={tx('Detalhes')}>
+                        <button type="button" onClick={() => setDetalhesAbertos(a => !a)} className="xl:hidden h-9 w-9 max-md:h-10 max-md:w-10 shrink-0 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center" title={tx('Detalhes')}>
                             {detalhesAbertos ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
                         </button>
                     </div>
 
                     {/* Detalhes por cima da conversa (telas menores) */}
                     {detalhesAbertos && (
-                        <div className="xl:hidden max-h-[50%] overflow-y-auto custom-scrollbar p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60">
-                            {painelDetalhes}
-                        </div>
+                        <>
+                            <div className="md:hidden fixed inset-x-0 inset-y-0 z-[1] bg-slate-900/50" onClick={() => setDetalhesAbertos(false)} />
+                            <div className="xl:hidden max-h-[50%] overflow-y-auto overscroll-contain custom-scrollbar p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 max-md:fixed max-md:inset-x-0 max-md:bottom-[var(--faixa-instalar)] max-md:z-[2] max-md:max-h-[80dvh] max-md:rounded-t-2xl max-md:border-t max-md:shadow-2xl max-md:bg-slate-50 max-md:dark:bg-slate-900 max-md:pb-[max(1rem,env(safe-area-inset-bottom))]">
+                                <div className="md:hidden flex items-center justify-between mb-2">
+                                    <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">{tx('Detalhes')}</h4>
+                                    <button type="button" onClick={() => setDetalhesAbertos(false)} aria-label={tx('Fechar')} className="w-10 h-10 -m-1 flex items-center justify-center rounded-lg text-slate-500"><X className="w-5 h-5" /></button>
+                                </div>
+                                {painelDetalhes}
+                            </div>
+                        </>
                     )}
 
                     {/* Histórico em forma de conversa */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar px-3 md:px-6 py-4 space-y-3 bg-slate-100/70 dark:bg-slate-950/40">
+                    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar px-3 md:px-6 py-4 space-y-3 bg-slate-100/70 dark:bg-slate-950/40">
                         <div className="flex justify-center">
                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1">
                                 {tx('Contato criado em {data}', { data: formatarDataHora(dataDoLead(lead)) })}
@@ -716,13 +745,13 @@ const Conversa = ({
                     </div>
 
                     {/* Caixa de envio */}
-                    <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 space-y-2">
+                    <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-2 md:p-3 max-md:pb-[max(0.5rem,env(safe-area-inset-bottom))] space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                             <div className="flex rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
-                                <button type="button" onClick={() => setModo('whatsapp')} className={`h-8 px-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${modo === 'whatsapp' ? 'bg-emerald-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                                <button type="button" onClick={() => setModo('whatsapp')} className={`h-8 max-md:h-10 whitespace-nowrap px-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${modo === 'whatsapp' ? 'bg-emerald-600 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                                     <MessageCircle className="w-3.5 h-3.5" />{tx('WhatsApp')}
                                 </button>
-                                <button type="button" onClick={() => setModo('nota')} className={`h-8 px-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${modo === 'nota' ? 'bg-amber-500 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                                <button type="button" onClick={() => setModo('nota')} className={`h-8 max-md:h-10 whitespace-nowrap px-3 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${modo === 'nota' ? 'bg-amber-500 text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                                     <StickyNote className="w-3.5 h-3.5" />{tx('Nota interna')}
                                 </button>
                             </div>
@@ -732,7 +761,7 @@ const Conversa = ({
                                         <div className="flex items-center rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden" title={tx('Onde a conversa abre neste computador')}>
                                             {[['web', tx('WhatsApp Web')], ['app', tx('Aplicativo')]].map(([valor, rotulo]) => (
                                                 <button key={valor} type="button" onClick={() => { definirDestinoWhatsApp(valor); setDestinoWpp(valor); }}
-                                                    className={`h-8 px-2.5 text-[10px] font-black uppercase tracking-widest ${destinoWpp === valor ? 'bg-slate-800 text-white dark:bg-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                                                    className={`h-8 max-md:h-10 px-2.5 text-[10px] font-black uppercase tracking-widest ${destinoWpp === valor ? 'bg-slate-800 text-white dark:bg-slate-700' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                                                     {rotulo}
                                                 </button>
                                             ))}
@@ -740,12 +769,12 @@ const Conversa = ({
                                     )}
                                     <div className="ml-auto flex items-center gap-2">
                                         {podeEditarMensagens && (
-                                            <button type="button" onClick={() => setEditandoMensagens(true)} className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                                                <PenTool className="w-3.5 h-3.5" />{tx('Mensagens')}
+                                            <button type="button" onClick={() => setEditandoMensagens(true)} aria-label={tx('Mensagens')} className="h-8 max-md:h-10 max-md:w-10 max-md:px-0 max-md:justify-center px-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                                <PenTool className="w-3.5 h-3.5" /><span className="max-md:hidden">{tx('Mensagens')}</span>
                                             </button>
                                         )}
-                                        <button type="button" onClick={() => setTexto(mensagemPara(lead))} className="h-8 px-3 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                                            <RefreshCw className="w-3.5 h-3.5" />{tx('Gerar outra')}
+                                        <button type="button" onClick={() => setTexto(mensagemPara(lead))} aria-label={tx('Gerar outra')} className="h-8 max-md:h-10 max-md:w-10 max-md:px-0 max-md:justify-center px-3 rounded-lg border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                            <RefreshCw className="w-3.5 h-3.5" /><span className="max-md:hidden">{tx('Gerar outra')}</span>
                                         </button>
                                     </div>
                                 </>
@@ -753,12 +782,13 @@ const Conversa = ({
                         </div>
                         <div className="flex items-end gap-2">
                             {modo === 'whatsapp' ? (
-                                <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={3}
-                                    className="flex-1 resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 custom-scrollbar" />
+                                <textarea value={texto} onChange={(e) => setTexto(e.target.value)} rows={celular ? 2 : 3}
+                                    className="flex-1 min-w-0 resize-none rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500 custom-scrollbar" />
                             ) : (
-                                <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={3} placeholder={tx('Anotação só para a equipe (o aluno não recebe)...')}
+                                <textarea value={nota} onChange={(e) => setNota(e.target.value)} rows={celular ? 2 : 3} placeholder={tx('Anotação só para a equipe (o aluno não recebe)...')}
+                                    enterKeyHint="send"
                                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); salvarNota(); } }}
-                                    className="flex-1 resize-none rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar" />
+                                    className="flex-1 min-w-0 resize-none rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar" />
                             )}
                             {modo === 'whatsapp' ? (
                                 <button type="button" onClick={enviarWhatsApp} disabled={enviando || !lead.telefone || !texto.trim()}
