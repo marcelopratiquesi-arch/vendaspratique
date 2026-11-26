@@ -180,7 +180,7 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
                             <div>
                                 <span className={rotulo}>{tx('Telefone (WhatsApp)')}</span>
                                 <div className="flex gap-3">
-                                    <select value={ddi} onChange={e => setDdi(e.target.value)} className={`${caixa} w-[7.5rem] shrink-0 px-2 cursor-pointer`} aria-label={tx('Código do país')}>
+                                    <select value={ddi} onChange={e => setDdi(e.target.value)} className={`${caixa} w-24 sm:w-[7.5rem] shrink-0 px-2 cursor-pointer`} aria-label={tx('Código do país')}>
                                         {DDIS.map(([v, r]) => <option key={v} value={v}>{r}</option>)}
                                     </select>
                                     <input value={numero} onChange={e => setNumero(e.target.value)} inputMode="tel" placeholder={tx('DDD + número')} className={`${caixa} flex-1 min-w-0`} />
@@ -200,7 +200,7 @@ const TelaAcesso = ({ email, situacao, onSair, onAtualizar }) => {
                     <Cartao numero="2" icone={Building2} titulo={tx('Função e unidade')}>
                         <div>
                             <span className={rotulo}>{tx('Você é')}</span>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                                 {[['LIDER', 'TITULAR', 'Líder da unidade'], ['LIDER', 'ASPIRA', 'Aspira'], ['MENTOR', 'TITULAR', 'Mentor']].map(([v, pst, r]) => {
                                     const sel = papel === v && (v !== 'LIDER' || posto === pst);
                                     return (

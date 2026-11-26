@@ -13,7 +13,7 @@ import { telefoneValido, juntarTelefone, normalizarEmail } from './regrasAcesso.
 // ==========================================
 
 const DDIS = [['55', '+55'], ['54', '+54'], ['1', '+1'], ['351', '+351']];
-const campo = 'w-full h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white';
+const campo = 'w-full h-9 max-md:h-10 px-2.5 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white';
 const soNumeros = (t) => String(t || '').replace(/\D/g, '');
 
 const FormCadastrarLider = ({ unidade, posto, atuais = [], colaboradores = [], onFeito, onCancelar }) => {
@@ -58,7 +58,7 @@ const FormCadastrarLider = ({ unidade, posto, atuais = [], colaboradores = [], o
         <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 space-y-2 dark:bg-blue-500/5 dark:border-blue-500/30">
             <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx('Cadastrar {posto}', { posto: nomePosto })}</p>
-                <button type="button" onClick={onCancelar} aria-label={tx('Fechar')} className="p-1 rounded-md text-slate-400 hover:bg-white dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
+                <button type="button" onClick={onCancelar} aria-label={tx('Fechar')} className="p-1 max-md:p-3 max-md:-m-2 rounded-md text-slate-400 hover:bg-white dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
             </div>
             {daEquipe.length > 0 && (
                 <select defaultValue="" onChange={e => puxarDaEquipe(e.target.value)} className={campo} aria-label={tx('Puxar da Equipe')}>
@@ -74,7 +74,7 @@ const FormCadastrarLider = ({ unidade, posto, atuais = [], colaboradores = [], o
                 </select>
                 <input value={numero} onChange={e => setNumero(e.target.value)} inputMode="tel" placeholder={tx('WhatsApp: DDD + número')} className={campo} />
             </div>
-            <button type="button" onClick={gravar} disabled={gravando} className="h-9 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+            <button type="button" onClick={gravar} disabled={gravando} className="h-9 max-md:h-10 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
                 {gravando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}{tx('Cadastrar')}
             </button>
         </div>

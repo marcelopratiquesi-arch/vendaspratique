@@ -82,14 +82,14 @@ const CartaoPedido = ({ p, ehAdmin, unidades, onDecidido }) => {
                     <label className="block">
                         <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 dark:text-slate-400">{tx('Papel')}</span>
                         <select value={papel === 'LIDER' ? `LIDER|${posto}` : papel} onChange={e => { const [pp, ps] = e.target.value.split('|'); setPapel(pp); if (ps) setPosto(ps); }}
-                            className="w-full h-9 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold dark:bg-slate-900 dark:border-slate-700 dark:text-white">
+                            className="w-full h-9 max-md:h-10 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold dark:bg-slate-900 dark:border-slate-700 dark:text-white">
                             <option value="LIDER|TITULAR">{tx('Líder')}</option><option value="LIDER|ASPIRA">{tx('Aspira')}</option><option value="MENTOR">{tx('Mentor')}</option>
                         </select>
                     </label>
                     {papel === 'LIDER' && (
                         <label className="block">
                             <span className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 dark:text-slate-400">{tx('Unidade')}</span>
-                            <select value={unidade} onChange={e => setUnidade(e.target.value)} className="w-full h-9 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold uppercase dark:bg-slate-900 dark:border-slate-700 dark:text-white">
+                            <select value={unidade} onChange={e => setUnidade(e.target.value)} className="w-full h-9 max-md:h-10 px-2 rounded-lg border border-slate-200 bg-white text-[12px] font-bold uppercase dark:bg-slate-900 dark:border-slate-700 dark:text-white">
                                 {[...new Set([unidade, ...unidades].filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
                             </select>
                         </label>
@@ -97,10 +97,10 @@ const CartaoPedido = ({ p, ehAdmin, unidades, onDecidido }) => {
                 </div>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
-                <button type="button" onClick={aprovar} disabled={gravando} className="h-9 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
+                <button type="button" onClick={aprovar} disabled={gravando} className="h-9 max-md:h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5">
                     {gravando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}{troca ? tx('Aprovar troca') : tx('Aprovar')}
                 </button>
-                <button type="button" onClick={rejeitar} disabled={gravando} className="h-9 px-4 rounded-xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-400">
+                <button type="button" onClick={rejeitar} disabled={gravando} className="h-9 max-md:h-10 px-4 rounded-xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-400">
                     <X className="w-3.5 h-3.5" />{tx('Rejeitar')}
                 </button>
             </div>

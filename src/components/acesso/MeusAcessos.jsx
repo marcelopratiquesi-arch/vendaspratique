@@ -34,25 +34,25 @@ const MeusAcessos = ({ onFechar }) => {
 
     return (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-meus-acessos" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(560px,100%)] max-h-[85vh] overflow-hidden flex flex-col dark:bg-slate-900">
+            <div className="bg-white rounded-2xl shadow-2xl w-[min(560px,100%)] max-h-[85vh] max-md:max-h-[85dvh] overflow-hidden flex flex-col dark:bg-slate-900">
                 <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-3 dark:border-slate-800">
                     <History className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     <h2 id="titulo-meus-acessos" className="flex-1 text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Meus acessos')}</h2>
-                    <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="text-slate-500 hover:text-slate-800 dark:text-slate-400"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center text-slate-500 hover:text-slate-800 dark:text-slate-400"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="overflow-y-auto custom-scrollbar">
                     {lista === null && <p className="p-6 text-[12px] font-semibold text-slate-400 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{tx('Carregando...')}</p>}
                     {lista?.length === 0 && <p className="p-6 text-[12px] font-semibold text-slate-400">{tx('Nenhum acesso registrado ainda.')}</p>}
                     <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                         {(lista || []).map(l => (
-                            <li key={l.id} className="px-6 py-3 flex items-center justify-between gap-3">
+                            <li key={l.id} className="px-6 max-md:px-4 py-3 flex items-center justify-between gap-3">
                                 <div className="min-w-0">
                                     <p className="text-[13px] font-bold text-slate-800 dark:text-white">{tx(EVENTO[l.evento] || l.evento)} · {quando(l.quando)}</p>
                                     <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{[l.metodo === 'google' ? 'Google' : l.metodo === 'senha' ? tx('Senha') : l.metodo, l.dispositivo].filter(Boolean).join(' · ')}</p>
                                 </div>
                                 {l.evento === 'LOGIN' && (avisados.has(l.id)
                                     ? <span className="text-[11px] font-black text-rose-600 dark:text-rose-400">{tx('Avisado')}</span>
-                                    : <button type="button" onClick={() => naoFuiEu(l)} className="shrink-0 h-8 px-3 rounded-lg border border-rose-200 text-rose-600 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400"><AlertOctagon className="w-3.5 h-3.5" />{tx('Não fui eu')}</button>)}
+                                    : <button type="button" onClick={() => naoFuiEu(l)} className="shrink-0 h-8 max-md:h-10 px-3 rounded-lg border border-rose-200 text-rose-600 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-400"><AlertOctagon className="w-3.5 h-3.5" />{tx('Não fui eu')}</button>)}
                             </li>
                         ))}
                     </ul>

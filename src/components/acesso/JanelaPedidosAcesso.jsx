@@ -15,17 +15,17 @@ const JanelaPedidosAcesso = ({ contas, ehAdmin, unidades = [], onDecidido, onFec
     const graves = ehAdmin ? contas.graves : 0;
     if (!pedidos.length && !graves) return null;
     return (
-        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-pedidos-acesso">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(680px,100%)] max-h-[90vh] overflow-hidden flex flex-col dark:bg-slate-900">
-                <div className="px-6 py-4 bg-blue-600 text-white flex items-start gap-3">
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="titulo-pedidos-acesso">
+            <div className="bg-white rounded-2xl shadow-2xl w-[min(680px,100%)] max-h-[90vh] max-md:max-h-none max-md:h-[100dvh] max-md:rounded-none overflow-hidden flex flex-col dark:bg-slate-900">
+                <div className="shrink-0 px-6 max-md:px-4 py-4 max-md:pt-[max(1rem,env(safe-area-inset-top))] bg-blue-600 text-white flex items-start gap-3">
                     <UserPlus className="w-6 h-6 shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
                         <h2 id="titulo-pedidos-acesso" className="text-sm font-black uppercase tracking-widest">{tx('Acessos para resolver')}</h2>
                         <p className="text-[12px] font-semibold opacity-90">{pedidos.length === 1 ? tx('1 pedido aguardando você') : tx('{qtd} pedidos aguardando você', { qtd: pedidos.length })}</p>
                     </div>
-                    <button type="button" onClick={onFechar} aria-label={tx('Fechar')}><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center"><X className="w-5 h-5" /></button>
                 </div>
-                <div className="px-6 py-5 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="px-6 max-md:px-4 py-5 flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
                     {graves > 0 && (
                         <button type="button" onClick={onVerPendencias} className="w-full text-left rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 flex items-start gap-2 hover:bg-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30">
                             <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
@@ -34,7 +34,7 @@ const JanelaPedidosAcesso = ({ contas, ehAdmin, unidades = [], onDecidido, onFec
                     )}
                     <PedidosAcesso pedidos={pedidos} ehAdmin={ehAdmin} unidades={unidades} onDecidido={onDecidido} />
                 </div>
-                <div className="px-6 py-4 border-t border-slate-200 grid grid-cols-2 gap-3 dark:border-slate-800">
+                <div className="shrink-0 px-6 max-md:px-4 py-4 max-md:pb-[calc(1rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] border-t border-slate-200 grid grid-cols-2 gap-3 dark:border-slate-800">
                     <button type="button" onClick={onFechar} className="h-11 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">{tx('Depois')}</button>
                     <button type="button" onClick={onVerPendencias} className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Abrir Pendências')}</button>
                 </div>

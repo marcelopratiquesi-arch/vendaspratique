@@ -68,7 +68,7 @@ const EscolhaPrazo = ({ prazo, setPrazo, data, setData }) => (
         <div className="flex flex-wrap gap-1.5">
             {PRAZOS_TEMPORARIO.map(([v, r]) => (
                 <button key={v} type="button" onClick={() => setPrazo(v)} aria-pressed={prazo === v}
-                    className={`h-9 px-3 rounded-lg border text-[11px] font-black uppercase tracking-wide ${prazo === v ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(r)}</button>
+                    className={`h-9 max-md:h-10 px-3 rounded-lg border text-[11px] font-black uppercase tracking-wide ${prazo === v ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(r)}</button>
             ))}
         </div>
         {prazo === 'data' && <input type="date" value={data} onChange={e => setData(e.target.value)} className={`${campo} mt-2 max-w-[220px]`} aria-label={tx('Data final')} />}
@@ -136,7 +136,7 @@ const FormularioLiberar = ({ ehAdmin, unidades, onFeito, onCancelar, unidadesIni
         <div className="bg-white rounded-2xl border border-blue-200 p-4 space-y-4 dark:bg-slate-900 dark:border-blue-500/30">
             <div className="flex items-center justify-between gap-2">
                 <h3 className="text-[12px] font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Liberar acesso temporário')}</h3>
-                <button type="button" onClick={onCancelar} className="h-8 px-2 rounded-lg text-[11px] font-black uppercase text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">{tx('Cancelar')}</button>
+                <button type="button" onClick={onCancelar} className="h-8 max-md:h-10 px-2 rounded-lg text-[11px] font-black uppercase text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">{tx('Cancelar')}</button>
             </div>
             {pessoas.length > 0 && (
                 <label className="block">
@@ -174,7 +174,7 @@ const FormularioLiberar = ({ ehAdmin, unidades, onFeito, onCancelar, unidadesIni
                     <div className="flex gap-1.5">
                         {['LIDER', 'MENTOR'].filter(v => v === 'LIDER' || ehAdmin).map(v => (
                             <button key={v} type="button" onClick={() => setTipo(v)} aria-pressed={tipo === v}
-                                className={`h-9 px-3 rounded-lg border text-[11px] font-black uppercase tracking-wide ${tipo === v ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(TIPO[v])}</button>
+                                className={`h-9 max-md:h-10 px-3 rounded-lg border text-[11px] font-black uppercase tracking-wide ${tipo === v ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>{tx(TIPO[v])}</button>
                         ))}
                     </div>
                     {!ehAdmin && <p className="mt-1 text-[11px] font-semibold text-slate-400">{tx('Mentor temporário: só o Admin libera.')}</p>}
@@ -186,7 +186,7 @@ const FormularioLiberar = ({ ehAdmin, unidades, onFeito, onCancelar, unidadesIni
                             const sel = escolhidas.includes(u);
                             return (
                                 <button key={u} type="button" onClick={() => alternar(u)} aria-pressed={sel}
-                                    className={`h-8 px-2.5 rounded-lg border text-[11px] font-black uppercase inline-flex items-center gap-1 ${sel ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>
+                                    className={`h-8 max-md:h-10 px-2.5 rounded-lg border text-[11px] font-black uppercase inline-flex items-center gap-1 ${sel ? 'bg-blue-50 border-blue-500 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300'}`}>
                                     {sel && <Check className="w-3 h-3" />}{u}
                                 </button>
                             );
@@ -234,8 +234,8 @@ const PainelProrrogar = ({ t, onFeito, onCancelar }) => {
             <LinhaPrevia previa={previa} />
             <input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder={tx('Motivo da prorrogação')} className={campo} />
             <div className="flex gap-2">
-                <button type="button" onClick={gravar} disabled={gravando} className="h-9 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase inline-flex items-center gap-1">{gravando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}{tx('Prorrogar')}</button>
-                <button type="button" onClick={onCancelar} className="h-9 px-3 rounded-lg text-[11px] font-black uppercase text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">{tx('Cancelar')}</button>
+                <button type="button" onClick={gravar} disabled={gravando} className="h-9 max-md:h-10 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase inline-flex items-center gap-1">{gravando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}{tx('Prorrogar')}</button>
+                <button type="button" onClick={onCancelar} className="h-9 max-md:h-10 px-3 rounded-lg text-[11px] font-black uppercase text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">{tx('Cancelar')}</button>
             </div>
         </div>
     );
@@ -285,12 +285,12 @@ const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, on
             <div className="flex flex-wrap items-center gap-2">
                 {[['ativos', tx('Valendo ({qtd})', { qtd: contas?.tempAtivos?.length || 0 })], ['antigos', tx('Vencidos e encerrados')]].map(([v, r]) => (
                     <button key={v} type="button" onClick={() => setFiltro(v)} aria-pressed={filtro === v}
-                        className={`h-9 px-3 rounded-lg text-[11px] font-black uppercase tracking-wide ${filtro === v ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300'}`}>{r}</button>
+                        className={`h-9 max-md:h-10 px-3 rounded-lg text-[11px] font-black uppercase tracking-wide ${filtro === v ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300'}`}>{r}</button>
                 ))}
                 {contas?.tempVencendo?.length > 0 && <span className="text-[12px] font-black text-amber-600 inline-flex items-center gap-1 dark:text-amber-400"><AlertTriangle className="w-4 h-4" />{tx('{qtd} vencendo em até 7 dias', { qtd: contas.tempVencendo.length })}</span>}
                 <span className="flex-1" />
                 {podeLiberar && !novo && (
-                    <button type="button" onClick={() => setNovo(true)} className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />{tx('Liberar acesso temporário')}</button>
+                    <button type="button" onClick={() => setNovo(true)} className="h-9 max-md:h-10 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5"><Plus className="w-4 h-4" />{tx('Liberar acesso temporário')}</button>
                 )}
             </div>
 
@@ -333,9 +333,9 @@ const AbaTemporarios = ({ contas, ehAdmin, unidades = [], podeLiberar = true, on
                                 {(t.prorrogacoes || []).length > 0 && <span className="block text-[11px] text-blue-500">{tx('Prorrogado {qtd} vez(es)', { qtd: t.prorrogacoes.length })}</span>}
                             </span>
                             <span className="inline-flex flex-wrap gap-1.5 md:justify-end">
-                                {t.telefone && <button type="button" onClick={() => avisarWhats(t)} title={tx('Mandar a mensagem no WhatsApp (e-mail, unidades e prazo)')} className="h-8 px-2.5 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"><MessageCircle className="w-3.5 h-3.5" />{tx('Avisar')}</button>}
-                                {t.pode_gerir && t.situacao !== 'ENCERRADO' && <button type="button" onClick={() => setProrrogando(p => (p === t.id ? null : t.id))} className="h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300"><CalendarPlus className="w-3.5 h-3.5" />{tx('Prorrogar')}</button>}
-                                {t.pode_gerir && t.situacao === 'ATIVO' && <button type="button" onClick={() => encerrar(t)} className="h-8 px-2.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"><Power className="w-3.5 h-3.5" />{tx('Encerrar')}</button>}
+                                {t.telefone && <button type="button" onClick={() => avisarWhats(t)} title={tx('Mandar a mensagem no WhatsApp (e-mail, unidades e prazo)')} className="h-8 max-md:h-10 px-2.5 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"><MessageCircle className="w-3.5 h-3.5" />{tx('Avisar')}</button>}
+                                {t.pode_gerir && t.situacao !== 'ENCERRADO' && <button type="button" onClick={() => setProrrogando(p => (p === t.id ? null : t.id))} className="h-8 max-md:h-10 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300"><CalendarPlus className="w-3.5 h-3.5" />{tx('Prorrogar')}</button>}
+                                {t.pode_gerir && t.situacao === 'ATIVO' && <button type="button" onClick={() => encerrar(t)} className="h-8 max-md:h-10 px-2.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"><Power className="w-3.5 h-3.5" />{tx('Encerrar')}</button>}
                             </span>
                         </div>
                         {prorrogando === t.id && <PainelProrrogar t={t} onCancelar={() => setProrrogando(null)} onFeito={() => { setProrrogando(null); onMudou?.(); }} />}

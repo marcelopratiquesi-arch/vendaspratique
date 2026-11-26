@@ -43,8 +43,8 @@ const EtiquetaPapel = ({ role, posto }) => (
 const POSTOS_UNIDADE = [['TITULAR', 'Líder'], ['ASPIRA', 'Aspira']];
 const Pessoa = ({ l }) => (
     <div className="min-w-0">
-        <p className="text-[14px] font-bold text-slate-800 uppercase truncate dark:text-white">{l.nome || l.email}</p>
-        {l.email && <p className="text-[13px] font-medium text-slate-600 flex items-center gap-1 truncate dark:text-slate-300">{l.email}<CopyButton textToCopy={l.email} label={tx('Copiar e-mail')} /></p>}
+        <p className="text-[14px] font-bold text-slate-800 uppercase truncate max-md:whitespace-normal max-md:break-words dark:text-white">{l.nome || l.email}</p>
+        {l.email && <p className="text-[13px] font-medium text-slate-600 flex items-center gap-1 truncate max-md:whitespace-normal max-md:break-all dark:text-slate-300">{l.email}<CopyButton textToCopy={l.email} label={tx('Copiar e-mail')} /></p>}
     </div>
 );
 // Linha que vira cartão no celular: "colunas" = classes do grid a partir do md
@@ -150,22 +150,36 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                     <span className="text-[11px] font-black uppercase text-blue-700 px-1 dark:text-blue-300">{tx('Senha por')}</span>
                     {PRAZOS_SENHA.map(([h, r]) => (
                         <button key={h} type="button" onClick={() => acaoLogin(l, `emergencia:${h}`)}
-                            className="h-7 px-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase">{tx(r)}</button>
+                            className="h-7 max-md:h-10 px-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase">{tx(r)}</button>
                     ))}
                     {l.emergencia_ate && new Date(l.emergencia_ate) > new Date() && (
-                        <button type="button" onClick={() => acaoLogin(l, 'emergencia:0')} className="h-7 px-2 rounded-md border border-rose-200 bg-white text-rose-600 text-[11px] font-black uppercase hover:bg-rose-50 dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-300">{tx('Encerrar')}</button>
+                        <button type="button" onClick={() => acaoLogin(l, 'emergencia:0')} className="h-7 max-md:h-10 px-2 rounded-md border border-rose-200 bg-white text-rose-600 text-[11px] font-black uppercase hover:bg-rose-50 dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-300">{tx('Encerrar')}</button>
                     )}
-                    <button type="button" onClick={() => setMenuSenha('')} className="h-7 px-1.5 text-[11px] font-black uppercase text-slate-500 hover:text-slate-700 dark:text-slate-400">✕</button>
+                    <button type="button" onClick={() => setMenuSenha('')} className="h-7 max-md:h-10 px-1.5 text-[11px] font-black uppercase text-slate-500 hover:text-slate-700 dark:text-slate-400">✕</button>
                 </span>
             ) : (
                 <button type="button" onClick={() => setMenuSenha(l.email)} title={tx('Liberar entrada com senha por 24 h, 3 dias ou 7 dias (quando o Google não funcionar). Dá para renovar até resolver.')}
-                    className="h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300"><KeyRound className="w-3.5 h-3.5" />{tx('Senha')}</button>
+                    className="h-8 max-md:h-10 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300"><KeyRound className="w-3.5 h-3.5" />{tx('Senha')}</button>
             ))}
             {String(l.status || 'ATIVO') === 'ATIVO'
-                ? <button type="button" onClick={() => acaoLogin(l, 'inativar')} className="h-8 px-2.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"><Power className="w-3.5 h-3.5" />{tx('Inativar')}</button>
-                : <button type="button" onClick={() => acaoLogin(l, 'reativar')} className="h-8 px-2.5 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"><Power className="w-3.5 h-3.5" />{tx('Reativar')}</button>}
+                ? <button type="button" onClick={() => acaoLogin(l, 'inativar')} className="h-8 max-md:h-10 px-2.5 rounded-lg border border-rose-200 text-rose-600 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300"><Power className="w-3.5 h-3.5" />{tx('Inativar')}</button>
+                : <button type="button" onClick={() => acaoLogin(l, 'reativar')} className="h-8 max-md:h-10 px-2.5 rounded-lg border border-emerald-200 text-emerald-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-emerald-50 dark:border-emerald-500/30 dark:text-emerald-300"><Power className="w-3.5 h-3.5" />{tx('Reativar')}</button>}
         </span>
     );
+
+    // "Todos os logins": as mesmas linhas na tabela do computador e na do celular
+    const loginsMostrados = () => filtrar(logins).filter(l => !soSemGoogle || (String(l.status || 'ATIVO') === 'ATIVO' && l.ultimo_metodo !== 'google'))
+        .sort((a, b) => String(a.unidade).localeCompare(String(b.unidade)) || String(a.nome).localeCompare(String(b.nome)));
+    const situacaoLogin = (l) => {
+        const ativo = String(l.status || 'ATIVO') === 'ATIVO';
+        return (
+            <span className={`text-[13px] font-black ${ativo ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} title={l.inativado_motivo || ''}>
+                {ativo ? tx('Ativo') : tx('Inativo')}
+                {l.emergencia_ate && new Date(l.emergencia_ate) > new Date() && <span className="block text-[11px] text-blue-600 dark:text-blue-400">{tx('senha até {quando}', { quando: quando(l.emergencia_ate) })}</span>}
+            </span>
+        );
+    };
+    const ultimoLogin = (l) => <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{quando(l.ultimo_login)}{l.ultimo_metodo && <span className="block text-[11px] text-slate-400">{l.ultimo_metodo === 'google' ? 'Google' : tx('Senha')}</span>}</span>;
 
     const qtdGoogle = logins.filter(l => String(l.status || 'ATIVO') === 'ATIVO' && l.ultimo_metodo === 'google').length;
     const qtdAtivos = logins.filter(l => String(l.status || 'ATIVO') === 'ATIVO').length;
@@ -195,7 +209,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                         </p>
                     </div>
                 </div>
-                <button type="button" onClick={atualizar} className="h-9 px-3 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-slate-100 inline-flex items-center gap-1.5 dark:text-slate-300 dark:hover:bg-slate-800">
+                <button type="button" onClick={atualizar} className="h-9 max-md:h-10 px-3 rounded-xl text-[13px] font-bold text-slate-600 hover:bg-slate-100 inline-flex items-center gap-1.5 dark:text-slate-300 dark:hover:bg-slate-800">
                     {carregando ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}{tx('Atualizar')}
                     <span className="text-[11px] font-semibold text-slate-400">{atualizadoEm.toLocaleTimeString(localeAtual(), { hour: '2-digit', minute: '2-digit' })}</span>
                 </button>
@@ -207,7 +221,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                     const sel = aba === id;
                     return (
                         <button key={id} type="button" role="tab" aria-selected={sel} onClick={() => setAba(id)}
-                            className={`h-9 px-3 rounded-lg text-[12px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${sel ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                            className={`h-9 max-md:h-10 px-3 rounded-lg text-[12px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${sel ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
                             <Icone className="w-4 h-4" />{tx(rotulo)}
                             {qtd > 0 && <span className={`min-w-[20px] h-5 px-1.5 rounded-full text-[11px] inline-flex items-center justify-center ${sel ? 'bg-white/25 text-white' : corNumero[cor]}`}>{qtd}</span>}
                         </button>
@@ -292,7 +306,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                                     <EtiquetaPapel role={l.role} posto={l.posto} />
                                                     {l.telefone && <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{telefoneBonito(l.telefone)}</span>}
                                                     <span className="text-[12px] font-semibold text-slate-400">{ha(l.ultimo_login)}</span>
-                                                    {ehAdmin && <button type="button" onClick={() => tirarDoPosto(unidade, l)} className="h-7 px-2 rounded-md border border-rose-200 text-rose-600 text-[10px] font-black uppercase hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300">{tx('Tirar')}</button>}
+                                                    {ehAdmin && <button type="button" onClick={() => tirarDoPosto(unidade, l)} className="h-7 max-md:h-10 px-2 rounded-md border border-rose-200 text-rose-600 text-[10px] font-black uppercase hover:bg-rose-50 dark:border-rose-500/30 dark:text-rose-300">{tx('Tirar')}</button>}
                                                 </div>
                                             )) : <span className={`text-[13px] font-black ${posto === 'TITULAR' ? 'text-amber-700 dark:text-amber-300' : 'text-slate-400'}`}>{posto === 'TITULAR' ? tx('Sem líder') : tx('Sem aspira')}</span>}
                                             {cadastrando === chave ? (
@@ -300,20 +314,20 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                                     onCancelar={() => setCadastrando('')} onFeito={() => { setCadastrando(''); atualizar(); }} />
                                             ) : (
                                                 <button type="button" onClick={() => setCadastrando(chave)}
-                                                    className="h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300">
+                                                    className="h-8 max-md:h-10 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300">
                                                     <UserPlus className="w-3.5 h-3.5" />{doPosto.length ? tx('Trocar: cadastrar pessoa') : tx('Cadastrar pessoa')}
                                                 </button>
                                             )}
                                             {ehAdmin && cadastrando !== chave && (
                                                 <div className="flex gap-2">
                                                     <select value={escolhaLider[chave] || ''} onChange={e => setEscolhaLider(s => ({ ...s, [chave]: e.target.value }))}
-                                                        className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold dark:bg-slate-900 dark:border-slate-700 dark:text-white" aria-label={tx('Escolher o {posto} de {unidade}', { unidade, posto: tx(rotuloPosto) })}>
+                                                        className="flex-1 min-w-0 h-9 max-md:h-10 px-2 rounded-lg border border-slate-200 bg-white text-[13px] font-semibold dark:bg-slate-900 dark:border-slate-700 dark:text-white" aria-label={tx('Escolher o {posto} de {unidade}', { unidade, posto: tx(rotuloPosto) })}>
                                                         <option value="">{doPosto.length ? tx('Trocar por...') : tx('Escolher...')}</option>
                                                         {candidatosLider.filter(l => papelDe(l) !== 'LIDER' || String(l.unidade || '').toUpperCase() === unidade).map(l => (
                                                             <option key={l.email} value={l.email}>{l.nome} · {papelDe(l) === 'LIDER' && postoDe(l) === 'ASPIRA' ? tx('Aspira') : tx(PAPEL[papelDe(l)] || l.role)}</option>
                                                         ))}
                                                     </select>
-                                                    <button type="button" onClick={() => salvarLider(unidade, posto, doPosto)} className="h-9 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Salvar')}</button>
+                                                    <button type="button" onClick={() => salvarLider(unidade, posto, doPosto)} className="h-9 max-md:h-10 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Salvar')}</button>
                                                 </div>
                                             )}
                                         </div>
@@ -331,7 +345,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                     )) : <span className="text-[12px] font-semibold text-slate-400">—</span>}
                                     {podeLiberar && (
                                         <button type="button" onClick={() => { setTempInicial({ unidades: [unidade], chave: Date.now() }); setAba('temporarios'); }}
-                                            className="h-8 px-2.5 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-300">
+                                            className="h-8 max-md:h-10 px-2.5 rounded-lg border border-amber-200 text-amber-700 text-[11px] font-black uppercase inline-flex items-center gap-1 hover:bg-amber-50 dark:border-amber-500/30 dark:text-amber-300">
                                             <Timer className="w-3.5 h-3.5" />{tx('Cobrir com temporário')}
                                         </button>
                                     )}
@@ -374,7 +388,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                 {a.texto && <span className="block font-bold">{a.texto}</span>}
                             </span>
                             <button type="button" onClick={async () => { try { await resolverAlerta(a.id); atualizar(); } catch (e) { avisar(e.message, 'erro'); } }}
-                                className="h-9 px-3 rounded-lg bg-white border border-rose-200 text-rose-700 text-[11px] font-black uppercase dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-300">{tx('Resolvido')}</button>
+                                className="h-9 max-md:h-10 px-3 rounded-lg bg-white border border-rose-200 text-rose-700 text-[11px] font-black uppercase dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-300">{tx('Resolvido')}</button>
                         </Linha>
                     )) : <Vazio />}
                 </Caixa>
@@ -383,25 +397,44 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
             {/* TODOS OS LOGINS */}
             {aba === 'logins' && (
                 <Caixa>
+                    {/* CELULAR (26/11/2026, tela de Admin): arrasta para o lado com a coluna Pessoa parada */}
+                    <div className="md:hidden overflow-x-auto custom-scrollbar">
+                        <table className="tabela-arrasta w-full min-w-[820px] text-left border-collapse">
+                            <thead className="bg-slate-50 dark:bg-slate-800/60">
+                                <tr>{[tx('Pessoa'), tx('Papel'), tx('Unidade'), tx('Situação'), tx('Telefone'), tx('Último login'), ''].map((t, i) => <th key={i} className="px-3 py-2 border-b border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:text-slate-400">{t}</th>)}</tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                {loginsMostrados().map(l => (
+                                    <tr key={l.email}>
+                                        <td className="px-3 py-2.5 align-top w-[170px] min-w-[170px] max-w-[170px]"><Pessoa l={l} /></td>
+                                        <td className="px-3 py-2.5 align-top"><EtiquetaPapel role={l.role} posto={l.posto} /></td>
+                                        <td className="px-3 py-2.5 align-top text-[13px] font-bold uppercase text-slate-700 dark:text-slate-200">{l.unidade}</td>
+                                        <td className="px-3 py-2.5 align-top">{situacaoLogin(l)}{l.inativado_motivo && String(l.status || 'ATIVO') !== 'ATIVO' && <span className="block text-[11px] font-semibold text-slate-400">{l.inativado_motivo}</span>}</td>
+                                        <td className="px-3 py-2.5 align-top whitespace-nowrap text-[13px] font-semibold text-slate-600 dark:text-slate-300">{l.telefone ? telefoneBonito(l.telefone) : '—'}</td>
+                                        <td className="px-3 py-2.5 align-top whitespace-nowrap">{ultimoLogin(l)}</td>
+                                        <td className="px-3 py-2.5 align-top min-w-[200px]">{botoesLogin(l)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="hidden md:block">
                     <Cabecalho colunas="md:grid-cols-[minmax(0,1.8fr)_110px_minmax(0,1fr)_100px_170px_150px_auto]" titulos={[tx('Pessoa'), tx('Papel'), tx('Unidade'), tx('Situação'), tx('Telefone'), tx('Último login'), '']} />
-                    {filtrar(logins).filter(l => !soSemGoogle || (String(l.status || 'ATIVO') === 'ATIVO' && l.ultimo_metodo !== 'google'))
-                        .sort((a, b) => String(a.unidade).localeCompare(String(b.unidade)) || String(a.nome).localeCompare(String(b.nome))).map(l => {
+                    {loginsMostrados().map(l => {
                             const ativo = String(l.status || 'ATIVO') === 'ATIVO';
                             return (
                                 <Linha key={l.email} colunas="md:grid-cols-[minmax(0,1.8fr)_110px_minmax(0,1fr)_100px_170px_150px_auto]" destaque={ativo ? '' : 'opacity-60'}>
                                     <Pessoa l={l} />
                                     <span><EtiquetaPapel role={l.role} posto={l.posto} /></span>
                                     <span className="text-[13px] font-bold uppercase text-slate-700 dark:text-slate-200">{l.unidade}</span>
-                                    <span className={`text-[13px] font-black ${ativo ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`} title={l.inativado_motivo || ''}>
-                                        {ativo ? tx('Ativo') : tx('Inativo')}
-                                        {l.emergencia_ate && new Date(l.emergencia_ate) > new Date() && <span className="block text-[11px] text-blue-600 dark:text-blue-400">{tx('senha até {quando}', { quando: quando(l.emergencia_ate) })}</span>}
-                                    </span>
+                                    {situacaoLogin(l)}
                                     <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{l.telefone ? telefoneBonito(l.telefone) : '—'}</span>
-                                    <span className="text-[13px] font-semibold text-slate-600 dark:text-slate-300">{quando(l.ultimo_login)}{l.ultimo_metodo && <span className="block text-[11px] text-slate-400">{l.ultimo_metodo === 'google' ? 'Google' : tx('Senha')}</span>}</span>
+                                    {ultimoLogin(l)}
                                     {botoesLogin(l)}
                                 </Linha>
                             );
                         })}
+                    </div>
                 </Caixa>
             )}
         </div>
