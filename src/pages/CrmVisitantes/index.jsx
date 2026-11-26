@@ -18,7 +18,7 @@ import PuxarDoCadastro from './PuxarDoCadastro';
 import { buscarComprasDePlano, decidirPelasCompras, aplicarDecisoes } from './compraDePlano';
 import { JanelaNaoContatar, JanelaMotivoPerda, JanelaProximoContato } from './JanelasContato';
 import JanelaResultadoContato from './JanelaResultadoContato';
-import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas } from './contatosFeitos';
+import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas, colocarNaoContatar } from './contatosFeitos';
 import { FASE_ESPERA, estaEmEspera, ocupaVaga, DIAS_SEM_CAMINHO, diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO, ehContatoDeFila } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
 import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy, ArrowRight } from 'lucide-react';
@@ -1478,6 +1478,22 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             await enviarParaWellhub(lead);
             return;
         }
+        // Telefone/WhatsApp não funciona e "Não contatar" (26/11/2026, decisão do dono): Perdido + lista "Não contatar",
+        // para nunca mais aparecer (a Geladeira sozinha libera em 30 dias). Só Líder/Mentor/Admin tiram da lista.
+        if (tipo === 'NAO_FUNCIONA' || tipo === 'NAO_CONTATAR') {
+            const motivo = tipo === 'NAO_FUNCIONA' ? 'Telefone / WhatsApp não funciona' : 'Cliente pediu para não entrar mais em contato';
+            await registrarHistorico(lead.id, 'Agendamento', `Resultado: ${motivo.toLowerCase()}.`, true);
+            await alterarStatus(lead.id, 'Perdido', motivo);
+            const pessoa = { cpf: lead.cpf, lead_id: String(lead.id), nome: lead.nome };
+            try {
+                await colocarNaoContatar({ unidade: lead.unidade || unidadeOperacao, ...pessoa, motivo, colocado_por: consultorLogado });
+                aoColocarNaoContatar(pessoa);
+            } catch (err) {
+                console.error('Erro ao colocar em Não contatar:', err);
+                avisar(tx('O contato foi para Perdido, mas não entrou no "Não contatar". Coloque pelo botão Não contatar. ({v1})', { v1: err?.message || '' }), 'erro');
+            }
+            return;
+        }
         if (tipo === 'NAO_QUER') {
             await registrarHistorico(lead.id, 'Agendamento', 'Resultado: não quer.', true);
             await alterarStatus(lead.id, 'Perdido', 'Sem interesse / mudou de ideia');
@@ -2275,6 +2291,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     textoNaoQuer={tx('Vai para a Geladeira (sem interesse) e volta em 30 dias. Não entra no "Não contatar".')}
                     textoFechou={tx('Vai para Fechado.')}
                     textoWellhub={tx('Cliente do Wellhub / Gympass: sai do funil e vai para a aba Migração (oferecer Nutri).')}
+                    textoNaoFunciona={tx('Número errado ou não existe: vai para Perdido e nunca mais aparece para contato.')}
+                    textoNaoContatar={tx('Cliente pediu para não entrar mais em contato: vai para a lista "Não contatar" da rede.')}
                     obrigatorio
                     onEscolher={aplicarResultadoFunil}
                     onFechar={fecharResultadoFunil}

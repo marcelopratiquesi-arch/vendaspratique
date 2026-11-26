@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText, CheckCircle2, Dumbbell } from 'lucide-react';
+import { X, Star, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText, CheckCircle2, Dumbbell, PhoneOff, MessageCircleOff, XCircle } from 'lucide-react';
 import { somarDiasISO } from './utils';
 import { tx } from '../../i18n/traduzir.js';
 import { DIAS_VOLTA_PENSANDO, DIAS_VOLTA_SEM_RESPOSTA, DIAS_GELADEIRA, MAX_TENTATIVAS, dataBR } from './resultadoContato.js';
@@ -10,7 +10,10 @@ import { DIAS_VOLTA_PENSANDO, DIAS_VOLTA_SEM_RESPOSTA, DIAS_GELADEIRA, MAX_TENTA
 // textoFechou: mostra a opção "Comprou / fechou" (só no funil).
 // textoWellhub (16/11/2026, decisão do dono): mostra a opção "Wellhub / Gympass" (só no funil): o contato sai do funil e vai
 // para o grupo WELLHUB / GYMPASS da aba Migração (a única coisa a oferecer é o Nutri).
-const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoInteressado, textoNaoQuer, obrigatorio = false, textoFechou, textoWellhub }) => {
+// textoNaoFunciona / textoNaoContatar (26/11/2026, decisão do dono; só no funil): "Telefone / WhatsApp não funciona" e
+// "Não contatar" (cliente pediu para não entrar mais em contato). Os dois vão para Perdido E para o "Não contatar":
+// ficam impedidos para sempre (a Geladeira libera em 30 dias; o "Não contatar" não).
+const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoInteressado, textoNaoQuer, obrigatorio = false, textoFechou, textoWellhub, textoNaoFunciona, textoNaoContatar }) => {
     const tentativas = Number(aluno.registro?.tentativas) || 0;
     const proxima = Math.min(tentativas + 1, MAX_TENTATIVAS);
     const vaiParaGeladeira = proxima >= MAX_TENTATIVAS;
@@ -20,6 +23,8 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
         { tipo: 'INTERESSADO', icone: Star, titulo: tx('Interessado'), texto: textoInteressado, cor: 'border-amber-200 dark:border-amber-500/30 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-700 dark:text-amber-300' },
         { tipo: 'NAO_QUER', icone: ThumbsDown, titulo: tx('Não quer'), texto: textoNaoQuer, cor: 'border-cyan-200 dark:border-cyan-500/30 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' },
         textoWellhub && { tipo: 'WELLHUB', icone: Dumbbell, titulo: tx('Wellhub / Gympass'), texto: textoWellhub, cor: 'border-fuchsia-200 dark:border-fuchsia-500/30 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300' },
+        textoNaoFunciona && { tipo: 'NAO_FUNCIONA', icones: [PhoneOff, MessageCircleOff], titulo: tx('Telefone / WhatsApp não funciona'), texto: textoNaoFunciona, cor: 'border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
+        textoNaoContatar && { tipo: 'NAO_CONTATAR', icone: XCircle, titulo: tx('Não contatar'), texto: textoNaoContatar, cor: 'border-rose-200 dark:border-rose-500/30 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-700 dark:text-rose-300' },
         textoFechou && { tipo: 'FECHOU', icone: CheckCircle2, titulo: tx('Comprou / fechou'), texto: textoFechou, cor: 'border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' }
     ].filter(Boolean);
     return (
@@ -36,7 +41,9 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
                 <div className="p-4 space-y-2">
                     {opcoes.map(o => (
                         <button key={o.tipo} type="button" onClick={() => onEscolher(o.tipo)} className={`w-full text-left rounded-xl border px-4 py-3 flex items-start gap-3 transition-colors ${o.cor}`}>
-                            <o.icone className="w-5 h-5 shrink-0 mt-0.5" />
+                            {o.icones
+                                ? <span className="flex items-center gap-0.5 shrink-0 mt-0.5">{o.icones.map((Ic, i) => <Ic key={i} className="w-5 h-5" />)}</span>
+                                : <o.icone className="w-5 h-5 shrink-0 mt-0.5" />}
                             <span className="min-w-0">
                                 <span className="block text-xs font-black uppercase tracking-widest">{o.titulo}</span>
                                 <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5">{o.texto}</span>

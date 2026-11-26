@@ -4408,4 +4408,10 @@ export default {
     "O serviço de avisos do Google não respondeu. Confira a internet e o Google Play Services e tente de novo.": "El servicio de avisos de Google no respondió. Revisá internet y Google Play Services y probá de nuevo.",
     "Libere à mão: Configurações do celular → Apps → Vendas → Notificações → Permitir. Depois volte aqui e toque em \"Ativar avisos\" de novo.": "Habilitalo a mano: Configuración del celular → Apps → Vendas → Notificaciones → Permitir. Después volvé acá y tocá \"Activar avisos\" de nuevo.",
     "Toque em \"Ativar avisos\" de novo. Se repetir, mande um print para o Admin.": "Tocá \"Activar avisos\" de nuevo. Si se repite, mandale una captura al Admin.",
+    // CRM: Telefone não funciona e Não contatar na janela "Como foi o contato?" (26/11/2026)
+    "Telefone / WhatsApp não funciona": "Teléfono / WhatsApp no funciona",
+    "Número errado ou não existe: vai para Perdido e nunca mais aparece para contato.": "Número equivocado o inexistente: pasa a Perdido y nunca más aparece para contactar.",
+    "Cliente pediu para não entrar mais em contato: vai para a lista \"Não contatar\" da rede.": "El socio pidió que no lo contacten más: pasa a la lista \"No contactar\" de la red.",
+    "O contato foi para Perdido, mas não entrou no \"Não contatar\". Coloque pelo botão Não contatar. ({v1})": "El contacto pasó a Perdido, pero no entró en \"No contactar\". Agregalo con el botón No contactar. ({v1})",
+    "Cliente pediu para não entrar mais em contato": "El socio pidió que no lo contacten más",
 };
