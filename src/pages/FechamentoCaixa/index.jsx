@@ -419,14 +419,14 @@ const FechamentoCaixa = ({ vendas = [], setVendas, usuarioLogado, visitantes = [
                         const ativa = abaMostrada === id;
                         return (
                             <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => setSubAba(id)}
-                                className={`h-9 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
+                                className={`h-9 max-md:h-10 shrink-0 px-3.5 rounded-lg text-[12px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
                                 <Icone className="w-4 h-4" /> {tx(rotulo)}
                             </button>
                         );
                     })}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 max-md:w-full max-md:[&>div.relative]:flex-1 max-md:[&>div.relative]:min-w-[140px] max-md:[&_select]:w-full">
                     {/* O texto "período · unidade · setor" saiu (decisão do dono, 16/11/2026): os próprios filtros já mostram
                         a escolha e, sem ele, abas e filtros cabem numa linha só. Quem não troca de unidade vê só o nome dela. */}
                     {!temVisaoGlobal && usuarioLogado?.unidade && (

@@ -6,6 +6,10 @@ import { Copy, Check, Edit3, Trash2, CheckSquare, FileSpreadsheet, Clock, Shield
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
+import { CartaoCelular, OrdenarCelular } from '../../components/celular/Cartao.jsx';
+
+const CARTOES_POR_VEZ = 30; // celular: os cartões entram aos poucos para a tela não travar
 
 // ==========================================
 // 🧩 FORMATADOR SEGURO DE CPF E NOME
@@ -52,14 +56,14 @@ const CopiableCell = ({ text, isCpf, customClass }) => {
     const displayText = formatTexto();
     
     return (
-        <div className={`flex items-center gap-2 group/copy w-fit ${isCpf ? 'mt-0.5' : ''}`}>
-            <span className={`truncate max-w-[180px] ${customClass}`} title={displayText}>
+        <div className={`flex items-center gap-2 group/copy w-fit max-md:max-w-full ${isCpf ? 'mt-0.5' : ''}`}>
+            <span className={`truncate max-w-[180px] max-md:max-w-full max-md:min-w-0 max-md:whitespace-normal max-md:break-words ${customClass}`} title={displayText}>
                 {displayText}
             </span>
             {text && text !== '-' && (
                 <button 
                     onClick={handleCopy} 
-                    className="opacity-0 group-hover/copy:opacity-100 p-1 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded transition-all shadow-sm border border-transparent hover:border-blue-200 dark:bg-slate-800 dark:hover:bg-blue-500/20 dark:hover:text-blue-400 dark:hover:border-blue-500/30"
+                    className="shrink-0 opacity-0 group-hover/copy:opacity-100 max-md:opacity-100 p-1 max-md:p-2.5 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded transition-all shadow-sm border border-transparent hover:border-blue-200 dark:bg-slate-800 dark:hover:bg-blue-500/20 dark:hover:text-blue-400 dark:hover:border-blue-500/30"
                     title={tx("Copiar dado")}
                 >
                     {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -94,6 +98,9 @@ const ConferenciaTab = ({
     // Ações pelas permissões (Configurações → Permissões, Etapa 2): 405 conferir/editar/excluir; 406 conferir a tela toda
     const podeAgir = podeFazer(usuarioLogado, '405');
     const podeConferirTela = podeAgir && podeFazer(usuarioLogado, '406');
+    const celular = useEhCelular();
+    const [limiteCartoes, setLimiteCartoes] = useState(CARTOES_POR_VEZ);
+
     // FILTROS AVANÇADOS PREMIUM
     const [vendedoresOcultos, setVendedoresOcultos] = useState([]);
     const [planosOcultos, setPlanosOcultos] = useState([]);
@@ -411,6 +418,107 @@ const ConferenciaTab = ({
         }
     };
 
+    const confirmarExclusao = (id) => {
+        if (window.confirm(tx("⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo."))) {
+            if (onExcluirVenda) onExcluirVenda(id);
+        }
+    };
+
+    // CELULAR (26/11/2026): um cartão por venda, com tudo o que a linha da tabela faz
+    const cartoesCelular = () => (
+        <div className="p-2 space-y-2 bg-slate-50 dark:bg-slate-950/40">
+            <OrdenarCelular
+                valor={`${sortConfig.key}:${sortConfig.direction}`}
+                onChange={(valor) => { const [key, direction] = valor.split(':'); setSortConfig({ key, direction }); setLimiteCartoes(CARTOES_POR_VEZ); }}
+                opcoes={[
+                    { valor: 'data:desc', rotulo: tx('Data: mais nova') },
+                    { valor: 'data:asc', rotulo: tx('Data: mais antiga') },
+                    { valor: 'conferiu:asc', rotulo: tx('Pendentes primeiro') },
+                    { valor: 'conferiu:desc', rotulo: tx('Conferidas primeiro') },
+                    { valor: 'nome:asc', rotulo: tx('Aluno (A-Z)') },
+                    { valor: 'nome:desc', rotulo: tx('Aluno (Z-A)') },
+                    { valor: 'cpf:asc', rotulo: 'CPF' },
+                    { valor: 'produto:asc', rotulo: tx('Item (A-Z)') },
+                    { valor: 'vendedor:asc', rotulo: tx('Vendedor (A-Z)') },
+                    ...(temVisaoGlobal ? [{ valor: 'unidade:asc', rotulo: tx('Unidade (A-Z)') }] : []),
+                    { valor: 'valor:desc', rotulo: tx('Maior valor') },
+                    { valor: 'valor:asc', rotulo: tx('Menor valor') },
+                ]}
+            />
+            {sortedVendas.length === 0 && (
+                <p className="text-center py-10 text-slate-400 text-[10px] font-bold uppercase tracking-widest">{tx("Nenhuma venda encontrada no filtro.")}</p>
+            )}
+            {sortedVendas.slice(0, limiteCartoes).map((v) => {
+                const travada = estaTravada(v);
+                return (
+                    <CartaoCelular key={v.id} destaque={v.conferiu ? '!border-emerald-300 dark:!border-emerald-500/40' : ''}>
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12px] font-bold text-slate-600 dark:text-slate-300">{formatDataBR(v.data)}</span>
+                            {temVisaoGlobal && <span className="text-[10px] font-black text-rose-500 uppercase text-right">{v.unidade || tx("MATRIZ")}</span>}
+                        </div>
+                        <div className="mt-1.5">
+                            <CopiableCell text={v.nome_aluno || v.nome} isCpf={false} customClass="text-[13px] font-black text-slate-800 uppercase dark:text-white" />
+                            <CopiableCell text={v.cpf} isCpf={true} customClass="text-[12px] font-mono font-bold text-slate-500 dark:text-slate-400" />
+                        </div>
+                        <div className="mt-2 flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                                <div className="text-[12px] font-bold text-blue-600 uppercase break-words dark:text-blue-400">
+                                    <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded text-[10px] mr-1.5 dark:bg-blue-500/20 dark:text-blue-300">{v.quantidade}x</span>
+                                    {v.produto}
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-1.5 text-[10px] font-bold text-slate-600 uppercase tracking-widest dark:text-slate-300">
+                                    <User className="w-3 h-3 text-slate-400 shrink-0" />{shortName(v.vendedor)}
+                                </div>
+                            </div>
+                            <div className="shrink-0 text-base font-black tabular-nums text-slate-800 dark:text-white">{formatMoney(v.valor)}</div>
+                        </div>
+                        <input
+                            type="text"
+                            value={v.observacao || ''}
+                            onChange={(e) => handleObsLocalChange(v.id, e.target.value)}
+                            readOnly={travada}
+                            onBlur={(e) => handleObsSaveDb(v.id, e.target.value)}
+                            placeholder={tx("+ Add Obs")}
+                            className={`w-full h-10 mt-2 px-3 rounded-xl font-medium outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400 border ${v.observacao ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-500/10 dark:text-amber-300 dark:border-amber-500/30' : 'bg-slate-50 border-slate-200 dark:bg-slate-800/60 dark:border-slate-800'}`}
+                        />
+                        {travada ? (
+                            <div className="mt-2 w-full h-11 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 bg-emerald-600 text-white">
+                                <Lock className="w-4 h-4" />{tx('Pago')}
+                            </div>
+                        ) : (
+                            <button type="button" onClick={() => podeAgir && toggleConferido(v.id, v.conferiu)} disabled={!podeAgir}
+                                className={`mt-2 w-full h-11 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 ${v.conferiu ? 'bg-emerald-500 text-white border border-emerald-600' : 'bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30'}`}>
+                                {v.conferiu ? <><Check className="w-4 h-4" /> OK</> : <><Clock className="w-4 h-4" /> {tx("PENDENTE")}</>}
+                            </button>
+                        )}
+                        {travada && <p className="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{tx('O pagamento deste mês já foi aprovado: a conferência não pode mais ser mexida.')}</p>}
+                        {!podeAgir && !travada && <p className="mt-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400">{tx('Sem permissão para conferir (permissão 405).')}</p>}
+                        {v.conferiu && (v.conferido_por || v.conferido_em) && (
+                            <p className="mt-1 text-center text-[10px] font-bold text-emerald-700 dark:text-emerald-400">
+                                {tx('Conferido por')} {v.conferido_por || '—'}{v.conferido_em ? ` · ${formatarDataHora(v.conferido_em)}` : ''}
+                            </p>
+                        )}
+                        {podeAgir && !travada && (
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <button type="button" onClick={() => setVendaEmEdicao(v)} className="h-10 rounded-xl bg-blue-50 text-blue-600 border border-blue-200 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">
+                                    <Edit3 className="w-3.5 h-3.5" />{tx("Editar")}
+                                </button>
+                                <button type="button" onClick={() => confirmarExclusao(v.id)} className="h-10 rounded-xl bg-rose-50 text-rose-600 border border-rose-200 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-1.5 dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30">
+                                    <Trash2 className="w-3.5 h-3.5" />{tx("Apagar")}
+                                </button>
+                            </div>
+                        )}
+                    </CartaoCelular>
+                );
+            })}
+            {sortedVendas.length > limiteCartoes && (
+                <button type="button" onClick={() => setLimiteCartoes(n => n + CARTOES_POR_VEZ)} className="w-full h-11 rounded-xl bg-blue-600 text-white text-[11px] font-black uppercase tracking-widest">
+                    {tx('Mostrar mais ({qtd} restantes)', { qtd: sortedVendas.length - limiteCartoes })}
+                </button>
+            )}
+        </div>
+    );
+
     const thClass = "px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 bg-slate-50/50 select-none group whitespace-nowrap align-top dark:border-slate-800 dark:bg-slate-800/40";
 
     return (
@@ -418,9 +526,9 @@ const ConferenciaTab = ({
             
             {/* 🔥 MODAL POP-UP FLUTUANTE */}
             {vendaEmEdicao && (
-                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 pointer-events-none bg-transparent">
-                    <div className="bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-300 w-full max-w-2xl overflow-hidden relative z-10 animate-[zoomIn_0.15s_ease-out] pointer-events-auto dark:bg-slate-900 dark:border-slate-700">
-                        <div className="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-center cursor-move dark:border-slate-800 dark:bg-slate-800/60">
+                <div className="fixed inset-0 z-[999] flex items-center justify-center p-4 max-md:p-0 max-md:items-stretch pointer-events-none bg-transparent max-md:pointer-events-auto max-md:bg-slate-900/60">
+                    <div className="bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] border border-slate-300 w-full max-w-2xl overflow-hidden relative z-10 animate-[zoomIn_0.15s_ease-out] pointer-events-auto max-md:rounded-none max-md:border-0 max-md:max-w-none max-md:h-[100dvh] max-md:overflow-y-auto dark:bg-slate-900 dark:border-slate-700">
+                        <div className="p-5 max-md:p-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center gap-3 dark:border-slate-800 dark:bg-slate-800/60">
                             <div className="flex items-center gap-3 pointer-events-none">
                                 <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center border border-blue-200 shadow-inner dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30">
                                     <Edit3 className="w-5 h-5" />
@@ -430,12 +538,12 @@ const ConferenciaTab = ({
                                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{tx("Correção direta na base de dados")}</p>
                                 </div>
                             </div>
-                            <button onClick={() => !isSaving && setVendaEmEdicao(null)} className="w-8 h-8 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:hover:bg-rose-500/20 dark:text-slate-400 dark:hover:text-rose-400">
+                            <button onClick={() => !isSaving && setVendaEmEdicao(null)} aria-label={tx("Fechar")} className="shrink-0 w-8 h-8 max-md:w-10 max-md:h-10 rounded-full bg-slate-200 hover:bg-rose-100 text-slate-500 hover:text-rose-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:hover:bg-rose-500/20 dark:text-slate-400 dark:hover:text-rose-400">
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
                         
-                        <form onSubmit={handleSalvarEdicao} className="p-6 space-y-5 bg-white dark:bg-slate-900">
+                        <form onSubmit={handleSalvarEdicao} className="p-6 max-md:p-4 space-y-5 bg-white dark:bg-slate-900">
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Data da Venda")}</label>
@@ -507,16 +615,16 @@ const ConferenciaTab = ({
                                 </div>
                             </div>
                             
-                            <div className="pt-4 border-t border-slate-100 flex justify-between items-center dark:border-slate-800">
-                                <button type="button" onClick={() => handleExcluirModal(vendaEmEdicao.id)} disabled={isSaving} className="px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors flex items-center gap-2 border border-transparent hover:border-rose-200 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:border-rose-500/30">
+                            <div className="pt-4 border-t border-slate-100 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:items-center max-md:sticky max-md:bottom-0 max-md:bg-white max-md:py-3 max-md:pb-[calc(0.75rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] dark:border-slate-800 max-md:dark:bg-slate-900">
+                                <button type="button" onClick={() => handleExcluirModal(vendaEmEdicao.id)} disabled={isSaving} className="px-5 py-2.5 max-md:h-11 max-md:justify-center rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-500 hover:bg-rose-50 hover:text-rose-600 transition-colors flex items-center gap-2 border border-transparent hover:border-rose-200 dark:hover:bg-rose-500/10 dark:hover:text-rose-400 dark:hover:border-rose-500/30">
                                     <Trash2 className="w-4 h-4" />{' '}{tx("Excluir Venda")}
                                 </button>
                                 
-                                <div className="flex gap-3">
-                                    <button type="button" onClick={() => setVendaEmEdicao(null)} disabled={isSaving} className="px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800">
+                                <div className="grid grid-cols-2 gap-2 md:flex md:gap-3">
+                                    <button type="button" onClick={() => setVendaEmEdicao(null)} disabled={isSaving} className="px-6 py-2.5 max-md:h-11 max-md:border max-md:border-slate-200 max-md:dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-colors disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800">
                                         {tx("Cancelar")}
                                     </button>
-                                    <button type="submit" disabled={isSaving} className="px-8 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
+                                    <button type="submit" disabled={isSaving} className="px-8 py-2.5 max-md:h-11 max-md:justify-center rounded-xl text-[10px] font-black uppercase tracking-widest text-white bg-blue-600 hover:bg-blue-700 shadow-md transition-all flex items-center gap-2 disabled:opacity-50">
                                         {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{' '}{tx("Salvar")}
                                     </button>
                                 </div>
@@ -527,10 +635,10 @@ const ConferenciaTab = ({
             )}
 
             {/* PAINEL DE FILTROS BÁSICOS E EXPORTAÇÃO */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 dark:bg-slate-900 dark:border-slate-800">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6 dark:bg-slate-900 dark:border-slate-800">
                 <div className="flex flex-col xl:flex-row justify-between items-end gap-6">
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 w-full xl:w-auto flex-1">
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4 w-full xl:w-auto flex-1 [&>div]:min-w-0">
                         <div>
                             <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400">{tx("Setor")}</label>
                             {/* Trocar de setor volta o Vendedor para "todos" (o vendedor escolhido pode não ser do setor novo) */}
@@ -574,10 +682,10 @@ const ConferenciaTab = ({
                     <div className="flex flex-col sm:flex-row items-end gap-3 w-full xl:w-auto">
                         <div className="bg-blue-50 border border-blue-100 px-6 py-3.5 rounded-2xl flex flex-col items-end shadow-sm w-full sm:w-auto dark:bg-blue-500/10 dark:border-blue-500/30">
                             <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{tx("Valor Filtrado")}</span>
-                            <span className="text-3xl font-black text-blue-700 tracking-tight leading-none mt-1 dark:text-blue-400">{formatMoney(valorTotalFiltrado)}</span>
+                            <span className="text-xl md:text-3xl font-black text-blue-700 tracking-tight leading-none mt-1 dark:text-blue-400">{formatMoney(valorTotalFiltrado)}</span>
                         </div>
                         
-                        <div className="flex flex-col gap-2 w-full sm:w-36 shrink-0 h-full justify-end">
+                        <div className="flex flex-col max-md:flex-row gap-2 w-full sm:w-36 shrink-0 h-full justify-end max-md:[&>button]:h-10">
                             {podeConferirTela && (
                                 <button 
                                     onClick={() => {
@@ -607,7 +715,7 @@ const ConferenciaTab = ({
                 <div className="bg-slate-100 text-slate-600 px-4 py-2 border-b border-slate-200 shadow-inner text-right text-[10px] font-black uppercase tracking-widest dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
                     {sortedVendas.length}{' '}{tx("de")}{' '}{vendasParaConferencia.length}{' '}{tx("Registros")}
                 </div>
-                <div 
+                {celular ? cartoesCelular() : <div
                     className="overflow-x-auto custom-scrollbar cursor-grab"
                     ref={scrollRef}
                     onMouseDown={onMouseDown}
@@ -753,11 +861,7 @@ const ConferenciaTab = ({
                                                     {tx("Editar")}
                                                 </button>
                                                 <button 
-                                                    onClick={() => {
-                                                        if(window.confirm(tx("⚠️ ATENÇÃO: Tem certeza que deseja excluir esta venda? Ela vai para a lixeira (o Admin ou o Mentor pode restaurar) e será pedido o motivo."))) {
-                                                            if(onExcluirVenda) onExcluirVenda(v.id);
-                                                        }
-                                                    }} 
+                                                    onClick={() => confirmarExclusao(v.id)}
                                                     title={tx("Excluir Registro")}
                                                     className="flex items-center justify-center gap-1 w-20 py-1 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded transition-all border border-rose-200 hover:border-rose-600 text-[10px] font-black uppercase tracking-widest dark:bg-rose-500/10 dark:text-rose-400 dark:border-rose-500/30"
                                                 >
@@ -777,7 +881,7 @@ const ConferenciaTab = ({
                             )}
                         </tbody>
                     </table>
-                </div>
+                </div>}
             </div>
         </div>
     );

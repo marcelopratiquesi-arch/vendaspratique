@@ -76,7 +76,7 @@ const PainelPagamento = ({
     };
 
     const botaoReabrir = (pg) => podeReabrir && (
-        <button type="button" onClick={() => reabrir(pg)} className="mt-2 h-8 px-3 rounded-lg border border-emerald-300 bg-white text-emerald-800 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 hover:bg-emerald-100 dark:bg-slate-900 dark:border-emerald-500/30 dark:text-emerald-300">
+        <button type="button" onClick={() => reabrir(pg)} className="mt-2 h-8 max-md:h-10 px-3 rounded-lg border border-emerald-300 bg-white text-emerald-800 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 hover:bg-emerald-100 dark:bg-slate-900 dark:border-emerald-500/30 dark:text-emerald-300">
             <Unlock className="w-3.5 h-3.5" />{tx('Reabrir (só Admin)')}
         </button>
     );
@@ -177,7 +177,7 @@ const PainelPagamento = ({
                             return (
                                 <button key={s.chave} type="button" onClick={() => onEscolherSetor?.(escolhido ? 'TODOS' : s.chave)}
                                     title={pago ? tx('Aprovado em {quando} por {nome}', { quando: quando(s.pagamento.aprovado_em), nome: s.pagamento.aprovado_por || '—' }) : tx('Ainda não aprovado. Clique para ver só este setor.')}
-                                    className={`h-9 px-3 rounded-xl border text-[12px] font-bold inline-flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${escolhido ? 'ring-2 ring-blue-500 ' : ''}${pago
+                                    className={`h-9 max-md:h-auto max-md:min-h-10 max-md:flex-wrap px-3 rounded-xl border text-[12px] font-bold inline-flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${escolhido ? 'ring-2 ring-blue-500 ' : ''}${pago
                                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300'
                                         : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200 dark:hover:border-slate-700'}`}>
                                     {pago ? <Lock className="w-3.5 h-3.5" /> : null}
@@ -198,17 +198,17 @@ const PainelPagamento = ({
             </div>
 
             {confirmando && (
-                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-aprovar-pagamento">
-                    <div className="bg-white rounded-2xl shadow-2xl w-[min(560px,100%)] max-h-[90vh] overflow-hidden flex flex-col dark:bg-slate-900">
+                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 max-md:p-0" role="dialog" aria-modal="true" aria-labelledby="titulo-aprovar-pagamento">
+                    <div className="bg-white rounded-2xl max-md:rounded-none shadow-2xl w-[min(560px,100%)] max-h-[90vh] max-md:max-h-none max-md:h-[100dvh] overflow-hidden flex flex-col dark:bg-slate-900">
                         <div className="px-6 py-4 bg-blue-600 text-white flex items-start gap-3">
                             <Lock className="w-5 h-5 mt-0.5 shrink-0" />
                             <div className="flex-1 min-w-0">
                                 <h2 id="titulo-aprovar-pagamento" className="text-sm font-black uppercase tracking-widest">{setor ? tx('Aprovar pagamento do setor') : tx('Aprovar pagamento')}</h2>
                                 <p className="text-[12px] font-bold opacity-90 uppercase tracking-widest">{onde}</p>
                             </div>
-                            <button type="button" onClick={() => setConfirmando(false)} disabled={gravando} aria-label={tx('Fechar')}><X className="w-5 h-5" /></button>
+                            <button type="button" onClick={() => setConfirmando(false)} disabled={gravando} aria-label={tx('Fechar')} className="max-md:w-10 max-md:h-10 max-md:-m-2 flex items-center justify-center shrink-0"><X className="w-5 h-5" /></button>
                         </div>
-                        <div className="px-6 py-4 overflow-y-auto custom-scrollbar">
+                        <div className="px-6 max-md:px-4 py-4 flex-1 min-h-0 overflow-y-auto custom-scrollbar">
                             <p className="text-[12px] font-bold text-slate-700 mb-3 dark:text-slate-200">
                                 {setor
                                     ? tx('Confira quanto vai para cada pessoa do setor {setor}. Depois de aprovar, NINGUÉM consegue alterar, apagar ou desconferir as vendas deste setor neste mês (só o Admin reabre, com motivo). Os outros setores continuam em aberto.', { setor: nomeSetor })
@@ -218,7 +218,7 @@ const PainelPagamento = ({
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                     {pessoas.map(p => (
                                         <tr key={p.chave || p.vendedor}>
-                                            <td className="py-2 text-[12px] font-bold uppercase text-slate-700 dark:text-slate-200">{p.vendedor}</td>
+                                            <td className="py-2 max-md:pr-2 text-[12px] font-bold uppercase text-slate-700 dark:text-slate-200">{p.vendedor}</td>
                                             <td className="py-2 text-[11px] text-slate-500 dark:text-slate-400">{p.tipo_conta === 'INTER' ? tx('Banco Inter') : p.tipo_conta === 'PIX_CPF' ? tx('PIX (chave CPF)') : <span className="text-rose-600 font-bold dark:text-rose-400">{tx('sem conta')}</span>}</td>
                                             <td className="py-2 text-right text-[12px] font-black tabular-nums text-slate-800 dark:text-white">{formatMoney(p.totalComissao)}</td>
                                         </tr>
@@ -230,7 +230,7 @@ const PainelPagamento = ({
                                 </tbody>
                             </table>
                         </div>
-                        <div className="px-6 py-4 border-t border-slate-200 grid grid-cols-2 gap-3 dark:border-slate-800">
+                        <div className="shrink-0 px-6 max-md:px-4 py-4 max-md:pb-[calc(1rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] border-t border-slate-200 grid grid-cols-2 gap-3 dark:border-slate-800">
                             <button type="button" onClick={() => setConfirmando(false)} disabled={gravando} className="h-11 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">{tx('Cancelar')}</button>
                             <button type="button" onClick={aprovar} disabled={gravando} className="h-11 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
                                 {gravando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Lock className="w-4 h-4" />}{tx('Aprovar e travar')}

@@ -4,6 +4,7 @@ import { formatMoney } from './utils.js';
 import { isoLocal } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { BarChart2, Building2, MapPin, TrendingUp, TrendingDown, Minus, AlertCircle, Loader2, Info, ArrowUpDown, ArrowDown, ArrowUp, Clock, HelpCircle } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { CartaoCelular, LinhaCartao, OrdenarCelular } from '../../components/celular/Cartao.jsx';
 
 // ==========================================
 // VISÃO GERAL DO FECHAMENTO: comissões CONFERIDAS dos 6 meses que terminam no mês de referência.
@@ -40,7 +41,7 @@ const Variacao = ({ valor, pequeno = false }) => {
 // "?" ao lado do título: explica o número ao passar o mouse ou tocar (no celular)
 const Dica = ({ texto, alinhar = 'right' }) => (
     <span className="group/dica relative inline-flex align-middle">
-        <button type="button" aria-label={texto} onClick={(e) => e.stopPropagation()} className="text-slate-400 hover:text-blue-600 focus:text-blue-600 outline-none dark:hover:text-blue-400 dark:focus:text-blue-400">
+        <button type="button" aria-label={texto} onClick={(e) => e.stopPropagation()} className="max-md:-m-2 max-md:p-2 text-slate-400 hover:text-blue-600 focus:text-blue-600 outline-none dark:hover:text-blue-400 dark:focus:text-blue-400">
             <HelpCircle className="w-3.5 h-3.5" />
         </button>
         <span role="tooltip" className={`pointer-events-none absolute top-full mt-2 z-40 w-[min(240px,70vw)] hidden group-hover/dica:block group-focus-within/dica:block bg-slate-800 text-white text-[11px] font-semibold normal-case tracking-normal text-left leading-snug px-3 py-2 rounded-lg shadow-lg dark:bg-slate-700 ${alinhar === 'left' ? 'left-0' : 'right-0'}`}>
@@ -55,11 +56,11 @@ const MiniBarras = ({ meses, maximo }) => (
         {meses.map((m) => {
             const altura = maximo > 0 ? (m.total / maximo) * 100 : 0;
             return (
-                <div key={m.chave} className="group/barra relative flex-1 min-w-[10px] h-full flex items-end">
+                <div key={m.chave} tabIndex={0} aria-label={`${m.rotulo}: ${formatMoney(m.total)}`} className="group/barra outline-none relative flex-1 min-w-[10px] h-full flex items-end">
                     {m.total > 0
                         ? <div className={`w-full rounded-t-[3px] ${m.emAndamento ? 'bg-blue-300 dark:bg-blue-500/50' : 'bg-blue-600 dark:bg-blue-500'}`} style={{ height: `${Math.max(altura, 4)}%` }} />
                         : <div className="w-full h-[2px] bg-slate-200 dark:bg-slate-700" />}
-                    <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/barra:block z-30 whitespace-nowrap bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded-md shadow-lg dark:bg-slate-700">
+                    <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover/barra:block group-focus/barra:block z-30 whitespace-nowrap bg-slate-800 text-white text-[10px] font-black px-2 py-1 rounded-md shadow-lg dark:bg-slate-700">
                         {m.rotulo}: {formatMoney(m.total)}
                     </div>
                 </div>
@@ -70,7 +71,7 @@ const MiniBarras = ({ meses, maximo }) => (
 
 // Um número da faixa de resumo
 const Item = ({ rotulo, valor, cor = 'text-slate-800 dark:text-white', children }) => (
-    <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+    <div className="flex items-baseline gap-1.5 whitespace-nowrap max-md:flex-wrap max-md:whitespace-normal">
         <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{rotulo}</span>
         <span className={`text-base font-black tabular-nums ${cor}`}>{valor}</span>
         {children}
@@ -270,7 +271,52 @@ const VisaoGeralTab = ({ vendas = [], unidadesPermitidas = [], filtroUnidade = '
                     </div>
                 </div>
 
-                <div className="overflow-x-auto custom-scrollbar pb-1">
+                {/* CELULAR (26/11/2026): um cartão por unidade */}
+                <div className="md:hidden p-2 space-y-2 bg-slate-50 dark:bg-slate-950/40">
+                    {linhasOrdenadas.length > 1 && (
+                        <OrdenarCelular
+                            valor={`${ordem.campo}:${ordem.desc ? 'desc' : 'asc'}`}
+                            onChange={(valor) => { const [campo, sentido] = valor.split(':'); setOrdem({ campo, desc: sentido === 'desc' }); }}
+                            opcoes={[
+                                { valor: 'atual:desc', rotulo: tx('Maior valor') },
+                                { valor: 'atual:asc', rotulo: tx('Menor valor') },
+                                { valor: 'anterior:desc', rotulo: tx('Maior no mês anterior') },
+                                { valor: 'variacao:desc', rotulo: tx('Quem mais subiu') },
+                                { valor: 'variacao:asc', rotulo: tx('Quem mais caiu') },
+                                { valor: 'aConferir:desc', rotulo: tx('Mais a conferir') },
+                                { valor: 'unidade:asc', rotulo: tx('Unidade (A-Z)') },
+                            ]}
+                        />
+                    )}
+                    {linhasOrdenadas.length === 0 && (
+                        <div className="py-10 text-center">
+                            {carregando && <Loader2 className="w-6 h-6 mx-auto mb-2 text-slate-300 animate-spin" />}
+                            <h4 className="text-sm font-black text-slate-700 uppercase tracking-widest dark:text-slate-200">{tx('Sem Dados Financeiros')}</h4>
+                            <p className="text-xs font-bold text-slate-400 mt-1">{tx('Não há comissões processadas ou auditadas para as unidades no período selecionado.')}</p>
+                        </div>
+                    )}
+                    {linhasOrdenadas.map(l => (
+                        <CartaoCelular key={l.unidade} titulo={<span className="uppercase">{l.unidade}</span>} direita={<Variacao valor={l.variacao} pequeno />}>
+                            <LinhaCartao rotulo={mesRef.rotulo} valor={formatMoney(l.atual)} cor="text-emerald-700 dark:text-emerald-400" />
+                            <LinhaCartao rotulo={mesAnt.rotulo} valor={formatMoney(l.anterior)} cor="text-slate-500 dark:text-slate-400" />
+                            <LinhaCartao rotulo={tx('% da rede')} valor={`${pctRede(l.atual)}%`} />
+                            <LinhaCartao rotulo={tx('A conferir')} valor={l.aConferir > 0 ? `${formatMoney(l.aConferir)} (${l.qtdAConferir})` : '—'} cor={l.aConferir > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400'} />
+                            <p className="mt-2 mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('6 meses')} · {tx('toque na barra')}</p>
+                            <MiniBarras meses={l.meses} maximo={dados.maximoMini} />
+                        </CartaoCelular>
+                    ))}
+                    {linhasOrdenadas.length > 1 && (
+                        <CartaoCelular titulo={<span className="uppercase">{tx('Total')}</span>} direita={<Variacao valor={dados.variacaoRede} pequeno />}>
+                            <LinhaCartao rotulo={mesRef.rotulo} valor={formatMoney(dados.totalAtual)} cor="text-emerald-700 dark:text-emerald-400" />
+                            <LinhaCartao rotulo={mesAnt.rotulo} valor={formatMoney(dados.anteriorRede)} cor="text-slate-500 dark:text-slate-400" />
+                            <LinhaCartao rotulo={tx('A conferir')} valor={dados.aConferir > 0 ? formatMoney(dados.aConferir) : '—'} cor="text-amber-600 dark:text-amber-400" />
+                            <p className="mt-2 mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('6 meses')} · {tx('toque na barra')}</p>
+                            <MiniBarras meses={dados.rede} maximo={Math.max(0, ...dados.rede.map(m => m.total))} />
+                        </CartaoCelular>
+                    )}
+                </div>
+
+                <div className="hidden md:block overflow-x-auto custom-scrollbar pb-1">
                     <table className="w-full text-left border-collapse min-w-[860px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>

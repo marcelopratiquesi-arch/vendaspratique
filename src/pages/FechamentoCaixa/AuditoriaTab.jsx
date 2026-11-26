@@ -46,7 +46,7 @@ const dataCurta = (iso) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '')
 // "?" ao lado do título: explica a coluna ao passar o mouse ou tocar (mesmo modelo da Visão Geral)
 const Dica = ({ texto, alinhar = 'right' }) => (
     <span className="group/dica relative inline-flex align-middle">
-        <button type="button" aria-label={texto} onClick={(e) => e.stopPropagation()} className="text-slate-400 hover:text-blue-600 focus:text-blue-600 outline-none dark:hover:text-blue-400 dark:focus:text-blue-400">
+        <button type="button" aria-label={texto} onClick={(e) => e.stopPropagation()} className="max-md:-m-2 max-md:p-2 text-slate-400 hover:text-blue-600 focus:text-blue-600 outline-none dark:hover:text-blue-400 dark:focus:text-blue-400">
             <HelpCircle className="w-3.5 h-3.5" />
         </button>
         <span role="tooltip" className={`pointer-events-none absolute top-full mt-2 z-40 w-[min(240px,70vw)] hidden group-hover/dica:block group-focus-within/dica:block bg-slate-800 text-white text-[11px] font-semibold normal-case tracking-normal text-left leading-snug px-3 py-2 rounded-lg shadow-lg dark:bg-slate-700 ${alinhar === 'left' ? 'left-0' : 'right-0'}`}>
@@ -57,7 +57,7 @@ const Dica = ({ texto, alinhar = 'right' }) => (
 
 // Um número da faixa de resumo: valor forte + legenda pequena
 const Item = ({ valor, rotulo, cor = 'text-slate-800 dark:text-white', children }) => (
-    <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+    <div className="flex items-baseline gap-1.5 whitespace-nowrap max-md:flex-wrap max-md:whitespace-normal">
         <span className={`text-base font-black tabular-nums ${cor}`}>{valor}</span>
         <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{rotulo}</span>
         {children}
@@ -134,14 +134,14 @@ const AuditoriaTab = ({ dadosTabelaAuditoria = [], totais, rotuloPeriodo, inicio
                         <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx('Desempenho de Conferência por Unidade')}</h3>
                         <p className="text-[11px] font-bold text-slate-400 mt-0.5">{tx('Mais atrasadas primeiro. Clique numa unidade para conferir.')}</p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 max-md:[&>button]:h-10 max-md:[&>button]:flex-1">
                         <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"><Send className="w-3.5 h-3.5" />{tx('Cobrar no WhatsApp')}</span>
                         <button type="button" onClick={() => cobrarRede('resumo')} className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Resumo')}</button>
                         <button type="button" onClick={() => cobrarRede('detalhado')} className="h-9 px-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-black uppercase tracking-widest dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">{tx('Detalhado')}</button>
                     </div>
                 </div>
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[1080px]">
+                    <table className="tabela-arrasta w-full text-left border-collapse min-w-[1080px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                 <th className={th}>{tx('Unidade Operacional')}</th>
@@ -168,9 +168,9 @@ const AuditoriaTab = ({ dadosTabelaAuditoria = [], totais, rotuloPeriodo, inicio
                                 return (
                                     <tr key={row.unidade} onClick={() => onAbrirUnidade?.(row.unidade)} title={tx('Abrir a Conferência desta unidade')}
                                         className="group cursor-pointer hover:bg-blue-50/50 transition-colors dark:hover:bg-blue-500/10">
-                                        <td className="px-4 py-3.5">
+                                        <td className="px-4 py-3.5 max-md:px-2 max-md:max-w-[130px]">
                                             <div className="flex items-center gap-3">
-                                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${concluido ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800'}`}>
+                                                <div className={`max-md:hidden w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${concluido ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800'}`}>
                                                     {concluido ? <Check className="w-4 h-4" /> : <MapPin className="w-4 h-4" />}
                                                 </div>
                                                 <div className="flex flex-col">
@@ -235,7 +235,7 @@ const AuditoriaTab = ({ dadosTabelaAuditoria = [], totais, rotuloPeriodo, inicio
                                                         {(lideres.length ? lideres : [null]).map((lider, j) => (
                                                             <button key={j} type="button" onClick={(e) => { e.stopPropagation(); cobrarLider(row, lider); }}
                                                                 title={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')}
-                                                                className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
+                                                                className="inline-flex items-center justify-center w-8 h-8 max-md:w-10 max-md:h-10 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
                                                                 <MessageCircle className="w-4 h-4" />
                                                             </button>
                                                         ))}

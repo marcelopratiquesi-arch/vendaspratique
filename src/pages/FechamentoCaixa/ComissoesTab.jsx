@@ -5,6 +5,7 @@ import { abrirCentralColaborador } from '../../components/centralColaborador.js'
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import ReciboComissao from './ReciboComissao.jsx';
+import { CartaoCelular, OrdenarCelular } from '../../components/celular/Cartao.jsx';
 import { lideresDaUnidade } from './cobrancaAuditoria.js';
 
 // ==========================================
@@ -49,7 +50,7 @@ const CopyButton = ({ textToCopy, label }) => {
             onClick={handleCopy}
             onMouseDown={(e) => e.stopPropagation()} 
             onPointerDown={(e) => e.stopPropagation()} 
-            className="p-1.5 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 focus:outline-none rounded-md transition-all flex-shrink-0 dark:hover:text-emerald-400 dark:hover:bg-emerald-500/10"
+            className="p-1.5 max-md:p-2.5 max-md:text-slate-400 text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 focus:outline-none rounded-md transition-all flex-shrink-0 dark:hover:text-emerald-400 dark:hover:bg-emerald-500/10"
             title={copied ? tx("Copiado!") : label}
             aria-label={label}
         >
@@ -170,7 +171,7 @@ const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [], rotuloPeriodo 
         <div className="bg-white rounded-[24px] border border-slate-200 shadow-[0_4px_20px_rgba(0,0,0,0.03)] overflow-hidden animate-[fadeIn_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
             
             {/* CABEÇALHO PREMIUM */}
-            <div className="p-6 md:p-8 border-b border-slate-100 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden dark:border-slate-800">
+            <div className="p-4 md:p-8 border-b border-slate-100 bg-gradient-to-r from-emerald-50/50 to-teal-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden dark:border-slate-800">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-40 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none dark:bg-slate-900"></div>
                 
                 <div className="flex items-center gap-4 relative z-10">
@@ -187,7 +188,7 @@ const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [], rotuloPeriodo 
                     </div>
                 </div>
                 
-                <div className="flex flex-wrap items-center gap-3 w-full xl:w-auto relative z-10">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full xl:w-auto relative z-10 max-md:[&>button]:h-10">
                     <div className="flex items-center gap-2 bg-white/60 backdrop-blur-sm border border-emerald-200/50 px-4 py-2.5 rounded-xl shadow-inner dark:bg-slate-900/60 dark:border-emerald-500/30">
                         <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                         <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest dark:text-emerald-400">{tx("Contas Aprovadas")}</span>
@@ -214,7 +215,111 @@ const ComissoesTab = ({ dadosTabelaComissoes, colaboradores = [], rotuloPeriodo 
                 </div>
             </div>
             
-            <div className="overflow-x-auto custom-scrollbar">
+            {/* CELULAR (26/11/2026): um cartão por consultor, com tudo o que a linha da tabela faz */}
+            <div className="md:hidden p-2 space-y-2 bg-slate-50 dark:bg-slate-950/40">
+                {sortedData.length > 1 && (
+                    <OrdenarCelular
+                        valor={`${sortConfig.key}:${sortConfig.direction}`}
+                        onChange={(valor) => { const [key, direction] = valor.split(':'); setSortConfig({ key, direction }); }}
+                        opcoes={[
+                            { valor: 'totalComissao:desc', rotulo: tx('Maior valor') },
+                            { valor: 'totalComissao:asc', rotulo: tx('Menor valor') },
+                            { valor: 'vendedor:asc', rotulo: tx('Consultor (A-Z)') },
+                            { valor: 'vendedor:desc', rotulo: tx('Consultor (Z-A)') },
+                        ]}
+                    />
+                )}
+                {sortedData.length === 0 && (
+                    <p className="text-center py-12 text-xs font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">{tx("Nenhuma comissão aprovada neste filtro.")}</p>
+                )}
+                {sortedData.map((row, idx) => {
+                    const chaveLinha = row.chave || row.vendedor;
+                    const aberto = expandedRow === chaveLinha;
+                    const stringItens = gerarStringItens(row.itens);
+                    const cpfExibicao = row.cpf || '';
+                    const temPixCpf = row.tipo_conta === 'PIX_CPF';
+                    const temInter = row.tipo_conta === 'INTER';
+                    return (
+                        <CartaoCelular key={`${chaveLinha}-${idx}`}>
+                            <div className="flex items-start gap-1">
+                                <button type="button" onClick={() => abrirCentralColaborador(row.colaborador || { nome: row.vendedor })}
+                                    className="min-w-0 flex-1 min-h-10 text-left text-[13px] font-black text-blue-700 uppercase break-words dark:text-blue-400">{row.vendedor}</button>
+                                <CopyButton textToCopy={row.vendedor} label={tx("Copiar nome de {vendedor}", { vendedor: row.vendedor })} />
+                            </div>
+                            {(row.situacaoCadastro === 'sem_cadastro' || row.situacaoCadastro === 'ambiguo') && (
+                                <p className="text-[10px] font-black text-rose-600 uppercase tracking-widest flex items-start gap-1 dark:text-rose-400">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    {row.situacaoCadastro === 'sem_cadastro' ? tx('Conferir cadastro: nome não está na Equipe') : tx('Conferir cadastro: nome repetido na Equipe')}
+                                </p>
+                            )}
+                            <div className="mt-2 flex items-center justify-between gap-2 rounded-xl bg-emerald-50 border border-emerald-200 pl-3 pr-1 py-1 dark:bg-emerald-500/10 dark:border-emerald-500/30">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Total a Pagar")}</span>
+                                <span className="flex items-center gap-1">
+                                    <span className="text-lg font-black tabular-nums text-emerald-700 dark:text-emerald-400">{formatMoney(row.totalComissao)}</span>
+                                    <CopyButton textToCopy={formatMoney(row.totalComissao)} label={tx("Copiar comissão de {vendedor}", { vendedor: row.vendedor })} />
+                                </span>
+                            </div>
+                            <div className="mt-2 flex items-center justify-between gap-2 min-h-9">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">CPF</span>
+                                <span className="flex items-center gap-1">
+                                    <span className="text-[12px] font-mono font-bold text-slate-700 dark:text-slate-200">{cpfExibicao || tx("Não Cadastrado")}</span>
+                                    {cpfExibicao && <CopyButton textToCopy={cpfExibicao} label={tx("Copiar CPF de {vendedor}", { vendedor: row.vendedor })} />}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-2 min-h-9">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Dados Bancários")}</span>
+                                {temPixCpf ? (
+                                    <span className="flex items-center gap-1">
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400"><Zap className="w-3.5 h-3.5" />{tx("PIX (CPF)")}</span>
+                                        {cpfExibicao && <CopyButton textToCopy={cpfExibicao} label={tx("Copiar chave PIX de {vendedor}", { vendedor: row.vendedor })} />}
+                                    </span>
+                                ) : temInter ? (
+                                    <span className="flex items-center gap-1 min-w-0">
+                                        <span className="text-right min-w-0">
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-orange-700 dark:text-orange-400"><Building className="w-3 h-3" />{tx("Banco Inter")}</span>
+                                            <span className="block text-[12px] font-mono font-bold text-slate-700 break-all dark:text-slate-200">{row.conta_inter || tx("Sem conta")}</span>
+                                        </span>
+                                        {row.conta_inter && <CopyButton textToCopy={row.conta_inter} label={tx("Copiar dados bancários de {vendedor}", { vendedor: row.vendedor })} />}
+                                    </span>
+                                ) : (
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{tx("Não Definido")}</span>
+                                )}
+                            </div>
+                            <div className="mt-2 grid grid-cols-2 gap-2">
+                                <button type="button" onClick={(e) => handleCopiarLinha(row.vendedor, row.totalComissao, row.itens, e)}
+                                    className={`h-10 rounded-xl border flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider ${copiadoId === row.vendedor ? 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30' : 'bg-white text-blue-600 border-blue-200 dark:bg-slate-900 dark:text-blue-400 dark:border-blue-500/30'}`}>
+                                    {copiadoId === row.vendedor ? <><Check className="w-3.5 h-3.5" />{tx("Copiado")}</> : <><Copy className="w-3.5 h-3.5" />{tx("Copiar Tudo")}</>}
+                                </button>
+                                <button type="button" onClick={() => setReciboDe(row)}
+                                    className="h-10 rounded-xl border flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-wider bg-white text-emerald-700 border-emerald-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-emerald-500/30">
+                                    <Receipt className="w-3.5 h-3.5" />{tx("Emitir recibo")}
+                                </button>
+                            </div>
+                            <button type="button" onClick={() => toggleRow(chaveLinha)} aria-expanded={aberto}
+                                className="mt-2 w-full h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center gap-1.5 text-[11px] font-black uppercase tracking-widest dark:bg-slate-800 dark:text-slate-300">
+                                {aberto ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                                {tx("Resumo de Vendas")} · {row.totalItens} {tx("unid")}
+                            </button>
+                            {aberto && (
+                                <div className="mt-2">
+                                    <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+                                        {Object.entries(row.itens).sort((a, b) => b[1] - a[1]).map(([nome, qtd]) => (
+                                            <li key={nome} className="flex gap-2 py-1.5 text-[12px] font-black uppercase text-slate-700 dark:text-slate-200">
+                                                <span className="shrink-0 w-9 tabular-nums">{String(qtd).padStart(2, '0')}x</span><span className="min-w-0 break-words">{nome}</span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="mt-1 flex items-center justify-end gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                                        {tx("Copiar resumo")}<CopyButton textToCopy={stringItens} label={tx("Copiar resumo de vendas de {vendedor}", { vendedor: row.vendedor })} />
+                                    </div>
+                                </div>
+                            )}
+                        </CartaoCelular>
+                    );
+                })}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead>
                         <tr>

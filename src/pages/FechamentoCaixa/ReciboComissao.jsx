@@ -52,9 +52,9 @@ const ReciboComissao = ({ row, unidade, lider, periodo, onFechar }) => {
     return createPortal(
         <div id="recibo-overlay" className="fixed inset-0 z-[300] bg-slate-900/70 overflow-auto p-4 sm:p-8" onClick={onFechar}>
             <style>{CSS_IMPRESSAO}</style>
-            <div className="recibo-barra max-w-[820px] mx-auto mb-3 flex items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
+            <div className="recibo-barra max-w-[820px] mx-auto mb-3 flex flex-wrap items-center justify-between gap-2" onClick={(e) => e.stopPropagation()}>
                 <span className="text-xs font-black uppercase tracking-widest text-white">{tx("Recibo de pagamento")}</span>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 max-md:[&>button]:h-10">
                     <button onClick={() => window.print()} className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">
                         <Printer className="w-4 h-4" />{tx("Imprimir / Salvar PDF")}
                     </button>
@@ -64,7 +64,7 @@ const ReciboComissao = ({ row, unidade, lider, periodo, onFechar }) => {
                 </div>
             </div>
 
-            <div id="recibo-folha" onClick={(e) => e.stopPropagation()} style={{ background: '#fff', color: '#0f172a', maxWidth: 820, margin: '0 auto', padding: '40px 44px', fontFamily: 'Inter, Arial, sans-serif', boxShadow: '0 10px 40px rgba(0,0,0,.35)', borderRadius: 8 }}>
+            <div id="recibo-folha" onClick={(e) => e.stopPropagation()} className="p-4 sm:py-10 sm:px-11" style={{ background: '#fff', color: '#0f172a', maxWidth: 820, margin: '0 auto', fontFamily: 'Inter, Arial, sans-serif', boxShadow: '0 10px 40px rgba(0,0,0,.35)', borderRadius: 8 }}>
                 <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 26, fontWeight: 800, color: '#1e3a5f', letterSpacing: 0.5 }}>RECIBO DE PAGAMENTO</div>
                     <div style={{ fontSize: 11, color: '#64748b', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>Unidade Pratique {unidadeTxt}</div>
@@ -122,7 +122,7 @@ const ReciboComissao = ({ row, unidade, lider, periodo, onFechar }) => {
 
                 <div style={{ marginTop: 26, fontSize: 13 }}>Data do pagamento: ____ / ____ / ________</div>
 
-                <div style={{ marginTop: 56, display: 'flex', gap: 40 }}>
+                <div className="gap-4 sm:gap-10" style={{ marginTop: 56, display: 'flex' }}>
                     <div style={{ flex: 1, textAlign: 'center', borderTop: '1px solid #475569', paddingTop: 6 }}>
                         <div style={{ fontSize: 12, fontWeight: 800 }}>{nomeRecebedora}</div>
                         <div style={{ fontSize: 11, color: '#64748b' }}>Recebedora</div>
