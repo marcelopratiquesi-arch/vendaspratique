@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { ligarPara } from '../../components/celular/telefone.js';
 
 const Modais = ({
     modalWpp, setModalWpp,
@@ -86,7 +87,7 @@ const Modais = ({
     const handleLigarMicroSip = async (lead) => {
         if(!lead || !lead.telefone) return;
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico direto da Ficha (MicroSIP) para o número ${lead.telefone}`);
-        window.location.href = `sip:${lead.telefone.replace(/\D/g, '')}`;
+        ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     };
 
     const enviarWppDireto = async () => {
@@ -263,20 +264,20 @@ const Modais = ({
             )}
 
             {modalWpp.show && modalWpp.lead && (
-                <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center p-4">
-                    <div className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(500px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
-                        <div onMouseDown={handleMouseDownWpp} className="p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
+                <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center p-4 max-md:p-0 max-md:items-start">
+                    <div className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(500px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                        <div onMouseDown={handleMouseDownWpp} className="p-3 md:p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
                             <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest flex items-center gap-2 pointer-events-none">
                                 <MessageCircle className="w-5 h-5 text-emerald-500" />{' '}{tx("Revisão de Mensagem")}
                             </h3>
-                            <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setModalWpp({ show: false, lead: null, texto: '' })} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
+                            <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setModalWpp({ show: false, lead: null, texto: '' })} className="p-1.5 max-md:p-2 shrink-0 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
-                        <div className="flex-1 p-6 flex flex-col overflow-hidden">
-                            <div className="flex items-center gap-3 mb-4 shrink-0">
+                        <div className="flex-1 p-3 md:p-6 flex flex-col overflow-hidden max-md:overflow-y-auto">
+                            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-3 md:mb-4 shrink-0">
                                 <span className={`inline-block px-3 py-1.5 rounded-lg text-[10px] font-black tracking-widest uppercase border shadow-sm ${STATUS_TOKENS[modalWpp.lead.status]?.bg} ${STATUS_TOKENS[modalWpp.lead.status]?.text} ${STATUS_TOKENS[modalWpp.lead.status]?.border}`}>{tx("Fase:")}{' '}{tx(modalWpp.lead.status)}</span>
-                                <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{tx("Enviando para:")}{' '}<strong className="text-slate-800 dark:text-white">{modalWpp.lead.nome}</strong></span>
+                                <span className="min-w-0 break-words text-[11px] font-black text-slate-400 uppercase tracking-widest">{tx("Enviando para:")}{' '}<strong className="text-slate-800 dark:text-white">{modalWpp.lead.nome}</strong></span>
                             </div>
                             {/* Embaralhador: outra versão da mensagem; Admin/Líder/Mentor editam as versões */}
                             <div className="flex flex-wrap items-center justify-end gap-2 mb-2 shrink-0">
@@ -285,24 +286,24 @@ const Modais = ({
                                     <div className="mr-auto flex items-center rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden" title={tx("Onde a conversa abre neste computador")}>
                                         {[['web', tx("WhatsApp Web")], ['app', tx("Aplicativo")]].map(([valor, rotulo]) => (
                                             <button key={valor} type="button" onClick={() => { definirDestinoWhatsApp(valor); setDestinoWpp(valor); }}
-                                                className={`h-8 px-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${destinoWpp === valor ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
+                                                className={`h-8 max-md:h-10 px-2.5 text-[10px] font-black uppercase tracking-widest transition-colors ${destinoWpp === valor ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
                                                 {rotulo}
                                             </button>
                                         ))}
                                     </div>
                                 )}
                                 {podeEditarMensagens && (
-                                    <button type="button" onClick={() => setEditandoMensagens(true)} className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                    <button type="button" onClick={() => setEditandoMensagens(true)} className="h-8 max-md:h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                                         <PenTool className="w-3.5 h-3.5" />{tx("Mensagens")}
                                     </button>
                                 )}
-                                <button type="button" onClick={() => setModalWpp({ ...modalWpp, texto: gerarTextoWhatsApp(modalWpp.lead) })} className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                                <button type="button" onClick={() => setModalWpp({ ...modalWpp, texto: gerarTextoWhatsApp(modalWpp.lead) })} className="h-8 max-md:h-10 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                                     <RefreshCw className="w-3.5 h-3.5" />{tx("Gerar outra")}
                                 </button>
                             </div>
-                            <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
+                            <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full max-md:min-h-[200px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
                         </div>
-                        <div className="p-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-4 shrink-0">
+                        <div className="p-3 md:p-5 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-2 md:gap-4 shrink-0">
                             <button onClick={() => {
                                 navigator.clipboard.writeText(modalWpp.texto);
                                 avisar(tx("Texto copiado!"));
@@ -326,13 +327,13 @@ const Modais = ({
                 2. MODAL: FICHA COMPLETA DO LEAD (Aumentado para 1100x650)
                 ========================================== */}
             {modalDetalhe.show && modalDetalhe.lead && (
-                <div className="fixed inset-0 z-[200] pointer-events-none flex items-center justify-center p-4 lg:p-10">
-                    <div className="relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col pointer-events-auto border-2 border-slate-300 dark:border-slate-700 overflow-hidden animate-[scaleIn_0.2s_ease-out]" style={{ width: 'min(1100px, 100%)', minHeight: 'min(650px, 85vh)', maxHeight: '90vh', transform: `translate(${posDetalhe.x}px, ${posDetalhe.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                <div className="fixed inset-0 z-[200] pointer-events-none flex items-center justify-center p-4 lg:p-10 max-md:p-0 max-md:items-start">
+                    <div className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col pointer-events-auto border-2 border-slate-300 dark:border-slate-700 overflow-hidden animate-[scaleIn_0.2s_ease-out]" style={{ width: 'min(1100px, 100%)', minHeight: 'min(650px, 85vh)', maxHeight: '90vh', transform: `translate(${posDetalhe.x}px, ${posDetalhe.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         
                         {/* CABEÇALHO ARRASTÁVEL ESCURO */}
-                        <div onMouseDown={handleMouseDownDetalhe} className="bg-slate-900 p-6 lg:px-8 flex justify-between items-start shrink-0 cursor-move hover:bg-slate-800 transition-colors">
-                            <div className="pointer-events-none">
-                                <div className="flex flex-wrap items-center gap-3 mb-2">
+                        <div onMouseDown={handleMouseDownDetalhe} className="bg-slate-900 p-4 md:p-6 lg:px-8 flex justify-between items-start gap-3 shrink-0 cursor-move hover:bg-slate-800 transition-colors">
+                            <div className="pointer-events-none min-w-0">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2">
                                     <h2 className="text-xl md:text-3xl font-black text-white tracking-tight uppercase break-words">{modalDetalhe.lead.nome}</h2>
                                     <span className={`px-2.5 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${modalDetalhe.lead.tipo_lead === 'VISITANTE' ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30' : String(modalDetalhe.lead.tipo_lead || '').toUpperCase() === 'CANCELADO' ? 'bg-rose-500/20 text-rose-300 border-rose-500/30' : 'bg-orange-500/20 text-orange-300 border-orange-500/30'}`}>{tx(modalDetalhe.lead.tipo_lead || 'LEAD')}</span>
                                 </div>
@@ -341,7 +342,7 @@ const Modais = ({
                                     {modalDetalhe.lead.cpf && <span className="flex items-center gap-2"><IdCard className="w-4 h-4" /> {modalDetalhe.lead.cpf}</span>}
                                 </div>
                             </div>
-                            <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setModalDetalhe({ show: false, lead: null })} className="w-12 h-12 bg-slate-800 text-slate-400 hover:bg-rose-500 hover:text-white rounded-xl flex items-center justify-center transition-colors">
+                            <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setModalDetalhe({ show: false, lead: null })} className="w-10 h-10 md:w-12 md:h-12 shrink-0 bg-slate-800 text-slate-400 hover:bg-rose-500 hover:text-white rounded-xl flex items-center justify-center transition-colors">
                                 <X className="w-6 h-6" />
                             </button>
                         </div>
@@ -349,10 +350,10 @@ const Modais = ({
                         <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row bg-slate-50 dark:bg-slate-800/60">
                             
                             {/* COLUNA ESQUERDA (Ações e Metadados) */}
-                            <div className="w-full lg:w-[380px] border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-y-auto custom-scrollbar shrink-0">
+                            <div className="w-full lg:w-[380px] lg:border-r max-lg:overflow-visible border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col overflow-y-auto custom-scrollbar shrink-0">
                                 
                                 {/* BOTÕES GIGANTES DE AÇÃO DIRETA */}
-                                <div className="p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 flex gap-4 shrink-0">
+                                <div className="p-4 lg:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 flex gap-3 lg:gap-4 shrink-0">
                                     <button 
                                         onClick={() => handleLigarMicroSip(modalDetalhe.lead)} 
                                         className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-200 dark:border-blue-500/30 py-4 rounded-2xl transition-all shadow-sm group"
@@ -370,12 +371,12 @@ const Modais = ({
                                 </div>
 
                                 {onNaoContatar && (
-                                    <button type="button" onClick={() => onNaoContatar(modalDetalhe.lead)} className="mx-6 mt-4 py-2.5 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors" title={tx("A pessoa pediu para não receber contato")}>
+                                    <button type="button" onClick={() => onNaoContatar(modalDetalhe.lead)} className="mx-4 lg:mx-6 mt-4 py-2.5 max-md:min-h-11 rounded-xl border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-colors" title={tx("A pessoa pediu para não receber contato")}>
                                         <Ban className="w-4 h-4" />{' '}{tx("Não contatar")}
                                     </button>
                                 )}
 
-                                <div className="p-6 space-y-6 flex-1">
+                                <div className="p-4 lg:p-6 space-y-4 lg:space-y-6 flex-1">
                                     {/* MUDAR FASE */}
                                     <div>
                                         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2 mb-2"><AlignLeft className="w-4 h-4"/>{' '}{tx("Fase Atual no Funil")}</label>
@@ -448,14 +449,14 @@ const Modais = ({
                             </div>
 
                             {/* COLUNA DIREITA (Histórico e Anotações) */}
-                            <div className="flex-1 p-0 flex flex-col bg-white dark:bg-slate-900 overflow-hidden relative">
-                                <div className="p-6 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 shrink-0">
+                            <div className="flex-1 max-lg:flex-none p-0 flex flex-col bg-white dark:bg-slate-900 overflow-hidden max-lg:overflow-visible relative">
+                                <div className="p-4 lg:p-6 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 shrink-0">
                                     <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
                                         <History className="w-5 h-5 text-blue-500" />{' '}{tx("Linha do Tempo e Anotações")}
                                     </h3>
                                 </div>
                                 
-                                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8 relative bg-slate-50/50 dark:bg-slate-800/60">
+                                <div className="flex-1 max-lg:flex-none max-lg:overflow-visible overflow-y-auto custom-scrollbar p-6 lg:p-8 max-md:pr-3 relative bg-slate-50/50 dark:bg-slate-800/60">
                                     <div className="absolute left-[35px] lg:left-[43px] top-6 bottom-6 w-px bg-slate-200 dark:bg-slate-800"></div>
                                     {loadingHistorico ? (
                                         <div className="flex items-center justify-center h-full text-slate-400"><Loader2 className="w-8 h-8 animate-spin" /></div>
@@ -480,12 +481,12 @@ const Modais = ({
                                                         <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center text-white border-4 border-slate-50 dark:border-slate-800 shadow-sm relative z-10 ${corAcao}`}>
                                                             <IconeAcao className="w-5 h-5" />
                                                         </div>
-                                                        <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 shadow-sm flex-1 mb-2 hover:shadow-md transition-shadow ${semWhatsApp ? 'border-rose-300 dark:border-rose-500/40' : 'border-slate-200 dark:border-slate-800'}`}>
-                                                            <div className="flex justify-between items-start mb-3 border-b border-slate-50 dark:border-slate-800 pb-3">
+                                                        <div className={`min-w-0 bg-white dark:bg-slate-900 border rounded-2xl p-3 md:p-5 shadow-sm flex-1 mb-2 hover:shadow-md transition-shadow ${semWhatsApp ? 'border-rose-300 dark:border-rose-500/40' : 'border-slate-200 dark:border-slate-800'}`}>
+                                                            <div className="flex flex-wrap justify-between items-start gap-1 mb-3 border-b border-slate-50 dark:border-slate-800 pb-3">
                                                                 <span className="text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">{h.tipo_acao}</span>
                                                                 <span className="text-[11px] font-bold text-slate-400">{formatarDataHora(h.data_registro)}</span>
                                                             </div>
-                                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap">{h.observacao}</p>
+                                                            <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed whitespace-pre-wrap break-words">{h.observacao}</p>
                                                             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest mt-4 text-right">{tx("— Por:")}{' '}{h.consultor}</p>
                                                         </div>
                                                     </div>
@@ -496,17 +497,17 @@ const Modais = ({
                                 </div>
 
                                 {/* CAIXA DE ANOTAÇÃO (Fixa no rodapé da direita) */}
-                                <form onSubmit={adicionarNotaManual} className="p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.02)] shrink-0">
-                                    <div className="flex gap-3">
+                                <form onSubmit={adicionarNotaManual} className="p-3 lg:p-6 max-lg:sticky max-lg:bottom-0 max-lg:z-20 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.02)] shrink-0">
+                                    <div className="flex gap-2 md:gap-3">
                                         <input 
                                             type="text" 
                                             value={novaNota} 
                                             onChange={(e) => setNovaNota(e.target.value)} 
                                             placeholder={tx("Descreva o que aconteceu neste contato...")} 
-                                            className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-5 py-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner dark:focus:bg-slate-900"
+                                            className="flex-1 min-w-0 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 md:px-5 md:py-4 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-inner dark:focus:bg-slate-900"
                                         />
-                                        <button type="submit" disabled={!novaNota.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-8 py-4 rounded-xl transition-all shadow-[0_4px_15px_rgba(37,99,235,0.3)] flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest shrink-0">
-                                            <Save className="w-5 h-5" />{' '}{tx("Salvar Nota")}
+                                        <button type="submit" disabled={!novaNota.trim()} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-8 py-4 max-md:px-4 max-md:py-3 rounded-xl transition-all shadow-[0_4px_15px_rgba(37,99,235,0.3)] flex items-center justify-center gap-2 uppercase text-[11px] tracking-widest shrink-0">
+                                            <Save className="w-5 h-5" />{' '}<span className="max-md:sr-only">{tx("Salvar Nota")}</span>
                                         </button>
                                     </div>
                                 </form>
@@ -520,9 +521,9 @@ const Modais = ({
                 3. MODAL: RELATÓRIO DO DIA (FECHAMENTO)
                 ========================================== */}
             {mostrarRelatorio && (
-                <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center p-4">
-                    <div 
-                        className="relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-slate-300 dark:border-slate-700 overflow-hidden animate-[zoomIn_0.2s_ease-out]" 
+                <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center p-4 max-md:p-0 max-md:items-start">
+                    <div
+                        className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-slate-300 dark:border-slate-700 overflow-hidden animate-[zoomIn_0.2s_ease-out]" 
                         style={{ 
                             width: 'min(450px, 100%)', minHeight: 'min(520px, 85vh)', maxHeight: '90vh', 
                             transform: `translate(${posRelatorio.x}px, ${posRelatorio.y}px)`, 
@@ -538,12 +539,12 @@ const Modais = ({
                                     <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest leading-none">{tx("Fechamento de Turno")}</h3>
                                 </div>
                             </div>
-                            <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setMostrarRelatorio(false)} className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
+                            <button onMouseDown={(e) => e.stopPropagation()} onClick={() => setMostrarRelatorio(false)} className="p-1.5 max-md:p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-xl transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
                         
-                        <div className="flex-1 p-5 flex flex-col overflow-hidden bg-white dark:bg-slate-900">
+                        <div className="flex-1 p-3 md:p-5 flex flex-col overflow-hidden bg-white dark:bg-slate-900">
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 shrink-0">{tx("Edite as informações adicionais antes de enviar:")}</p>
                             <textarea 
                                 value={textoRelatorio} 
@@ -552,7 +553,7 @@ const Modais = ({
                             />
                         </div>
                         
-                        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-3 shrink-0 flex-col">
+                        <div className="p-3 md:p-4 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-3 shrink-0 flex-col">
                             <div className="flex gap-2 w-full">
                                 <button 
                                     onClick={() => { navigator.clipboard.writeText(textoRelatorio); avisar(tx("Relatório copiado!")); }} 

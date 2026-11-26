@@ -67,10 +67,10 @@ const PuxarDoCadastro = ({ unidade, onSalvos }) => {
         setVersao(v => v + 1);
     };
 
-    const rotuloBotao = 'px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-50';
+    const rotuloBotao = 'max-md:min-h-11 max-md:justify-center px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 disabled:opacity-50';
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8">
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 lg:p-8">
             <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                 <div>
                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><UserCheck className="w-4 h-4" />{' '}{tx("Puxar do cadastro")}</h3>
@@ -100,13 +100,13 @@ const PuxarDoCadastro = ({ unidade, onSalvos }) => {
                             const ativo = escolhidos.includes(s);
                             return (
                                 <button key={s} type="button" onClick={() => alternar(s)}
-                                    className={`px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${ativo ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300'}`}
+                                    className={`max-md:min-h-10 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${ativo ? 'bg-blue-600 border-blue-600 text-white' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-blue-300 dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-300'}`}
                                     title={tx("Entra no CRM como {tipo}", { tipo: tx(tipoDoStatus(s)) })}>
                                     {s} <span className={ativo ? 'text-blue-100' : 'text-slate-400'}>· {n}</span>
                                 </button>
                             );
                         })}
-                        <select value={qtd} onChange={(e) => { setQtd(Number(e.target.value)); }} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                        <select value={qtd} onChange={(e) => { setQtd(Number(e.target.value)); }} className="max-md:h-11 max-md:flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
                             {QTDS_PUXAR.map(n => <option key={n} value={n}>{tx("{qtd} por vez", { qtd: n })}</option>)}
                         </select>
                         <button type="button" onClick={conferir} disabled={!escolhidos.length || conferindo} className={`${rotuloBotao} bg-slate-800 hover:bg-black text-white`}>
@@ -123,7 +123,7 @@ const PuxarDoCadastro = ({ unidade, onSalvos }) => {
                                 <span><span className="text-base font-black text-slate-700 dark:text-slate-200">{conferencia.contagem.semTelefone}</span>{' '}{tx("sem telefone")}</span>
                                 <span><span className="text-base font-black text-slate-700 dark:text-slate-200">{conferencia.contagem.comprou}</span>{' '}{tx("comprou plano (30 dias)")}</span>
                             </div>
-                            <button type="button" onClick={trazer} disabled={!quantosVem || trazendo} className={`${rotuloBotao} bg-blue-600 hover:bg-blue-700 text-white`}>
+                            <button type="button" onClick={trazer} disabled={!quantosVem || trazendo} className={`${rotuloBotao} max-md:w-full bg-blue-600 hover:bg-blue-700 text-white`}>
                                 {trazendo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}{' '}{tx("Trazer {qtd} para o Banco Bruto", { qtd: quantosVem })}
                             </button>
                         </div>

@@ -16,16 +16,16 @@ import { tx } from '../../i18n/traduzir.js';
 // semFechar: a janela só sai pelos botões dela (usado depois de um contato, para a data não ficar esquecida)
 const Moldura = ({ titulo, subtitulo, icone: Icone, cor, onFechar, children, semFechar = false }) => (
     <div className="fixed inset-0 z-[260] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onMouseDown={(e) => { if (!semFechar && e.target === e.currentTarget) onFechar(); }}>
-        <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto overscroll-contain bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800">
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${cor}`}><Icone className="w-4 h-4" /></div>
-                    <div>
+                <div className="flex items-center gap-3 min-w-0">
+                    <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center ${cor}`}><Icone className="w-4 h-4" /></div>
+                    <div className="min-w-0">
                         <p className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx(titulo)}</p>
                         <p className="text-[10px] font-bold text-slate-400 uppercase truncate max-w-[260px]">{tx(subtitulo)}</p>
                     </div>
                 </div>
-                {!semFechar && <button type="button" onClick={onFechar} className="p-1.5 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>}
+                {!semFechar && <button type="button" onClick={onFechar} className="p-1.5 max-md:p-2.5 max-md:-m-1 shrink-0 rounded-full text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>}
             </div>
             {children}
         </div>

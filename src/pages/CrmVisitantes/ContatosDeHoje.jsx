@@ -180,25 +180,25 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
     return (
         <div className={embutido ? '' : 'fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]'} onMouseDown={embutido ? undefined : (e) => { if (e.target === e.currentTarget) onFechar(); }}>
             <div className={embutido ? 'w-full bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden' : 'w-full max-w-3xl bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto overflow-hidden'}>
-                <div className={`${embutido ? 'px-4 py-3' : 'px-6 py-5'} border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3`}>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><CalendarCheck className="w-5 h-5" /></div>
-                        <div>
-                            <h3 className="text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">{embutido ? tx("Visitantes e aniversariantes de hoje") : tx("Contatos de hoje")}</h3>
+                <div className={`${embutido ? 'px-3 md:px-4 py-3' : 'px-3 md:px-6 py-3 md:py-5'} border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3`}>
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className="shrink-0 w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center"><CalendarCheck className="w-5 h-5" /></div>
+                        <div className="min-w-0">
+                            <h3 className="max-md:text-[13px] text-base font-black uppercase tracking-widest text-slate-800 dark:text-white">{embutido ? tx("Visitantes e aniversariantes de hoje") : tx("Contatos de hoje")}</h3>
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">{unidadeChave} · {new Date().toLocaleDateString(localeAtual())} · {totalPendentes}{' '}{tx("pendente(s)")}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         {podeEditarMensagens && (
-                            <button type="button" onClick={() => setEditandoMensagens(true)} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center gap-1.5 transition-colors">
+                            <button type="button" onClick={() => setEditandoMensagens(true)} className="max-md:h-10 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 flex items-center gap-1.5 transition-colors">
                                 <PenSquare className="w-3.5 h-3.5" />{' '}{tx("Mensagens")}
                             </button>
                         )}
-                        {!embutido && <button type="button" onClick={onFechar} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title={tx("Fechar")}><X className="w-4 h-4" /></button>}
+                        {!embutido && <button type="button" onClick={onFechar} className="p-2 max-md:p-3 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400" title={tx("Fechar")}><X className="w-4 h-4" /></button>}
                     </div>
                 </div>
 
-                <div className={embutido ? 'p-4 space-y-5' : 'p-6 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar'}>
+                <div className={embutido ? 'p-3 md:p-4 space-y-5' : 'p-3 md:p-6 space-y-6 max-h-[75dvh] md:max-h-[70vh] overflow-y-auto overscroll-contain custom-scrollbar'}>
                     {carregando && <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Loader2 className="w-4 h-4 animate-spin" />{' '}{tx("Atualizando...")}</div>}
                     {GRUPOS.map(g => {
                         const Icone = g.icone;
@@ -217,20 +217,20 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                 ) : (
                                     <div className="space-y-2">
                                         {lista.map(p => (
-                                            <div key={p.chave} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-3">
+                                            <div key={p.chave} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 md:px-4 py-3">
                                                 <div className="min-w-0">
-                                                    <p className="text-sm font-black text-slate-800 dark:text-white uppercase truncate">{p.nome}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 truncate">{p.telefone || tx("Sem telefone")} · {p.detalhe}</p>
+                                                    <p className="text-sm font-black text-slate-800 dark:text-white uppercase truncate max-md:whitespace-normal max-md:break-words">{p.nome}</p>
+                                                    <p className="text-[10px] font-bold text-slate-400 truncate max-md:whitespace-normal max-md:text-[11px]">{p.telefone || tx("Sem telefone")} · {p.detalhe}</p>
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: previaDe(p) })}>
+                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="max-md:h-11 max-md:flex-1 max-md:justify-center px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: previaDe(p) })}>
                                                         {marcando === p.chave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>
-                                                    <button type="button" onClick={() => ligar(p)} disabled={marcando === p.chave || !p.telefone} className="px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
+                                                    <button type="button" onClick={() => ligar(p)} disabled={marcando === p.chave || !p.telefone} className="max-md:h-11 max-md:flex-1 max-md:justify-center px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
                                                         <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
                                                     </button>
                                                     {/* "Feito sem WhatsApp" saiu da aba Hoje (decisão do dono, 10/11/2026: "senão o pessoal vai tudo usar ele") */}
-                                                    <button type="button" onClick={() => setBloqueando(p)} className="p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title={tx("Não contatar (a pessoa pediu para não receber contato)")}>
+                                                    <button type="button" aria-label={tx("Não contatar")} onClick={() => setBloqueando(p)} className="p-2 max-md:p-3 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors dark:hover:text-rose-400" title={tx("Não contatar (a pessoa pediu para não receber contato)")}>
                                                         <Ban className="w-4 h-4" />
                                                     </button>
                                                 </div>

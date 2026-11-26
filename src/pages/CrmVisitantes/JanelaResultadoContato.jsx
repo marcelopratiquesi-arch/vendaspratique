@@ -23,15 +23,15 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
         textoFechou && { tipo: 'FECHOU', icone: CheckCircle2, titulo: tx('Comprou / fechou'), texto: textoFechou, cor: 'border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' }
     ].filter(Boolean);
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-[min(460px,100%)] border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="fixed inset-0 z-[80] flex items-center justify-center max-md:items-end bg-slate-900/60 backdrop-blur-sm p-4 max-md:p-0 max-md:pb-[var(--faixa-instalar)]" role="dialog" aria-modal="true">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-[min(460px,100%)] border border-slate-200 dark:border-slate-800 overflow-hidden overflow-y-auto overscroll-contain max-h-[calc(100dvh-2rem)] max-md:w-full max-md:max-h-[92dvh] max-md:rounded-b-none max-md:pb-[env(safe-area-inset-bottom)]">
                 <div className="px-5 py-4 border-b border-slate-200 dark:border-slate-800 flex items-start gap-3">
                     <ClipboardCheck className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Como foi o contato?')}</h3>
-                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 truncate">{aluno.nome}</p>
+                        <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mt-0.5 truncate max-md:whitespace-normal">{aluno.nome}</p>
                     </div>
-                    {!obrigatorio && <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>}
+                    {!obrigatorio && <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="p-2.5 -m-2 shrink-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>}
                 </div>
                 <div className="p-4 space-y-2">
                     {opcoes.map(o => (

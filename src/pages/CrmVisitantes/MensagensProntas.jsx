@@ -45,12 +45,12 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo, chaveIn
     return (
         <div className="fixed inset-0 z-[260] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 my-auto overflow-hidden" style={{ width: 'min(980px, 100%)' }}>
-                <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
-                    <div>
+                <div className="px-4 md:px-6 py-3 md:py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
                         <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx("Mensagens prontas")}</h3>
                         <p className="text-[10px] font-bold text-slate-400 mt-0.5">{tx("A cada clique no WhatsApp o CRM sorteia uma versão diferente. Vale para todas as unidades.")}</p>
                     </div>
-                    <button type="button" onClick={onFechar} aria-label={tx("Fechar")} className="p-2 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={onFechar} aria-label={tx("Fechar")} className="p-2 max-md:p-3 shrink-0 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400"><X className="w-4 h-4" /></button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
@@ -58,7 +58,7 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo, chaveIn
                     <div className="p-3 border-b md:border-b-0 md:border-r border-slate-100 dark:border-slate-800 flex md:flex-col gap-1.5 overflow-x-auto md:max-h-[64vh] md:overflow-y-auto custom-scrollbar">
                         {CHAVES.map(c => (
                             <button key={c} type="button" onClick={() => escolher(c)}
-                                className={`shrink-0 text-left px-3 py-2 rounded-xl border text-[11px] font-black transition-colors flex items-center justify-between gap-2 ${c === chave ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                                className={`shrink-0 max-md:min-h-10 text-left px-3 py-2 rounded-xl border text-[11px] font-black transition-colors flex items-center justify-between gap-2 ${c === chave ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
                                 <span className="whitespace-nowrap md:whitespace-normal">{tx(ROTULOS_MENSAGENS[c])}</span>
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${c === chave ? 'bg-white/20' : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'}`}>{qtdVersoes(c)}</span>
                             </button>
@@ -72,7 +72,7 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo, chaveIn
                                 {tx(ROTULOS_MENSAGENS[chave])} · <span className="text-blue-600 dark:text-blue-400">{tx("{qtd} versões", { qtd: qtdVersoes(chave) })}</span>
                             </p>
                             <button type="button" onClick={() => { const novos = { ...textos, [chave]: MENSAGENS_PADRAO[chave] }; setTextos(novos); novoExemplo(chave, novos); }}
-                                className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-1 dark:hover:text-blue-400">
+                                className="max-md:min-h-10 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-blue-600 flex items-center gap-1 dark:hover:text-blue-400">
                                 <RotateCcw className="w-3 h-3" />{tx("Voltar ao padrão")}
                             </button>
                         </div>
@@ -89,7 +89,7 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo, chaveIn
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-500/30 dark:bg-emerald-500/10">
                             <div className="flex items-center justify-between gap-2 mb-1.5">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300">{tx("Exemplo de como sai")}</span>
-                                <button type="button" onClick={() => novoExemplo()} className="text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-900 flex items-center gap-1 dark:text-emerald-300 dark:hover:text-emerald-200">
+                                <button type="button" onClick={() => novoExemplo()} className="max-md:min-h-10 text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-900 flex items-center gap-1 dark:text-emerald-300 dark:hover:text-emerald-200">
                                     <RefreshCw className="w-3 h-3" />{tx("Gerar outro")}
                                 </button>
                             </div>
@@ -98,7 +98,7 @@ const MensagensProntas = ({ mensagens, usuarioLogado, onFechar, onSalvo, chaveIn
                     </div>
                 </div>
 
-                <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
+                <div className="px-4 md:px-6 py-3 md:py-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
                     <button type="button" onClick={onFechar} className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">{tx("Cancelar")}</button>
                     <button type="button" onClick={salvar} disabled={salvando} className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-xs font-black uppercase tracking-widest flex items-center gap-2">
                         {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}{' '}{tx("Salvar")}
