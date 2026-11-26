@@ -4,6 +4,8 @@ import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlu
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import { tx } from '../../i18n/traduzir.js';
+import { ligarPara } from '../../components/celular/telefone.js';
+import { OrdenarCelular } from '../../components/celular/Cartao.jsx';
 
 const Lista = ({ 
     visitantes, 
@@ -33,7 +35,7 @@ const Lista = ({
     const handleLigarMicroSip = async (lead) => {
         if (!lead?.telefone) return;
         if (registrarHistorico) await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
-        window.location.href = `sip:${lead.telefone.replace(/\D/g, '')}`;
+        ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     };
 
     const abrirModalWpp = (lead) => {
@@ -99,45 +101,64 @@ const Lista = ({
         setTimeout(() => setSelecionados([]), 500);
     };
 
+    // CELULAR (26/11/2026): as mesmas ações da tabela, com nome embaixo do ícone
+    const botaoCartao = (chave, Icone, rotulo, onClick, cor) => (
+        <button key={chave} type="button" onClick={onClick} className={`min-h-12 px-1 py-1 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-black uppercase tracking-wide text-center leading-tight ${cor}`}>
+            <Icone className="w-4 h-4 shrink-0" />{rotulo}
+        </button>
+    );
+    const azul = 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-100 dark:border-blue-500/20';
+    const neutro = 'bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800';
+    const opcoesOrdem = [
+        { valor: 'puxado_em|desc', rotulo: `${tx("Entrada (Puxado)")} ↓` },
+        { valor: 'puxado_em|asc', rotulo: `${tx("Entrada (Puxado)")} ↑` },
+        { valor: 'nome|asc', rotulo: `${tx("Lead")} A→Z` },
+        { valor: 'nome|desc', rotulo: `${tx("Lead")} Z→A` },
+        { valor: 'status|asc', rotulo: tx("Fase do Funil") },
+        { valor: 'status|desc', rotulo: `${tx("Fase do Funil")} ↓` },
+        { valor: 'telefone|asc', rotulo: tx("Contato") },
+        { valor: 'telefone|desc', rotulo: `${tx("Contato")} ↓` },
+    ];
+
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out] flex flex-col overflow-hidden min-h-[600px]">
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-3 md:p-6 animate-[fadeIn_0.3s_ease-out] flex flex-col overflow-hidden md:min-h-[600px]">
             
-            <div className="flex flex-wrap justify-between items-center mb-6 gap-4 border-b border-slate-100 dark:border-slate-800 pb-6">
+            <div className="flex flex-wrap justify-between items-center mb-3 md:mb-6 gap-3 md:gap-4 border-b border-slate-100 dark:border-slate-800 pb-3 md:pb-6">
                 <div>
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                    <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
                         <ListPlus className="w-6 h-6 text-blue-500"/>{' '}{tx("Visão de Lista")}
                         <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-1 rounded border border-slate-200 dark:border-slate-800 ml-2 shadow-sm">{leadsExibidos.length}{' '}{tx("Filtrados")}</span>
                     </h3>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 md:gap-3 max-md:w-full">
                     {selecionados.length > 0 && (
-                        <div className="flex items-center gap-2 mr-4 animate-[fadeIn_0.2s_ease-out] bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-500/30 shadow-sm">
+                        <div className="flex flex-wrap items-center gap-2 md:mr-4 max-md:w-full animate-[fadeIn_0.2s_ease-out] bg-amber-50 dark:bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-500/30 shadow-sm">
                             <span className="text-[10px] font-black text-amber-700 dark:text-amber-300 uppercase tracking-widest mr-2">{selecionados.length}{' '}{tx("Selecionados:")}</span>
                             
                             {podeApagar && (
-                                <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
+                                <button onClick={() => limparEExecutar(deletarLeadsEmLote)} className="max-md:min-h-10 max-md:flex-1 max-md:justify-center bg-white dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-500/30 font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
                                     <Trash2 className="w-3.5 h-3.5" />{' '}{tx("Excluir do Banco")}
                                 </button>
                             )}
 
-                            <button onClick={() => limparEExecutar(alterarStatusEmLote, 'Perdido')} className="bg-cyan-500 hover:bg-cyan-600 text-white font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
+                            <button onClick={() => limparEExecutar(alterarStatusEmLote, 'Perdido')} className="max-md:min-h-10 max-md:flex-1 max-md:justify-center bg-cyan-500 hover:bg-cyan-600 text-white font-black px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 uppercase text-[10px] tracking-widest shadow-sm">
                                 <Snowflake className="w-3.5 h-3.5" />{' '}{tx("Enviar p/ Geladeira")}
                             </button>
                         </div>
                     )}
 
-                    <div className="relative">
+                    <div className="relative max-md:w-full">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                             type="text"
                             value={busca}
                             onChange={(e) => { setBusca(e.target.value); setSelecionados([]); }}
                             placeholder={tx("Buscar por nome, CPF ou telefone")}
-                            className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
+                            className="w-full sm:w-64 max-md:h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
                         />
                         {busca && (
-                            <button type="button" onClick={() => { setBusca(''); setSelecionados([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
+                            <button type="button" onClick={() => { setBusca(''); setSelecionados([]); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 max-md:right-0 max-md:p-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
@@ -146,15 +167,15 @@ const Lista = ({
                     <button
                         type="button"
                         onClick={() => { setSoParados(v => !v); setSelecionados([]); }}
-                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${soParados ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300 dark:hover:border-amber-500/30'}`}
+                        className={`flex items-center gap-1.5 max-md:h-11 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors ${soParados ? 'bg-amber-500 border-amber-500 text-white' : 'bg-slate-50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:border-amber-300 dark:hover:border-amber-500/30'}`}
                         title={tx("Só os contatos há {DIAS_PARADO_AMARELO} dias ou mais sem nenhuma ação", { DIAS_PARADO_AMARELO: DIAS_PARADO_AMARELO })}
                     >
                         <Hourglass className="w-3.5 h-3.5" />{' '}{tx("Só parados")}
                     </button>
 
-                    <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 max-md:flex-1 max-md:h-11 max-md:min-w-0 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
                         <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{tx("Filtrar:")}</span>
-                        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
+                        <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent max-md:flex-1 max-md:min-w-0 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
                             <option value="">{tx("TODOS OS STATUS")}</option>
                             {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                         </select>
@@ -162,7 +183,58 @@ const Lista = ({
                 </div>
             </div>
 
-            <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl">
+            <div className="md:hidden space-y-2">
+                <OrdenarCelular valor={`${sortConfig.key}|${sortConfig.direction}`} opcoes={opcoesOrdem}
+                    onChange={(v) => { const [key, direction] = v.split('|'); setSortConfig({ key, direction }); }} />
+                {leadsExibidos.length === 0 ? (
+                    <p className="text-center py-12 text-slate-400 font-bold uppercase tracking-widest text-[10px]">{tx("Nenhum lead encontrado neste filtro.")}</p>
+                ) : (
+                    <>
+                        <label className="flex items-center gap-3 min-h-11 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                            <input type="checkbox" className="w-5 h-5 shrink-0 rounded border-slate-300 dark:border-slate-700 text-blue-600" checked={selecionados.length === leadsExibidos.length} onChange={toggleSelectAll} />
+                            {tx("Selecionar todos")}
+                        </label>
+                        {leadsExibidos.map(v => {
+                            const marcado = selecionados.includes(v.id);
+                            const fase = faseNaTela(v);
+                            const token = STATUS_TOKENS[fase] || STATUS_TOKENS['Novo'];
+                            return (
+                                <div key={v.id} className={`rounded-2xl border p-3 space-y-2 ${marcado ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
+                                    <div className="flex items-start gap-2">
+                                        <label className="shrink-0 -m-2 p-2">
+                                            <input type="checkbox" className="block w-5 h-5 rounded border-slate-300 dark:border-slate-700 text-blue-600" checked={marcado} onChange={() => toggleSelectRow(v.id)} aria-label={v.nome} />
+                                        </label>
+                                        <div className="min-w-0 flex-1">
+                                            <button type="button" onClick={() => setContatoFicha(v)} className="text-left text-[13px] font-black uppercase break-words text-blue-700 dark:text-blue-400 underline underline-offset-2">{v.nome}</button>
+                                            <p className="text-[13px] font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
+                                            <p className="text-[10px] font-bold text-slate-400 uppercase">{tx("Entrada (Puxado)")}: {formatarDataHora(v.puxado_em || dataDoLead(v))}</p>
+                                            <div className="flex flex-wrap gap-1.5 mt-1">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>{tx(v.tipo_lead || 'LEAD')}</span>
+                                                <EtiquetaProximo lead={v} />
+                                                <EtiquetaParado lead={v} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <select value={fase} onChange={(e) => alterarStatus(v.id, e.target.value)} aria-label={tx("Fase do Funil")}
+                                        className={`w-full h-11 text-[10px] font-black uppercase tracking-widest border rounded-xl px-2 outline-none ${token.bg} ${token.text} ${token.border}`}>
+                                        {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
+                                    </select>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {botaoCartao('wpp', MessageCircle, tx("WhatsApp"), () => abrirModalWpp(v), 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-500/20')}
+                                        {botaoCartao('ligar', PhoneCall, tx("Ligar"), () => handleLigarMicroSip(v), azul)}
+                                        {botaoCartao('ficha', Info, tx("Ficha Completa"), () => abrirFichaLead(v), neutro)}
+                                        {onProximoContato && botaoCartao('prox', CalendarPlus, tx("Próximo contato"), () => onProximoContato(v), azul)}
+                                        {onNaoContatar && botaoCartao('nao', Ban, tx("Não contatar"), () => onNaoContatar(v), neutro)}
+                                        {podeApagar && botaoCartao('apagar', Trash2, tx("Excluir"), () => deletarLead(v.id), 'bg-rose-50 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-100 dark:border-rose-500/20')}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </>
+                )}
+            </div>
+
+            <div className="hidden md:block flex-1 overflow-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-50 dark:bg-slate-800/60 sticky top-0 z-10 shadow-sm border-b border-slate-200 dark:border-slate-800">
                         <tr>

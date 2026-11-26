@@ -28,6 +28,7 @@ import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR } from '../../components/ao
 import { carregarListaCrm, listaGuardada, guardarLista, esquecerListas, ficaNaLista, contarContatos } from './listaContatosCrm.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import Dica from '../../components/celular/Dica.jsx';
 import { avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 // Mudanças feitas por outras pessoas (tempo real) recarregam os números no máximo 1 vez por minuto
@@ -1571,7 +1572,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 {qtdExcedente > 0 && (
                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10 px-3 py-2">
                         <span className="text-[11px] font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 shrink-0" />{tx('{qtd} contatos acima do limite de {limite} ({quem}).', { qtd: qtdExcedente.toLocaleString(localeAtual()), limite: LIMITE_CARTEIRA, quem: excedentes.map(x => x.nome.split(' ')[0]).join(', ') })}</span>
-                        <button type="button" onClick={() => devolverExcedente(excedentes)} className="h-8 px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest">{tx('Devolver excedente para o Banco Bruto')}</button>
+                        <button type="button" onClick={() => devolverExcedente(excedentes)} className="h-8 max-md:h-10 max-md:w-full px-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-widest">{tx('Devolver excedente para o Banco Bruto')}</button>
                     </div>
                 )}
             </div>
@@ -1590,7 +1591,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                         </div>
                     )}
                     {passoBase === 'importar' && listaCompleta && (<>
-<div className="bg-white dark:bg-slate-900 rounded-[24px] border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 overflow-hidden animate-[slideUp_0.4s_ease-out] p-6 lg:p-8 flex flex-col h-full relative">
+<div className="bg-white dark:bg-slate-900 rounded-[24px] border-2 border-emerald-500/30 shadow-lg shadow-emerald-500/10 overflow-hidden animate-[slideUp_0.4s_ease-out] p-4 pt-7 md:p-6 lg:p-8 flex flex-col h-full relative">
                         <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] font-black uppercase tracking-widest px-4 py-1 rounded-bl-2xl shadow-sm">{tx("Mais Rápido ⚡")}</div>
                         <div className="flex items-center gap-3 mb-6">
                             <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center">
@@ -1636,7 +1637,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                             </span>
                                         )}
                                     </div>
-                                    <button onClick={() => {setTextoSmartPaste(''); setPreviewLeads([]); setEstatisticasPaste({novos:0, duplicados:0});}} className="text-[10px] font-black uppercase text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 transition-colors"><Trash2 className="w-3 h-3"/>{' '}{tx("Limpar")}</button>
+                                    <button onClick={() => {setTextoSmartPaste(''); setPreviewLeads([]); setEstatisticasPaste({novos:0, duplicados:0});}} className="max-md:h-10 max-md:px-2 text-[10px] font-black uppercase text-rose-500 hover:text-rose-700 dark:hover:text-rose-300 flex items-center gap-1 transition-colors"><Trash2 className="w-3 h-3"/>{' '}{tx("Limpar")}</button>
                                 </div>
                                 
                                 <div className="max-h-[140px] overflow-y-auto custom-scrollbar bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl mb-4">
@@ -1676,7 +1677,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     )}
                     </>)}
                     {passoBase === 'distribuir' && listaCompleta && (
-<div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
+<div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
                             <div>
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Send className="w-4 h-4" />{' '}{tx("Distribuir contatos")}</h3>
                                 <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"><strong className="text-blue-600 dark:text-blue-400">{leadsNaBase.length}{' '}{tx("leads")}</strong>{' '}{tx("na Base da unidade. Envie um lote para uma recepcionista (os mais antigos primeiro) ou marque na lista abaixo.")}</p>
@@ -1689,10 +1690,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                     <option value="">{tx("Para quem?")}</option>
                                     {recepcionistasAtivas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                 </select>
-                                <button type="button" onClick={distribuirLote} disabled={!recepEnvio || leadsNaBase.length === 0} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                <button type="button" onClick={distribuirLote} disabled={!recepEnvio || leadsNaBase.length === 0} className="max-md:flex-1 max-md:justify-center max-md:min-h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
                                     <Send className="w-4 h-4" />{' '}{tx("Enviar")}
                                 </button>
-                                <button type="button" onClick={dividirIgualmente} disabled={leadsNaBase.length === 0 || recepcionistasAtivas.length < 2} title={tx("Reparte toda a Base entre as recepcionistas ativas, em rodízio")} className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">{tx("Dividir igualmente")}</button>
+                                <button type="button" onClick={dividirIgualmente} disabled={leadsNaBase.length === 0 || recepcionistasAtivas.length < 2} title={tx("Reparte toda a Base entre as recepcionistas ativas, em rodízio")} className="max-md:flex-1 max-md:justify-center max-md:min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">{tx("Dividir igualmente")}</button>
                             </div>
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 lg:pt-0 lg:border-t-0 lg:border-l lg:pl-8 lg:row-span-2 lg:col-start-2 lg:row-start-1">
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{tx("Mover de uma recepcionista para outra")}</h4>
@@ -1708,17 +1709,17 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                     <select value={moverQtd} onChange={(e) => setMoverQtd(Number(e.target.value))} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
                                         {[10, 15, 20, 30, 50, 9999].map(n => <option key={n} value={n}>{n === 9999 ? tx("Todos") : n}</option>)}
                                     </select>
-                                    <button type="button" onClick={moverEntre} disabled={!moverDe || !moverPara} className="bg-slate-800 hover:bg-black disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all uppercase text-[10px] tracking-widest">{tx("Mover")}</button>
+                                    <button type="button" onClick={moverEntre} disabled={!moverDe || !moverPara} className="max-md:flex-1 max-md:min-h-11 bg-slate-800 hover:bg-black disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all uppercase text-[10px] tracking-widest">{tx("Mover")}</button>
                                 </div>
                                 <p className="mt-2 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx("Só move contatos ainda não trabalhados (fase Novo). O que já teve contato fica com quem fez.")}</p>
                             </div>
                         </div>
                     )}
                     {passoBase === 'banco' && listaCompleta && (
-<div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8">
-                        <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
-                            <div>
-                                <h3 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2 tracking-tight">
+<div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-3 md:p-6 lg:p-8">
+                        <div className="flex flex-wrap justify-between items-center gap-3 md:gap-4 mb-4 md:mb-6">
+                            <div className="max-md:w-full">
+                                <h3 className="text-lg font-black text-slate-800 dark:text-white flex flex-wrap items-center gap-2 tracking-tight">
                                     <Database className="w-5 h-5 text-blue-500"/>{' '}{tx("Banco Bruto")} 
                                     <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{buscaBase.trim() ? tx("{length} de {length2}", { length: leadsNaBaseFiltrados.length, length2: leadsNaBase.length }) : leadsNaBase.length}{' '}{tx("Registros")}</span>
                                 </h3>
@@ -1729,10 +1730,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                         value={buscaBase}
                                         onChange={(e) => mudarBuscaBase(e.target.value)}
                                         placeholder={tx("Buscar por nome, CPF ou telefone")}
-                                        className="w-72 max-w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
+                                        className="w-full sm:w-72 max-md:h-11 max-w-full bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 shadow-sm"
                                     />
                                     {buscaBase && (
-                                        <button type="button" onClick={() => mudarBuscaBase('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
+                                        <button type="button" onClick={() => mudarBuscaBase('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 max-md:right-0 max-md:p-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
                                             <X className="w-3.5 h-3.5" />
                                         </button>
                                     )}
@@ -1740,18 +1741,18 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                             </div>
                             
                             {selecionadosBase.length > 0 && (
-                                <div className="flex items-center gap-3 animate-[fadeIn_0.2s_ease-out]">
+                                <div className="flex flex-wrap items-center gap-2 md:gap-3 max-md:w-full animate-[fadeIn_0.2s_ease-out]">
                                     {podeApagar && (
-                                        <button onClick={excluirSelecionadosBase} className="bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-200 dark:hover:bg-rose-500/25 text-rose-600 dark:text-rose-400 font-black px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                        <button onClick={excluirSelecionadosBase} className="max-md:w-full max-md:justify-center max-md:min-h-11 max-md:order-last bg-rose-100 dark:bg-rose-500/20 hover:bg-rose-200 dark:hover:bg-rose-500/25 text-rose-600 dark:text-rose-400 font-black px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
                                             <Trash2 className="w-4 h-4" />{' '}{tx("Apagar do Banco (")}{selecionadosBase.length})
                                         </button>
                                     )}
-                                    <div className="flex items-center gap-2">
-                                            <select value={recepEnvio} onChange={(e) => setRecepEnvio(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                    <div className="flex items-center gap-2 max-md:w-full">
+                                            <select value={recepEnvio} onChange={(e) => setRecepEnvio(e.target.value)} className="max-md:flex-1 max-md:min-w-0 max-md:h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
                                                 <option value="">{tx("Enviar para...")}</option>
                                                 {recepcionistasAtivas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                             </select>
-                                            <button type="button" onClick={() => enviarPara(selecionadosBase, recepEnvio)} disabled={!recepEnvio} className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                            <button type="button" onClick={() => enviarPara(selecionadosBase, recepEnvio)} disabled={!recepEnvio} className="max-md:min-h-11 shrink-0 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-5 py-2.5 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
                                                 <Send className="w-4 h-4" />{' '}{tx("Enviar ({qtd})", { qtd: selecionadosBase.length })}
                                             </button>
                                         </div>
@@ -1759,7 +1760,41 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                             )}
                         </div>
 
-                        <div className="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl max-h-[400px]">
+                        {/* CELULAR: cartões (tocar marca o contato) */}
+                        <div className="md:hidden space-y-2">
+                            {leadsDaPaginaBase.length > 0 ? (
+                                <>
+                                    <label className="flex items-center gap-3 min-h-11 px-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300">
+                                        <input type="checkbox" className="w-5 h-5 shrink-0 rounded border-slate-300 dark:border-slate-700 text-blue-600" checked={paginaBaseToda} onChange={(e) => marcarPaginaBase(e.target.checked)} />
+                                        {tx("Selecionar os contatos desta página")}
+                                    </label>
+                                    {leadsDaPaginaBase.map(v => {
+                                        const marcado = selecionadosBase.includes(v.id);
+                                        return (
+                                            <button key={v.id} type="button" aria-pressed={marcado} onClick={() => setSelecionadosBase(prev => (marcado ? prev.filter(id => id !== v.id) : [...prev, v.id]))}
+                                                className={`w-full text-left flex items-start gap-3 rounded-2xl border p-3 ${marcado ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
+                                                <input type="checkbox" readOnly tabIndex={-1} checked={marcado} className="w-5 h-5 mt-0.5 shrink-0 pointer-events-none rounded border-slate-300 dark:border-slate-700 text-blue-600" />
+                                                <span className="min-w-0 flex-1">
+                                                    <span className="block text-[13px] font-black text-slate-800 dark:text-white uppercase break-words">{v.nome}</span>
+                                                    <span className="block text-[13px] font-bold text-slate-600 dark:text-slate-300">{v.telefone}</span>
+                                                    {v.cpf && <span className="block text-[10px] font-bold text-slate-400 tracking-wider">{tx("CPF:")}{' '}{v.cpf}</span>}
+                                                    <span className="mt-1 flex flex-wrap items-center gap-2">
+                                                        <span className={`px-2 py-0.5 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(v.tipo_lead)}`}>{tx(v.tipo_lead || 'N/A')}</span>
+                                                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">{dataDoLead(v) ? new Date(dataDoLead(v)).toLocaleDateString(localeAtual()) : '—'}</span>
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        );
+                                    })}
+                                </>
+                            ) : (
+                                <p className="text-center py-10 text-slate-400 font-bold uppercase tracking-widest text-[10px]">
+                                    {leadsNaBase.length > 0 ? tx("Nenhum contato encontrado nesta busca.") : tx("A piscina de leads está vazia. Cole dados no Smart Paste para começar.")}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="hidden md:block overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl max-h-[400px]">
                             <table className="w-full text-left border-collapse min-w-max relative">
                                 <thead className="bg-slate-50 dark:bg-slate-800/60 sticky top-0 z-10 shadow-sm">
                                     <tr>
@@ -1826,23 +1861,23 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                 <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-3">
                                     <span>{leadsNaBaseFiltrados.length}{' '}{tx("contatos")}{selecionadosBase.length > 0 ? " " + tx("· {length} selecionados", { length: selecionadosBase.length }) + "" : ''}</span>
                                     {paginaBaseToda && !todosFiltradosSelecionados && (
-                                        <button type="button" onClick={() => setSelecionadosBase(leadsNaBaseFiltrados.map(l => l.id))} className="text-blue-600 dark:text-blue-400 hover:underline underline-offset-2">
+                                        <button type="button" onClick={() => setSelecionadosBase(leadsNaBaseFiltrados.map(l => l.id))} className="max-md:min-h-10 text-blue-600 dark:text-blue-400 hover:underline underline-offset-2">
                                             {tx("Selecionar todos os")}{' '}{leadsNaBaseFiltrados.length}{' '}{tx("encontrados")}
                                         </button>
                                     )}
                                     {selecionadosBase.length > 0 && (
-                                        <button type="button" onClick={() => setSelecionadosBase([])} className="text-slate-400 hover:text-slate-700 dark:hover:text-white hover:underline underline-offset-2">
+                                        <button type="button" onClick={() => setSelecionadosBase([])} className="max-md:min-h-10 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:underline underline-offset-2">
                                             {tx("Limpar seleção")}
                                         </button>
                                     )}
                                 </div>
                                 {totalPaginasBase > 1 && (
-                                    <div className="flex items-center gap-2">
-                                        <button type="button" onClick={() => setPaginaBase(Math.max(1, paginaBaseAtual - 1))} disabled={paginaBaseAtual <= 1} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
+                                    <div className="flex items-center gap-2 max-md:w-full max-md:justify-between">
+                                        <button type="button" onClick={() => setPaginaBase(Math.max(1, paginaBaseAtual - 1))} disabled={paginaBaseAtual <= 1} className="flex items-center gap-1 max-md:h-10 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
                                             <ChevronLeft className="w-3.5 h-3.5" />{' '}{tx("Anterior")}
                                         </button>
                                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("Página")}{' '}{paginaBaseAtual}{' '}{tx("de")}{' '}{totalPaginasBase}</span>
-                                        <button type="button" onClick={() => setPaginaBase(Math.min(totalPaginasBase, paginaBaseAtual + 1))} disabled={paginaBaseAtual >= totalPaginasBase} className="flex items-center gap-1 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
+                                        <button type="button" onClick={() => setPaginaBase(Math.min(totalPaginasBase, paginaBaseAtual + 1))} disabled={paginaBaseAtual >= totalPaginasBase} className="flex items-center gap-1 max-md:h-10 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed">
                                             {tx("Próxima")}{' '}<ChevronRight className="w-3.5 h-3.5" />
                                         </button>
                                     </div>
@@ -1898,14 +1933,14 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
 
             {/* TOPO ENXUTO (decisão do dono, 06/11/2026): operador, meta, botões e abas numa faixa só */}
             <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                <div className="px-4 py-2.5 flex items-center justify-between flex-wrap gap-3">
-                    <div className="flex items-center gap-3 flex-1 min-w-[260px]">
+                <div className="px-3 md:px-4 py-2.5 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0 md:min-w-[260px] max-md:basis-full">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${metaBatida ? 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400'}`}>
                             {metaBatida ? <Trophy className="w-4 h-4" /> : <Target className="w-4 h-4" />}
                         </div>
                         <div className="flex-1 max-w-xl min-w-0">
-                            <div className="flex justify-between items-center gap-2 mb-1">
-                                <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-1.5 min-w-0">
+                            <div className="flex justify-between items-center gap-x-2 gap-y-1 mb-1 max-md:flex-wrap">
+                                <span className="text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest flex items-center gap-1.5 min-w-0 max-md:flex-wrap">
                                     <strong className="text-blue-600 dark:text-blue-400 truncate" title={consultorLogado}>{consultorLogado}</strong>
                                     {unidadeOperacao && <span className="shrink-0 px-1.5 py-px rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400">{unidadeOperacao}</span>}
                                     {/* Quem está operando o CRM de outra pessoa: etiqueta pequena (antes era uma faixa azul inteira) */}
@@ -1914,6 +1949,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                             title={`${tx("Você está vendo o CRM de")} ${consultorLogado}${tx(". O que você fizer aqui conta para")} ${consultorLogado.split(' ')[0]}${tx(", com a marca \"feito por")} ${usuarioLogado?.nome?.split(' ')[0] || tx("você")}${tx("\" no histórico.")}`}>
                                             <Info className="w-3 h-3" />{tx("feito por")}{' '}{usuarioLogado?.nome?.split(' ')[0] || tx("você")}
                                         </span>
+                                    )}
+                                    {lideraOuAcompanha && (
+                                        <span className="md:hidden shrink-0"><Dica alinhar="right" texto={`${tx("Você está vendo o CRM de")} ${consultorLogado}${tx(". O que você fizer aqui conta para")} ${consultorLogado.split(' ')[0]}${tx(", com a marca \"feito por")} ${usuarioLogado?.nome?.split(' ')[0] || tx("você")}${tx("\" no histórico.")}`} /></span>
                                     )}
                                 </span>
                                 <span className={`shrink-0 text-[11px] font-black ${metaBatida ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'}`}>{pessoasHoje} / {META_DIARIA}{' '}{tx("Pessoas contatadas")}</span>
@@ -1924,31 +1962,31 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    <div className="flex items-center gap-2 w-full sm:w-auto justify-end max-md:grid max-md:grid-flow-col max-md:auto-cols-fr">
                         {/* Sem a aba Hoje (permissão 508), os contatos de hoje continuam na janela de antes */}
                         {!visaoLiberada.hoje && (
-                            <button onClick={() => setContatosHojeAberto(true)} className={`h-8 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 border ${pendentesHoje.total > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-700' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-slate-200 dark:border-slate-800'}`}>
-                                <CalendarCheck className="w-3.5 h-3.5" />{' '}{tx("Contatos de hoje")}{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
+                            <button onClick={() => setContatosHojeAberto(true)} className={`h-8 max-md:h-10 max-md:min-w-0 max-md:justify-center max-md:px-1 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 border ${pendentesHoje.total > 0 ? 'bg-blue-600 text-white hover:bg-blue-700 border-blue-700' : 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-slate-200 dark:border-slate-800'}`}>
+                                <CalendarCheck className="w-3.5 h-3.5 shrink-0" />{' '}<span className="max-md:hidden">{tx("Contatos de hoje")}</span><span className="md:hidden">{tx("Hoje")}</span>{pendentesHoje.total > 0 ? ` (${pendentesHoje.total})` : ''}
                             </button>
                         )}
-                        <button onClick={() => setConsultorAtivo(null)} className="h-8 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-800">
-                            <LogOut className="w-3.5 h-3.5" /> {lideraOuAcompanha ? tx("Voltar ao Painel") : tx("Trocar")}
+                        <button onClick={() => setConsultorAtivo(null)} className="h-8 max-md:h-10 max-md:min-w-0 max-md:justify-center max-md:px-1 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-800">
+                            <LogOut className="w-3.5 h-3.5 shrink-0" /> {lideraOuAcompanha ? <><span className="max-md:hidden">{tx("Voltar ao Painel")}</span><span className="md:hidden">{tx("Voltar")}</span></> : tx("Trocar")}
                         </button>
-                        <button onClick={() => setMostrarRelatorio(true)} className={`h-8 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-800 text-white hover:bg-black border border-slate-700'}`}>
+                        <button onClick={() => setMostrarRelatorio(true)} className={`h-8 max-md:h-10 max-md:min-w-0 max-md:justify-center max-md:px-1 px-4 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all flex items-center gap-1.5 ${metaBatida ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-800 text-white hover:bg-black border border-slate-700'}`}>
                             <FileText className="w-3.5 h-3.5" />{' '}{tx("Fechar Turno")}
                         </button>
                     </div>
                 </div>
 
                 {/* ABAS: Conversa | Kanban | Lista · Hoje · Migração · Mais ▾ (Geladeira, Não contatar, Métricas, Relatório) */}
-                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap">
+                <div className="px-3 py-2 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5 flex-wrap abas-rolaveis">
                     <div className="flex rounded-lg bg-slate-100 dark:bg-slate-800 p-0.5 gap-0.5">
                         {[
                             visaoLiberada.conversa && ['conversa', MessagesSquare, tx("Conversa")],
                             ['kanban', KanbanIcon, tx("Kanban")],
                             visaoLiberada.lista && ['lista', List, tx("Lista")],
                         ].filter(Boolean).map(([chave, Icone, rotulo]) => (
-                            <button key={chave} onClick={() => setVisaoAtiva(chave)} className={`h-8 px-3 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visaoMostrada === chave ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                            <button key={chave} onClick={() => setVisaoAtiva(chave)} className={`h-8 max-md:h-10 px-3 rounded-md text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visaoMostrada === chave ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                                 <Icone className="w-3.5 h-3.5" />{rotulo}
                             </button>
                         ))}
@@ -1958,20 +1996,20 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                         visaoLiberada.migracao && ['migracao', Repeat, tx("Migração"), 0, ''],
                         visaoLiberada.resgate && ['resgate', LifeBuoy, tx("Resgate"), 0, tx("Alunos finalizados e inativos para chamar de volta")],
                     ].filter(Boolean).map(([chave, Icone, rotulo, qtd, dica]) => (
-                        <button key={chave} onClick={() => setVisaoAtiva(chave)} title={dica || undefined} className={`h-8 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visaoMostrada === chave ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
+                        <button key={chave} onClick={() => setVisaoAtiva(chave)} title={dica || undefined} className={`h-8 max-md:h-11 whitespace-nowrap px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visaoMostrada === chave ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
                             <Icone className="w-3.5 h-3.5" />{rotulo}
                             {qtd > 0 && <span className={`min-w-[18px] px-1.5 py-px rounded-full text-[10px] font-black ${visaoMostrada === chave ? 'bg-white text-blue-700 dark:bg-slate-900 dark:text-blue-400' : 'bg-rose-600 text-white'}`}>{qtd}</span>}
                         </button>
                     ))}
                     {abasMais.length > 0 && (
                         <div className="relative">
-                            <button onClick={() => setMaisAberto(a => !a)} className={`h-8 px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${abaMaisAtiva ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
+                            <button onClick={() => setMaisAberto(a => !a)} className={`h-8 max-md:h-11 whitespace-nowrap px-3 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${abaMaisAtiva ? 'bg-blue-600 shadow-sm text-white' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
                                 <MoreHorizontal className="w-3.5 h-3.5" />{abaMaisAtiva ? abaMaisAtiva[2] : tx("Mais")}<ChevronDown className="w-3 h-3" />
                             </button>
                             {maisAberto && (
                                 <>
-                                    <div className="fixed inset-0 z-30" onClick={() => setMaisAberto(false)} />
-                                    <div className="absolute left-0 top-full mt-1 z-40 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1">
+                                    <div className="fixed inset-0 z-30 max-md:z-[150] max-md:bg-slate-900/50" onClick={() => setMaisAberto(false)} />
+                                    <div className="absolute left-0 top-full mt-1 z-40 w-56 max-md:fixed max-md:inset-x-0 max-md:top-auto max-md:bottom-[var(--faixa-instalar)] max-md:mt-0 max-md:w-full max-md:z-[151] max-md:max-h-[80dvh] max-md:overflow-y-auto max-md:rounded-b-none max-md:rounded-t-2xl max-md:p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg p-1">
                                         {abasMais.map(([chave, Icone, rotulo, dica]) => (
                                             <button key={chave} onClick={() => { setVisaoAtiva(chave); setMaisAberto(false); }} className={`w-full text-left px-3 py-2 rounded-lg flex items-start gap-2 transition-colors ${visaoMostrada === chave ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300' : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
                                                 <Icone className="w-4 h-4 mt-0.5 shrink-0" />
@@ -1991,13 +2029,13 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
 
             {/* ABA GELADEIRA (RECUPERAÇÃO) */}
             {visaoMostrada === 'geladeira' && (
-                <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-cyan-200 dark:border-cyan-500/30 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out]">
-                    <div className="flex items-center gap-4 mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
-                        <div className="w-14 h-14 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-500 rounded-2xl flex items-center justify-center shadow-inner">
+                <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-cyan-200 dark:border-cyan-500/30 shadow-sm p-4 md:p-8 animate-[fadeIn_0.3s_ease-out]">
+                    <div className="flex items-center gap-3 md:gap-4 mb-4 md:mb-8 border-b border-slate-100 dark:border-slate-800 pb-4 md:pb-6">
+                        <div className="w-11 h-11 md:w-14 md:h-14 shrink-0 bg-cyan-50 dark:bg-cyan-500/10 text-cyan-500 rounded-2xl flex items-center justify-center shadow-inner">
                             <Snowflake className="w-7 h-7" />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">{tx("Geladeira de Contatos (30 Dias)")}</h2>
+                            <h2 className="text-lg md:text-2xl font-black text-slate-800 dark:text-white tracking-tight">{tx("Geladeira de Contatos (30 Dias)")}</h2>
                             <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{tx("Contatos que deram \"Perdido\". Aguarde o tempo de maturação para tentar resgatá-los para o Kanban.")}</p>
                         </div>
                     </div>
@@ -2005,14 +2043,14 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     {liberadosGeladeira.length > 0 && (
                         <div className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 px-4 py-3">
                             <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">{tx("{qtd} contatos já passaram dos 30 dias e estão liberados.", { qtd: liberadosGeladeira.length })}</span>
-                            <button type="button" onClick={resgatarLiberados} className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" title={tx("Leva todos os liberados para o Kanban, em Novo (até o limite de vagas da carteira)")}>
+                            <button type="button" onClick={resgatarLiberados} className="max-md:w-full max-md:min-h-11 max-md:justify-center px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" title={tx("Leva todos os liberados para o Kanban, em Novo (até o limite de vagas da carteira)")}>
                                 <RotateCcw className="w-3.5 h-3.5" />{' '}{tx("Resgatar todos os liberados ({qtd})", { qtd: liberadosGeladeira.length })}
                             </button>
                         </div>
                     )}
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {meusLeadsGeladeira.length === 0 ? (
-                            <p className="text-slate-400 font-bold col-span-3 text-center py-10 uppercase tracking-widest text-xs">{tx("Sua geladeira está vazia.")}</p>
+                            <p className="text-slate-400 font-bold md:col-span-2 lg:col-span-3 text-center py-10 uppercase tracking-widest text-xs">{tx("Sua geladeira está vazia.")}</p>
                         ) : (
                             meusLeadsGeladeira.map(v => {
                                 const diasNaGeladeira = Math.floor((new Date() - new Date(v.perdido_em)) / (1000 * 60 * 60 * 24));
@@ -2036,7 +2074,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                             <button 
                                                 onClick={() => alterarStatus(v.id, 'Novo')}
                                                 disabled={!liberado}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${liberado ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}`}
+                                                className={`flex items-center gap-1.5 max-md:h-10 max-md:px-4 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${liberado ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md' : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'}`}
                                                 title={liberado ? tx("Resgatar para o Kanban") : tx("Ainda em maturação")}
                                             >
                                                 <RotateCcw className="w-3.5 h-3.5" />{' '}{tx("Resgatar")}
@@ -2065,12 +2103,12 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             )}
             
             {visaoMostrada === 'kanban' && (
-                <div className="relative z-20 flex items-center justify-end gap-2 mb-3">
+                <div className="relative z-20 flex flex-wrap items-center justify-end gap-2 mb-3">
                     <span className="mr-auto text-[10px] font-black uppercase tracking-widest text-slate-400">
                         {tx('Em trabalho {qtd}/{limite} · Em espera {espera}', { qtd: carteiraDe(consultorAtivo?.nome || '').length, limite: LIMITE_CARTEIRA, espera: emEsperaDe(consultorAtivo?.nome || '') })}
                     </span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx('Ordem')}</span>
-                    <select value={ordemContatos} onChange={(e) => { setOrdemContatos(e.target.value); salvarOrdemContatos(e.target.value); }} className="h-8 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+                    <select value={ordemContatos} onChange={(e) => { setOrdemContatos(e.target.value); salvarOrdemContatos(e.target.value); }} className="h-8 max-md:h-10 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
                         {ORDENS_CONTATOS.map(o => <option key={o.val} value={o.val}>{tx(o.label)}</option>)}
                     </select>
                 </div>
@@ -2104,9 +2142,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                             📥 {tx('Sua carteira está acabando: {qtd} contato(s) para trabalhar. Há {base} no Banco Bruto.', { qtd: paraTrabalhar, base: naBase })}
                             {vaga <= 0 && <span className="block text-rose-600 dark:text-rose-400">{tx('Carteira cheia ({limite} em trabalho). Responda "Como foi o contato?" ou coloque em Em Espera quem já foi contatado para liberar vagas.', { limite: LIMITE_CARTEIRA })}</span>}
                         </span>
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 max-md:w-full max-md:grid max-md:grid-cols-3">
                             {[25, 50, 100].map(q => (
-                                <button key={q} type="button" onClick={() => puxar(q)} disabled={vaga <= 0} className="h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest">{tx('Puxar {qtd}', { qtd: q })}</button>
+                                <button key={q} type="button" onClick={() => puxar(q)} disabled={vaga <= 0} className="h-8 max-md:h-11 max-md:px-1 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest">{tx('Puxar {qtd}', { qtd: q })}</button>
                             ))}
                         </span>
                     </div>

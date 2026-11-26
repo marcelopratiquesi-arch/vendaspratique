@@ -3,6 +3,8 @@ import { formatarDataHora, STATUS_TOKENS, COLUNAS_TELA, FASE_ESPERA, faseNaTela,
 import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
 import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
 import { tx } from '../../i18n/traduzir.js';
+import { ligarPara } from '../../components/celular/telefone.js';
+import Dica from '../../components/celular/Dica.jsx';
 
 // ==========================================
 // CARD DO LEAD (Memoizado para Alta Performance)
@@ -54,7 +56,7 @@ const LeadCard = memo(({
                     <button
                         onClick={handleDeletar}
                         disabled={isDeleting}
-                        className="text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-white dark:bg-slate-900 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 transition-colors bg-white dark:bg-slate-900 p-1.5 rounded-md hover:bg-rose-50 dark:hover:bg-rose-500/10 border border-transparent hover:border-rose-100 dark:hover:border-rose-500/20 disabled:opacity-40 disabled:cursor-not-allowed max-md:p-3 max-md:-m-1.5"
                         title={tx("Excluir Definitivamente do Banco")}
                     >
                         {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
@@ -96,22 +98,23 @@ const LeadCard = memo(({
                     <button
                         onClick={() => onLigar(lead)}
                         disabled={!lead.telefone}
-                        className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 max-md:h-11 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                         title={tx("Ligar (MicroSIP)")}
+                        aria-label={tx("Ligar")}
                     >
                         <PhoneCall className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => onWpp(lead)}
                         disabled={!lead.telefone}
-                        className="flex-1 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-100 dark:border-emerald-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="flex-1 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-100 dark:border-emerald-500/20 h-9 max-md:h-11 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                         title={tx("Chamar no WhatsApp")}
                     >
                         <MessageCircle className="w-4 h-4" />
                     </button>
                     <button
                         onClick={() => onDetalhe(lead)}
-                        className="flex-1 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-white border border-slate-200 dark:border-slate-800 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm"
+                        className="flex-1 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-800 text-slate-600 dark:text-slate-300 hover:text-white border border-slate-200 dark:border-slate-800 h-9 max-md:h-11 rounded-lg flex items-center justify-center transition-colors shadow-sm"
                         title={tx("Ver Detalhes / Ficha")}
                     >
                         <Info className="w-4 h-4" />
@@ -119,7 +122,7 @@ const LeadCard = memo(({
                     {onProximo && (
                         <button
                             onClick={() => onProximo(lead)}
-                            className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 rounded-lg flex items-center justify-center transition-colors shadow-sm"
+                            className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 max-md:h-11 rounded-lg flex items-center justify-center transition-colors shadow-sm"
                             title={tx("Marcar o próximo contato")}
                         >
                             <CalendarPlus className="w-4 h-4" />
@@ -130,7 +133,7 @@ const LeadCard = memo(({
                 <select
                     value={faseNaTela(lead)}
                     onChange={(e) => onMoverStatus(lead.id, e.target.value)}
-                    className="w-full text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-lg h-9 px-2 bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-900 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors outline-none shadow-sm"
+                    className="w-full text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800 rounded-lg h-9 max-md:h-11 px-2 bg-slate-50 dark:bg-slate-800/60 hover:bg-white dark:hover:bg-slate-900 focus:ring-2 focus:ring-blue-500 cursor-pointer transition-colors outline-none shadow-sm"
                 >
                     <option disabled value="">{tx("Mover fase...")}</option>
                     {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx("Para:")}{' '}{tx(c)}</option>)}
@@ -144,12 +147,12 @@ const LeadCard = memo(({
                         onChange={(e) => setNota(e.target.value)}
                         onKeyDown={(e) => { if (e.key === 'Enter') handleSalvar(); }}
                         disabled={isSendingNota}
-                        className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 h-9 text-[10px] font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none shadow-inner disabled:opacity-60 dark:focus:bg-slate-900"
+                        className="flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 h-9 max-md:h-11 min-w-0 text-[10px] font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-1 focus:ring-blue-500 outline-none shadow-inner disabled:opacity-60 dark:focus:bg-slate-900"
                     />
                     <button
                         onClick={handleSalvar}
                         disabled={!nota.trim() || isSendingNota}
-                        className={`h-9 w-9 flex items-center justify-center rounded-lg transition-colors shadow-sm disabled:opacity-50 ${notaSalva ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white disabled:hover:bg-slate-100 disabled:hover:text-slate-500 dark:disabled:hover:bg-slate-800 dark:disabled:hover:text-slate-400'}`}
+                        className={`h-9 w-9 max-md:h-11 max-md:w-11 shrink-0 flex items-center justify-center rounded-lg transition-colors shadow-sm disabled:opacity-50 ${notaSalva ? 'bg-emerald-500 text-white' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-blue-500 hover:text-white disabled:hover:bg-slate-100 disabled:hover:text-slate-500 dark:disabled:hover:bg-slate-800 dark:disabled:hover:text-slate-400'}`}
                         title={tx("Salvar Nota")}
                     >
                         {notaSalva ? <Check className="w-4 h-4" /> : <Send className="w-4 h-4" />}
@@ -180,6 +183,8 @@ const Kanban = ({
     const [deletingIds, setDeletingIds] = useState(() => new Set());
     const [sendingNotaIds, setSendingNotaIds] = useState(() => new Set());
     const [notasSalvasIds, setNotasSalvasIds] = useState(() => new Set());
+    // CELULAR (26/11/2026): uma fase por vez, escolhida nas abas de cima (no computador, as colunas lado a lado)
+    const [faseCelular, setFaseCelular] = useState('');
 
     const scrollContainerRef = useRef(null);
     const isDragging = useRef(false);
@@ -230,7 +235,7 @@ const Kanban = ({
     const handleLigarMicroSip = useCallback(async (lead) => {
         if (!lead.telefone) return;
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
-        window.location.href = `sip:${lead.telefone.replace(/\D/g, '')}`;
+        ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     }, [registrarHistorico]);
 
     const abrirModalWpp = useCallback((lead) => {
@@ -281,28 +286,48 @@ const Kanban = ({
         }
     }, [registrarHistorico, sendingNotaIds]);
 
+    const faseNoCelular = faseCelular || COLUNAS_TELA.find(c => (leadsPorColuna[c] || []).length) || COLUNAS_TELA[0];
+
     return (
-        <div 
+        <>
+        <div className="md:hidden flex gap-1.5 mb-3 abas-rolaveis" role="tablist">
+            {COLUNAS_TELA.map(coluna => {
+                const token = STATUS_TOKENS[coluna] || STATUS_TOKENS['Novo'];
+                const ativa = faseNoCelular === coluna;
+                return (
+                    <button key={coluna} type="button" role="tab" aria-selected={ativa} onClick={() => setFaseCelular(coluna)}
+                        className={`h-11 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 whitespace-nowrap ${ativa ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300'}`}>
+                        <span className={`w-2 h-2 rounded-full ${ativa ? 'bg-white' : token.accent}`}></span>
+                        {tx(coluna)}
+                        <span className={`px-1.5 py-0.5 rounded-md text-[11px] tabular-nums ${ativa ? 'bg-white/25' : 'bg-slate-100 dark:bg-slate-800'}`}>{(leadsPorColuna[coluna] || []).length}</span>
+                    </button>
+                );
+            })}
+        </div>
+        <div
             ref={scrollContainerRef}
             onMouseDown={handleMouseDown}
             onMouseLeave={handleMouseLeaveOrUp}
             onMouseUp={handleMouseLeaveOrUp}
             onMouseMove={handleMouseMove}
-            className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar items-start min-h-[70vh] w-full px-2 cursor-grab"
+            className="flex gap-4 overflow-x-auto pb-6 custom-scrollbar items-start min-h-[70vh] w-full px-2 cursor-grab max-md:flex-col max-md:items-stretch max-md:overflow-visible max-md:min-h-0 max-md:px-0 max-md:cursor-auto"
         >
             {COLUNAS_TELA.map(coluna => {
                 const leadsDaColuna = leadsPorColuna[coluna] || [];
                 const token = STATUS_TOKENS[coluna] || STATUS_TOKENS['Novo'];
 
                 return (
-                    <div key={coluna} className={`rounded-[20px] border ${token.border} bg-slate-50/80 dark:bg-slate-800/60 shadow-sm flex flex-col flex-1 min-w-[250px] max-w-[340px] flex-shrink-0 cursor-default`}>
+                    <div key={coluna} className={`rounded-[20px] border ${token.border} bg-slate-50/80 dark:bg-slate-800/60 shadow-sm flex flex-col flex-1 min-w-[250px] max-w-[340px] flex-shrink-0 cursor-default max-md:min-w-0 max-md:max-w-none max-md:w-full ${faseNoCelular === coluna ? '' : 'max-md:hidden'}`}>
 
-                        <div className={`p-4 border-b ${token.border} ${token.bg} rounded-t-[20px] flex justify-between items-center sticky top-0 backdrop-blur-sm z-10`}>
+                        <div className={`p-4 border-b ${token.border} ${token.bg} rounded-t-[20px] flex justify-between items-center sticky top-0 backdrop-blur-sm z-10 max-md:static max-md:p-3`}>
                             <h3 className={`font-black ${token.text} text-[11px] flex items-center gap-2 uppercase tracking-widest`}>
                                 <span className={`w-2 h-2 rounded-full ${token.accent} shadow-sm`}></span>
                                 {tx(coluna)}
                                 {coluna === FASE_ESPERA && (
-                                    <span className="normal-case tracking-normal font-bold text-[10px] text-sky-600/80 dark:text-sky-300/80 cursor-help" title={tx("Já contatados, com data de volta marcada. Não ocupam vaga na carteira. No dia marcado voltam sozinhos para Em Contato.")}>(?)</span>
+                                    <span className="max-md:hidden normal-case tracking-normal font-bold text-[10px] text-sky-600/80 dark:text-sky-300/80 cursor-help" title={tx("Já contatados, com data de volta marcada. Não ocupam vaga na carteira. No dia marcado voltam sozinhos para Em Contato.")}>(?)</span>
+                                )}
+                                {coluna === FASE_ESPERA && (
+                                    <span className="md:hidden"><Dica alinhar="left" texto={tx("Já contatados, com data de volta marcada. Não ocupam vaga na carteira. No dia marcado voltam sozinhos para Em Contato.")} /></span>
                                 )}
                             </h3>
                             <span className={`text-[10px] font-black px-2.5 py-1 rounded-md shadow-sm border bg-white dark:bg-slate-900 ${token.text} ${token.border}`}>
@@ -312,8 +337,7 @@ const Kanban = ({
 
                         <div 
                             onMouseDown={(e) => e.stopPropagation()} 
-                            className="p-3 flex-1 flex flex-col gap-3 overflow-y-auto custom-scrollbar" 
-                            style={{ maxHeight: '68vh' }}
+                            className="p-2 md:p-3 flex-1 flex flex-col gap-3 md:overflow-y-auto md:max-h-[68vh] custom-scrollbar"
                         >
                             {leadsDaColuna.map(v => (
                                 <LeadCard
@@ -344,6 +368,7 @@ const Kanban = ({
                 );
             })}
         </div>
+        </>
     );
 };
 

@@ -3,7 +3,9 @@
 // Formato: "texto em português": "tradução".
 export default {
     'en-US': {
+        "Selecionar todos": "Select all",
     },
     'es-AR': {
+        "Selecionar todos": "Seleccionar todos",
     },
 };
