@@ -1699,10 +1699,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                 <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"><strong className="text-blue-600 dark:text-blue-400">{leadsNaBase.length}{' '}{tx("leads")}</strong>{' '}{tx("na Base da unidade. Envie um lote para uma recepcionista (os mais antigos primeiro) ou marque na lista abaixo.")}</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                                <select value={qtdEnvio} onChange={(e) => setQtdEnvio(Number(e.target.value))} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                <select value={qtdEnvio} onChange={(e) => setQtdEnvio(Number(e.target.value))} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                                     {[10, 15, 20, 30, 50].map(n => <option key={n} value={n}>{tx("{qtd} contatos", { qtd: n })}</option>)}
                                 </select>
-                                <select value={recepEnvio} onChange={(e) => setRecepEnvio(e.target.value)} className="flex-1 min-w-[160px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                <select value={recepEnvio} onChange={(e) => setRecepEnvio(e.target.value)} className="flex-1 min-w-[160px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                                     <option value="">{tx("Para quem?")}</option>
                                     {recepcionistasAtivas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                 </select>
@@ -1714,15 +1714,15 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 lg:pt-0 lg:border-t-0 lg:border-l lg:pl-8 lg:row-span-2 lg:col-start-2 lg:row-start-1">
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{tx("Mover de uma recepcionista para outra")}</h4>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <select value={moverDe} onChange={(e) => setMoverDe(e.target.value)} className="flex-1 min-w-[140px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                    <select value={moverDe} onChange={(e) => setMoverDe(e.target.value)} className="flex-1 min-w-[140px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                                         <option value="">{tx("De...")}</option>
                                         {recepcionistasAtivas.map(c => <option key={c.id} value={c.nome}>{c.nome} ({contatosParaMover(c.nome).length})</option>)}
                                     </select>
-                                    <select value={moverPara} onChange={(e) => setMoverPara(e.target.value)} className="flex-1 min-w-[140px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                    <select value={moverPara} onChange={(e) => setMoverPara(e.target.value)} className="flex-1 min-w-[140px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                                         <option value="">{tx("Para...")}</option>
                                         {recepcionistasAtivas.filter(c => !mesmoNome(c.nome, moverDe)).map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                     </select>
-                                    <select value={moverQtd} onChange={(e) => setMoverQtd(Number(e.target.value))} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                    <select value={moverQtd} onChange={(e) => setMoverQtd(Number(e.target.value))} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                                         {[10, 15, 20, 30, 50, 9999].map(n => <option key={n} value={n}>{n === 9999 ? tx("Todos") : n}</option>)}
                                     </select>
                                     <button type="button" onClick={moverEntre} disabled={!moverDe || !moverPara} className="max-md:flex-1 max-md:min-h-11 bg-slate-800 hover:bg-black disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all uppercase text-[10px] tracking-widest">{tx("Mover")}</button>
@@ -1764,7 +1764,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                         </button>
                                     )}
                                     <div className="flex items-center gap-2 max-md:w-full">
-                                            <select value={recepEnvio} onChange={(e) => setRecepEnvio(e.target.value)} className="max-md:flex-1 max-md:min-w-0 max-md:h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                                            <select value={recepEnvio} onChange={(e) => setRecepEnvio(e.target.value)} className="max-md:flex-1 max-md:min-w-0 max-md:h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[10px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                                                 <option value="">{tx("Enviar para...")}</option>
                                                 {recepcionistasAtivas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                             </select>
@@ -2120,11 +2120,11 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             
             {visaoMostrada === 'kanban' && (
                 <div className="relative z-20 flex flex-wrap items-center justify-end gap-2 mb-3">
-                    <span className="mr-auto text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span className="mr-auto max-md:w-full text-[10px] font-black uppercase tracking-widest text-slate-400">
                         {tx('Em trabalho {qtd}/{limite} · Em espera {espera}', { qtd: carteiraDe(consultorAtivo?.nome || '').length, limite: LIMITE_CARTEIRA, espera: emEsperaDe(consultorAtivo?.nome || '') })}
                     </span>
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx('Ordem')}</span>
-                    <select value={ordemContatos} onChange={(e) => { setOrdemContatos(e.target.value); salvarOrdemContatos(e.target.value); }} className="h-8 max-md:h-10 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+                    <select value={ordemContatos} onChange={(e) => { setOrdemContatos(e.target.value); salvarOrdemContatos(e.target.value); }} className="h-8 max-md:h-10 max-md:flex-1 max-md:min-w-0 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-600 dark:text-slate-300 outline-none">
                         {ORDENS_CONTATOS.map(o => <option key={o.val} value={o.val}>{tx(o.label)}</option>)}
                     </select>
                 </div>

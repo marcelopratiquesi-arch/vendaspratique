@@ -265,7 +265,7 @@ const Modais = ({
 
             {modalWpp.show && modalWpp.lead && (
                 <div className="fixed inset-0 z-[250] pointer-events-none flex items-center justify-center p-4 max-md:p-0 max-md:items-start">
-                    <div className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(500px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                    <div className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! max-md:resize-none! relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col border border-slate-300 dark:border-slate-700 pointer-events-auto overflow-hidden animate-[zoomIn_0.2s_ease-out]" style={{ width: 'min(550px, 100%)', minHeight: 'min(500px, 85vh)', maxHeight: '90vh', transform: `translate(${posWpp.x}px, ${posWpp.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         <div onMouseDown={handleMouseDownWpp} className="p-3 md:p-5 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/60 cursor-move hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors shrink-0">
                             <h3 className="font-black text-slate-800 dark:text-white text-sm uppercase tracking-widest flex items-center gap-2 pointer-events-none">
                                 <MessageCircle className="w-5 h-5 text-emerald-500" />{' '}{tx("Revisão de Mensagem")}
@@ -328,7 +328,7 @@ const Modais = ({
                 ========================================== */}
             {modalDetalhe.show && modalDetalhe.lead && (
                 <div className="fixed inset-0 z-[200] pointer-events-none flex items-center justify-center p-4 lg:p-10 max-md:p-0 max-md:items-start">
-                    <div className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col pointer-events-auto border-2 border-slate-300 dark:border-slate-700 overflow-hidden animate-[scaleIn_0.2s_ease-out]" style={{ width: 'min(1100px, 100%)', minHeight: 'min(650px, 85vh)', maxHeight: '90vh', transform: `translate(${posDetalhe.x}px, ${posDetalhe.y}px)`, resize: 'both', overflow: 'hidden' }}>
+                    <div className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! max-md:resize-none! relative bg-white dark:bg-slate-900 rounded-[2rem] shadow-[0_20px_60px_rgba(0,0,0,0.4)] flex flex-col pointer-events-auto border-2 border-slate-300 dark:border-slate-700 overflow-hidden animate-[scaleIn_0.2s_ease-out]" style={{ width: 'min(1100px, 100%)', minHeight: 'min(650px, 85vh)', maxHeight: '90vh', transform: `translate(${posDetalhe.x}px, ${posDetalhe.y}px)`, resize: 'both', overflow: 'hidden' }}>
                         
                         {/* CABEÇALHO ARRASTÁVEL ESCURO */}
                         <div onMouseDown={handleMouseDownDetalhe} className="bg-slate-900 p-4 md:p-6 lg:px-8 flex justify-between items-start gap-3 shrink-0 cursor-move hover:bg-slate-800 transition-colors">
@@ -523,7 +523,7 @@ const Modais = ({
             {mostrarRelatorio && (
                 <div className="fixed inset-0 z-[300] pointer-events-none flex items-center justify-center p-4 max-md:p-0 max-md:items-start">
                     <div
-                        className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-slate-300 dark:border-slate-700 overflow-hidden animate-[zoomIn_0.2s_ease-out]" 
+                        className="max-md:w-full! max-md:h-[calc(100dvh-var(--faixa-instalar))]! max-md:max-h-none! max-md:min-h-0! max-md:rounded-none! max-md:border-0! max-md:transform-none! max-md:resize-none! relative bg-white dark:bg-slate-900 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.2)] flex flex-col pointer-events-auto border border-slate-300 dark:border-slate-700 overflow-hidden animate-[zoomIn_0.2s_ease-out]" 
                         style={{ 
                             width: 'min(450px, 100%)', minHeight: 'min(520px, 85vh)', maxHeight: '90vh', 
                             transform: `translate(${posRelatorio.x}px, ${posRelatorio.y}px)`, 

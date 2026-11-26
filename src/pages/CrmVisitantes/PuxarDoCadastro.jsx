@@ -106,7 +106,7 @@ const PuxarDoCadastro = ({ unidade, onSalvos }) => {
                                 </button>
                             );
                         })}
-                        <select value={qtd} onChange={(e) => { setQtd(Number(e.target.value)); }} className="max-md:h-11 max-md:flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 outline-none">
+                        <select value={qtd} onChange={(e) => { setQtd(Number(e.target.value)); }} className="max-md:h-11 max-md:flex-1 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
                             {QTDS_PUXAR.map(n => <option key={n} value={n}>{tx("{qtd} por vez", { qtd: n })}</option>)}
                         </select>
                         <button type="button" onClick={conferir} disabled={!escolhidos.length || conferindo} className={`${rotuloBotao} bg-slate-800 hover:bg-black text-white`}>

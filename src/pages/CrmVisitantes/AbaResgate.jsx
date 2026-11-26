@@ -435,15 +435,15 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
     };
 
     const th = 'px-4 py-3 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest whitespace-nowrap';
-    const seletor = 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer';
+    const seletor = 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-600 dark:text-slate-300 outline-none cursor-pointer';
 
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-3 md:p-6 animate-[fadeIn_0.3s_ease-out]">
             <div className="flex flex-wrap justify-between items-start gap-4 mb-5 border-b border-slate-100 dark:border-slate-800 pb-5">
                 <div>
-                    <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
-                        <LifeBuoy className="w-6 h-6 text-blue-500" />{' '}{tx("Resgate de alunos")}
-                        {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
+                    <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                        <LifeBuoy className="w-6 h-6 shrink-0 text-blue-500" />{' '}{tx("Resgate de alunos")}
+                        {carregando && <Loader2 className="w-4 h-4 shrink-0 animate-spin text-slate-400" />}
                     </h3>
                     <p className="text-xs font-bold text-slate-400 mt-1">{tx("Alunos finalizados e inativos de {unidade}. Puxe alguns: eles vão direto para o seu funil (Novo, com a etiqueta Resgate).", { unidade: unidadeChave })}</p>
                 </div>
@@ -500,10 +500,10 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                     <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar por nome, CPF ou telefone")} className="w-full sm:w-64 max-md:h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30" />
                     {busca && <button type="button" onClick={() => setBusca('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 max-md:right-0 max-md:p-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-3.5 h-3.5" /></button>}
                 </div>
-                <select value={filtroAndamento} onChange={(e) => setFiltroAndamento(e.target.value)} className={`${seletor} max-md:h-11 max-md:flex-1 max-md:min-w-0`}>
+                <select value={filtroAndamento} onChange={(e) => setFiltroAndamento(e.target.value)} className={`${seletor} max-md:h-11 max-md:basis-full max-md:min-w-0`}>
                     {FILTROS_ANDAMENTO.map(f => <option key={f.val} value={f.val}>{tx(f.label)}</option>)}
                 </select>
-                <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className={`${seletor} max-md:h-11 max-md:flex-1 max-md:min-w-0`}>
+                <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className={`${seletor} max-md:h-11 max-md:basis-full max-md:min-w-0`}>
                     {TIPOS_RESGATE.map(t => <option key={t.val} value={t.val}>{tx(t.label)}</option>)}
                 </select>
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{filtradas.length}{' '}{tx("aluno(s)")}</span>

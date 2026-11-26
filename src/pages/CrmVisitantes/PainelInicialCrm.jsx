@@ -673,7 +673,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                     </button>
                                 )}
                             </div>
-                            <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value)} className="max-md:w-full max-md:h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer">
+                            <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value)} className="max-md:w-full max-md:h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-600 dark:text-slate-300 outline-none cursor-pointer">
                                 <option value="">{tx("Todas as recepcionistas")}</option>
                                 {recepcionistas.map(r => <option key={r.id} value={normalizarNome(r.nome)}>{r.nome}</option>)}
                             </select>

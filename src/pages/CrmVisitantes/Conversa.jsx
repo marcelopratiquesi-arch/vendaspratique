@@ -525,7 +525,7 @@ const Conversa = ({
                         <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome, CPF ou telefone')}
                             className="w-full h-9 max-md:h-11 pl-9 pr-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
-                    <select value={ordem} onChange={(e) => setOrdem(e.target.value)} title={tx('Ordem da lista')} className="w-full h-8 max-md:h-11 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none">
+                    <select value={ordem} onChange={(e) => setOrdem(e.target.value)} title={tx('Ordem da lista')} className="w-full h-8 max-md:h-11 px-2 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-600 dark:text-slate-300 outline-none">
                         {ORDENS_CONTATOS.map(o => <option key={o.val} value={o.val}>{tx(o.label)}</option>)}
                     </select>
                     <div className="flex flex-wrap gap-1 abas-rolaveis">

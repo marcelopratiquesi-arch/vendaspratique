@@ -173,7 +173,7 @@ const Lista = ({
                         <Hourglass className="w-3.5 h-3.5" />{' '}{tx("Só parados")}
                     </button>
 
-                    <div className="flex items-center gap-2 max-md:flex-1 max-md:h-11 max-md:min-w-0 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
+                    <div className="flex items-center gap-2 max-md:basis-full max-md:h-11 max-md:min-w-0 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 shadow-sm">
                         <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{tx("Filtrar:")}</span>
                         <select value={filtroStatus} onChange={(e) => setFiltroStatus(e.target.value)} className="bg-transparent max-md:flex-1 max-md:min-w-0 text-xs font-bold text-slate-700 dark:text-slate-200 outline-none cursor-pointer uppercase">
                             <option value="">{tx("TODOS OS STATUS")}</option>
