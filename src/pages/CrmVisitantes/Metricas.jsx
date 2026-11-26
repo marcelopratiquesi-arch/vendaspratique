@@ -106,15 +106,15 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
     };
 
     return (
-        <div className="bg-slate-950 p-6 lg:p-8 rounded-[2rem] shadow-2xl space-y-8 animate-[fadeIn_0.3s_ease-out]">
+        <div className="bg-slate-950 p-3 md:p-6 lg:p-8 rounded-2xl md:rounded-[2rem] shadow-2xl space-y-4 md:space-y-8 animate-[fadeIn_0.3s_ease-out]">
             
             {/* CABEÇALHO DO DASHBOARD */}
             <div className="flex items-center gap-3 mb-2 border-b border-slate-800/60 pb-6">
-                <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
+                <div className="w-10 h-10 md:w-12 md:h-12 shrink-0 bg-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-orange-500/30">
                     <Activity className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                    <h2 className="text-2xl font-black text-white tracking-tight">{tx("Performance de Captação")}</h2>
+                    <h2 className="text-lg md:text-2xl font-black text-white tracking-tight">{tx("Performance de Captação")}</h2>
                     <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{operador ? tx("Carteira de {operador}", { operador: operador }) : tx("Carteira de quem está operando")}</p>
                 </div>
             </div>
@@ -122,42 +122,42 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
             {/* ── KPI CARDS ── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                 {/* Card 1 */}
-                <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-2xl p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-2xl p-3 md:p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-blue-500/20 text-blue-400"><Users className="w-5 h-5" /></div>
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Total no Funil")}</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{totalLeads}</p>
+                    <p className="text-2xl md:text-4xl font-black text-white tracking-tight">{totalLeads}</p>
                     <p className="text-xs text-blue-400 font-bold mt-2">{tx("Leads em trabalho")}</p>
                 </div>
                 
                 {/* Card 2 */}
-                <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-2xl p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-2xl p-3 md:p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400"><CheckCircle className="w-5 h-5" /></div>
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Fechados")}</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{convertidos}</p>
+                    <p className="text-2xl md:text-4xl font-black text-white tracking-tight">{convertidos}</p>
                     <p className="text-xs text-emerald-400 font-bold mt-2">{tx("Matrículas Concluídas")}</p>
                 </div>
 
                 {/* Card 3 */}
-                <div className="bg-gradient-to-br from-rose-500/10 to-rose-500/5 border border-rose-500/20 rounded-2xl p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="bg-gradient-to-br from-rose-500/10 to-rose-500/5 border border-rose-500/20 rounded-2xl p-3 md:p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-rose-500/20 text-rose-400"><XCircle className="w-5 h-5" /></div>
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Perdidos")}</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{perdidos}</p>
+                    <p className="text-2xl md:text-4xl font-black text-white tracking-tight">{perdidos}</p>
                     <p className="text-xs text-rose-400 font-bold mt-2">{tx("Contatos Sem Sucesso")}</p>
                 </div>
 
                 {/* Card 4 */}
-                <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20 rounded-2xl p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
+                <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20 rounded-2xl p-3 md:p-6 relative overflow-hidden group hover:scale-[1.02] transition-transform">
                     <div className="flex items-center justify-between mb-4">
                         <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400"><Target className="w-5 h-5" /></div>
                     </div>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{tx("Taxa de Fechamento")}</p>
-                    <p className="text-4xl font-black text-white tracking-tight">{taxaConversao}%</p>
+                    <p className="text-2xl md:text-4xl font-black text-white tracking-tight">{taxaConversao}%</p>
                     <p className="text-xs text-purple-400 font-bold mt-2">{tx("Eficiência da Equipe")}</p>
                 </div>
             </div>
@@ -166,7 +166,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Gráfico de Área: Evolução de Capturas */}
-                <div className="lg:col-span-2 bg-slate-900 rounded-2xl border border-slate-800 p-6">
+                <div className="lg:col-span-2 min-w-0 bg-slate-900 rounded-2xl border border-slate-800 p-3 md:p-6">
                     <div className="flex items-center justify-between mb-6">
                         <div>
                             <h2 className="text-base font-black text-white flex items-center gap-2">
@@ -198,7 +198,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                 </div>
 
                 {/* Feed de Últimos Leads */}
-                <div className="bg-slate-900 rounded-2xl border border-slate-800 p-6 flex flex-col">
+                <div className="min-w-0 bg-slate-900 rounded-2xl border border-slate-800 p-3 md:p-6 flex flex-col">
                     <h2 className="text-base font-black text-white flex items-center gap-2 mb-5">
                         <CalendarDays className="w-4 h-4 text-emerald-400" />{' '}{tx("Últimas Entradas")}
                         <span className="ml-auto flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-400/10 border border-emerald-400/20 px-2 py-0.5 rounded-full">
@@ -235,7 +235,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
             {/* ── BARRAS DE CONSULTORES E PIZZA ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <div className="min-w-0 bg-slate-900 border border-slate-800 rounded-2xl p-3 md:p-6">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
                         <BarChart2 className="w-4 h-4 text-emerald-500" />{' '}{tx("Performance por Consultor")}
                     </h3>
@@ -255,7 +255,7 @@ const Metricas = ({ visitantes = [], colaboradores = [], operador = '' }) => {
                     )}
                 </div>
 
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <div className="min-w-0 bg-slate-900 border border-slate-800 rounded-2xl p-3 md:p-6">
                     <h3 className="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
                         <PieIcon className="w-4 h-4 text-orange-500" />{' '}{tx("Distribuição Atual no Funil")}
                     </h3>

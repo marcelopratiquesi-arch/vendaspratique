@@ -186,13 +186,13 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
     };
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out] flex flex-col min-h-[600px]">
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-3 md:p-6 lg:p-8 animate-[fadeIn_0.3s_ease-out] flex flex-col md:min-h-[600px]">
             
             {/* CABEÇALHO E FILTROS */}
-            <div className="flex flex-col xl:flex-row justify-between items-start gap-6 mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
+            <div className="flex flex-col xl:flex-row justify-between items-start gap-3 md:gap-6 mb-4 md:mb-8 border-b border-slate-100 dark:border-slate-800 pb-6">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
-                        <Activity className="w-6 h-6 text-blue-600 dark:text-blue-400" />{' '}{tx("Relatório Global de Conversão")}
+                    <h2 className="text-lg md:text-2xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2 md:gap-3">
+                        <Activity className="w-6 h-6 shrink-0 text-blue-600 dark:text-blue-400" />{' '}{tx("Relatório Global de Conversão")}
                     </h2>
                     <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1">{usuarioLogado?.unidade && usuarioLogado.unidade !== 'TODAS' ? tx("Unidade {unidade}", { unidade: usuarioLogado.unidade }) : tx("Visão consolidada de todas as unidades")}</p>
                 </div>
@@ -200,7 +200,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                 <div className="flex flex-col sm:flex-row items-center gap-4 w-full xl:w-auto">
                     <SeletorPeriodo {...periodo.propsSeletor} />
 
-                    <button onClick={exportarCSV} disabled={relatorioUnidades.length === 0} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
+                    <button onClick={exportarCSV} disabled={relatorioUnidades.length === 0} className="w-full sm:w-auto max-md:min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
                         <Download className="w-4 h-4" />{' '}{tx("Exportar Planilha")}
                     </button>
                 </div>
@@ -218,10 +218,10 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
 
             {/* TABELA DENSIDADE ALTA (ESTILO EXCEL) */}
             <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-2xl shadow-inner bg-slate-50 dark:bg-slate-800/60">
-                <table className="w-full text-left border-collapse min-w-max">
+                <table className="tabela-arrasta w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-800 text-white sticky top-0 z-10 shadow-md">
                         <tr>
-                            <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900">{tx("Unidade")}</th>
+                            <th className="max-md:px-3 max-md:bg-slate-800! px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900">{tx("Unidade")}</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">{tx("Total Entradas")}</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center">{tx("Em Atendimento (Kanban)")}</th>
                             <th className="px-6 py-4 text-[10px] font-black uppercase tracking-widest border-b border-slate-900 text-center text-emerald-400">{tx("Convertidos (Matriculou)")}</th>
@@ -235,7 +235,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                         ) : (
                             relatorioUnidades.map((row, idx) => (
                                 <tr key={row.unidade} className="hover:bg-blue-50/50 dark:hover:bg-blue-500/10 transition-colors">
-                                    <td className="px-6 py-3 border-r border-slate-100 dark:border-slate-800">
+                                    <td className="max-md:px-3 px-6 py-3 border-r border-slate-100 dark:border-slate-800">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-black text-slate-400">{idx + 1}º</span>
                                             <p className="text-sm font-black text-slate-800 dark:text-white uppercase">{row.unidade}</p>
@@ -267,7 +267,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
                     {relatorioUnidades.length > 0 && (
                         <tfoot className="bg-slate-100 dark:bg-slate-800 sticky bottom-0 border-t-2 border-slate-300 dark:border-slate-700 shadow-[0_-4px_6px_-1px_rgb(0,0,0,0.05)]">
                             <tr>
-                                <td className="px-6 py-5 text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest border-r border-slate-200 dark:border-slate-800">{tx("Total Global")}</td>
+                                <td className="max-md:px-3 max-md:bg-slate-100! max-md:dark:bg-slate-800! px-6 py-5 text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest border-r border-slate-200 dark:border-slate-800">{tx("Total Global")}</td>
                                 <td className="px-6 py-5 text-center font-black text-slate-800 dark:text-white text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.total}</td>
                                 <td className="px-6 py-5 text-center font-black text-slate-600 dark:text-slate-300 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.emAtendimento}</td>
                                 <td className="px-6 py-5 text-center font-black text-emerald-700 dark:text-emerald-300 text-base border-r border-slate-200 dark:border-slate-800">{totaisGerais.fechados}</td>
@@ -280,7 +280,7 @@ const RelatorioCrm = ({ visitantes = [], temVisaoGlobal, usuarioLogado }) => {
             </div>
 
             {/* POR QUE PERDEMOS (Bloco 4): motivos dos contatos Perdidos do período */}
-            <div className="mt-6 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-5">
+            <div className="mt-4 md:mt-6 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 rounded-2xl p-4 md:p-5">
                 <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2 mb-1">
                     <Snowflake className="w-4 h-4 text-rose-500" />{' '}{tx("Por que perdemos")}
                 </h3>
