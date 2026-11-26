@@ -140,7 +140,7 @@ const AuditoriaTab = ({ dadosTabelaAuditoria = [], totais, rotuloPeriodo, inicio
                         <button type="button" onClick={() => cobrarRede('detalhado')} className="h-9 px-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-black uppercase tracking-widest dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">{tx('Detalhado')}</button>
                     </div>
                 </div>
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="relative overflow-x-auto custom-scrollbar">
                     <table className="tabela-arrasta w-full text-left border-collapse min-w-[1080px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">

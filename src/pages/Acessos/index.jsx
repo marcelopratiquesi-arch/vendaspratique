@@ -299,7 +299,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                     const chave = `${unidade}|${posto}`;
                                     return (
                                         <div key={posto} className="space-y-1.5 min-w-0">
-                                            <span className="md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{tx(rotuloPosto)}</span>
+                                            <span className="block md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{tx(rotuloPosto)}</span>
                                             {doPosto.length ? doPosto.map(l => (
                                                 <div key={l.email} className="flex flex-wrap items-center gap-2">
                                                     <Pessoa l={l} />
@@ -334,7 +334,7 @@ const PaginaAcessos = ({ acessos, ehAdmin = false, unidades = [], somenteAbas = 
                                     );
                                 })}
                                 <div className="space-y-1 min-w-0">
-                                    <span className="md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('Temporários')}</span>
+                                    <span className="block md:hidden text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('Temporários')}</span>
                                     {temps.length ? temps.map(t => (
                                         <p key={t.id} className="text-[12px] font-bold text-slate-700 dark:text-slate-200">
                                             {t.nome}
