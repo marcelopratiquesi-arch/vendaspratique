@@ -63,7 +63,7 @@ const TabSetores = ({ listaSetores = [], onEdit, onDelete, onOpenModal, ehAdmin,
 
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[520px]">
+                    <table className="tabela-arrasta w-full min-w-[520px]">
                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                             <tr>
                                 <TituloOrdenavel coluna="nome" texto ordem={ordem} onOrdenar={ordenar} className={th}>{tx('Setor / Cargo Oficial')}</TituloOrdenavel>
@@ -78,7 +78,7 @@ const TabSetores = ({ listaSetores = [], onEdit, onDelete, onOpenModal, ehAdmin,
                                 const vazio = p.ativos + p.desligados === 0;
                                 return (
                                     <tr key={s.id} className="hover:bg-slate-50/70 transition-colors dark:hover:bg-slate-800/40">
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-4 py-2.5 max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words">
                                             <span className="inline-flex items-center gap-2.5 text-[13px] font-black text-slate-800 uppercase tracking-tight dark:text-white">
                                                 <span className="w-3 h-3 rounded-[4px] shrink-0" style={{ background: cor }} aria-hidden="true" />{s.nome}
                                             </span>
@@ -90,12 +90,12 @@ const TabSetores = ({ listaSetores = [], onEdit, onDelete, onOpenModal, ehAdmin,
                                         {ehAdmin && (
                                             <td className="px-4 py-2.5 text-right">
                                                 <div className="flex justify-end gap-1.5">
-                                                    <button type="button" onClick={() => onEdit(s)} className="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:text-blue-400 dark:border-blue-500/30 dark:hover:bg-blue-500/10">
+                                                    <button type="button" onClick={() => onEdit(s)} className="h-10 md:h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border border-blue-200 bg-white text-blue-600 hover:bg-blue-50 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:text-blue-400 dark:border-blue-500/30 dark:hover:bg-blue-500/10">
                                                         <Edit3 className="w-3.5 h-3.5" />{tx('Editar')}
                                                     </button>
                                                     <button type="button" onClick={() => onDelete(s.id, s.nome)}
                                                         title={vazio ? tx('Excluir') : tx('Só dá para excluir setor sem ninguém na Equipe')}
-                                                        className={`h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${vazio ? 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50 dark:bg-slate-900 dark:text-rose-400 dark:border-rose-500/30 dark:hover:bg-rose-500/10' : 'border-slate-200 bg-white text-slate-300 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-600'}`}>
+                                                        className={`h-10 md:h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${vazio ? 'border-rose-200 bg-white text-rose-600 hover:bg-rose-50 dark:bg-slate-900 dark:text-rose-400 dark:border-rose-500/30 dark:hover:bg-rose-500/10' : 'border-slate-200 bg-white text-slate-300 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-600'}`}>
                                                         <Trash2 className="w-3.5 h-3.5" />{tx('Excluir')}
                                                     </button>
                                                 </div>

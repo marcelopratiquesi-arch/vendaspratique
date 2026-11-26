@@ -65,7 +65,7 @@ const Barra = ({ valor, total, cor = 'bg-blue-500' }) => (
 
 // Um número da faixa de resumo
 const Numero = ({ rotulo, valor, sub, cor = 'text-slate-800 dark:text-white', titulo }) => (
-    <div className="min-w-[96px] px-3 py-2" title={titulo}>
+    <div className="min-w-0 sm:min-w-[96px] px-3 py-2" title={titulo}>
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{rotulo}</p>
         <p className={`text-lg font-extrabold tabular-nums leading-tight ${cor}`}>{valor}</p>
         {sub && <p className="text-[10px] font-semibold text-slate-400 truncate">{sub}</p>}
@@ -140,7 +140,7 @@ const AbaPanorama = ({ unidade, recepcionistas = [], colaboradores = [], semPers
             ) : (
                 <div className={`space-y-4 transition-opacity ${carregando ? 'opacity-60' : ''}`}>
                     {/* FAIXA DE RESUMO (vendas | movimentação) */}
-                    <div className="bg-white rounded-xl border border-slate-200/80 flex flex-wrap divide-x divide-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:divide-slate-800">
+                    <div className="bg-white rounded-xl border border-slate-200/80 grid grid-cols-2 sm:flex sm:flex-wrap divide-x divide-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:divide-slate-800">
                         <Numero rotulo={tx('Planos')} valor={v.planos}
                             sub={contas.varPlanos ? (contas.varPlanos.perc === null ? tx('+{qtd} × mês passado', { qtd: contas.varPlanos.dif }) : `${contas.varPlanos.dif >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(contas.varPlanos.perc * 100))}% × ${tx('mês passado')}`) : tx('planos base')}
                             titulo={dados.faixaAnterior ? tx('Comparado com as mesmas datas do mês passado ({de} a {ate}).', { de: dataCurta(dados.faixaAnterior.inicio), ate: dataCurta(dados.faixaAnterior.fim) }) : undefined} />
@@ -242,7 +242,7 @@ const AbaPanorama = ({ unidade, recepcionistas = [], colaboradores = [], semPers
                                             ))}
                                         </div>
                                     )}
-                                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                                    <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
                                         {[
                                             ['Ações', contas.crm.acoes],
                                             ['WhatsApp', contas.crm.whatsapp],

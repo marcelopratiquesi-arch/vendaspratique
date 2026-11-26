@@ -94,7 +94,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
         const ativo = filtroTipo === id && filtroStatus === 'ATIVOS';
         return (
             <button key={id} type="button" onClick={() => { setFiltroStatus('ATIVOS'); setFiltroTipo(ativo ? 'TODOS' : id); }} aria-pressed={ativo}
-                className={`h-8 px-2.5 rounded-lg text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors ${ativo ? `${corAtiva} text-white` : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                className={`h-10 md:h-8 px-2.5 rounded-lg text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors ${ativo ? `${corAtiva} text-white` : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
                 <Icone className="w-3.5 h-3.5" />{tx(rotulo)} <span className="text-[13px]">{qtd}</span>
             </button>
         );
@@ -107,7 +107,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                 <div className="flex bg-slate-100 p-0.5 rounded-lg dark:bg-slate-800">
                     {[['ITENS', 'Itens', LayoutList], ['GRUPOS', 'Grupos', Layers]].map(([id, rotulo, Icone]) => (
                         <button key={id} type="button" onClick={() => setVisao(id)} aria-pressed={visao === id}
-                            className={`h-7 px-2.5 rounded-md text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 ${visao === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'}`}>
+                            className={`h-10 md:h-7 px-2.5 rounded-md text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 ${visao === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white'}`}>
                             <Icone className="w-3.5 h-3.5" />{tx(rotulo)}{id === 'GRUPOS' && <span className="text-[12px]">{listaGrupos.length}</span>}
                         </button>
                     ))}
@@ -118,7 +118,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                 {chip('servico', 'Serviços', resumo.servico, Briefcase, 'bg-violet-600')}
                 {resumo.descontinuados > 0 && (
                     <button type="button" onClick={() => { setFiltroTipo('TODOS'); setFiltroStatus(filtroStatus === 'DESCONTINUADOS' ? 'ATIVOS' : 'DESCONTINUADOS'); }} aria-pressed={filtroStatus === 'DESCONTINUADOS'}
-                        className={`h-8 px-2.5 rounded-lg text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 ${filtroStatus === 'DESCONTINUADOS' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
+                        className={`h-10 md:h-8 px-2.5 rounded-lg text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 ${filtroStatus === 'DESCONTINUADOS' ? 'bg-slate-700 text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}>
                         <PowerOff className="w-3.5 h-3.5" />{tx('Descontinuados')} <span className="text-[13px]">{resumo.descontinuados}</span>
                     </button>
                 )}
@@ -171,7 +171,7 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
             {/* TABELA */}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[760px]">
+                    <table className="tabela-arrasta w-full min-w-[760px]">
                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                             <tr>
                                 <TituloOrdenavel coluna="nome" texto ordem={ordem} onOrdenar={ordenar} className={th}>{tx('Nome Oficial')}</TituloOrdenavel>
@@ -191,9 +191,9 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                                 const qtdVendas = usoDe(item);
                                 return (
                                     <tr key={item.id} className={`transition-colors ${isAtivo ? 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40' : 'bg-slate-50/60 opacity-70 hover:opacity-100 dark:bg-slate-800/40'}`}>
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-4 py-2.5 max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words">
                                             <div className="flex items-center gap-3">
-                                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center border shrink-0 ${isAtivo ? `${meta.bg} ${meta.cor} ${meta.border}` : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}><Icone className="w-4 h-4" /></span>
+                                                <span className={`max-md:hidden w-8 h-8 rounded-lg flex items-center justify-center border shrink-0 ${isAtivo ? `${meta.bg} ${meta.cor} ${meta.border}` : 'bg-slate-100 text-slate-400 border-slate-200 dark:bg-slate-800 dark:border-slate-700'}`}><Icone className="w-4 h-4" /></span>
                                                 <span>
                                                     <span className={`block text-[13px] font-black uppercase tracking-tight ${isAtivo ? 'text-slate-800 dark:text-white' : 'text-slate-500 line-through decoration-slate-300 dark:text-slate-400'}`}>{item.nome}</span>
                                                     {!isAtivo && <span className="block text-[10px] font-black text-rose-500 uppercase tracking-widest">{tx('DESCONTINUADO')}</span>}
@@ -215,15 +215,15 @@ const TabCatalogo = ({ catalogoCompleto = [], onEdit, onToggleStatus, onOpenModa
                                         {ehAdmin && (
                                             <td className="px-4 py-2.5 text-right">
                                                 <div className="flex justify-end gap-1.5">
-                                                    <button type="button" onClick={() => onEdit(item)} className="w-8 h-8 inline-flex items-center justify-center bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-blue-500/30" title={tx('Editar Oferta')} aria-label={tx('Editar Oferta')}>
+                                                    <button type="button" onClick={() => onEdit(item)} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-blue-500/30" title={tx('Editar Oferta')} aria-label={tx('Editar Oferta')}>
                                                         <Edit3 className="w-3.5 h-3.5" />
                                                     </button>
                                                     {isAtivo ? (
-                                                        <button type="button" onClick={() => onToggleStatus(item)} className="w-8 h-8 inline-flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:border-rose-500/30" title={tx('Descontinuar Oferta')} aria-label={tx('Descontinuar Oferta')}>
+                                                        <button type="button" onClick={() => onToggleStatus(item)} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:border-rose-500/30" title={tx('Descontinuar Oferta')} aria-label={tx('Descontinuar Oferta')}>
                                                             <PowerOff className="w-3.5 h-3.5" />
                                                         </button>
                                                     ) : (
-                                                        <button type="button" onClick={() => onToggleStatus(item)} className="w-8 h-8 inline-flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-emerald-400 dark:hover:bg-emerald-500/10 dark:border-emerald-500/30" title={tx('Reativar Oferta')} aria-label={tx('Reativar Oferta')}>
+                                                        <button type="button" onClick={() => onToggleStatus(item)} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-emerald-400 dark:hover:bg-emerald-500/10 dark:border-emerald-500/30" title={tx('Reativar Oferta')} aria-label={tx('Reativar Oferta')}>
                                                             <Power className="w-3.5 h-3.5" />
                                                         </button>
                                                     )}

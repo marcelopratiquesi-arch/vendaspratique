@@ -123,14 +123,14 @@ const Variacao = ({ v }) => {
 
 // Um número da faixa (igual à faixa do Panorama da unidade)
 const Numero = ({ rotulo, valor, sub, cor = 'text-slate-800 dark:text-white', titulo }) => (
-    <div className="min-w-[104px] px-3 py-2" title={titulo}>
+    <div className="min-w-0 sm:min-w-[104px] px-3 py-2" title={titulo}>
         <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{rotulo}</p>
         <p className={`text-lg font-extrabold tabular-nums leading-tight ${cor}`}>{valor}</p>
         {sub && <div className="text-[10px] font-semibold text-slate-400 truncate">{sub}</div>}
     </div>
 );
 const Faixa = ({ children }) => (
-    <div className="bg-white rounded-xl border border-slate-200/80 flex flex-wrap divide-x divide-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:divide-slate-800">{children}</div>
+    <div className="bg-white rounded-xl border border-slate-200/80 grid grid-cols-2 sm:flex sm:flex-wrap divide-x divide-slate-100 dark:bg-slate-900 dark:border-slate-800 dark:divide-slate-800">{children}</div>
 );
 
 const Vazio = ({ children }) => <p className="text-[12px] font-semibold text-slate-400 py-2">{children}</p>;
@@ -432,7 +432,7 @@ const FichaColaborador = ({ colaborador: c, planos = [], produtos = [], ehAdmin 
                 </Quadro>
             </div>
             <div className="bg-white rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar dark:bg-slate-900 dark:border-slate-800">
-                <table className="w-full min-w-[520px]">
+                <table className="tabela-arrasta w-full min-w-[520px]">
                     <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                         <tr><th className={th}>{tx('Mês')}</th><th className={`${th} text-right`}>{tx('Vendas')}</th><th className={`${th} text-right`}>{tx('Comissão')}</th><th className={`${th} text-right`}>{tx('Conferida')}</th><th className={`${th} text-right`}>{tx('Aguardando')}</th>
                             {temPagamentos && <th className={th}>{tx('Pagamento')}</th>}</tr>
@@ -530,14 +530,14 @@ const FichaColaborador = ({ colaborador: c, planos = [], produtos = [], ehAdmin 
                 <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                     {[['TODAS', 'Todas', r.doPeriodo.length], ['PLANO', 'Planos', contagemCategoria.PLANO], ['PRODUTO', 'Produtos', contagemCategoria.PRODUTO], ['SERVICO', 'Serviços', contagemCategoria.SERVICO]].map(([id, rot, qtd]) => (
                         <button key={id} type="button" onClick={() => { setFiltroVendas(id); setMostrar(20); }} aria-pressed={filtroVendas === id}
-                            className={`h-8 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider ${filtroVendas === id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
+                            className={`h-10 md:h-8 px-3 rounded-lg text-[11px] font-bold uppercase tracking-wider ${filtroVendas === id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'}`}>
                             {tx(rot)} <span className="opacity-70">{qtd}</span>
                         </button>
                     ))}
                     <span className="ml-auto text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx('Total')}: {dinheiro(vendasDaLista.reduce((s, v) => s + comissaoDe(v), 0))}</span>
                 </div>
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[760px]">
+                    <table className="tabela-arrasta w-full min-w-[760px]">
                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                             <tr>
                                 <th className={th}>{tx('Data')}</th><th className={th}>{tx('Aluno')}</th><th className={th}>CPF</th><th className={th}>{tx('Item')}</th>
@@ -582,7 +582,7 @@ const FichaColaborador = ({ colaborador: c, planos = [], produtos = [], ehAdmin 
                     <p className="text-[12px] font-black text-amber-900 flex items-center gap-1.5 dark:text-amber-200"><AlertTriangle className="w-3.5 h-3.5" />{tx('Cadastro incompleto')}</p>
                     <ul className="mt-1 text-[12px] font-semibold text-amber-800 list-disc ml-5 dark:text-amber-300">{problemas.map(p => <li key={p}>{tx(PROBLEMAS_CADASTRO[p])}</li>)}</ul>
                     {onEditar
-                        ? <button type="button" onClick={() => onEditar(c)} className="mt-2 h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Corrigir')}</button>
+                        ? <button type="button" onClick={() => onEditar(c)} className="mt-2 h-10 md:h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Corrigir')}</button>
                         : <p className="mt-2 text-[11px] font-bold text-amber-800 dark:text-amber-300">{tx('Corrija em Cadastros → Equipe.')}</p>}
                 </div>
             )}
@@ -617,12 +617,12 @@ const FichaColaborador = ({ colaborador: c, planos = [], produtos = [], ehAdmin 
     );
 
     return (
-        <div className="fixed inset-0 z-[210] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
-            <div className="w-full min-w-0 max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-central-colaborador">
+        <div className="fixed inset-0 z-[210] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-0 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+            <div className="w-full min-w-0 max-w-6xl max-md:min-h-[100dvh] md:my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-none md:rounded-[20px] p-3 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-central-colaborador">
 
-                <div className="mb-5 flex items-center">
+                <div className="max-md:sticky max-md:top-0 max-md:z-30 max-md:-mx-3 max-md:-mt-3 max-md:px-3 max-md:py-2 max-md:bg-[#F8FAFC] max-md:dark:bg-slate-950 mb-3 md:mb-5 flex items-center">
                     <button type="button" onClick={onFechar}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
+                        className="max-md:h-10 inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
                         <ArrowLeft className="w-3.5 h-3.5" />{tx('Fechar')}
                     </button>
                 </div>
@@ -663,7 +663,7 @@ const FichaColaborador = ({ colaborador: c, planos = [], produtos = [], ehAdmin 
                                     {telOk ? <>
                                         {telefoneBonito(c.telefone)}<CopyButton textToCopy={soNumeros(c.telefone)} label={tx('Copiar telefone')} />
                                         <button type="button" onClick={() => abrirNoWhatsApp(c.telefone, '')} title={tx('Abrir no WhatsApp')} aria-label={tx('Abrir no WhatsApp')}
-                                            className="p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10"><MessageCircle className="w-3.5 h-3.5" /></button>
+                                            className="max-md:p-3 max-md:-my-2 p-1 rounded-md text-emerald-600 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-500/10"><MessageCircle className="w-3.5 h-3.5" /></button>
                                     </> : <span className="text-rose-600 dark:text-rose-400">{tx('sem telefone')}</span>}
                                 </span>
                                 {separador}
@@ -761,7 +761,7 @@ const FichaColaborador = ({ colaborador: c, planos = [], produtos = [], ehAdmin 
                                                 <p className={`text-[12px] font-semibold ${item.ok ? 'text-slate-500 dark:text-slate-400' : item.aviso ? 'text-amber-700 dark:text-amber-300' : 'text-rose-600 dark:text-rose-400'}`}>{item.detalhe}</p>
                                                 {!item.ok && (
                                                     ['cpf', 'telefone', 'conta', 'setor', 'turno'].includes(item.id) && onEditar
-                                                        ? <button type="button" onClick={() => onEditar(c)} className="mt-2 h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Corrigir')}</button>
+                                                        ? <button type="button" onClick={() => onEditar(c)} className="mt-2 h-10 md:h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Corrigir')}</button>
                                                         : item.id === 'conferencia'
                                                             ? <button type="button" onClick={() => setAba('vendas')} className="mt-1 text-[11px] font-bold uppercase tracking-wider text-blue-700 hover:underline dark:text-blue-400">{tx('Ver as vendas')}</button>
                                                             : <p className="mt-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">{item.resolver}</p>

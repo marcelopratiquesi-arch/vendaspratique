@@ -38,7 +38,7 @@ const JanelaNovaUnidade = ({ onCancelar, onSalvar }) => {
                     <h3 id="titulo-nova-unidade" className="text-[12px] font-black uppercase tracking-widest text-slate-800 dark:text-white flex items-center gap-2">
                         <MapPin className="w-4 h-4 text-blue-600 dark:text-blue-400" />{tx('Cadastrar Nova Unidade')}
                     </h3>
-                    <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx('Fechar')} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx('Fechar')} className="max-md:p-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-5">
                     <label htmlFor="nova-unidade-nome" className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 dark:text-slate-400">{tx('Nome Oficial da Unidade')}</label>
@@ -140,13 +140,13 @@ const TabUnidades = ({ unidades = [], setUnidades, nomeUsuario = null, planos = 
 
     const acoes = (l) => (
         <div className="flex items-center justify-end gap-1.5">
-            <button type="button" onClick={() => setFichaId(l.u.id)} className="h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 hover:bg-blue-100 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">
+            <button type="button" onClick={() => setFichaId(l.u.id)} className="h-10 md:h-8 px-3 rounded-lg border border-blue-200 bg-blue-50 text-blue-700 text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 hover:bg-blue-100 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">
                 <FileText className="w-3.5 h-3.5" />{tx('Ficha')}
             </button>
-            <button type="button" onClick={() => handleAtivarUnidade(l.u, l.desativada)} className={`h-8 px-3 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${l.desativada ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-amber-500/10'}`}>
+            <button type="button" onClick={() => handleAtivarUnidade(l.u, l.desativada)} className={`h-10 md:h-8 px-3 rounded-lg border text-[10px] font-black uppercase tracking-widest transition-colors ${l.desativada ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300' : 'bg-white border-slate-200 text-slate-600 hover:bg-amber-50 hover:border-amber-200 hover:text-amber-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-amber-500/10'}`}>
                 {l.desativada ? tx("Reativar") : tx("Desativar")}
             </button>
-            <button type="button" onClick={() => handleDeleteUnidade(l.u)} aria-label={tx("Excluir (só unidade sem nenhum dado)")} title={tx("Excluir (só unidade sem nenhum dado)")} className="p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors dark:bg-slate-900 dark:border-slate-700 dark:hover:text-rose-400 dark:hover:bg-rose-500/10">
+            <button type="button" onClick={() => handleDeleteUnidade(l.u)} aria-label={tx("Excluir (só unidade sem nenhum dado)")} title={tx("Excluir (só unidade sem nenhum dado)")} className="max-md:p-3 p-2 rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-rose-600 hover:bg-rose-50 hover:border-rose-200 transition-colors dark:bg-slate-900 dark:border-slate-700 dark:hover:text-rose-400 dark:hover:bg-rose-500/10">
                 <Trash2 className="w-3.5 h-3.5" />
             </button>
         </div>
@@ -164,10 +164,10 @@ const TabUnidades = ({ unidades = [], setUnidades, nomeUsuario = null, planos = 
                 </span>
                 <span className="text-[11px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">{tx('{qtd} ativas', { qtd: ativas.length })}</span>
                 {linhas.length - ativas.length > 0 && <span className="text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('{qtd} desativadas', { qtd: linhas.length - ativas.length })}</span>}
-                <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('Filtro')}>
+                <div className="abas-rolaveis flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('Filtro')}>
                     {FILTROS.map(([id, rotulo]) => (
                         <button key={id} type="button" onClick={() => setFiltro(id)} aria-pressed={filtro === id}
-                            className={`h-7 px-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 transition-colors ${filtro === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                            className={`h-10 md:h-7 px-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1 transition-colors ${filtro === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                             {tx(rotulo)}
                             <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center ${filtro === id ? 'bg-white text-blue-700' : id !== 'todas' && contagem[id] > 0 ? 'bg-amber-500 text-white' : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>{contagem[id]}</span>
                         </button>

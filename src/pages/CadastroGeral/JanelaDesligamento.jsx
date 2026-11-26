@@ -35,14 +35,14 @@ const JanelaDesligamento = ({ colaborador, salvando, onConfirmar, onCancelar }) 
 
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="titulo-desligamento">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(460px,100%)] overflow-hidden dark:bg-slate-900">
+            <div className="bg-white rounded-2xl shadow-2xl w-[min(460px,100%)] max-h-[92dvh] overflow-y-auto dark:bg-slate-900">
                 <div className="px-6 py-4 bg-rose-600 text-white flex items-start gap-3">
                     <PowerOff className="w-5 h-5 mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
                         <h2 id="titulo-desligamento" className="text-sm font-black uppercase tracking-widest">{tx('Desligar colaborador')}</h2>
                         <p className="text-[12px] font-bold uppercase tracking-wide opacity-90 truncate">{colaborador.nome}</p>
                     </div>
-                    <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx('Fechar')}><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx('Fechar')} className="shrink-0 p-2.5 -m-2.5"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="px-6 py-5 space-y-4">
                     <p className="text-[12px] font-semibold text-slate-600 dark:text-slate-300">{tx('A pessoa não aparece mais para novas vendas, mas o histórico e as comissões continuam guardados. Dá para reativar depois.')}</p>
@@ -67,7 +67,7 @@ const JanelaDesligamento = ({ colaborador, salvando, onConfirmar, onCancelar }) 
                         )}
                     </div>
                 </div>
-                <div className="px-6 py-4 border-t border-slate-200 grid grid-cols-2 gap-3 dark:border-slate-800">
+                <div className="sticky bottom-0 bg-white dark:bg-slate-900 px-6 py-4 border-t border-slate-200 grid grid-cols-2 gap-3 dark:border-slate-800">
                     <button type="button" onClick={onCancelar} disabled={salvando} className="h-11 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">{tx('Cancelar')}</button>
                     <button type="button" onClick={confirmar} disabled={salvando} className="h-11 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
                         {salvando ? <Loader2 className="w-4 h-4 animate-spin" /> : <PowerOff className="w-4 h-4" />}{tx('Desligar')}

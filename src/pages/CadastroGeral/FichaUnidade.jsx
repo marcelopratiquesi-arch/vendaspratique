@@ -127,15 +127,15 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
     };
 
     const separador = <span className="hidden sm:block w-px h-3 bg-slate-300 dark:bg-slate-700" />;
-    const botaoTopo = 'flex-1 sm:flex-none px-4 py-2 rounded-lg border text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1.5';
+    const botaoTopo = 'max-md:h-10 flex-1 sm:flex-none px-4 py-2 rounded-lg border text-[11px] font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center justify-center gap-1.5';
 
     return (
-        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !salvando) onFechar(); }}>
-            <div className="w-full min-w-0 max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-central-unidade">
+        <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-0 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget && !salvando) onFechar(); }}>
+            <div className="w-full min-w-0 max-w-6xl max-md:min-h-[100dvh] md:my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-none md:rounded-[20px] p-3 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-central-unidade">
 
-                <div className="mb-5 flex items-center">
+                <div className="max-md:sticky max-md:top-0 max-md:z-30 max-md:-mx-3 max-md:-mt-3 max-md:px-3 max-md:py-2 max-md:bg-[#F8FAFC] max-md:dark:bg-slate-950 mb-3 md:mb-5 flex items-center">
                     <button type="button" onClick={onFechar} disabled={salvando}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
+                        className="max-md:h-10 inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
                         <ArrowLeft className="w-3.5 h-3.5" />{rotuloVoltar || tx('Voltar para Unidades')}
                     </button>
                 </div>
@@ -248,7 +248,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                                                 {!item.ok && (
                                                     <div className="flex flex-wrap items-center gap-2 mt-2">
                                                         {resolver.aba && (
-                                                            <button type="button" onClick={() => setAba(resolver.aba)} className="h-7 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1">
+                                                            <button type="button" onClick={() => setAba(resolver.aba)} className="h-10 md:h-7 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1">
                                                                 {tx(resolver.botao)}<ArrowRight className="w-3 h-3" />
                                                             </button>
                                                         )}
@@ -274,14 +274,14 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                         <Quadro className="overflow-hidden">
                             {equipe.length === 0 ? <p className="p-8 text-center text-[12px] font-bold text-slate-400">{tx('Ninguém ativo na Equipe.')}</p> : (
                                 <div className="overflow-x-auto custom-scrollbar">
-                                    <table className="w-full min-w-[560px]">
+                                    <table className="tabela-arrasta w-full min-w-[560px]">
                                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                                             <tr><th className={th}>{tx('Nome')}</th><th className={th}>{tx('Setor')}</th><th className={th}>{tx('Turno')}</th><th className={th}>{tx('Telefone')}</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                             {equipe.map(c => (
                                                 <tr key={c.id || c.nome} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                                                    <td className={`${td} font-bold uppercase`}>
+                                                    <td className={`${td} font-bold uppercase max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words`}>
                                                         {/* Nome abre a Central do Colaborador por cima da unidade (11/11/2026) */}
                                                         <button type="button" onClick={() => abrirCentralColaborador(c)} title={tx('Abrir a Central do Colaborador')} className="text-left uppercase hover:text-blue-700 hover:underline dark:hover:text-blue-400">{c.nome}</button>
                                                     </td>
@@ -309,14 +309,14 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                         <Quadro className="overflow-hidden">
                             {logins.length === 0 ? <p className="p-8 text-center text-[12px] font-bold text-slate-400">{tx('Nenhum login ligado a esta unidade.')}</p> : (
                                 <div className="overflow-x-auto custom-scrollbar">
-                                    <table className="w-full min-w-[480px]">
+                                    <table className="tabela-arrasta w-full min-w-[480px]">
                                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                                             <tr><th className={th}>{tx('Nome')}</th><th className={th}>{tx('E-mail')}</th><th className={th}>{tx('Nível')}</th></tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                                             {logins.map(u => (
                                                 <tr key={u.email} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                                                    <td className={`${td} font-bold uppercase`}>{u.nome || '—'}</td>
+                                                    <td className={`${td} font-bold uppercase max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words`}>{u.nome || '—'}</td>
                                                     <td className={`${td} lowercase text-slate-500 dark:text-slate-400`}><span className="inline-flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-slate-400" />{u.email}<CopyButton textToCopy={u.email} label={tx('Copiar e-mail')} /></span></td>
                                                     <td className={`${td} text-[11px] font-bold uppercase tracking-wider`}>{tx(NOME_PAPEL[papelDe(u)] || papelDe(u))}</td>
                                                 </tr>
@@ -337,7 +337,7 @@ const FichaUnidade = ({ unidade, usuarios = [], colaboradores = [], vinculos = {
                             <div className="flex flex-wrap items-center justify-between gap-2">
                                 <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx('Clique para marcar ou tirar. É o mesmo que o botão "Unidades" do Mentor em Configurações.')}</p>
                                 {mudouMentores && (
-                                    <button type="button" onClick={salvarMentores} disabled={salvando} className="h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-60">
+                                    <button type="button" onClick={salvarMentores} disabled={salvando} className="h-10 md:h-9 px-4 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5 disabled:opacity-60">
                                         {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}{tx('Salvar')}
                                     </button>
                                 )}

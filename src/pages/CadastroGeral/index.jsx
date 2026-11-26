@@ -323,7 +323,7 @@ const CadastroGeral = ({ usuarioLogado, usuarioVirtual, unidades = [], todasUnid
                 <div className="flex bg-slate-100 p-1 rounded-xl gap-1 max-w-full overflow-x-auto custom-scrollbar dark:bg-slate-800" role="tablist" aria-label={tx("Gestão de Cadastros")}>
                     {ABAS.filter(([id]) => abaLiberada[id]).map(([id, rotulo, Icone]) => (
                         <button key={id} type="button" role="tab" aria-selected={abaMostrada === id} onClick={() => setAbaAtiva(id)}
-                            className={`h-8 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${abaMostrada === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                            className={`h-10 md:h-8 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 whitespace-nowrap transition-colors ${abaMostrada === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                             <Icone className="w-3.5 h-3.5" />{rotulo}
                         </button>
                     ))}

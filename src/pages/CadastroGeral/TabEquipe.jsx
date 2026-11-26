@@ -128,7 +128,7 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                     const cor = setorDoColaborador({ role: setor }).cor;
                     return (
                         <button key={setor} type="button" onClick={() => setFiltroSetor(ativo ? 'TODOS' : setor)} aria-pressed={ativo}
-                            className={`h-7 px-2 rounded-lg text-[10px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors ${ativo ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
+                            className={`h-10 md:h-7 px-2 rounded-lg text-[10px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 transition-colors ${ativo ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800'}`}>
                             <span className="w-2 h-2 rounded-full" style={{ background: cor }} />{setor} <span className="opacity-70">{qtd}</span>
                         </button>
                     );
@@ -136,25 +136,25 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                 <div className="flex-1" />
                 {resumo.pix > 0 && (
                     <button type="button" onClick={() => alternarAlerta('pix')} aria-pressed={filtroAlerta === 'pix'} title={tx('O pagamento principal é o Banco Inter. O PIX (chave CPF) é só para quem ainda não tem conta no Inter.')}
-                        className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'pix' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300'}`}>
+                        className={`h-10 md:h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'pix' ? 'bg-rose-600 border-rose-600 text-white' : 'bg-rose-50 border-rose-200 text-rose-700 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300'}`}>
                         <Zap className="w-3.5 h-3.5" />{resumo.pix === 1 ? tx('1 recebendo por PIX') : tx('{qtd} recebendo por PIX', { qtd: resumo.pix })}
                     </button>
                 )}
                 {resumo.incompleto > 0 && (
                     <button type="button" onClick={() => alternarAlerta('incompleto')} aria-pressed={filtroAlerta === 'incompleto'} title={tx('PIX no lugar do Banco Inter, sem conta, CPF vazio ou inválido, sem telefone ou sem setor')}
-                        className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'incompleto' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
+                        className={`h-10 md:h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'incompleto' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
                         <AlertTriangle className="w-3.5 h-3.5" />{resumo.incompleto === 1 ? tx('1 cadastro incompleto') : tx('{qtd} cadastros incompletos', { qtd: resumo.incompleto })}
                     </button>
                 )}
                 {resumo.semTurno > 0 && (
                     <button type="button" onClick={() => alternarAlerta('sem_turno')} aria-pressed={filtroAlerta === 'sem_turno'}
-                        className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'sem_turno' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
+                        className={`h-10 md:h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'sem_turno' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
                         <AlertTriangle className="w-3.5 h-3.5" />{resumo.semTurno === 1 ? tx('1 recepcionista sem turno') : tx('{qtd} recepcionistas sem turno', { qtd: resumo.semTurno })}
                     </button>
                 )}
                 {resumo.semTelefone > 0 && (
                     <button type="button" onClick={() => alternarAlerta('sem_telefone')} aria-pressed={filtroAlerta === 'sem_telefone'}
-                        className={`h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'sem_telefone' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
+                        className={`h-10 md:h-8 px-3 rounded-xl border text-[10px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 ${filtroAlerta === 'sem_telefone' ? 'bg-amber-500 border-amber-500 text-white' : 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300'}`}>
                         <AlertTriangle className="w-3.5 h-3.5" />{resumo.semTelefone === 1 ? tx('1 sem telefone') : tx('{qtd} sem telefone', { qtd: resumo.semTelefone })}
                     </button>
                 )}
@@ -213,7 +213,7 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
             {/* TABELA */}
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[860px]">
+                    <table className="tabela-arrasta w-full min-w-[860px]">
                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                             <tr>
                                 <TituloOrdenavel coluna="nome" texto ordem={ordem} onOrdenar={ordenar} className={th}>{tx('Nome Completo')}</TituloOrdenavel>
@@ -234,7 +234,7 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                                 const outrosProblemas = isAtivo ? problemasDoColaborador(c, setoresValidos).filter(p => p !== 'pix' && p !== 'telefone') : [];
                                 return (
                                     <tr key={c.id} className={`transition-colors ${isAtivo ? 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40' : 'bg-slate-50/60 opacity-70 hover:opacity-100 dark:bg-slate-800/40'}`}>
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-4 py-2.5 max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words">
                                             {/* Nome abre a Central do Colaborador (11/11/2026; permissão 809) + copiar o nome */}
                                             <span className="inline-flex items-center gap-1">
                                                 <button type="button" onClick={() => abrirCentralColaborador(c, { onEditar: podeEditarEquipe ? onEdit : null })} title={tx('Abrir a Central do Colaborador')}
@@ -303,15 +303,15 @@ const TabEquipe = ({ colaboradores = [], onEdit, onToggleStatus, temVisaoGlobal,
                                         <td className="px-4 py-2.5 text-right">
                                             {podeEditarEquipe && (
                                                 <div className="flex justify-end gap-1.5">
-                                                    <button type="button" onClick={() => onEdit(c)} className="w-8 h-8 inline-flex items-center justify-center bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-blue-500/30" title={tx('Editar Cadastro')} aria-label={tx('Editar Cadastro')}>
+                                                    <button type="button" onClick={() => onEdit(c)} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-blue-500/30" title={tx('Editar Cadastro')} aria-label={tx('Editar Cadastro')}>
                                                         <Edit3 className="w-3.5 h-3.5" />
                                                     </button>
                                                     {isAtivo ? (
-                                                        <button type="button" onClick={() => onToggleStatus(c)} className="w-8 h-8 inline-flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:border-rose-500/30" title={tx('Desligar/Inativar Colaborador')} aria-label={tx('Desligar/Inativar Colaborador')}>
+                                                        <button type="button" onClick={() => onToggleStatus(c)} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:border-rose-500/30" title={tx('Desligar/Inativar Colaborador')} aria-label={tx('Desligar/Inativar Colaborador')}>
                                                             <PowerOff className="w-3.5 h-3.5" />
                                                         </button>
                                                     ) : (
-                                                        <button type="button" onClick={() => onToggleStatus(c)} className="w-8 h-8 inline-flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-emerald-400 dark:hover:bg-emerald-500/10 dark:border-emerald-500/30" title={tx('Reativar Acesso')} aria-label={tx('Reativar Acesso')}>
+                                                        <button type="button" onClick={() => onToggleStatus(c)} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-emerald-600 hover:bg-emerald-50 border border-emerald-200 rounded-lg transition-colors dark:bg-slate-900 dark:text-emerald-400 dark:hover:bg-emerald-500/10 dark:border-emerald-500/30" title={tx('Reativar Acesso')} aria-label={tx('Reativar Acesso')}>
                                                             <Power className="w-3.5 h-3.5" />
                                                         </button>
                                                     )}

@@ -82,12 +82,12 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
     const labelBase = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400";
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]" onClick={!isSubmitting ? onClose : undefined}></div>
             
-            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col relative z-10 animate-[slideUp_0.3s_ease-out] dark:bg-slate-900">
+            <div className="bg-white rounded-none sm:rounded-[24px] shadow-2xl w-full max-w-2xl h-[100dvh] sm:h-auto sm:max-h-[90vh] overflow-hidden flex flex-col relative z-10 animate-[slideUp_0.3s_ease-out] dark:bg-slate-900">
                 {/* Header do Modal */}
-                <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center dark:border-slate-800 dark:bg-slate-800/60">
+                <div className="shrink-0 gap-2 p-3 sm:p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center dark:border-slate-800 dark:bg-slate-800/60">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner border ${dadosEdicao ? 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30' : 'bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30'}`}>
                             {dadosEdicao ? <Edit3 className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
@@ -97,13 +97,13 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{tx("Preencha os dados oficiais")}</p>
                         </div>
                     </div>
-                    <button onClick={onClose} disabled={isSubmitting} className="w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-50 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-400">
+                    <button onClick={onClose} disabled={isSubmitting} className="shrink-0 w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-50 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-400">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Corpo do Formulário */}
-                <div className="overflow-y-auto custom-scrollbar p-6">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6">
                     <form id="form-colab" onSubmit={handleSubmit} className="space-y-6">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="sm:col-span-2">
@@ -174,12 +174,12 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                                 <label className={labelBase}>{tx("Conta de Recebimento (Comissões)")}</label>
                                 {/* Banco Inter = pagamento principal; PIX (sempre a chave CPF) = secundário (decisão do dono, 11/11/2026) */}
                                 <p className="text-[11px] font-semibold text-slate-500 ml-1 dark:text-slate-400">{tx("O pagamento é feito principalmente pelo Banco Inter. Use o PIX só se a pessoa ainda não tiver conta no Inter.")}</p>
-                                <div className="flex bg-slate-100 p-1.5 rounded-xl border border-slate-200 mt-2 shadow-inner dark:bg-slate-800 dark:border-slate-800">
-                                    <button type="button" onClick={() => setTipoConta('INTER')} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoConta === 'INTER' ? 'bg-white shadow-sm text-orange-600 border border-slate-200 dark:bg-slate-900 dark:text-orange-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                <div className="flex flex-col sm:flex-row gap-1 sm:gap-0 bg-slate-100 p-1.5 rounded-xl border border-slate-200 mt-2 shadow-inner dark:bg-slate-800 dark:border-slate-800">
+                                    <button type="button" onClick={() => setTipoConta('INTER')} className={`max-md:min-h-11 flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoConta === 'INTER' ? 'bg-white shadow-sm text-orange-600 border border-slate-200 dark:bg-slate-900 dark:text-orange-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                         <Building className="w-3.5 h-3.5" />{' '}{tx("Banco Inter")}
                                         <span className="px-1.5 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-black">{tx("Principal")}</span>
                                     </button>
-                                    <button type="button" onClick={() => { setTipoConta('PIX_CPF'); setContaInter(''); }} className={`flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoConta === 'PIX_CPF' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                    <button type="button" onClick={() => { setTipoConta('PIX_CPF'); setContaInter(''); }} className={`max-md:min-h-11 flex-1 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${tipoConta === 'PIX_CPF' ? 'bg-white shadow-sm text-emerald-600 border border-slate-200 dark:bg-slate-900 dark:text-emerald-400 dark:border-slate-800' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                         <Zap className="w-3.5 h-3.5" />{' '}{tx("PIX (chave CPF)")}
                                         <span className="normal-case tracking-normal font-bold opacity-80">{tx("só sem Inter")}</span>
                                     </button>
@@ -217,7 +217,7 @@ const ModalColaborador = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao, 
                 </div>
 
                 {/* Footer / Ações */}
-                <div className="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end dark:border-slate-800 dark:bg-slate-800/60">
+                <div className="shrink-0 p-3 sm:p-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-100 bg-slate-50 flex gap-3 justify-end dark:border-slate-800 dark:bg-slate-800/60">
                     <button type="button" onClick={onClose} disabled={isSubmitting} className="px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-200 transition-colors disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700">
                         {tx("Cancelar")}
                     </button>

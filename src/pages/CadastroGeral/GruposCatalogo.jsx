@@ -57,10 +57,10 @@ const JanelaGrupo = ({ grupo, qtdItens, onClose, onSalvo }) => {
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={!salvando ? onClose : undefined}></div>
-            <form onSubmit={salvar} className="bg-white rounded-2xl shadow-2xl w-[min(460px,100%)] overflow-hidden relative z-10 dark:bg-slate-900">
+            <form onSubmit={salvar} className="bg-white rounded-2xl shadow-2xl w-[min(460px,100%)] max-h-[92dvh] overflow-y-auto relative z-10 dark:bg-slate-900">
                 <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex justify-between items-center dark:border-slate-800 dark:bg-slate-800/60">
                     <h2 className="text-base font-black text-slate-800 dark:text-white">{grupo ? tx('Editar grupo') : tx('Novo grupo')}</h2>
-                    <button type="button" onClick={onClose} disabled={salvando} aria-label={tx('Fechar')} className="w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 dark:bg-slate-700 dark:text-slate-400"><X className="w-4 h-4" /></button>
+                    <button type="button" onClick={onClose} disabled={salvando} aria-label={tx('Fechar')} className="shrink-0 w-10 h-10 md:w-8 md:h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 dark:bg-slate-700 dark:text-slate-400"><X className="w-4 h-4" /></button>
                 </div>
                 <div className="p-5 space-y-5">
                     <div>
@@ -203,7 +203,7 @@ const GruposCatalogo = ({ grupos, catalogoCompleto = [], ehAdmin, recarregar }) 
                         {tx('{qtd} itens ainda sem grupo (contam pelo nome).', { qtd: semGrupo.length })}
                     </span>
                     {ehAdmin && (
-                        <button type="button" onClick={organizar} disabled={organizando} className="h-8 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 disabled:opacity-50">
+                        <button type="button" onClick={organizar} disabled={organizando} className="h-10 md:h-8 px-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black uppercase tracking-wide inline-flex items-center gap-1.5 disabled:opacity-50">
                             {organizando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}{tx('Colocar nos grupos')}
                         </button>
                     )}
@@ -212,7 +212,7 @@ const GruposCatalogo = ({ grupos, catalogoCompleto = [], ehAdmin, recarregar }) 
 
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[640px]">
+                    <table className="tabela-arrasta w-full min-w-[640px]">
                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                             <tr>
                                 <th className={th}>{tx('Grupo')}</th>
@@ -229,8 +229,8 @@ const GruposCatalogo = ({ grupos, catalogoCompleto = [], ehAdmin, recarregar }) 
                                 return (
                                     <React.Fragment key={grupo.id}>
                                         <tr className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40">
-                                            <td className="px-4 py-2.5">
-                                                <button type="button" onClick={() => alternar(grupo.id)} disabled={!itens.length} className="inline-flex items-center gap-1.5 text-[13px] font-black uppercase tracking-tight text-slate-800 disabled:cursor-default dark:text-white">
+                                            <td className="px-4 py-2.5 max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words">
+                                                <button type="button" onClick={() => alternar(grupo.id)} disabled={!itens.length} className="max-md:min-h-10 max-md:text-left inline-flex items-center gap-1.5 text-[13px] font-black uppercase tracking-tight text-slate-800 disabled:cursor-default dark:text-white">
                                                     {itens.length ? (aberto ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />) : <span className="w-3.5" />}
                                                     {grupo.nome}
                                                 </button>
@@ -242,16 +242,16 @@ const GruposCatalogo = ({ grupos, catalogoCompleto = [], ehAdmin, recarregar }) 
                                             {ehAdmin && (
                                                 <td className="px-4 py-2.5 text-right">
                                                     <div className="flex justify-end gap-1.5">
-                                                        <button type="button" onClick={() => setJanela({ grupo })} title={tx('Editar grupo')} aria-label={tx('Editar grupo')} className="w-8 h-8 inline-flex items-center justify-center bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-blue-500/30"><Edit3 className="w-3.5 h-3.5" /></button>
-                                                        <button type="button" onClick={() => excluir(grupo)} disabled={itens.length > 0} title={itens.length ? tx('Só dá para excluir grupo sem itens') : tx('Excluir grupo')} aria-label={tx('Excluir grupo')} className="w-8 h-8 inline-flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:border-rose-500/30"><Trash2 className="w-3.5 h-3.5" /></button>
+                                                        <button type="button" onClick={() => setJanela({ grupo })} title={tx('Editar grupo')} aria-label={tx('Editar grupo')} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg dark:bg-slate-900 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:border-blue-500/30"><Edit3 className="w-3.5 h-3.5" /></button>
+                                                        <button type="button" onClick={() => excluir(grupo)} disabled={itens.length > 0} title={itens.length ? tx('Só dá para excluir grupo sem itens') : tx('Excluir grupo')} aria-label={tx('Excluir grupo')} className="w-10 h-10 md:w-8 md:h-8 inline-flex items-center justify-center bg-white text-rose-600 hover:bg-rose-50 border border-rose-200 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-500/10 dark:border-rose-500/30"><Trash2 className="w-3.5 h-3.5" /></button>
                                                     </div>
                                                 </td>
                                             )}
                                         </tr>
                                         {aberto && itens.length > 0 && (
                                             <tr className="bg-slate-50/60 dark:bg-slate-800/30">
-                                                <td colSpan={ehAdmin ? 4 : 3} className="px-4 py-2.5">
-                                                    <div className="flex flex-wrap gap-1.5 pl-5">
+                                                <td colSpan={ehAdmin ? 4 : 3} className="max-md:!static px-4 py-2.5">
+                                                    <div className="flex flex-wrap gap-1.5 md:pl-5 max-md:sticky max-md:left-3 max-md:w-[calc(100vw-4rem)]">
                                                         {[...itens].sort((a, b) => String(a.nome).localeCompare(String(b.nome), 'pt-BR')).map(item => (
                                                             <span key={item.id} className={`px-2 py-0.5 rounded-md border border-slate-200 bg-white text-[11px] font-bold text-slate-700 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 ${item.ativo === false ? 'line-through opacity-60' : ''}`}>{item.nome}</span>
                                                         ))}

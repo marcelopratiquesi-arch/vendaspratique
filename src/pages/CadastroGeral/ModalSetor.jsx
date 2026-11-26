@@ -43,9 +43,9 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]" onClick={!isSubmitting ? onClose : undefined}></div>
             
-            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm overflow-hidden flex flex-col relative z-10 animate-[slideUp_0.3s_ease-out] dark:bg-slate-900">
+            <div className="bg-white rounded-[24px] shadow-2xl w-full max-w-sm max-h-[92dvh] overflow-hidden flex flex-col relative z-10 animate-[slideUp_0.3s_ease-out] dark:bg-slate-900">
                 {/* Header */}
-                <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center dark:border-slate-800 dark:bg-slate-800/60">
+                <div className="shrink-0 gap-2 p-4 sm:p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center dark:border-slate-800 dark:bg-slate-800/60">
                     <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner border ${dadosEdicao ? 'bg-amber-100 text-amber-600 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30' : 'bg-blue-100 text-blue-600 border-blue-200 dark:bg-blue-500/20 dark:text-blue-400 dark:border-blue-500/30'}`}>
                             <LayoutGrid className="w-5 h-5" />
@@ -54,13 +54,13 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
                             <h2 className="text-lg font-black text-slate-800 tracking-tight dark:text-white">{dadosEdicao ? tx("Editar Setor") : tx("Novo Setor")}</h2>
                         </div>
                     </div>
-                    <button onClick={onClose} disabled={isSubmitting} className="w-8 h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-50 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-400">
+                    <button onClick={onClose} disabled={isSubmitting} className="shrink-0 w-10 h-10 sm:w-8 sm:h-8 flex items-center justify-center bg-slate-200 text-slate-500 rounded-full hover:bg-rose-100 hover:text-rose-600 transition-colors disabled:opacity-50 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-rose-500/20 dark:hover:text-rose-400">
                         <X className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Body */}
-                <div className="p-6">
+                <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-4 sm:p-6">
                     <form id="form-setor" onSubmit={handleSubmit} className="space-y-6">
                         <div>
                             <label className={labelBase}>{tx("Nome do Setor / Cargo")}</label>
@@ -74,7 +74,7 @@ const ModalSetor = ({ isOpen, onClose, onSave, isSubmitting, dadosEdicao }) => {
                 </div>
 
                 {/* Footer */}
-                <div className="p-5 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end dark:border-slate-800 dark:bg-slate-800/60">
+                <div className="shrink-0 p-3 sm:p-5 border-t border-slate-100 bg-slate-50 flex gap-3 justify-end dark:border-slate-800 dark:bg-slate-800/60">
                     <button type="button" onClick={onClose} disabled={isSubmitting} className="px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-200 transition-colors disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-700">
                         {tx("Cancelar")}
                     </button>

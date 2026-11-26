@@ -263,8 +263,8 @@ const AlunosTab = (props) => {
         <div className={`px-4 py-2 ${borda} border-slate-100 bg-slate-50 flex items-center justify-between shrink-0 dark:border-slate-800 dark:bg-slate-800/60`}>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('students.pagination.page')} {pagina} {t('students.pagination.of')} {totalPaginas}</span>
             <div className="flex gap-2">
-                <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.prev')}</button>
-                <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.next')}</button>
+                <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina === 1} className="max-md:h-10 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.prev')}</button>
+                <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina === totalPaginas} className="max-md:h-10 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-500 disabled:opacity-50 hover:bg-slate-100 text-[10px] font-black uppercase tracking-widest transition-colors dark:bg-slate-900 dark:border-slate-800 dark:text-slate-400 dark:hover:bg-slate-800">{t('students.pagination.next')}</button>
             </div>
         </div>
     ) : null);
@@ -359,7 +359,7 @@ const AlunosTab = (props) => {
                     <Search className="w-4 h-4 text-slate-400 shrink-0" />
                     <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome, CPF, telefone ou matrícula (rede inteira)...')} aria-label={tx('Buscar aluno')}
                         className="flex-1 min-w-0 bg-transparent outline-none text-[13px] font-bold text-slate-800 placeholder-slate-400 dark:text-white" />
-                    {busca && <button type="button" onClick={() => setBusca('')} aria-label={tx('Limpar busca')} className="text-slate-400 hover:text-slate-700 dark:hover:text-white"><X className="w-4 h-4" /></button>}
+                    {busca && <button type="button" onClick={() => setBusca('')} aria-label={tx('Limpar busca')} className="max-md:p-3 max-md:-mr-3 text-slate-400 hover:text-slate-700 dark:hover:text-white"><X className="w-4 h-4" /></button>}
                 </label>
                 <button type="button" onClick={() => setModalPasteOpen(true)}
                     className="h-10 px-4 inline-flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-black uppercase tracking-widest dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
@@ -375,7 +375,7 @@ const AlunosTab = (props) => {
                             <Loader2 className="w-7 h-7 text-blue-500 animate-spin" />
                         </div>
                     )}
-                    <table className="w-full text-left min-w-[980px]">
+                    <table className="tabela-arrasta w-full text-left min-w-[980px]">
                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                             <tr>
                                 {[t('students.table.name'), t('students.table.cpf'), tx('Unidade'), t('students.table.enrollment'), tx('Situação'), t('students.table.contact')].map(rotulo => (
@@ -393,7 +393,7 @@ const AlunosTab = (props) => {
                                 const dataCad = a.data_cadastro || a.created_at;
                                 return (
                                     <tr key={a.id} className="hover:bg-slate-50/70 transition-colors dark:hover:bg-slate-800/40">
-                                        <td className="px-4 py-2.5">
+                                        <td className="px-4 py-2.5 max-md:px-3 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-words">
                                             <button type="button" onClick={() => setFichaAberta(a)} title={tx('Abrir a ficha do aluno')}
                                                 className="text-[13px] font-black text-slate-800 uppercase text-left hover:text-blue-700 hover:underline dark:text-white dark:hover:text-blue-400">{a.nome}</button>
                                         </td>
@@ -422,7 +422,7 @@ const AlunosTab = (props) => {
                                         </td>
                                         <td className="px-4 py-2.5 text-center">
                                             <button type="button" onClick={() => { setAlunoEditando(a); setModalAlunoAberto(true); }} title={tx('Editar')} aria-label={tx('Editar')}
-                                                className="p-2 bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 dark:border-slate-700 dark:hover:border-blue-500/30">
+                                                className="max-md:p-3 p-2 bg-white text-slate-400 hover:text-blue-600 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 rounded-lg transition-colors dark:bg-slate-900 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 dark:border-slate-700 dark:hover:border-blue-500/30">
                                                 <UserRoundPen className="w-4 h-4" />
                                             </button>
                                         </td>
@@ -453,14 +453,14 @@ const AlunosTab = (props) => {
 
             {/* MODAL SMART PASTE: colar → (ligar unidades) → prévia → (resultado) */}
             {modalPasteOpen && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 sm:p-8 animate-[fadeIn_0.2s_ease-out]">
-                    <div className="bg-slate-50 rounded-[32px] shadow-2xl w-full max-w-7xl flex flex-col h-full max-h-[90vh] overflow-hidden border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-0 md:p-8 animate-[fadeIn_0.2s_ease-out]">
+                    <div className="bg-slate-50 rounded-none md:rounded-[32px] shadow-2xl w-full max-w-7xl flex flex-col h-[100dvh] md:h-full md:max-h-[90vh] overflow-hidden border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
 
-                        <div className="p-5 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 dark:border-slate-800 dark:bg-slate-900">
-                            <div className="flex items-center gap-4">
-                                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><ClipboardPaste className="w-6 h-6" /></div>
+                        <div className="p-3 md:p-5 gap-2 border-b border-slate-200 bg-white flex justify-between items-center shrink-0 dark:border-slate-800 dark:bg-slate-900">
+                            <div className="flex items-center gap-4 min-w-0">
+                                <div className="max-md:hidden p-3 bg-emerald-50 border border-emerald-100 text-emerald-600 rounded-xl shadow-inner dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400"><ClipboardPaste className="w-6 h-6" /></div>
                                 <div>
-                                    <h3 className="text-xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Smart Paste: Importação de alunos")}</h3>
+                                    <h3 className="text-base md:text-xl font-black text-slate-800 tracking-tight dark:text-white">{tx("Smart Paste: Importação de alunos")}</h3>
                                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 flex flex-wrap items-center gap-1.5 dark:text-slate-400">
                                         {tx("Destino:")}{' '}
                                         {destinosDaPrevia.length > 0 ? destinosDaPrevia.map(([d, q]) => (
@@ -471,12 +471,12 @@ const AlunosTab = (props) => {
                                     </p>
                                 </div>
                             </div>
-                            <button onClick={handleCloseModal} className="p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 rounded-full transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-rose-500/10 dark:hover:border-rose-500/30"><X className="w-5 h-5" /></button>
+                            <button onClick={handleCloseModal} aria-label={tx("Fechar")} className="shrink-0 max-md:p-2.5 p-2 bg-white border border-slate-200 hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 rounded-full transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-rose-500/10 dark:hover:border-rose-500/30"><X className="w-5 h-5" /></button>
                         </div>
 
                         <div className="flex-1 overflow-y-auto flex flex-col">
                             {etapa === 'colar' && (
-                                <div className="p-8 flex flex-col h-full max-w-4xl mx-auto w-full">
+                                <div className="p-3 md:p-8 flex flex-col h-full max-w-4xl mx-auto w-full">
                                     <div className="bg-blue-50 border border-blue-200 p-5 rounded-2xl text-blue-800 text-sm font-semibold mb-6 flex gap-4 items-start dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">
                                         <Info className="w-6 h-6 text-blue-500 shrink-0" />
                                         <div className="space-y-1">
@@ -502,7 +502,7 @@ const AlunosTab = (props) => {
                             )}
 
                             {etapa === 'unidades' && (
-                                <div className="p-8 flex flex-col max-w-3xl mx-auto w-full">
+                                <div className="p-3 md:p-8 flex flex-col max-w-3xl mx-auto w-full">
                                     <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-amber-800 text-xs font-bold mb-5 flex gap-3 items-start dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
                                         <AlertTriangle className="w-5 h-5 shrink-0" />
                                         <span>{tx("Ligue cada unidade da planilha a uma unidade do sistema. A escolha fica guardada neste computador para as próximas importações. Sem unidade escolhida, as linhas não são importadas.")}</span>
@@ -537,7 +537,7 @@ const AlunosTab = (props) => {
                             )}
 
                             {etapa === 'previa' && (
-                                <div className="p-5 flex flex-col h-full">
+                                <div className="p-3 md:p-5 flex flex-col md:h-full">
                                     {!camposNovos && (
                                         <div className="mb-3 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
                                             {tx("Status, sexo e data de cadastro não serão gravados: falta rodar o SQL 2026-11-06-alunos-importacao no banco.")}
@@ -557,7 +557,7 @@ const AlunosTab = (props) => {
                                     )}
 
                                     {/* FAIXA DE RESUMO (clicar filtra a tabela) */}
-                                    <div className="flex flex-wrap gap-2 mb-4 shrink-0">
+                                    <div className="grid grid-cols-2 md:flex md:flex-wrap gap-2 mb-4 shrink-0">
                                         {FILTROS_PREVIA.map(f => {
                                             const qtd = contar(...f.situacoes);
                                             const ativo = filtroDashboard === f.id;
@@ -582,12 +582,12 @@ const AlunosTab = (props) => {
                                     </div>
 
                                     {/* TABELA DE AUDITORIA */}
-                                    <div className="flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-2xl bg-white shadow-sm mb-4 dark:border-slate-800 dark:bg-slate-900">
+                                    <div className="max-md:shrink-0 max-md:max-h-[65dvh] md:flex-1 overflow-auto custom-scrollbar border border-slate-200 rounded-2xl bg-white shadow-sm mb-4 dark:border-slate-800 dark:bg-slate-900">
                                         <table className="w-full text-left text-[10px] whitespace-nowrap">
                                             <thead className="bg-slate-100 font-black text-slate-500 uppercase tracking-widest sticky top-0 z-10 shadow-sm border-b border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-800">
                                                 <tr>
                                                     <th className="p-3 pl-5">{tx("Situação")}</th>
-                                                    <th className="p-3">{tx("Nome do Aluno")}</th>
+                                                    <th className="p-3 max-md:sticky max-md:left-0 max-md:bg-slate-100 max-md:dark:bg-slate-800">{tx("Nome do Aluno")}</th>
                                                     <th className="p-3">{tx("CPF")}</th>
                                                     <th className="p-3">{tx("Matrícula")}</th>
                                                     <th className="p-3">{tx("Status")}</th>
@@ -626,7 +626,7 @@ const AlunosTab = (props) => {
                                                                 <td className="p-3 pl-5">
                                                                     <span className={`px-2 py-1 rounded-md border font-black uppercase tracking-widest text-[10px] ${badge}`}>{rotulo}</span>
                                                                 </td>
-                                                                <td className="p-3 font-bold text-slate-800 uppercase dark:text-white">{linha.nome}</td>
+                                                                <td className="p-3 font-bold text-slate-800 uppercase dark:text-white max-md:sticky max-md:left-0 max-md:z-[5] max-md:bg-white max-md:dark:bg-slate-900 max-md:w-[130px] max-md:min-w-[130px] max-md:max-w-[130px] max-md:whitespace-normal max-md:break-words">{linha.nome}</td>
                                                                 <td className="p-3 font-mono font-bold text-slate-700 dark:text-slate-200">{linha.cpf_mascarado || '—'}</td>
                                                                 <td className="p-3">
                                                                     <div className="flex flex-col">
@@ -651,7 +651,7 @@ const AlunosTab = (props) => {
                                                                         {confirmavel && (
                                                                             <button
                                                                                 onClick={() => handleForcarTroca(i)}
-                                                                                className={`px-3 py-1.5 rounded font-black text-[10px] uppercase tracking-widest transition-all ${aprovado ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm'}`}
+                                                                                className={`max-md:h-10 px-3 py-1.5 rounded font-black text-[10px] uppercase tracking-widest transition-all ${aprovado ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400' : 'bg-rose-600 text-white hover:bg-rose-700 shadow-sm'}`}
                                                                             >
                                                                                 {aprovado ? tx("Desfazer") : s === SITUACAO.CONFLITO_MATRICULA ? tx("Confirmar e Roubar Matrícula") : tx("Confirmar transferência")}
                                                                             </button>
@@ -692,7 +692,7 @@ const AlunosTab = (props) => {
                             )}
 
                             {etapa === 'resultado' && resultado && (
-                                <div className="p-8 flex flex-col max-w-4xl mx-auto w-full">
+                                <div className="p-3 md:p-8 flex flex-col max-w-4xl mx-auto w-full">
                                     <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl text-amber-800 text-sm font-bold mb-5 flex gap-3 items-start dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
                                         <AlertTriangle className="w-5 h-5 shrink-0" />
                                         <span>{tx("{ok} de {total} linhas gravadas. As linhas abaixo NÃO foram gravadas (o banco recusou). Corrija e importe de novo só elas.", { ok: resultado.total - resultado.falhas.length, total: resultado.total })}</span>
