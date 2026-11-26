@@ -18,7 +18,7 @@ const MAX_SEMANAS = 6;
 const juntarCampos = (lista) => lista.map(c => tx(c)).join(', ');
 
 const Botao = ({ onClick, children }) => (
-    <button type="button" onClick={onClick} className="shrink-0 h-8 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest">{children}</button>
+    <button type="button" onClick={onClick} className="shrink-0 h-8 max-md:h-10 max-md:w-full px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest">{children}</button>
 );
 
 // Blocos de uma unidade (Conferência, Movimentação, Metas), cada um com o botão que leva à tela certa
@@ -28,7 +28,7 @@ export const BlocosDaUnidade = ({ u, aoIr, podeConferirRelatorio = false }) => {
         <div className="space-y-2">
             {c && (
                 <div className={`rounded-xl border px-3 py-2.5 ${c.atrasado ? 'border-rose-200 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/30' : 'border-blue-200 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-500/30'}`}>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
                         <div className="min-w-0">
                             <p className={`text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 ${c.atrasado ? 'text-rose-700 dark:text-rose-300' : 'text-blue-700 dark:text-blue-300'}`}>
                                 <ClipboardCheck className="w-3.5 h-3.5" />{c.atrasado ? tx('Conferência atrasada') : tx('Hoje é dia de conferência')}
@@ -56,7 +56,7 @@ export const BlocosDaUnidade = ({ u, aoIr, podeConferirRelatorio = false }) => {
             )}
             {u.movimento.length > 0 && (
                 <div className={`rounded-xl border px-3 py-2.5 ${u.movimento.some(d => !d.hoje) ? 'border-rose-200 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/30' : 'border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30'}`}>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
                         <div className="min-w-0">
                             <p className={`text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 ${u.movimento.some(d => !d.hoje) ? 'text-rose-700 dark:text-rose-300' : 'text-amber-800 dark:text-amber-300'}`}>
                                 <BarChart3 className="w-3.5 h-3.5" />{tx('Movimentação do dia')}
@@ -75,7 +75,7 @@ export const BlocosDaUnidade = ({ u, aoIr, podeConferirRelatorio = false }) => {
             )}
             {u.metas && (
                 <div className={`rounded-xl border px-3 py-2.5 ${u.metas.atrasado ? 'border-rose-200 bg-rose-50 dark:bg-rose-500/10 dark:border-rose-500/30' : 'border-amber-200 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30'}`}>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start justify-between gap-3 max-md:flex-col max-md:items-stretch max-md:gap-2">
                         <div className="min-w-0">
                             <p className={`text-[11px] font-black uppercase tracking-widest flex items-center gap-1.5 ${u.metas.atrasado ? 'text-rose-700 dark:text-rose-300' : 'text-amber-800 dark:text-amber-300'}`}>
                                 <Target className="w-3.5 h-3.5" />{tx('Metas de {mes}', { mes: tx(u.metas.mes) })}
@@ -100,7 +100,7 @@ export const BlocosDaUnidade = ({ u, aoIr, podeConferirRelatorio = false }) => {
                             <li key={`${r.data}-${r.turno}`} className="text-[12px] font-semibold text-slate-700 dark:text-slate-200">
                                 <b>{r.hoje ? tx('Hoje') : ddmm(r.data)} · {tx(r.rotulo)}</b>: {r.situacao === 'cobrando' ? tx('ainda não enviado (prazo {hora})', { hora: r.atrasaTexto }) : tx('não enviado')}
                                 {r.nomes?.length > 0 && <span className="text-slate-500 dark:text-slate-400"> — {r.nomes.join(' / ')}</span>}
-                                {podeConferirRelatorio && <button type="button" onClick={() => pedirConferirRelatorio({ unidade: u.unidade, data: r.data, turno: r.turno, rotulo: r.rotulo, nomes: r.nomes })} className="ml-2 h-6 px-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest align-middle">{tx('Conferir')}</button>}
+                                {podeConferirRelatorio && <button type="button" onClick={() => pedirConferirRelatorio({ unidade: u.unidade, data: r.data, turno: r.turno, rotulo: r.rotulo, nomes: r.nomes })} className="ml-2 h-6 max-md:h-10 max-md:px-4 max-md:ml-0 max-md:mt-1 max-md:block rounded-md px-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest align-middle">{tx('Conferir')}</button>}
                             </li>
                         ))}
                     </ul>
@@ -130,9 +130,9 @@ const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, o
     const titulo = temAtraso ? tx('Pendências da unidade') : tx('Lembretes da unidade');
 
     return (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="janela-pendencias-titulo">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(560px,100%)] max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                <div className={`px-6 py-5 flex items-start gap-3 ${temAtraso ? 'bg-rose-600' : 'bg-amber-500'} text-white`}>
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 max-md:p-0 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="janela-pendencias-titulo">
+            <div className="bg-white rounded-2xl max-md:rounded-none shadow-2xl w-[min(560px,100%)] max-h-[90vh] max-md:max-h-none max-md:h-[100dvh] overflow-hidden flex flex-col border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <div className={`shrink-0 px-6 max-md:px-4 py-5 max-md:py-4 max-md:pt-[max(1rem,env(safe-area-inset-top))] flex items-start gap-3 ${temAtraso ? 'bg-rose-600' : 'bg-amber-500'} text-white`}>
                     {temAtraso ? <AlertTriangle className="w-6 h-6 shrink-0 mt-0.5" /> : <CalendarCheck className="w-6 h-6 shrink-0 mt-0.5" />}
                     <div className="min-w-0 flex-1">
                         <h2 id="janela-pendencias-titulo" className="text-base font-black uppercase tracking-widest leading-tight">
@@ -142,10 +142,10 @@ const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, o
                             {ehMentor ? tx('{qtd} unidade(s) com pendência', { qtd: comAlgo.length }) : comAlgo[0].unidade}
                         </p>
                     </div>
-                    <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="px-6 py-5 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="px-6 max-md:px-4 py-5 max-md:py-4 flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
                     <p className="text-sm font-bold text-slate-700 leading-snug dark:text-slate-200">
                         {ehMentor
                             ? tx('Estas unidades estão com informações sem preencher. Cobre o Líder de cada uma.')
@@ -167,12 +167,12 @@ const JanelaPendencias = ({ lista = [], carregado, ehMentor, aoIr, aoVerTodas, o
                     </p>
                 </div>
 
-                <div className="px-6 py-4 border-t border-slate-200 flex flex-col sm:flex-row gap-3 dark:border-slate-800">
-                    <button type="button" onClick={fechar} className="flex-1 h-11 px-4 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+                <div className="shrink-0 px-6 max-md:px-4 py-4 max-md:py-3 max-md:pb-[calc(0.75rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] border-t border-slate-200 flex flex-col sm:flex-row gap-3 max-md:gap-2 dark:border-slate-800">
+                    <button type="button" onClick={fechar} className="flex-1 max-md:flex-none h-11 shrink-0 px-4 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
                         {tx('Lembrar depois')}
                     </button>
                     {ehMentor && (
-                        <button type="button" onClick={() => { fechar(); aoVerTodas?.(); }} className="flex-1 h-11 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest shadow-md">
+                        <button type="button" onClick={() => { fechar(); aoVerTodas?.(); }} className="flex-1 max-md:flex-none h-11 shrink-0 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest shadow-md">
                             {tx('Abrir Pendências e cobrar')}
                         </button>
                     )}

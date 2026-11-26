@@ -10,6 +10,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Send, ChevronDown, Loader2 } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
+import { CartaoCelular, GradeCartao, NumeroCartao } from '../../components/celular/Cartao.jsx';
 import { buscarEnviosRelatorio, buscarConferenciasRelatorio, acharRegistroTurno, turnosDoDia, situacaoDoTurno, nomesDoTurno, INICIO_COBRANCA_RELATORIO, TEXTO_REGRA_RELATORIO, pedirConferirRelatorio } from './relatorioFechamento.js';
 
 const paraIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -29,19 +30,19 @@ const diasDoPeriodo = (faixa) => {
 };
 
 const BotaoMini = ({ onClick, cor, children }) => (
-    <button type="button" onClick={onClick} className={`h-6 px-2 rounded-md text-[10px] font-black uppercase tracking-widest border ${cor}`}>{children}</button>
+    <button type="button" onClick={onClick} className={`h-6 max-md:h-10 max-md:px-4 px-2 rounded-md text-[10px] font-black uppercase tracking-widest border ${cor}`}>{children}</button>
 );
 
 const Celula = ({ t, dataIso, envio, nomes, conferencia, podeConferir, unidade }) => {
     const sit = situacaoDoTurno(t, dataIso, envio, new Date());
     const quem = nomes.length ? nomes.join(' / ') : '';
     const abrir = () => pedirConferirRelatorio({ unidade, data: dataIso, turno: t.turno, rotulo: t.rotulo, nomes });
-    const corrigir = podeConferir ? <button type="button" onClick={abrir} className="ml-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline dark:text-blue-400">{tx('corrigir')}</button> : null;
+    const corrigir = podeConferir ? <button type="button" onClick={abrir} className="ml-2 max-md:min-h-10 max-md:px-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:underline dark:text-blue-400">{tx('corrigir')}</button> : null;
     // Sem registro do sistema: vale a conferência do Líder no grupo
     if (!envio && conferencia?.resultado === 'ENVIADO') return <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400">✅ {tx('enviado (conferido no grupo)')}{quem ? ` · ${quem}` : ''} <span className="font-semibold text-slate-400">· {tx('por {nome}', { nome: conferencia.conferido_por || '—' })}</span>{corrigir}</span>;
     if (!envio && conferencia?.resultado === 'NAO_ENVIADO') return <span className="text-[11px] font-bold text-rose-700 dark:text-rose-400">❌ {tx('não enviado (confirmado)')}{quem ? ` · ${quem}` : ''} <span className="font-semibold text-slate-400">· {tx('por {nome}', { nome: conferencia.conferido_por || '—' })}</span>{corrigir}</span>;
     const botoes = podeConferir && ['cobrando', 'atrasado', 'nao_enviado'].includes(sit) ? (
-        <span className="inline-flex gap-1 ml-2 align-middle">
+        <span className="inline-flex gap-1 ml-2 align-middle max-md:flex max-md:ml-0 max-md:mt-1 max-md:gap-2">
             <BotaoMini onClick={abrir} cor="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300">{tx('Foi enviado')}</BotaoMini>
             <BotaoMini onClick={abrir} cor="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:bg-rose-500/10 dark:border-rose-500/30 dark:text-rose-300">{tx('Não foi')}</BotaoMini>
         </span>
@@ -119,6 +120,36 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
                     <p className="px-5 pb-4 text-[11px] font-bold text-slate-400">{tx('O registro dos relatórios começou em 05/11/2026. Escolha um período a partir dessa data.')}</p>
                 ) : (
                     <div className="overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-slate-800">
+                        {/* CELULAR (26/11/2026): um cartão por dia (uma unidade) ou por unidade (várias) */}
+                        <div className="md:hidden p-2 space-y-2 bg-slate-50 dark:bg-slate-950/40">
+                            {umaUnidade ? [...dias].reverse().map(d => {
+                                const turnos = turnosDoDia(d);
+                                return (
+                                    <CartaoCelular key={d} titulo={<>{ddmm(d)} <span className="font-bold text-slate-400 uppercase">{diaSemana(d)}</span></>}>
+                                        {turnos.map(t => (
+                                            <div key={t.turno} className="pt-2 mt-2 border-t border-slate-100 first:mt-0 dark:border-slate-800">
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                                    {turnos.length === 1 ? tx('Sábado, domingo e feriado · 12h às 13h') : t.turno === 'MANHA' ? tx('Manhã · 13h30 às 15h') : tx('Noite · 21h30 às 23h')}
+                                                </p>
+                                                <Celula t={t} dataIso={d} envio={achar(umaUnidade, d, t.turno)} nomes={turnos.length === 1 ? [] : nomesDoTurno(colaboradores, umaUnidade, t.turno)} conferencia={acharConf(umaUnidade, d, t.turno)} podeConferir={podeConferir} unidade={umaUnidade} />
+                                            </div>
+                                        ))}
+                                    </CartaoCelular>
+                                );
+                            }) : resumo.map(r => (
+                                <CartaoCelular key={r.unidade} titulo={<span className="uppercase">{r.unidade}</span>} direita={<span className="text-sm font-black tabular-nums text-slate-700 dark:text-slate-200">{r.pct}%</span>}>
+                                    <div className="h-2 mb-2 bg-slate-100 rounded-full overflow-hidden dark:bg-slate-800"><div className={`h-full rounded-full ${r.pct >= 90 ? 'bg-emerald-500' : r.pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${r.pct}%` }} /></div>
+                                    <GradeCartao colunas={2}>
+                                        <NumeroCartao rotulo={tx('No prazo')} valor={r.noPrazo} cor="text-emerald-600 dark:text-emerald-400" />
+                                        <NumeroCartao rotulo={tx('Atrasados')} valor={r.atrasados} cor="text-amber-600 dark:text-amber-400" />
+                                        <NumeroCartao rotulo={tx('Não enviados')} valor={r.naoEnviados} cor="text-rose-600 dark:text-rose-400" />
+                                        <NumeroCartao rotulo={tx('Conferidos no grupo')} valor={r.conferidos} cor="text-blue-600 dark:text-blue-400" />
+                                    </GradeCartao>
+                                </CartaoCelular>
+                            ))}
+                            {!umaUnidade && <p className="px-1 text-[11px] font-semibold text-slate-500 leading-snug dark:text-slate-400">{tx('O sistema não viu o envio, mas o Líder conferiu no grupo que foi enviado. Muitos aqui = a recepção não está clicando em Copiar/Enviar no horário.')}</p>}
+                        </div>
+                        <div className="hidden md:block">
                         {umaUnidade ? (
                             <table className="w-full text-left border-collapse min-w-[640px]">
                                 <thead className="bg-slate-50 dark:bg-slate-800/60">
@@ -174,6 +205,7 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
                                 </tbody>
                             </table>
                         )}
+                        </div>
                         {!umaUnidade && <p className="px-5 py-2.5 text-[11px] font-bold text-slate-400">{tx('Escolha uma unidade no topo para ver dia a dia.')}</p>}
                         <p className="px-5 py-2.5 border-t border-slate-100 text-[11px] font-semibold text-slate-500 leading-snug dark:border-slate-800 dark:text-slate-400">{tx(TEXTO_REGRA_RELATORIO)}</p>
                     </div>

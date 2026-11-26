@@ -41,7 +41,7 @@ const Etiqueta = ({ problema }) => (
     </span>
 );
 
-const campo = 'h-9 w-full px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 placeholder:font-medium placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-white';
+const campo = 'h-9 max-md:h-10 w-full px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 placeholder:font-medium placeholder:text-slate-400 dark:bg-slate-900 dark:border-slate-700 dark:text-white';
 const rotulo = 'block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1 dark:text-slate-400';
 
 // ------------------------------------------
@@ -124,9 +124,9 @@ export const JanelaCadastroEquipe = ({ itens = [], setores = [], ehMentor, unida
     };
 
     return (
-        <div className="fixed inset-0 z-[92] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="janela-cadastro-equipe-titulo">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(720px,100%)] max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
-                <div className="px-6 py-5 flex items-start gap-3 bg-blue-600 text-white">
+        <div className="fixed inset-0 z-[92] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 max-md:p-0 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="janela-cadastro-equipe-titulo">
+            <div className="bg-white rounded-2xl max-md:rounded-none shadow-2xl w-[min(720px,100%)] max-h-[90vh] max-md:max-h-none max-md:h-[100dvh] overflow-hidden flex flex-col border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <div className="shrink-0 px-6 max-md:px-4 py-5 max-md:py-4 max-md:pt-[max(1rem,env(safe-area-inset-top))] flex items-start gap-3 bg-blue-600 text-white">
                     <Users className="w-6 h-6 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                         <h2 id="janela-cadastro-equipe-titulo" className="text-base font-black uppercase tracking-widest leading-tight">{tx('Atualize o cadastro da sua equipe')}</h2>
@@ -135,10 +135,10 @@ export const JanelaCadastroEquipe = ({ itens = [], setores = [], ehMentor, unida
                             {' · '}{itens.length === 1 ? tx('1 colaborador') : tx('{qtd} colaboradores', { qtd: itens.length })}
                         </p>
                     </div>
-                    <button type="button" onClick={onFechar} disabled={salvando} aria-label={tx('Fechar')} className="opacity-80 hover:opacity-100 disabled:opacity-40"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={onFechar} disabled={salvando} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center opacity-80 hover:opacity-100 disabled:opacity-40"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="px-6 py-5 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="px-6 max-md:px-4 py-5 max-md:py-4 flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
                     <RegraPagamento />
                     <p className="text-sm font-bold text-slate-700 leading-snug dark:text-slate-200">
                         {qtdPix > 0
@@ -202,13 +202,13 @@ export const JanelaCadastroEquipe = ({ itens = [], setores = [], ehMentor, unida
                         })}
                     </ul>
                     {aoAbrirEquipe && (
-                        <button type="button" onClick={aoAbrirEquipe} className="text-[11px] font-black uppercase tracking-widest text-blue-700 hover:underline dark:text-blue-400">
+                        <button type="button" onClick={aoAbrirEquipe} className="max-md:min-h-10 text-[11px] font-black uppercase tracking-widest text-blue-700 hover:underline dark:text-blue-400">
                             {tx('Abrir Cadastros → Equipe')}
                         </button>
                     )}
                 </div>
 
-                <div className="px-6 py-4 border-t border-slate-200 grid grid-cols-1 sm:grid-cols-2 gap-3 dark:border-slate-800">
+                <div className="shrink-0 px-6 max-md:px-4 py-4 max-md:py-3 max-md:pb-[calc(0.75rem+var(--faixa-instalar)+env(safe-area-inset-bottom))] border-t border-slate-200 grid grid-cols-2 gap-3 max-md:gap-2 dark:border-slate-800">
                     <button type="button" onClick={onFechar} disabled={salvando} className="h-11 px-4 rounded-xl bg-slate-100 text-slate-600 text-[11px] font-black uppercase tracking-widest hover:bg-slate-200 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">{tx('Lembrar depois')}</button>
                     <button type="button" onClick={atualizar} disabled={salvando || !podeEditar} className="h-11 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 shadow-md">
                         {salvando && <Loader2 className="w-4 h-4 animate-spin" />}{tx('Atualizar agora')}
@@ -262,7 +262,7 @@ export const CartaoCadastroEquipe = ({ itens = [], ehMentor, aoAbrir }) => {
                         </div>
                     )}
                     {ehMentor && pix > 0 && <p className="text-[11px] font-bold text-rose-700 mt-1.5 dark:text-rose-300">{tx('Troque para o Banco Inter, que é o pagamento principal.')}</p>}
-                    <button type="button" onClick={aoAbrir} className="mt-3 h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">
+                    <button type="button" onClick={aoAbrir} className="mt-3 h-9 max-md:h-10 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">
                         {tx('Atualizar agora')}
                     </button>
                 </div>

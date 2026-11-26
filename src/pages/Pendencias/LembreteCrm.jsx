@@ -56,14 +56,14 @@ const LembreteCrm = ({ usuario, aoIrCrm }) => {
 
     return (
         <div className="fixed inset-0 z-[85] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="lembrete-crm-titulo">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(480px,100%)] overflow-hidden border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+            <div className="bg-white rounded-2xl shadow-2xl w-[min(480px,100%)] max-h-[90vh] max-md:max-h-[90dvh] overflow-y-auto border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                 <div className="px-6 py-5 flex items-start gap-3 text-white bg-blue-600">
                     <Users className="w-6 h-6 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                         <h2 id="lembrete-crm-titulo" className="text-base font-black uppercase tracking-widest leading-tight">{tx('Hora de fazer o CRM')}</h2>
                         <p className="text-[12px] font-bold uppercase tracking-widest opacity-90 mt-1">{unidade} · {textoHora(horario)}</p>
                     </div>
-                    <button type="button" onClick={lembrarDepois} aria-label={tx('Fechar')} className="opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={lembrarDepois} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="px-6 py-5 space-y-3">
                     <p className="text-sm font-bold text-slate-700 leading-snug dark:text-slate-200">

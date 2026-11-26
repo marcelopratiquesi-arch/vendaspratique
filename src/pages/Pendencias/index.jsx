@@ -13,7 +13,9 @@
 // Respeita a unidade escolhida no topo. Só leitura. Regras em pendencias.js.
 // ==========================================
 import React, { useState } from 'react';
-import { AlertTriangle, CheckCircle2, MessageCircle, RefreshCw, Send, Loader2, ClipboardCheck, BarChart3, Target, HelpCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, MessageCircle, RefreshCw, Send, Loader2, ClipboardCheck, BarChart3, Target, HelpCircle, Users } from 'lucide-react';
+import { CartaoCelular } from '../../components/celular/Cartao.jsx';
+import Dica from '../../components/celular/Dica.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import ModalTextoWhatsapp from '../AnaliseVendas/Modais.jsx';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
@@ -61,7 +63,7 @@ const CLASSE_COR = {
 
 // Relatório da recepção: uma linha por dia (ontem e hoje) com etiquetas curtas (Manhã / Noite) na cor da situação;
 // o nome da recepcionista e o detalhe vão no passar do mouse
-export const RelatorioCompacto = ({ lista }) => {
+export const RelatorioCompacto = ({ lista, comDetalhe = false }) => {
     const porDia = [];
     lista.forEach(r => {
         let dia = porDia.find(d => d.data === r.data);
@@ -71,7 +73,8 @@ export const RelatorioCompacto = ({ lista }) => {
     return (
         <div className="space-y-1">
             {porDia.map(d => (
-                <div key={d.data} className="flex items-center gap-1.5 flex-wrap">
+                <div key={d.data}>
+                <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="w-10 text-[10px] font-black uppercase tracking-wide text-slate-400">{d.hoje ? tx('Hoje') : ddmm(d.data)}</span>
                     {d.itens.map(r => {
                         const s = SITUACAO_RELATORIO[r.situacao] || SITUACAO_RELATORIO.nao_enviado;
@@ -84,6 +87,15 @@ export const RelatorioCompacto = ({ lista }) => {
                             </span>
                         );
                     })}
+                </div>
+                {comDetalhe && d.itens.map(r => {
+                    const s = SITUACAO_RELATORIO[r.situacao] || SITUACAO_RELATORIO.nao_enviado;
+                    return (
+                        <p key={r.turno} className="mt-0.5 pl-[46px] text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                            {tx(TURNO_CURTO[r.turno] || r.rotulo)}: {tx(s.texto)}{r.situacao === 'cobrando' ? ` (${tx('prazo {hora}', { hora: r.atrasaTexto })})` : ''}{r.nomes?.length ? ` — ${r.nomes.join(' / ')}` : ''}
+                        </p>
+                    );
+                })}
                 </div>
             ))}
         </div>
@@ -131,6 +143,96 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
     const mostra = (col) => filtro === 'todas' || filtro === col;
     const qtdColunas = 3 + ['conferencia', 'movimento', 'metas', 'relatorio'].filter(mostra).length;
 
+    const celulaConferencia = (u) => {
+        const c = u.conferencia;
+        return c?.atrasado ? (
+        <div className="flex flex-col">
+            <span className="text-[12px] font-black text-rose-700 dark:text-rose-300">{c.qtd === 1 ? tx('1 venda atrasada') : tx('{qtd} vendas atrasadas', { qtd: c.qtd })}</span>
+            <span className="text-[10px] font-bold text-slate-400">{dinheiro(c.valor)} · {tx('desde {data}', { data: ddmm(c.atrasadas[0].inicio) })}</span>
+        </div>
+    ) : c?.semanaAtual ? <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">{tx('Vence hoje: {qtd} vendas', { qtd: c.semanaAtual.qtd })}</span> : <Ok />;
+    };
+    const celulaMovimento = (u) => (
+        u.movimentoDia?.length ? (
+        <ul className="space-y-0.5">
+            {u.movimentoDia.map(d => (
+                <li key={d.data} className={`text-[11px] font-bold ${cor(!d.hoje)}`}>
+                    <span className="text-[10px] font-black uppercase text-slate-400 mr-1">{d.hoje ? tx('Hoje') : ddmm(d.data)}</span>
+                    {d.semLancamento ? tx('não lançou') : tx('falta {campos}', { campos: juntarCampos(d.falta) })}
+                    {d.semLancamento && (
+                        <span className="block text-[10px] font-bold text-slate-400">
+                            {u.ultimoLancamento ? tx('último lançamento: {data}', { data: ddmm(u.ultimoLancamento) }) : tx('nenhum lançamento')}
+                        </span>
+                    )}
+                </li>
+            ))}
+        </ul>
+    ) : <Ok />
+    );
+    const celulaMetas = (u) => (
+        u.metas ? (
+        <div className="flex flex-col gap-0.5" title={u.metas.atrasado ? tx('prazo dia {dia} vencido', { dia: String(DIA_PRAZO_METAS).padStart(2, '0') }) : tx('prazo até dia {dia}', { dia: String(DIA_PRAZO_METAS).padStart(2, '0') })}>
+            {u.metas.start && <span className={`text-[11px] font-bold ${cor(u.metas.atrasado)}`}>{tx('Start')}: {u.metas.start.naoPreenchida ? tx('não preenchida') : tx('falta {campos}', { campos: juntarCampos(u.metas.start.falta) })}</span>}
+            {u.metas.mensal && <span className={`text-[11px] font-bold ${cor(u.metas.atrasado)}`}>{tx('Mensal')}: {u.metas.mensal.naoPreenchida ? tx('não preenchida') : tx('falta {campos}', { campos: juntarCampos(u.metas.mensal.falta) })}</span>}
+        </div>
+    ) : <Ok />
+    );
+    const celulaRelatorio = (u) => (
+        u.relatorioDias?.length ? <RelatorioCompacto lista={u.relatorioDias} /> : <Ok />
+    );
+    const celulaLideres = (lideres) => (
+        lideres.length ? (
+            <div className="flex flex-col gap-1">
+                {lideres.map(lider => (
+                    <div key={`${lider.posto}-${lider.nome}`} className="flex flex-col" title={lider.nome}>
+                        <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">{nomeCurto(lider.nome)}{lider.posto === 'ASPIRA' && <span className="ml-1 text-[10px] font-black uppercase text-blue-600 dark:text-blue-400">{tx('Aspira')}</span>}</span>
+                        <span className="text-[10px] font-bold text-slate-400">{lider.telefone || tx('sem telefone')}</span>
+                    </div>
+                ))}
+            </div>
+        ) : <span className="text-[11px] font-bold text-slate-400">{tx('Sem Líder cadastrado')}</span>
+    );
+    const botoesCobrar = (u, lideres, comNome = false) => (lideres.length ? lideres : [null]).map((lider, j) => {
+        const texto = lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp');
+        return (
+            <button key={j} type="button" onClick={() => cobrarLider(u, lider)} title={texto} aria-label={texto}
+                className={`inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20 ${comNome ? 'w-full min-h-10 px-3 gap-2 text-[11px] font-black uppercase tracking-widest' : 'w-8 h-8'}`}>
+                <MessageCircle className="w-4 h-4 shrink-0" />
+                {comNome && <span className="truncate">{tx('Cobrar')} {lider ? nomeCurto(lider.nome) : tx('Líder')}</span>}
+            </button>
+        );
+    });
+
+    // CELULAR (26/11/2026): um cartão por unidade, com um bloco para cada tipo de pendência
+    const blocoCartao = (Icone, rotulo, conteudo) => (
+        <div className="pt-2 mt-2 border-t border-slate-100 dark:border-slate-800">
+            <p className="mb-1 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"><Icone className="w-3.5 h-3.5" />{tx(rotulo)}</p>
+            {conteudo}
+        </div>
+    );
+    const cartaoUnidade = (u, ok) => {
+        const lideres = lideresDaUnidade(colaboradores, u.unidade, lideresAcesso);
+        return (
+            <CartaoCelular titulo={<span className="uppercase">{u.unidade}</span>}
+                destaque={ok ? '!border-emerald-200 dark:!border-emerald-500/30' : ''}
+                direita={u.totalDia === 0
+                    ? <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400">✅ {tx('Em dia')}</span>
+                    : <span className={`text-[10px] font-black uppercase tracking-widest ${ok ? 'text-slate-400' : cor(u.atrasadoDia)}`}>{u.totalDia === 1 ? tx('1 pendência') : tx('{qtd} pendências', { qtd: u.totalDia })}</span>}>
+                {mostra('conferencia') && blocoCartao(ClipboardCheck, 'Conferência', celulaConferencia(u))}
+                {mostra('movimento') && blocoCartao(BarChart3, 'Movimentação', celulaMovimento(u))}
+                {mostra('metas') && blocoCartao(Target, 'Metas do mês', (
+                    <>
+                        {celulaMetas(u)}
+                        {u.metas && <p className="text-[10px] font-bold text-slate-400">{u.metas.atrasado ? tx('prazo dia {dia} vencido', { dia: String(DIA_PRAZO_METAS).padStart(2, '0') }) : tx('prazo até dia {dia}', { dia: String(DIA_PRAZO_METAS).padStart(2, '0') })}</p>}
+                    </>
+                ))}
+                {mostra('relatorio') && blocoCartao(Send, 'Relatório (ontem e hoje)', u.relatorioDias?.length ? <RelatorioCompacto lista={u.relatorioDias} comDetalhe /> : <Ok />)}
+                {blocoCartao(Users, 'Líder', celulaLideres(lideres))}
+                {!ok && <div className="mt-2 flex flex-col gap-2">{botoesCobrar(u, lideres, true)}</div>}
+            </CartaoCelular>
+        );
+    };
+
     return (
         <div className="space-y-4 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto pb-10">
             {/* TOPO EM UMA FAIXA */}
@@ -142,7 +244,8 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                     <div>
                         <h1 className="text-sm font-black uppercase tracking-widest text-slate-800 flex items-center gap-1.5 dark:text-white">
                             {tx('Pendências')}
-                            <span title={tx(TEXTO_PRAZOS)} aria-label={tx(TEXTO_PRAZOS)} className="text-slate-400 hover:text-slate-600 cursor-help dark:hover:text-slate-200"><HelpCircle className="w-3.5 h-3.5" /></span>
+                            <span title={tx(TEXTO_PRAZOS)} aria-label={tx(TEXTO_PRAZOS)} className="hidden md:inline text-slate-400 hover:text-slate-600 cursor-help dark:hover:text-slate-200"><HelpCircle className="w-3.5 h-3.5" /></span>
+                            <span className="md:hidden"><Dica texto={tx(TEXTO_PRAZOS)} alinhar="left" /></span>
                         </h1>
                         <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">
                             {totalPendencias === 1 ? tx('1 pendência') : tx('{qtd} pendências', { qtd: totalPendencias })}
@@ -152,24 +255,24 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                         </p>
                     </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <button type="button" onClick={() => recarregar?.()} className="h-9 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
+                <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+                    <button type="button" onClick={() => recarregar?.()} className="h-9 max-md:h-10 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
                         <RefreshCw className="w-3.5 h-3.5" />{tx('Atualizar')}
                     </button>
-                    <button type="button" onClick={cobrarGrupo} disabled={!carregado} className="h-9 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm">
+                    <button type="button" onClick={cobrarGrupo} disabled={!carregado} className="h-9 max-md:h-auto max-md:min-h-10 max-md:py-1.5 max-md:flex-1 max-md:justify-center px-4 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm">
                         <Send className="w-4 h-4" />{tipoMensagem ? tx('Mensagem para o grupo: {tipo}', { tipo: tx(filtroAtual.rotulo) }) : tx('Mensagem para o grupo geral')}
                     </button>
                 </div>
             </div>
 
             {/* FILTRO POR TIPO DE PENDÊNCIA */}
-            <div className="flex flex-wrap items-center gap-1 p-1 bg-white rounded-xl border border-slate-200 w-fit max-w-full dark:bg-slate-900 dark:border-slate-800" role="tablist" aria-label={tx('Filtrar pendências')}>
+            <div className="abas-rolaveis flex flex-wrap items-center gap-1 p-1 bg-white rounded-xl border border-slate-200 w-fit max-w-full dark:bg-slate-900 dark:border-slate-800" role="tablist" aria-label={tx('Filtrar pendências')}>
                 {FILTROS.map(f => {
                     const ativo = filtro === f.id;
                     const qtd = qtdPorFiltro(f);
                     return (
                         <button key={f.id} type="button" role="tab" aria-selected={ativo} onClick={() => setFiltro(f.id)}
-                            className={`h-8 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 transition-colors ${ativo ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800'}`}>
+                            className={`h-8 max-md:h-10 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 transition-colors ${ativo ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50 dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800'}`}>
                             {tx(f.rotulo)}
                             <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center ${ativo ? 'bg-white/20 text-white' : qtd ? 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300' : 'bg-slate-100 text-slate-400 dark:bg-slate-800'}`}>{qtd}</span>
                         </button>
@@ -178,7 +281,28 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
             </div>
 
             {/* TABELA POR UNIDADE (primeiro as com pendência; embaixo as em dia, tudo verde) */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+            <div className="md:hidden space-y-2">
+                {!carregado ? (
+                    <p className="py-12 text-center text-[12px] font-bold text-slate-400"><Loader2 className="inline w-4 h-4 mr-2 animate-spin" />{tx('Carregando pendências...')}</p>
+                ) : filtrada.length === 0 ? (
+                    <p className="py-12 text-center text-[12px] font-bold text-slate-400">{tx('Nenhuma unidade para mostrar.')}</p>
+                ) : linhas.map((u, i) => {
+                    const ok = i >= linhasPendentes.length;
+                    return (
+                        <React.Fragment key={u.unidade}>
+                            {i === 0 && !linhasPendentes.length && (
+                                <p className="py-2 text-center text-[12px] font-bold text-emerald-600 dark:text-emerald-400">✅ {filtroAtual.tem ? tx('Nenhuma unidade com pendência deste tipo.') : tx('Todas as unidades estão em dia.')}</p>
+                            )}
+                            {i === linhasPendentes.length && (
+                                <p className="pt-2 px-1 text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">✅ {tx('Em dia')} ({linhasOk.length})</p>
+                            )}
+                            {cartaoUnidade(u, ok)}
+                        </React.Fragment>
+                    );
+                })}
+            </div>
+
+            <div className="hidden md:block bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                 <div className="overflow-x-auto custom-scrollbar">
                     <table className={`w-full text-left border-collapse ${filtro === 'todas' ? 'min-w-[1040px]' : 'min-w-[640px]'}`}>
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
@@ -199,7 +323,6 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                                 <tr><td colSpan={qtdColunas} className="py-16 text-center text-[12px] font-bold text-slate-400">{tx('Nenhuma unidade para mostrar.')}</td></tr>
                             ) : linhas.map((u, i) => {
                                 const lideres = lideresDaUnidade(colaboradores, u.unidade, lideresAcesso);
-                                const c = u.conferencia;
                                 const ok = i >= linhasPendentes.length; // linha de unidade em dia (no tipo escolhido)
                                 return (
                                     <React.Fragment key={u.unidade}>
@@ -223,67 +346,15 @@ const PaginaPendencias = ({ pendencias, colaboradores = [], unidadeGlobal = 'TOD
                                                 <p className={`text-[10px] font-black uppercase tracking-widest mt-0.5 ${ok ? 'text-slate-400' : cor(u.atrasadoDia)}`}>{u.totalDia === 1 ? tx('1 pendência') : tx('{qtd} pendências', { qtd: u.totalDia })}</p>
                                             )}
                                         </td>
-                                        {mostra('conferencia') && <td className="px-4 py-2.5 align-top">
-                                            {c?.atrasado ? (
-                                                <div className="flex flex-col">
-                                                    <span className="text-[12px] font-black text-rose-700 dark:text-rose-300">{c.qtd === 1 ? tx('1 venda atrasada') : tx('{qtd} vendas atrasadas', { qtd: c.qtd })}</span>
-                                                    <span className="text-[10px] font-bold text-slate-400">{dinheiro(c.valor)} · {tx('desde {data}', { data: ddmm(c.atrasadas[0].inicio) })}</span>
-                                                </div>
-                                            ) : c?.semanaAtual ? <span className="text-[11px] font-bold text-blue-700 dark:text-blue-300">{tx('Vence hoje: {qtd} vendas', { qtd: c.semanaAtual.qtd })}</span> : <Ok />}
-                                        </td>}
-                                        {mostra('movimento') && <td className="px-4 py-2.5 align-top">
-                                            {/* Só o dia atual (decisão do dono, 09/11/2026): lançou hoje completo = OK; dias antigos ficam na tabela Movimentação por dia */}
-                                            {u.movimentoDia?.length ? (
-                                                <ul className="space-y-0.5">
-                                                    {u.movimentoDia.map(d => (
-                                                        <li key={d.data} className={`text-[11px] font-bold ${cor(!d.hoje)}`}>
-                                                            <span className="text-[10px] font-black uppercase text-slate-400 mr-1">{d.hoje ? tx('Hoje') : ddmm(d.data)}</span>
-                                                            {d.semLancamento ? tx('não lançou') : tx('falta {campos}', { campos: juntarCampos(d.falta) })}
-                                                            {d.semLancamento && (
-                                                                <span className="block text-[10px] font-bold text-slate-400">
-                                                                    {u.ultimoLancamento ? tx('último lançamento: {data}', { data: ddmm(u.ultimoLancamento) }) : tx('nenhum lançamento')}
-                                                                </span>
-                                                            )}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            ) : <Ok />}
-                                        </td>}
-                                        {mostra('metas') && <td className="px-4 py-2.5 align-top">
-                                            {u.metas ? (
-                                                <div className="flex flex-col gap-0.5" title={u.metas.atrasado ? tx('prazo dia {dia} vencido', { dia: String(DIA_PRAZO_METAS).padStart(2, '0') }) : tx('prazo até dia {dia}', { dia: String(DIA_PRAZO_METAS).padStart(2, '0') })}>
-                                                    {u.metas.start && <span className={`text-[11px] font-bold ${cor(u.metas.atrasado)}`}>{tx('Start')}: {u.metas.start.naoPreenchida ? tx('não preenchida') : tx('falta {campos}', { campos: juntarCampos(u.metas.start.falta) })}</span>}
-                                                    {u.metas.mensal && <span className={`text-[11px] font-bold ${cor(u.metas.atrasado)}`}>{tx('Mensal')}: {u.metas.mensal.naoPreenchida ? tx('não preenchida') : tx('falta {campos}', { campos: juntarCampos(u.metas.mensal.falta) })}</span>}
-                                                </div>
-                                            ) : <Ok />}
-                                        </td>}
-                                        {mostra('relatorio') && <td className="px-4 py-2.5 align-top">
-                                            {u.relatorioDias?.length ? <RelatorioCompacto lista={u.relatorioDias} /> : <Ok />}
-                                        </td>}
-                                        <td className="px-4 py-2.5 align-top">
-                                            {lideres.length ? (
-                                                <div className="flex flex-col gap-1">
-                                                    {lideres.map(lider => (
-                                                        <div key={`${lider.posto}-${lider.nome}`} className="flex flex-col" title={lider.nome}>
-                                                            <span className="text-[11px] font-black text-slate-700 dark:text-slate-200">{nomeCurto(lider.nome)}{lider.posto === 'ASPIRA' && <span className="ml-1 text-[10px] font-black uppercase text-blue-600 dark:text-blue-400">{tx('Aspira')}</span>}</span>
-                                                            <span className="text-[10px] font-bold text-slate-400">{lider.telefone || tx('sem telefone')}</span>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            ) : <span className="text-[11px] font-bold text-slate-400">{tx('Sem Líder cadastrado')}</span>}
-                                        </td>
+                                        {mostra('conferencia') && <td className="px-4 py-2.5 align-top">{celulaConferencia(u)}</td>}
+                                        {mostra('movimento') && <td className="px-4 py-2.5 align-top">{celulaMovimento(u)}</td>}
+                                        {mostra('metas') && <td className="px-4 py-2.5 align-top">{celulaMetas(u)}</td>}
+                                        {mostra('relatorio') && <td className="px-4 py-2.5 align-top">{celulaRelatorio(u)}</td>}
+                                        <td className="px-4 py-2.5 align-top">{celulaLideres(lideres)}</td>
                                         <td className="px-4 py-2.5 align-top text-center">
                                             {/* Em dia: nada para cobrar */}
                                             {ok ? <span className="text-[11px] font-black text-emerald-600 dark:text-emerald-400" aria-label={tx('Em dia')}>✓</span> : (
-                                            <div className="inline-flex flex-col gap-1">
-                                                {(lideres.length ? lideres : [null]).map((lider, j) => (
-                                                    <button key={j} type="button" onClick={() => cobrarLider(u, lider)}
-                                                        title={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')} aria-label={lider ? tx('Cobrar {nome} no WhatsApp', { nome: lider.nome }) : tx('Cobrar o Líder desta unidade no WhatsApp')}
-                                                        className="inline-flex items-center justify-center w-8 h-8 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 dark:hover:bg-emerald-500/20">
-                                                        <MessageCircle className="w-4 h-4" />
-                                                    </button>
-                                                ))}
-                                            </div>
+                                                <div className="inline-flex flex-col gap-1">{botoesCobrar(u, lideres)}</div>
                                             )}
                                         </td>
                                     </tr>

@@ -54,17 +54,17 @@ const PopupTurnoRecepcao = ({ usuario, colaboradores = [], setColaboradores }) =
 
     return (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="popup-turno-titulo">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(520px,100%)] max-h-[90vh] overflow-hidden flex flex-col border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+            <div className="bg-white rounded-2xl shadow-2xl w-[min(520px,100%)] max-h-[90vh] max-md:max-h-[90dvh] overflow-hidden flex flex-col border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                 <div className="px-6 py-5 flex items-start gap-3 bg-blue-600 text-white">
                     <Users className="w-6 h-6 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                         <h2 id="popup-turno-titulo" className="text-base font-black uppercase tracking-widest leading-tight">{tx('Turno das recepcionistas')}</h2>
                         <p className="text-[12px] font-bold uppercase tracking-widest opacity-90 mt-1">{usuario?.unidade}</p>
                     </div>
-                    <button type="button" onClick={() => setFechada(true)} aria-label={tx('Fechar')} className="opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={() => setFechada(true)} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
                 </div>
 
-                <div className="px-6 py-5 overflow-y-auto custom-scrollbar space-y-4">
+                <div className="px-6 max-md:px-4 py-5 flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-4">
                     <p className="text-sm font-bold text-slate-700 leading-snug dark:text-slate-200">
                         {tx('Marque o turno de cada recepcionista da sua unidade. Ele é usado para cobrar o relatório de fechamento pelo nome de quem estava no turno.')}
                     </p>
@@ -74,10 +74,10 @@ const PopupTurnoRecepcao = ({ usuario, colaboradores = [], setColaboradores }) =
                             return (
                                 <li key={c.id} className={`flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2.5 ${atual ? 'border-slate-200 dark:border-slate-800' : 'border-amber-300 bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/30'}`}>
                                     <span className="text-[12px] font-black uppercase text-slate-800 dark:text-white">{c.nome}</span>
-                                    <div className="flex bg-slate-100 p-1 rounded-lg gap-1 dark:bg-slate-800">
+                                    <div className="flex bg-slate-100 p-1 rounded-lg gap-1 max-md:w-full dark:bg-slate-800">
                                         {[['MANHA', tx('Manhã (7h às 13h)')], ['NOITE', tx('Noite (13h às 21h)')]].map(([valor, rotulo]) => (
                                             <button key={valor} type="button" onClick={() => setEscolhas(e => ({ ...e, [c.id]: valor }))}
-                                                className={`px-2.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-colors ${atual === valor ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                                className={`px-2.5 py-1.5 max-md:flex-1 max-md:min-h-10 rounded-md text-[10px] font-black uppercase tracking-widest transition-colors ${atual === valor ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                                 {rotulo}
                                             </button>
                                         ))}

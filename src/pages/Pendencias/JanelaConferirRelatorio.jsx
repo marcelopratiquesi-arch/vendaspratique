@@ -50,14 +50,14 @@ const JanelaConferirRelatorio = ({ usuario }) => {
     return (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4" role="dialog" aria-modal="true" aria-labelledby="conferir-relatorio-titulo"
             onClick={() => !gravando && setDados(null)}>
-            <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-[min(480px,100%)] overflow-hidden border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+            <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl shadow-2xl w-[min(480px,100%)] max-h-[90vh] max-md:max-h-[90dvh] overflow-y-auto border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                 <div className="px-6 py-5 bg-blue-600 text-white flex items-start gap-3">
                     <Send className="w-6 h-6 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
                         <h2 id="conferir-relatorio-titulo" className="text-base font-black uppercase tracking-widest leading-tight">{tx('Conferiu no grupo de vendas?')}</h2>
                         <p className="text-[12px] font-bold uppercase tracking-widest opacity-90 mt-1">{dados.unidade}</p>
                     </div>
-                    <button type="button" onClick={() => setDados(null)} disabled={!!gravando} aria-label={tx('Fechar')} className="opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={() => setDados(null)} disabled={!!gravando} aria-label={tx('Fechar')} className="shrink-0 max-md:w-10 max-md:h-10 max-md:-m-2 max-md:flex max-md:items-center max-md:justify-center opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="px-6 py-5 space-y-3">
                     <p className="text-[15px] font-bold text-slate-800 leading-snug dark:text-white">
@@ -70,11 +70,11 @@ const JanelaConferirRelatorio = ({ usuario }) => {
                 <div className="px-6 py-4 border-t border-slate-200 flex flex-col gap-2 dark:border-slate-800">
                     <div className="flex flex-col sm:flex-row gap-2">
                         <button type="button" onClick={() => responder('ENVIADO')} disabled={!!gravando}
-                            className="flex-1 h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
+                            className="flex-1 max-md:flex-none h-11 shrink-0 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
                             {gravando === 'ENVIADO' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}{tx('Sim, foi enviado')}
                         </button>
                         <button type="button" onClick={() => responder('NAO_ENVIADO')} disabled={!!gravando}
-                            className="flex-1 h-11 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
+                            className="flex-1 max-md:flex-none h-11 shrink-0 px-4 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-60 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center justify-center gap-2">
                             {gravando === 'NAO_ENVIADO' ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}{tx('Não foi enviado')}
                         </button>
                     </div>
