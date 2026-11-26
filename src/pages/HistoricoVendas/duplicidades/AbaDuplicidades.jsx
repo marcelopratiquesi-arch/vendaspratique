@@ -26,7 +26,7 @@ const dataHoraBR = (iso) => {
     return d.toLocaleString(localeAtual(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
-const inputEdicao = "w-full bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-200 rounded-md px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm";
+const inputEdicao = "w-full bg-white dark:bg-slate-800 border border-blue-300 dark:border-blue-500/40 text-blue-800 dark:text-blue-200 rounded-md min-h-11 sm:min-h-0 px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-bold text-[11px] shadow-sm";
 
 // Aluno da venda pelo CPF completo (igual à Nova Venda): acha o cadastro e preenche nome, CPF e matrícula
 const CampoAlunoPorCpf = ({ dadosEdicao, onAplicarAluno }) => {
@@ -110,14 +110,14 @@ const CartaoGrupo = ({
 
     return (
         <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col transition-all hover:shadow-md ${cores.borda}`}>
-            <div className={`border-b p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${cores.cabecalho}`}>
-                <div className="flex items-start gap-4 w-full min-w-0">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-inner ${cores.icone}`}>
+            <div className={`border-b p-3 md:p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 ${cores.cabecalho}`}>
+                <div className="flex items-start gap-3 md:gap-4 w-full min-w-0">
+                    <div className={`hidden sm:flex w-12 h-12 rounded-xl items-center justify-center shrink-0 shadow-inner ${cores.icone}`}>
                         <AlertIcon className="w-6 h-6" />
                     </div>
                     <div className="flex-1 overflow-hidden">
                         <div className="flex items-center gap-1 min-w-0">
-                            <h4 className="text-base font-black text-slate-800 dark:text-white uppercase tracking-tight truncate" title={nomeAluno}>
+                            <h4 className="text-[14px] md:text-base font-black text-slate-800 dark:text-white uppercase tracking-tight break-words md:truncate" title={nomeAluno}>
                                 {toTitleCase(nomeAluno)}
                             </h4>
                             {nomeAluno && <CopyButton textToCopy={toTitleCase(nomeAluno)} label={tx("Copiar nome do aluno")} />}
@@ -163,14 +163,14 @@ const CartaoGrupo = ({
                         {tx("Não é duplicidade · marcado por")}{' '}{grupo.marcacao.decidido_por || '—'}{' '}{tx("em")}{' '}{dataHoraBR(grupo.marcacao.decidido_em)}
                     </span>
                     {podeMarcar && (
-                        <button disabled={isSubmitting} onClick={() => onDesfazerLegitima(grupo.marcacao)} className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                        <button disabled={isSubmitting} onClick={() => onDesfazerLegitima(grupo.marcacao)} className="min-h-10 md:min-h-0 flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
                             <Undo2 className="w-3 h-3" />{' '}{tx("Desfazer")}
                         </button>
                     )}
                 </div>
             )}
 
-            <div className="p-5 flex flex-col gap-4 flex-1">
+            <div className="p-2.5 md:p-5 flex flex-col gap-2.5 md:gap-4 flex-1">
                 {grupo.linhas.map((row, posicao) => {
                     const isEditing = !legitimo && editandoId === row.id;
                     const original = posicao === grupo.linhas.length - 1;
@@ -188,10 +188,10 @@ const CartaoGrupo = ({
                     }
 
                     return (
-                        <div key={row.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 border rounded-xl transition-colors ${isEditing ? 'bg-blue-50/50 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/40 shadow-md' : 'bg-slate-50/50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                        <div key={row.id} className={`flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 md:gap-4 p-3 md:p-4 border rounded-xl transition-colors ${isEditing ? 'bg-blue-50/50 dark:bg-blue-500/10 border-blue-300 dark:border-blue-500/40 shadow-md' : 'bg-slate-50/50 dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
 
-                            <div className="flex items-start gap-4 flex-1 w-full min-w-0">
-                                <div className="flex flex-col items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 min-w-[84px] shadow-sm shrink-0">
+                            <div className="flex items-start gap-2.5 md:gap-4 flex-1 w-full min-w-0">
+                                <div className="flex flex-col items-center justify-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-2 md:min-w-[84px] shadow-sm shrink-0">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Nº {row.id}</span>
                                     <Clock className="w-3.5 h-3.5 text-slate-400 my-1" />
                                     <span className="text-xs font-black text-slate-700 dark:text-slate-200 font-mono">{extrairHoraCriacao(row.created_at, true) || '--:--:--'}</span>
@@ -249,22 +249,22 @@ const CartaoGrupo = ({
                             </div>
 
                             {(podeEditar || podeExcluir) && !legitimo && (
-                                <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0 mt-3 sm:mt-0">
+                                <div className="flex sm:flex-col gap-2 w-full sm:w-auto shrink-0 mt-1 sm:mt-0">
                                     {isEditing ? (
                                         <>
-                                            <button disabled={isSubmitting} onClick={() => onSalvar(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                            <button disabled={isSubmitting} onClick={() => onSalvar(row)} className="min-h-10 sm:min-h-0 flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                                                 {isSubmitting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}{' '}{tx("Salvar")}
                                             </button>
-                                            <button disabled={isSubmitting} onClick={onCancelar} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                            <button disabled={isSubmitting} onClick={onCancelar} className="min-h-10 sm:min-h-0 flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-300 dark:hover:bg-slate-600 disabled:opacity-50 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                                                 <X className="w-3 h-3" />{' '}{tx("Cancelar")}
                                             </button>
                                         </>
                                     ) : (
                                         <>
-                                            {podeEditar && <button disabled={isSubmitting} onClick={() => onEditar(row)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-300 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
+                                            {podeEditar && <button disabled={isSubmitting} onClick={() => onEditar(row)} className="min-h-10 sm:min-h-0 flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 hover:border-blue-300 dark:hover:text-blue-300 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
                                                 <Edit3 className="w-3 h-3" />{' '}{tx("Editar")}
                                             </button>}
-                                            {podeExcluir && <button disabled={isSubmitting} onClick={() => onExcluir(row.id)} className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                                            {podeExcluir && <button disabled={isSubmitting} onClick={() => onExcluir(row.id)} className="min-h-10 sm:min-h-0 flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                                                 <Trash2 className="w-3 h-3" />{' '}{tx("Excluir")}
                                             </button>}
                                         </>
@@ -277,11 +277,11 @@ const CartaoGrupo = ({
             </div>
 
             {podeMarcar && !legitimo && (
-                <div className="px-5 pb-5 -mt-1 flex flex-wrap items-center justify-between gap-2">
+                <div className="px-3 pb-3 md:px-5 md:pb-5 -mt-1 flex flex-wrap items-center justify-between gap-2">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                         {tx("Sob suspeita:")}{' '}<span className="text-rose-600 dark:text-rose-300">{formatMoney(grupo.comissaoSuspeita)}</span>
                     </span>
-                    <button disabled={isSubmitting || marcandoChave === grupo.chaveBase} onClick={() => onMarcarLegitima(grupo)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
+                    <button disabled={isSubmitting || marcandoChave === grupo.chaveBase} onClick={() => onMarcarLegitima(grupo)} className="min-h-10 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm">
                         {marcandoChave === grupo.chaveBase ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}{' '}{tx("Não é duplicidade")}
                     </button>
                 </div>
@@ -306,11 +306,11 @@ const AbaDuplicidades = ({
     };
 
     return (
-        <div className="p-6 md:p-8 bg-slate-50/50 dark:bg-slate-950/40 min-h-[50vh]">
+        <div className="p-2.5 md:p-8 bg-slate-50/50 dark:bg-slate-950/40 min-h-[50vh]">
 
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-8 pb-6 border-b border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 md:gap-4 mb-4 md:mb-8 pb-4 md:pb-6 border-b border-slate-200 dark:border-slate-800">
                 <div>
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
+                    <h3 className="text-base md:text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                         <AlertTriangle className="w-6 h-6 text-amber-500" />
                         {tx("Auditoria de possíveis duplicidades")}
                     </h3>
@@ -329,7 +329,7 @@ const AbaDuplicidades = ({
                             <p className="text-[10px] font-black text-rose-500 dark:text-rose-300/80 uppercase tracking-widest mt-1">{tx("em comissão sob suspeita ·")}{' '}{excedentes} {excedentes === 1 ? tx("lançamento excedente") : tx("lançamentos excedentes")}</p>
                         </div>
                     )}
-                    <button onClick={() => setVerLegitimos(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 hover:border-blue-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
+                    <button onClick={() => setVerLegitimos(v => !v)} className="min-h-10 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 hover:border-blue-300 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm dark:hover:border-blue-500/30">
                         {verLegitimos ? <><AlertTriangle className="w-3 h-3" />{' '}{tx("Voltar às possíveis duplicidades")}</> : <><ShieldCheck className="w-3 h-3" />{' '}{tx("Ver grupos marcados como legítimos (")}{gruposLegitimos.length})</>}
                     </button>
                 </div>
@@ -344,7 +344,7 @@ const AbaDuplicidades = ({
                     </p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 md:gap-6">
                     {lista.map(grupo => <CartaoGrupo key={grupo.chaveBase} grupo={grupo} {...propsCartao} />)}
                 </div>
             )}

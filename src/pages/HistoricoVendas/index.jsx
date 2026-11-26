@@ -407,12 +407,12 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
     const temFiltroAtivo = filtrosAtivos.length > 0 || presetPeriodo !== 'hoje';
 
     return (
-        <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto">
+        <div className="space-y-3 md:space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto">
             
             {/* ========================================== */}
             {/* 🚀 FILTROS DE HISTÓRICO (versão compacta) */}
             {/* ========================================== */}
-            <div className="bg-white rounded-[20px] border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-4 md:p-5 relative z-20 flex flex-col gap-4 dark:bg-slate-900 dark:border-slate-800">
+            <div className="bg-white rounded-[20px] border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.02)] p-3 md:p-5 relative z-20 flex flex-col gap-3 md:gap-4 dark:bg-slate-900 dark:border-slate-800">
 
                 {/* Título + o que está sendo exibido | Limpar + Período */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -422,7 +422,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                             {tx(descricaoPeriodo)} · {temVisaoGlobal ? (filtroUnidade === 'TODOS' ? tx("Todas as unidades") : filtroUnidade) : (usuarioLogado?.unidade || '')}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                         {temFiltroAtivo && (
                             <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-400 dark:hover:text-white dark:hover:bg-slate-800">
                                 <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
@@ -446,7 +446,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
 
                 {/* Busca + filtros lado a lado */}
                 <div className="flex flex-wrap gap-2.5">
-                    <label className="flex-[2] min-w-[240px] h-[42px] px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow dark:bg-slate-900 dark:border-slate-800">
+                    <label className="basis-full sm:basis-auto flex-[2] min-w-0 sm:min-w-[240px] h-[42px] px-3 bg-white border border-slate-200 rounded-xl flex items-center gap-2 focus-within:ring-2 focus-within:ring-blue-500 transition-shadow dark:bg-slate-900 dark:border-slate-800">
                         <Search className="w-4 h-4 text-slate-400 shrink-0" />
                         <input
                             type="text"
@@ -457,14 +457,14 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                             className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] font-medium text-slate-800 placeholder-slate-400 dark:text-white"
                         />
                         {busca && (
-                            <button type="button" onClick={() => setBusca('')} aria-label={tx("Limpar busca")} className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800">
+                            <button type="button" onClick={() => setBusca('')} aria-label={tx("Limpar busca")} className="p-2.5 -mr-1.5 md:mr-0 md:p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-slate-800">
                                 <X className="w-3.5 h-3.5" />
                             </button>
                         )}
                     </label>
 
                     {temVisaoGlobal && (
-                        <div className="relative flex-1 min-w-[170px]">
+                        <div className="relative basis-full sm:basis-auto flex-1 min-w-[170px]">
                             <Building2 className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${filtroUnidade !== 'TODOS' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
                             <select
                                 value={filtroUnidade}
@@ -478,10 +478,13 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                         </div>
                     )}
 
+                    {/* Celular: 2 por linha; no computador este grupo não existe para o layout (contents) */}
+                    <div className="basis-full grid grid-cols-2 gap-2 [&>*]:min-w-0 sm:contents">
                     <FiltroMultiplo rotulo={tx("Consultores")} icone={Users} options={vendedoresUnicos} ocultos={vendedoresOcultos} setOcultos={setVendedoresOcultos} />
                     <FiltroMultiplo rotulo={tx("Planos")} icone={Bookmark} options={planosVendidos} ocultos={planosOcultos} setOcultos={setPlanosOcultos} />
                     <FiltroMultiplo rotulo={tx("Produtos")} icone={Package} options={produtosVendidos} ocultos={produtosOcultos} setOcultos={setProdutosOcultos} alinhar="right" />
                     <FiltroMultiplo rotulo={tx("Serviços")} icone={Briefcase} options={servicosVendidos} ocultos={servicosOcultos} setOcultos={setServicosOcultos} alinhar="right" />
+                    </div>
                 </div>
 
                 {/* Filtros ativos (com X para tirar) */}
@@ -489,9 +492,9 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                     <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx("Filtros ativos:")}</span>
                         {filtrosAtivos.map(f => (
-                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                            <span key={f.id} className="inline-flex items-center gap-1.5 min-h-9 md:min-h-0 md:h-7 pl-2.5 pr-1 rounded-full bg-slate-100 text-[12px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
                                 {tx(f.texto)}
-                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-5 h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
+                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-7 h-7 md:w-5 md:h-5 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
                                     <X className="w-3 h-3" strokeWidth={3} />
                                 </button>
                             </span>
@@ -501,15 +504,15 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
             </div>
 
             {exibirDashboard && (
-                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-6 md:p-8 animate-[slideDown_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
+                <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm p-3 md:p-8 animate-[slideDown_0.3s_ease-out] dark:bg-slate-900 dark:border-slate-800">
                     
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8 pb-6 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 mb-4 md:mb-8 pb-4 md:pb-6 border-b border-slate-100 dark:border-slate-800">
                         <div className="flex items-center gap-4">
                             <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 shadow-inner dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30">
                                 <UserCheck className="w-6 h-6" />
                             </div>
                             <div>
-                                <h2 className="text-2xl font-black text-slate-800 tracking-tight dark:text-white">
+                                <h2 className="text-base md:text-2xl font-black text-slate-800 tracking-tight dark:text-white">
                                     {tx("Desempenho:")}{' '}<span className="text-blue-600 capitalize dark:text-blue-400">{tx("Seleção Personalizada")}</span>
                                 </h2>
                                 <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mt-1 flex items-center gap-1.5 dark:text-slate-400">
@@ -529,14 +532,14 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 items-start">
                         
-                        <div className="md:col-span-12 lg:col-span-4 bg-slate-900 rounded-[24px] p-6 md:p-8 border border-slate-800 shadow-xl flex flex-col justify-center relative overflow-hidden h-full">
+                        <div className="md:col-span-12 lg:col-span-4 bg-slate-900 rounded-[24px] p-4 md:p-8 border border-slate-800 shadow-xl flex flex-col justify-center relative overflow-hidden h-full">
                             <div className="relative z-10">
                                 <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                                     <Wallet className="w-4 h-4 text-slate-500 dark:text-slate-400" />{' '}{tx("Comissão a Conferir")}
                                 </p>
-                                <p className="text-4xl md:text-5xl font-black text-white tracking-tight">{formatMoney(resumoVendedor.valorTotal)}</p>
+                                <p className="text-3xl md:text-5xl font-black text-white tracking-tight">{formatMoney(resumoVendedor.valorTotal)}</p>
                                 <div className="flex items-center gap-2 mt-4 bg-blue-500/10 text-blue-400 w-max px-3 py-1.5 rounded-lg border border-blue-500/20">
                                     <BarChart2 className="w-4 h-4" />
                                     <span className="text-xs font-bold uppercase tracking-wider">

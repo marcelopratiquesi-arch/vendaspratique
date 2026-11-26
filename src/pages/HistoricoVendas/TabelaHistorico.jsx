@@ -11,6 +11,7 @@ import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import CopyButton from './CopyButton.jsx';
+import CartoesHistorico from './CartoesHistorico.jsx';
 import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
 
 // ==========================================
@@ -334,25 +335,25 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden flex flex-col animate-[fadeIn_0.3s_ease-out]">
 
             {/* CABEÇALHO COM ABAS DE NAVEGAÇÃO */}
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto custom-scrollbar">
+            <div className="px-2.5 py-2.5 md:px-6 md:py-4 border-b border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2.5 md:gap-4">
+                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 md:p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 w-full sm:w-auto overflow-x-auto custom-scrollbar">
                     <button
                         onClick={() => setVisaoAtual('registros')}
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
+                        className={`flex-1 sm:w-48 h-10 md:h-auto px-2 md:px-4 md:py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'registros' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
-                        <History className="w-4 h-4" />{' '}{tx("Registros de Vendas")}
+                        <History className="w-4 h-4 shrink-0 max-[399px]:hidden" />{' '}<span className="md:hidden">{tx("Registros")}</span><span className="hidden md:inline">{tx("Registros de Vendas")}</span>
                     </button>
                     {verDuplicidades && <button
                         onClick={() => setVisaoAtual('duplicidades')}
                         title={gruposDuplicados.length > 0
                             ? `${gruposDuplicados.length} ${gruposDuplicados.length === 1 ? 'grupo' : 'grupos'} · ${resultadoDuplicidades.excedentes} ${resultadoDuplicidades.excedentes === 1 ? 'lançamento excedente' : 'lançamentos excedentes'}`
                             : tx("Nenhuma possível duplicidade encontrada")}
-                        className={`flex-1 sm:w-48 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
+                        className={`flex-1 sm:w-48 h-10 md:h-auto px-2 md:px-4 md:py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'duplicidades' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
-                        <Copy className="w-4 h-4" />{' '}{tx("Duplicidades")}
+                        <Copy className="w-4 h-4 shrink-0 max-[399px]:hidden" />{' '}{tx("Duplicidades")}
 
                         {gruposDuplicados.length > 0 && (
-                            <span className="ml-1 bg-amber-500 text-white px-2 py-0.5 rounded-md text-[10px] animate-pulse shadow-sm">
+                            <span className="md:ml-1 bg-amber-500 text-white px-1.5 md:px-2 py-0.5 rounded-md text-[10px] animate-pulse shadow-sm">
                                 {gruposDuplicados.length}
                             </span>
                         )}
@@ -362,12 +363,12 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         title={lixeira.length > 0
                             ? tx("{length} {v2} no período", { length: lixeira.length, v2: lixeira.length === 1 ? 'venda excluída' : 'vendas excluídas' })
                             : tx("Nenhuma venda excluída no período")}
-                        className={`flex-1 sm:w-40 px-4 py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
+                        className={`flex-1 sm:w-40 h-10 md:h-auto px-2 md:px-4 md:py-2.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${visaoMostrada === 'lixeira' ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-300' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white dark:text-slate-400'}`}
                     >
-                        <Trash2 className="w-4 h-4" />{' '}{tx("Lixeira")}
+                        <Trash2 className="w-4 h-4 shrink-0 max-[399px]:hidden" />{' '}{tx("Lixeira")}
 
                         {lixeira.length > 0 && (
-                            <span className="ml-1 bg-rose-600 dark:bg-rose-500 text-white px-2 py-0.5 rounded-md text-[10px] shadow-sm">
+                            <span className="md:ml-1 bg-rose-600 dark:bg-rose-500 text-white px-1.5 md:px-2 py-0.5 rounded-md text-[10px] shadow-sm">
                                 {lixeira.length}
                             </span>
                         )}
@@ -375,7 +376,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                 </div>
 
                 {visaoMostrada === 'registros' && (
-                    <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner text-center sm:text-right w-full sm:w-auto dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
+                    <div className="bg-slate-100 text-slate-600 px-4 py-1.5 md:py-2 rounded-xl text-[11px] md:text-xs font-black uppercase tracking-widest border border-slate-200 shadow-inner text-center sm:text-right w-full sm:w-auto dark:bg-slate-800 dark:text-slate-300 dark:border-slate-800">
                         {vendasOrdenadas.length}{' '}{tx("de")}{' '}{data.length}{' '}{tx("Encontrados")}
                     </div>
                 )}
@@ -390,7 +391,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         onMouseLeave={handleMouseLeaveOrUp}
                         onMouseUp={handleMouseLeaveOrUp}
                         onMouseMove={handleMouseMove}
-                        className="overflow-x-auto custom-scrollbar cursor-grab" 
+                        className="hidden md:block overflow-x-auto custom-scrollbar cursor-grab" 
                         style={{ maxHeight: '65vh' }}
                     >
                         <table className="w-full text-left border-collapse min-w-max">
@@ -638,9 +639,19 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                         </table>
                     </div>
 
+                    {/* Celular: cartões no lugar da tabela */}
+                    <CartoesHistorico
+                        linhas={vendasPaginadas} vazio={vendasOrdenadas.length === 0} ordenacao={ordenacao} setOrdenacao={setOrdenacao}
+                        temVisaoGlobal={temVisaoGlobal} podeEditar={podeEditar} podeEditarVenda={podeEditarVenda} podeExcluirVenda={podeExcluirVenda}
+                        editandoId={editandoId} dadosEdicao={dadosEdicao} isSubmitting={isSubmitting} catalogoGeral={catalogoGeral} colaboradores={colaboradores}
+                        onAbrirAluno={onAbrirAluno} abrirFichaDoAluno={abrirFichaDoAluno} abrindoAlunoId={abrindoAlunoId}
+                        iniciarEdicao={iniciarEdicao} handleEdicaoChange={handleEdicaoChange} cancelarEdicao={cancelarEdicao}
+                        salvarEdicao={salvarEdicao} removerLancamento={removerLancamento}
+                    />
+
                     {/* PAGINAÇÃO PADRÃO */}
-                    <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-4 dark:bg-slate-800/60 dark:border-slate-800">
-                        <div className="flex items-center gap-4">
+                    <div className="bg-slate-50 border-t border-slate-200 px-3 md:px-6 py-3 md:py-4 flex flex-col sm:flex-row items-center justify-between gap-4 dark:bg-slate-800/60 dark:border-slate-800">
+                        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
                             <p className="text-xs font-bold text-slate-500 uppercase tracking-widest dark:text-slate-400">
                                 {tx("Página")}{' '}{paginaAtual}{' '}{tx("de")}{' '}{totalPaginas || 1}
                             </p>
@@ -650,7 +661,7 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 <select 
                                     value={itensPorPagina} 
                                     onChange={(e) => setItensPorPagina(Number(e.target.value))}
-                                    className="bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"
+                                    className="h-10 md:h-auto bg-white border border-slate-200 text-slate-700 rounded-lg px-2 py-1 text-xs font-bold outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-200"
                                 >
                                     <option value={10}>{tx("10 linhas")}</option>
                                     <option value={50}>{tx("50 linhas")}</option>
@@ -666,14 +677,14 @@ const TabelaHistorico = ({ data, setData, vendasFiltradas, temVisaoGlobal, podeE
                                 <button 
                                     onClick={() => setPaginaAtual(p => Math.max(1, p - 1))}
                                     disabled={paginaAtual === 1}
-                                    className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                                    className="flex-1 sm:flex-none h-10 md:h-auto px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
                                     {tx("Anterior")}
                                 </button>
                                 <button 
                                     onClick={() => setPaginaAtual(p => Math.min(totalPaginas, p + 1))}
                                     disabled={paginaAtual === totalPaginas}
-                                    className="flex-1 sm:flex-none px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                                    className="flex-1 sm:flex-none h-10 md:h-auto px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-black uppercase tracking-widest disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-100 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                                 >
                                     {tx("Próxima")}
                                 </button>

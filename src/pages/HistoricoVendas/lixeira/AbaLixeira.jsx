@@ -52,10 +52,10 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
     const th = "px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800 whitespace-nowrap text-left";
 
     return (
-        <div className="p-6 md:p-8 bg-slate-50/50 dark:bg-slate-950/40 min-h-[50vh]">
-            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6 pb-6 border-b border-slate-200 dark:border-slate-800">
+        <div className="p-2.5 md:p-8 bg-slate-50/50 dark:bg-slate-950/40 min-h-[50vh]">
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 md:gap-4 mb-4 md:mb-6 pb-4 md:pb-6 border-b border-slate-200 dark:border-slate-800">
                 <div>
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
+                    <h3 className="text-base md:text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-3">
                         <Trash2 className="w-6 h-6 text-rose-500" />
                         {tx("Lixeira de vendas")}
                     </h3>
@@ -87,12 +87,14 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                     <p className="text-sm font-bold text-slate-400">{tx("Nenhuma venda excluída no período.")}</p>
                 </div>
             ) : (
+                <>
+                <p className="md:hidden mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-400">{tx('Arraste a tabela para o lado para ver tudo')}</p>
                 <div className="overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
                     <table className="w-full min-w-max border-collapse">
                         <thead className="bg-slate-50/80 dark:bg-slate-800/60">
                             <tr>
-                                <th className={th}>Nº</th>
-                                <th className={th}>{tx("Aluno")}</th>
+                                <th className={`${th} max-md:hidden`}>Nº</th>
+                                <th className={`${th} max-md:sticky max-md:left-0 max-md:z-[5] max-md:shadow-[6px_0_8px_-6px_rgba(15,23,42,0.18)] max-md:bg-slate-50 max-md:dark:bg-slate-800`}>{tx("Aluno")}</th>
                                 <th className={th}>{tx("Produto")}</th>
                                 <th className={th}>{tx("Valor")}</th>
                                 <th className={th}>{tx("Comissão")}</th>
@@ -105,13 +107,14 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                         <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                             {visiveis.map(l => (
                                 <tr key={`${l.venda_id}-${l.excluido_em}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 align-top">
-                                    <td className="px-4 py-3 text-xs font-black text-slate-500 dark:text-slate-400 font-mono">{l.venda_id}</td>
-                                    <td className="px-4 py-3">
+                                    <td className="max-md:hidden px-4 py-3 text-xs font-black text-slate-500 dark:text-slate-400 font-mono">{l.venda_id}</td>
+                                    <td className="px-3 md:px-4 py-3 max-md:sticky max-md:left-0 max-md:z-[5] max-md:shadow-[6px_0_8px_-6px_rgba(15,23,42,0.18)] max-md:bg-white max-md:dark:bg-slate-900 max-md:w-[170px] max-md:min-w-[170px] max-md:max-w-[170px] max-md:whitespace-normal">
+                                        <p className="md:hidden text-[10px] font-black text-slate-400 font-mono">Nº {l.venda_id}</p>
                                         <div className="flex items-center gap-1">
-                                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase max-w-[220px] truncate" title={l.aluno}>{toTitleCase(l.aluno || '—')}</p>
+                                            <p className="text-xs font-black text-slate-800 dark:text-slate-100 uppercase min-w-0 max-w-[220px] break-words md:truncate" title={l.aluno}>{toTitleCase(l.aluno || '—')}</p>
                                             {l.aluno && <CopyButton textToCopy={toTitleCase(l.aluno)} label={tx("Copiar nome do aluno")} />}
                                         </div>
-                                        <div className="flex items-center gap-1">
+                                        <div className="flex flex-wrap md:flex-nowrap items-center gap-1">
                                             <p className="text-[10px] font-mono font-bold text-slate-500 dark:text-slate-400">{formatarCPF(l.cpf)}{l.matricula ? " " + tx("· MAT {matricula}", { matricula: l.matricula }) + "" : ''}</p>
                                             {l.cpf && <CopyButton textToCopy={formatarCPF(l.cpf)} label={tx("Copiar CPF do aluno")} />}
                                         </div>
@@ -134,7 +137,7 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                                     <td className="px-4 py-3 text-xs font-medium text-slate-600 dark:text-slate-300 max-w-[260px] whitespace-normal">{l.motivo || <span className="text-slate-400 italic">{tx("sem motivo (exclusão antiga)")}</span>}</td>
                                     {podeRestaurar && (
                                         <td className="px-4 py-3">
-                                            <button type="button" onClick={() => restaurar(l)} disabled={Boolean(restaurandoId)} className="flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm whitespace-nowrap">
+                                            <button type="button" onClick={() => restaurar(l)} disabled={Boolean(restaurandoId)} className="h-10 md:h-auto flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 disabled:opacity-50 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all shadow-sm whitespace-nowrap">
                                                 {restaurandoId === l.venda_id ? <Loader2 className="w-3 h-3 animate-spin" /> : <RotateCcw className="w-3 h-3" />}{' '}{tx("Restaurar")}
                                             </button>
                                         </td>
@@ -144,6 +147,7 @@ const AbaLixeira = ({ linhas = [], erro = '', carregando = false, unidade, temVi
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
         </div>
     );
