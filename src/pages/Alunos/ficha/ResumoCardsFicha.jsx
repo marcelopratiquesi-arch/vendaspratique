@@ -61,16 +61,16 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
     ];
 
     return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 md:gap-4 mb-3 md:mb-6">
             {cards.map((c, i) => {
                 const Icone = c.icone;
                 return (
-                    <div key={i} className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between min-h-[105px] dark:bg-slate-900 dark:border-slate-800">
+                    <div key={i} className="max-lg:last:col-span-2 min-w-0 bg-white p-3 md:p-4 rounded-xl border border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)] flex flex-col justify-between md:min-h-[105px] dark:bg-slate-900 dark:border-slate-800">
                         <div className="flex items-center gap-2.5 mb-2">
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${c.bgIcon}`}>
                                 <Icone className="w-3.5 h-3.5" strokeWidth={2.5} />
                             </div>
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 truncate dark:text-slate-400">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 leading-tight md:truncate dark:text-slate-400">
                                 {tx(c.titulo)}
                             </span>
                         </div>
@@ -80,10 +80,10 @@ const ResumoCardsFicha = ({ aluno, dadosFicha, loading }) => {
                                 <Loader2 className="w-4 h-4 animate-spin text-slate-300 mt-1" />
                             ) : (
                                 <>
-                                    <span className="text-[15px] font-extrabold uppercase tracking-tight text-slate-800 truncate dark:text-white" title={c.valor}>
+                                    <span className="text-[13px] md:text-[15px] break-words font-extrabold uppercase tracking-tight text-slate-800 md:truncate dark:text-white" title={c.valor}>
                                         {c.valor}
                                     </span>
-                                    <span className="text-[10px] font-medium text-slate-400 mt-0.5 truncate" title={c.subvalor}>
+                                    <span className="text-[10px] font-medium text-slate-400 mt-0.5 break-words md:truncate" title={c.subvalor}>
                                         {c.subvalor}
                                     </span>
                                 </>

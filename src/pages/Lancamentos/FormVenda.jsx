@@ -404,7 +404,7 @@ const FormVenda = ({
                 unidadeDestino={formData.unidade}
             />
 
-            <form id="form-venda" onSubmit={handleSubmitVenda} className="space-y-4 animate-[fadeIn_0.3s_ease-out] pb-2 md:pb-10">
+            <form id="form-venda" onSubmit={handleSubmitVenda} className="space-y-4 animate-[fadeIn_0.3s_ease-out] pb-14 md:pb-10">
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
                         <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">

@@ -30,7 +30,7 @@ const TabContatosCrm = ({ historico }) => {
                         <div className={`absolute -left-[35px] w-8 h-8 rounded-full ${bgIcone} text-white flex items-center justify-center shadow-sm border-[3px] border-white dark:border-slate-900`}>
                             <Icone className="w-3.5 h-3.5" />
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm">
+                        <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 md:p-5 shadow-sm break-words">
                             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-2">
                                 <span className={`text-[10px] font-black uppercase tracking-widest ${h.alerta ? 'text-rose-600 dark:text-rose-400' : 'text-slate-500 dark:text-slate-400'}`}>{h.tipo_acao || tx("Anotação")}</span>
                                 <span className="text-[10px] font-bold text-slate-400">{formatarDataBR(h.created_at)}{' '}{tx("às")}{' '}{new Date(h.created_at).toLocaleTimeString(localeAtual(), {hour: '2-digit', minute: '2-digit'})}</span>

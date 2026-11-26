@@ -240,12 +240,12 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
     const abaMostrada = abasMenu.some(a => a.id === abaAtiva) ? abaAtiva : 'dados';
 
     return (
-        <div className="bg-[#F8FAFC] dark:bg-slate-900 rounded-[20px] p-5 md:p-6 flex flex-col min-h-[70vh] animate-[slideDown_0.2s_ease-out]">
+        <div className="bg-[#F8FAFC] dark:bg-slate-900 rounded-[20px] p-2.5 md:p-6 flex flex-col min-h-[70vh] animate-[slideDown_0.2s_ease-out]">
             
-            <div className="mb-5 flex items-center">
+            <div className="mb-3 md:mb-5 flex items-center">
                 <button 
                     onClick={onVoltar} 
-                    className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60"
+                    className="inline-flex items-center gap-1.5 h-10 md:h-auto px-4 md:py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm focus:outline-none dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60"
                 >
                     <ArrowLeft className="w-3.5 h-3.5" /> {rotuloVoltar}
                 </button>
@@ -256,7 +256,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
 
             <ResumoCardsFicha aluno={aluno} dadosFicha={dadosFicha} loading={loadingDados} />
 
-            <div className="flex bg-white p-1.5 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar mb-6 shadow-sm dark:bg-slate-900 dark:border-slate-800">
+            <div className="abas-rolaveis flex bg-white p-1.5 rounded-xl border border-slate-200/80 overflow-x-auto custom-scrollbar mb-3 md:mb-6 shadow-sm dark:bg-slate-900 dark:border-slate-800">
                 {abasMenu.map(aba => {
                     const Icone = aba.icon;
                     const ativo = abaMostrada === aba.id;
@@ -264,7 +264,7 @@ const FichaAluno = ({ aluno, onVoltar, rotuloVoltar = tx('Voltar para Lista'), o
                         <button 
                             key={aba.id} 
                             onClick={() => setAbaAtiva(aba.id)} 
-                            className={`flex-1 min-w-[100px] px-3 py-2.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 whitespace-nowrap outline-none ${
+                            className={`flex-1 min-w-[100px] h-10 md:h-auto px-3 md:py-2.5 rounded-lg text-[11px] font-semibold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 whitespace-nowrap outline-none ${
                                 ativo 
                                 ? 'bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400' 
                                 : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/60 dark:hover:text-slate-200'

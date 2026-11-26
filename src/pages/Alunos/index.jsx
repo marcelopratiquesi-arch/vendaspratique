@@ -341,9 +341,9 @@ const ModuloAlunos360 = ({
     };
 
     return (
-        <div className="space-y-6 max-w-[1400px] mx-auto animate-[fadeIn_0.25s_ease-out] pb-10">
+        <div className="space-y-3 md:space-y-6 max-w-[1400px] mx-auto animate-[fadeIn_0.25s_ease-out] pb-20 md:pb-10">
             {toastMsg && (
-                <div className="fixed bottom-6 right-6 z-[500] bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-700 flex items-center gap-2.5 animate-[fadeIn_0.15s_ease-out]">
+                <div className="fixed inset-x-4 justify-center md:justify-start md:inset-x-auto bottom-[calc(1rem+var(--faixa-instalar))] md:bottom-6 md:right-6 z-[500] bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl border border-slate-700 flex items-center gap-2.5 animate-[fadeIn_0.15s_ease-out]">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs font-black uppercase tracking-widest">{toastMsg}</span>
                 </div>

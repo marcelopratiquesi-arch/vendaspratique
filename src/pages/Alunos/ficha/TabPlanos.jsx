@@ -2,6 +2,7 @@ import React from 'react';
 import { Bookmark } from 'lucide-react';
 import { formatarDataBR } from '../utils.js';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
+import { CartaoCelular } from '../../../components/celular/Cartao.jsx';
 
 const formatMoney = (val) => {
     const n = parseFloat(val);
@@ -21,7 +22,19 @@ const TabPlanos = ({ planos, temVisaoGlobal }) => {
     }
 
     return (
-        <div className="animate-[fadeIn_0.2s_ease-out] overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-sm">
+        <>
+        {/* Celular (26/11/2026): um cartão por compra */}
+        <div className="md:hidden space-y-2 animate-[fadeIn_0.2s_ease-out]">
+            {planos.map((plano, idx) => (
+                <CartaoCelular key={plano.id}
+                    titulo={<span className={`uppercase ${idx === 0 ? 'text-emerald-700 dark:text-emerald-400' : ''}`}>{plano.produto}</span>}
+                    subtitulo={`${formatarDataBR(plano.data || plano.created_at)} · ${plano.vendedor || tx("Sistema")}`}
+                    direita={<span className="text-sm font-black text-slate-800 dark:text-slate-200">{formatMoney(plano.valor)}</span>}>
+                    {temVisaoGlobal && plano.unidade ? <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{plano.unidade}</p> : null}
+                </CartaoCelular>
+            ))}
+        </div>
+        <div className="hidden md:block animate-[fadeIn_0.2s_ease-out] overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-sm">
             <table className="w-full text-left whitespace-nowrap">
                 <thead className="bg-slate-50 dark:bg-slate-800/80">
                     <tr>
@@ -50,6 +63,7 @@ const TabPlanos = ({ planos, temVisaoGlobal }) => {
                 </tbody>
             </table>
         </div>
+        </>
     );
 };
 export default TabPlanos;

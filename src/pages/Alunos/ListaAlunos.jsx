@@ -46,7 +46,7 @@ export const BotaoCopiarPadrao = ({ valor, apenasDigitos = false, label = 'Copia
             onClick={handleClick}
             aria-label={label}
             title={copiado ? tx("Copiado!") : label}
-            className="p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all opacity-0 group-hover/cell:opacity-100 focus:opacity-100 shrink-0 ml-1 flex items-center justify-center"
+            className="p-2.5 -my-1.5 md:my-0 md:p-1 rounded-md text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-all opacity-100 md:opacity-0 md:group-hover/cell:opacity-100 focus:opacity-100 shrink-0 ml-1 flex items-center justify-center"
         >
             {copiado ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
         </button>
@@ -119,6 +119,90 @@ const OPCOES_ORDEM = [
 // da janela = 100vh ÷ zoom (no Pequeno, 0,8, dá os 125vh de antes)
 const ALTURA_TABELA = 'calc(100vh / var(--escala-interface, 1) - 400px)';
 
+// Cartão do aluno no celular (26/11/2026): tocar no nome ou no cartão abre a ficha
+const CartaoAluno = ({ aluno, unidadeMinha, ehAdmin, onSelecionarAluno, onEditarAluno, onExcluirAluno, onIniciarVendaAluno, onIniciarAvaliacaoAluno, onToastCopiado }) => {
+    const matriculaValida = aluno.matricula && String(aluno.matricula).toUpperCase() !== 'VISITANTE' ? aluno.matricula : '';
+    const acao = (fn) => (e) => { e.stopPropagation(); fn(aluno); };
+    const botao = 'flex-1 basis-[40%] h-10 flex items-center justify-center gap-1.5 rounded-xl border text-[11px] font-black uppercase tracking-widest disabled:opacity-40';
+    return (
+        <div onClick={() => onSelecionarAluno(aluno)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm cursor-pointer active:bg-slate-50 dark:active:bg-slate-800/60">
+            <div className="flex items-start gap-2.5">
+                {aluno.foto_url ? (
+                    <img src={aluno.foto_url} alt={aluno.nome} className="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-slate-700 shrink-0" />
+                ) : (
+                    <div className={`w-9 h-9 rounded-full border flex items-center justify-center text-[11px] font-black shrink-0 ${getAvatarColor(aluno.nome)}`}>{extrairIniciais(aluno.nome)}</div>
+                )}
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                        <button type="button" className="min-w-0 text-left text-[13px] font-black uppercase break-words text-slate-800 dark:text-white">{aluno.nome}</button>
+                        <BotaoCopiarPadrao valor={aluno.nome} label={tx("Copiar nome")} onCopiado={onToastCopiado} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-1.5 mt-0.5 text-[11px] font-bold text-slate-400 dark:text-slate-500">
+                        {matriculaValida && <span className="uppercase">{tx("Mat.")}{' '}{matriculaValida} ·</span>}
+                        <span className="inline-flex items-center">
+                            {aluno.cpf ? <span className="font-mono">{formatarCPF(aluno.cpf)}</span> : <span>{tx("sem CPF")}</span>}
+                            <BotaoCopiarPadrao valor={aluno.cpf} apenasDigitos label={tx("Copiar CPF")} onCopiado={onToastCopiado} />
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div className="mt-2 space-y-1">
+                <div className="flex items-center">
+                    <span className="font-mono text-[13px] font-semibold text-slate-700 dark:text-slate-200">{aluno.telefone ? formatarTelefone(aluno.telefone) : '—'}</span>
+                    <BotaoCopiarPadrao valor={aluno.telefone} apenasDigitos label={tx("Copiar telefone")} onCopiado={onToastCopiado} />
+                </div>
+                <div className="flex items-center min-w-0">
+                    <span className="min-w-0 break-all text-[11px] font-medium text-slate-500 dark:text-slate-400 lowercase">{aluno.email || tx("sem e-mail")}</span>
+                    <BotaoCopiarPadrao valor={aluno.email} label={tx("Copiar e-mail")} onCopiado={onToastCopiado} />
+                </div>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <EtiquetasUnidade unidades={aluno.unidades || (aluno.unidade ? [aluno.unidade] : [])} unidadeMinha={unidadeMinha} />
+                {aluno.situacao && <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${corSituacao(aluno.situacao)}`}>{aluno.situacao}</span>}
+                {aluno.situacao && aluno.situacao_desde && <span className="text-[10px] font-medium text-slate-400">{tx("Situação desde {data}", { data: new Date(aluno.situacao_desde).toLocaleDateString(localeAtual()) })}</span>}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Plano")}</span>
+                {aluno.ultimo_plano ? (
+                    <>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border break-words ${getCorPlano(aluno.ultimo_plano)}`}>{aluno.ultimo_plano}</span>
+                        {aluno.ultimo_plano_data && <span className="text-[10px] font-medium text-slate-400">{tx("em")}{' '}{formatarDataBR(aluno.ultimo_plano_data)}</span>}
+                    </>
+                ) : <span className="text-[13px] text-slate-300 dark:text-slate-600">—</span>}
+            </div>
+            {aluno.created_at && <p className="mt-1.5 text-[10px] font-medium text-slate-400">{tx("Cadastrado no sistema em {data}", { data: formatarDataBR(aluno.created_at) })}</p>}
+
+            {(onIniciarVendaAluno || onIniciarAvaliacaoAluno || onEditarAluno || ehAdmin) && (
+                <div className="mt-2.5 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    {onIniciarVendaAluno && (
+                        <button type="button" disabled={!aluno.cpf} onClick={acao(onIniciarVendaAluno)} className={`${botao} bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-300`}>
+                            <ShoppingCart className="w-4 h-4" />{tx("Vender")}
+                        </button>
+                    )}
+                    {onIniciarAvaliacaoAluno && (
+                        <button type="button" disabled={!aluno.cpf} onClick={acao(onIniciarAvaliacaoAluno)} className={`${botao} bg-amber-50 border-amber-200 text-amber-700 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300`}>
+                            <Dumbbell className="w-4 h-4" />{tx("Avaliar")}
+                        </button>
+                    )}
+                    {onEditarAluno && (
+                        <button type="button" onClick={acao(onEditarAluno)} className={`${botao} bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300`}>
+                            <UserRoundPen className="w-4 h-4" />{tx("Editar")}
+                        </button>
+                    )}
+                    {ehAdmin && (
+                        <button type="button" onClick={acao(onExcluirAluno)} className={`${botao} bg-white border-rose-200 text-rose-600 dark:bg-slate-900 dark:border-rose-500/30 dark:text-rose-400`}>
+                            <Trash2 className="w-4 h-4" />{tx("Excluir")}
+                        </button>
+                    )}
+                </div>
+            )}
+            {!aluno.cpf && (onIniciarVendaAluno || onIniciarAvaliacaoAluno) && <p className="mt-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">{tx("Aluno sem CPF cadastrado")}</p>}
+        </div>
+    );
+};
+
 const ListaAlunos = ({
     alunos = [], totalCount = 0, loading = false, erro = null,
     onTentarNovamente, onLimparFiltros, ehAdmin = false,
@@ -189,18 +273,18 @@ const ListaAlunos = ({
     return (
         <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden flex flex-col">
             {/* RESUMO + ORDENAR POR */}
-            <div className="px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="px-3 md:px-5 py-3 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-1">
                     {itensResumo.map((it, i) => {
                         const ativo = filtroSituacao === it.filtro;
                         return (
                             <React.Fragment key={it.filtro}>
-                                {i > 0 && <span className="text-slate-300 dark:text-slate-700 px-0.5">·</span>}
+                                {i > 0 && <span className="hidden md:inline text-slate-300 dark:text-slate-700 px-0.5">·</span>}
                                 <button
                                     type="button"
                                     onClick={() => onFiltrarSituacao?.(ativo && it.filtro !== 'TODAS' ? 'TODAS' : it.filtro)}
                                     title={it.filtro === 'TODAS' ? tx("Mostrar todas as situações") : tx("Filtrar por esta situação")}
-                                    className={`px-2 py-1 rounded-lg flex items-baseline gap-1.5 transition-colors ${ativo ? 'bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}
+                                    className={`min-h-10 md:min-h-0 max-md:items-center px-2 py-1 rounded-lg flex items-baseline gap-1.5 transition-colors ${ativo ? 'bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-500/10 dark:ring-blue-500/30' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'}`}
                                 >
                                     <span className={`text-base font-black leading-none ${it.cor}`}>{numero(it.valor)}</span>
                                     <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{it.rotulo}</span>
@@ -209,12 +293,12 @@ const ListaAlunos = ({
                         );
                     })}
                 </div>
-                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    {tx("Ordenar por")}
+                <label className="w-full md:w-auto flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span className="shrink-0">{tx("Ordenar por")}</span>
                     <select
                         value={valorOrdem}
                         onChange={(e) => { const [col, dir] = e.target.value.split('|'); onDefinirOrdem?.(col, dir); }}
-                        className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        className="flex-1 min-w-0 h-10 md:h-auto md:flex-none bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1.5 text-[11px] font-bold normal-case tracking-normal text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                     >
                         {opcoesOrdem.map(([v, r]) => <option key={v} value={v}>{tx(r)}</option>)}
                     </select>
@@ -223,7 +307,7 @@ const ListaAlunos = ({
 
             {/* BARRA DE ROLAGEM DE CIMA (só quando a tabela não cabe na largura) */}
             {rolagemLateral && (
-                <div ref={topoRef} onScroll={() => igualar(topoRef.current, corpoRef.current)} className="overflow-x-auto overflow-y-hidden rolagem-grossa border-b border-slate-100 dark:border-slate-800">
+                <div ref={topoRef} onScroll={() => igualar(topoRef.current, corpoRef.current)} className="hidden md:block overflow-x-auto overflow-y-hidden rolagem-grossa border-b border-slate-100 dark:border-slate-800">
                     <div style={{ width: larguraTabela, height: 1 }} />
                 </div>
             )}
@@ -231,7 +315,7 @@ const ListaAlunos = ({
             <div
                 ref={corpoRef}
                 onScroll={() => igualar(corpoRef.current, topoRef.current)}
-                className="overflow-auto rolagem-grossa"
+                className="hidden md:block overflow-auto rolagem-grossa"
                 style={{ maxHeight: ALTURA_TABELA, minHeight: 280 }}
             >
                 <table ref={tabelaRef} className="w-full text-left border-collapse min-w-[860px]">
@@ -409,27 +493,46 @@ const ListaAlunos = ({
                 </table>
             </div>
 
+            {/* CELULAR (26/11/2026): um cartão por aluno, com tudo que a linha da tabela faz */}
+            <div className="md:hidden p-2.5 space-y-2.5 bg-slate-50 dark:bg-slate-950/40">
+                {loading ? (
+                    Array.from({ length: 4 }).map((_, idx) => <div key={idx} className="h-36 rounded-2xl bg-slate-200/70 dark:bg-slate-800 animate-pulse" />)
+                ) : alunos.length === 0 ? (
+                    <div className="py-16 flex flex-col items-center text-center">
+                        <div className="w-12 h-12 rounded-full bg-white dark:bg-slate-800 text-slate-300 dark:text-slate-500 flex items-center justify-center mb-3 border border-slate-100 dark:border-slate-700"><Users className="w-5 h-5" /></div>
+                        <p className="text-sm font-black text-slate-600 dark:text-slate-300 uppercase">{tx("Nenhum aluno encontrado")}</p>
+                        <button onClick={onLimparFiltros} className="mt-4 h-10 px-4 rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-black uppercase tracking-widest">{tx("Limpar Filtros")}</button>
+                    </div>
+                ) : (
+                    alunos.map((aluno) => (
+                        <CartaoAluno key={aluno.id} aluno={aluno} unidadeMinha={unidadeMinha} ehAdmin={ehAdmin}
+                            onSelecionarAluno={onSelecionarAluno} onEditarAluno={onEditarAluno} onExcluirAluno={onExcluirAluno}
+                            onIniciarVendaAluno={onIniciarVendaAluno} onIniciarAvaliacaoAluno={onIniciarAvaliacaoAluno} onToastCopiado={onToastCopiado} />
+                    ))
+                )}
+            </div>
+
             {avisoLimite && (
                 <p className="px-6 py-2.5 text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-100 dark:border-amber-900/40">{avisoLimite}</p>
             )}
 
-            <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="flex items-center gap-3 text-xs font-bold text-slate-500 dark:text-slate-400">
+            <div className="px-3 md:px-6 py-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs font-bold text-slate-500 dark:text-slate-400">
                     <span>{tx("Exibindo")}{' '}<strong className="text-slate-800 dark:text-white">{inicioItem}–{fimItem}</strong>{' '}{tx("de")}{' '}<strong className="text-blue-600 dark:text-blue-400">{totalCount.toLocaleString(localeAtual())}</strong>{' '}{tx("alunos")}</span>
-                    <span className="text-slate-300 dark:text-slate-700">|</span>
+                    <span className="hidden md:inline text-slate-300 dark:text-slate-700">|</span>
                     <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-black uppercase tracking-widest">{tx("Por página:")}</span>
                         {[25, 50, 100].map((qtd) => (
-                            <button key={qtd} onClick={() => { setItensPorPagina(qtd); setPagina(1); }} className={`px-2.5 py-1 rounded-lg text-[10px] font-black transition-all ${itensPorPagina === qtd ? 'bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
+                            <button key={qtd} onClick={() => { setItensPorPagina(qtd); setPagina(1); }} className={`h-9 min-w-10 md:h-auto md:min-w-0 px-2.5 md:py-1 rounded-lg text-[10px] font-black transition-all ${itensPorPagina === qtd ? 'bg-blue-600 text-white shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'}`}>
                                 {qtd}
                             </button>
                         ))}
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1 || loading} className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><ChevronLeft className="w-4 h-4" />{' '}{tx("Anterior")}</button>
-                    <span className="px-3 py-1.5 text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">{tx("Página")}{' '}{pagina}{' '}{tx("de")}{' '}{totalPaginas}</span>
-                    <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas || loading} className="inline-flex items-center gap-1 px-3.5 py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">{tx("Próxima")}{' '}<ChevronRight className="w-4 h-4" /></button>
+                <div className="w-full md:w-auto flex items-center justify-between md:justify-start gap-2">
+                    <button onClick={() => setPagina(p => Math.max(1, p - 1))} disabled={pagina <= 1 || loading} className="inline-flex items-center gap-1 h-10 md:h-auto px-3 md:px-3.5 md:py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"><ChevronLeft className="w-4 h-4" />{' '}{tx("Anterior")}</button>
+                    <span className="px-1 md:px-3 py-1.5 text-center text-[11px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-widest">{tx("Página")}{' '}{pagina}{' '}{tx("de")}{' '}{totalPaginas}</span>
+                    <button onClick={() => setPagina(p => Math.min(totalPaginas, p + 1))} disabled={pagina >= totalPaginas || loading} className="inline-flex items-center gap-1 h-10 md:h-auto px-3 md:px-3.5 md:py-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-black text-slate-600 dark:text-slate-300 disabled:opacity-40 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">{tx("Próxima")}{' '}<ChevronRight className="w-4 h-4" /></button>
                 </div>
             </div>
         </div>

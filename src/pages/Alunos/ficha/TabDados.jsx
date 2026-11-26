@@ -70,16 +70,16 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
     const rowBorder = "border-b border-slate-200/50 dark:border-slate-700/50";
     const labelContainer = "flex items-center gap-2.5 text-slate-500 dark:text-slate-400 shrink-0";
     const labelText = "text-[11px] font-bold uppercase tracking-wider";
-    const valueContainer = "flex items-center gap-3 self-end sm:self-auto min-w-0";
+    const valueContainer = "flex items-center gap-3 self-end sm:self-auto min-w-0 max-w-full";
     const valueText = "text-[13px] font-bold text-slate-800 dark:text-slate-100";
     const nestedContainer = "bg-[#F8FAFC] dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl flex flex-col";
-    const pillButton = "flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm dark:text-slate-400 dark:hover:text-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800/60";
+    const pillButton = "min-h-10 md:min-h-0 flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-slate-500 hover:text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm dark:text-slate-400 dark:hover:text-slate-200 dark:bg-slate-900 dark:border-slate-800 dark:hover:bg-slate-800/60";
 
     return (
         <div className="space-y-5 animate-[fadeIn_0.2s_ease-out]">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 
-                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-3 sm:p-6 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
                             <User className="w-4 h-4 text-slate-400" />{' '}{tx("Pessoal")}
@@ -125,7 +125,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                     </div>
                 </div>
 
-                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-3 sm:p-6 shadow-sm flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-xs font-extrabold uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
                             <Phone className="w-4 h-4 text-slate-400" />{' '}{tx("Contatos")}
@@ -143,7 +143,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                             <div className={valueContainer}>
                                 <span className={valueText}>{formatarTelefone(telefoneReal)}</span>
                                 {linkWhatsApp ? (
-                                    <a href={linkWhatsApp} target="_blank" rel="noopener noreferrer" title={tx("Abrir no WhatsApp")} className="flex items-center justify-center shrink-0 w-7 h-7 bg-emerald-500 hover:bg-emerald-600 rounded-md text-white shadow-sm transition-colors">
+                                    <a href={linkWhatsApp} target="_blank" rel="noopener noreferrer" title={tx("Abrir no WhatsApp")} className="flex items-center justify-center shrink-0 w-9 h-9 md:w-7 md:h-7 bg-emerald-500 hover:bg-emerald-600 rounded-md text-white shadow-sm transition-colors">
                                         <MessageCircle className="w-3.5 h-3.5" />
                                     </a>
                                 ) : (
@@ -157,7 +157,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
                                 <Mail className="w-3.5 h-3.5" /> <span className={labelText}>{tx("E-mail")}</span>
                             </div>
                             <div className={valueContainer}>
-                                <span className={`${valueText} lowercase truncate`}>{emailReal || '—'}</span>
+                                <span className={`${valueText} min-w-0 lowercase break-all md:truncate`}>{emailReal || '—'}</span>
                                 {emailReal ? (
                                     <CopyButton value={emailReal} label={tx("Copiar E-mail")} className="!w-7 !h-7 !min-w-[28px] !bg-white !rounded-md shadow-sm" />
                                 ) : (
@@ -196,7 +196,7 @@ const TabDados = ({ aluno, onEditar, temVisaoGlobal }) => {
             )}
 
             {temVisaoGlobal && (
-                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                <div className="bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-3 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 dark:bg-blue-500/10 dark:text-blue-400">
                             <Building2 className="w-4 h-4" />

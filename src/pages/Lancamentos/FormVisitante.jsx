@@ -493,7 +493,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 unidadeDestino={leadForm.unidade}
             />
 
-            <form id="form-visitante" onSubmit={handleSubmitVisitante} className="max-w-3xl mx-auto space-y-4 md:space-y-6 animate-[fadeIn_0.3s_ease-out] pb-2 md:pb-10">
+            <form id="form-visitante" onSubmit={handleSubmitVisitante} className="max-w-3xl mx-auto space-y-4 md:space-y-6 animate-[fadeIn_0.3s_ease-out] pb-14 md:pb-10">
                 
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">

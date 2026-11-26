@@ -407,7 +407,7 @@ const AssinaturasPratique = ({ usuarioLogado, data = [], setData, colaboradores 
     const temFiltroAtivo = filtrosAtivos.length > 0 || presetPeriodo !== 'hoje';
 
     return (
-        <div className="space-y-3 md:space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto">
+        <div className="space-y-3 md:space-y-6 animate-[fadeIn_0.3s_ease-out] max-w-[1400px] mx-auto pb-16 md:pb-0">
             
             {/* ========================================== */}
             {/* 🚀 FILTROS DE HISTÓRICO (versão compacta) */}

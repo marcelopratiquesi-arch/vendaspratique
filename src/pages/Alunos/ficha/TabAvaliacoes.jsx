@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { formatarDataBR } from '../utils.js';
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
+import { CartaoCelular, GradeCartao, NumeroCartao } from '../../../components/celular/Cartao.jsx';
+import { CamadaDoApp } from '../../Lancamentos/celular/camada.jsx';
 
 // ==========================================
 // FUNÇÕES DE APOIO
@@ -278,6 +280,7 @@ const ModalVerAvaliacao = ({ avaliacoes, indiceInicial, alunoNome, perguntasPorI
     ];
 
     return (
+        <CamadaDoApp>
         <div
             className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm sm:p-4 animate-[fadeIn_0.2s_ease-out]"
             role="dialog"
@@ -285,28 +288,28 @@ const ModalVerAvaliacao = ({ avaliacoes, indiceInicial, alunoNome, perguntasPorI
             aria-label={tx("Avaliação física")}
             onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
         >
-            <div className="bg-slate-50 dark:bg-slate-900 w-full h-full sm:h-auto sm:max-h-[92vh] max-w-4xl sm:rounded-[28px] shadow-2xl flex flex-col overflow-hidden">
+            <div className="bg-slate-50 dark:bg-slate-900 w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] max-w-4xl sm:rounded-[28px] shadow-2xl flex flex-col overflow-hidden">
 
                 {/* Cabeçalho */}
-                <div className="bg-white dark:bg-slate-800 px-5 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                <div className="bg-white dark:bg-slate-800 px-3 sm:px-6 py-3 sm:py-4 pt-[max(0.75rem,env(safe-area-inset-top))] sm:pt-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-3 shrink-0">
                     <div className="flex items-center gap-3 min-w-0">
                         <div className="w-11 h-11 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 rounded-xl flex items-center justify-center shrink-0">
                             <ClipboardList className="w-5 h-5" />
                         </div>
                         <div className="min-w-0">
                             <p className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">{tx("Folha da avaliação física")}</p>
-                            <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight truncate">{alunoNome || av.aluno || av.nome_aluno || tx("Aluno")}</h2>
-                            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide truncate">
+                            <h2 className="text-base sm:text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight break-words sm:truncate">{alunoNome || av.aluno || av.nome_aluno || tx("Aluno")}</h2>
+                            <p className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wide sm:truncate">
                                 {formatarDataBR(av.data || av.created_at)}{av.hora ? " " + tx("às {v1}", { v1: String(av.hora).substring(0, 5) }) + "" : ''}{' '}{tx("• Prof.")}{' '}{nomeCurto(av.professor)}{av.unidade ? ` • ${av.unidade}` : ''}
                             </p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-end gap-2 max-sm:w-full max-sm:justify-between">
                         {avaliacoes.length > 1 && (
                             <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-1">
-                                <button type="button" onClick={() => setIndice((i) => Math.max(0, i - 1))} disabled={indice === 0} aria-label={tx("Avaliação anterior")} className="p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => setIndice((i) => Math.max(0, i - 1))} disabled={indice === 0} aria-label={tx("Avaliação anterior")} className="min-w-10 min-h-10 md:min-w-0 md:min-h-0 flex items-center justify-center p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronLeft className="w-4 h-4" /></button>
                                 <span className="px-2 text-[10px] font-black text-slate-500 dark:text-slate-300">{indice + 1} / {avaliacoes.length}</span>
-                                <button type="button" onClick={() => setIndice((i) => Math.min(avaliacoes.length - 1, i + 1))} disabled={indice === avaliacoes.length - 1} aria-label={tx("Próxima avaliação")} className="p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronRight className="w-4 h-4" /></button>
+                                <button type="button" onClick={() => setIndice((i) => Math.min(avaliacoes.length - 1, i + 1))} disabled={indice === avaliacoes.length - 1} aria-label={tx("Próxima avaliação")} className="min-w-10 min-h-10 md:min-w-0 md:min-h-0 flex items-center justify-center p-1.5 text-slate-500 dark:text-slate-300 disabled:opacity-30 hover:bg-white dark:hover:bg-slate-600 rounded-md transition-colors"><ChevronRight className="w-4 h-4" /></button>
                             </div>
                         )}
                         <button ref={fecharRef} type="button" onClick={onClose} aria-label={tx("Fechar")} className="w-10 h-10 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300 rounded-full flex items-center justify-center transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500"><X className="w-5 h-5" /></button>
@@ -399,14 +402,14 @@ const ModalVerAvaliacao = ({ avaliacoes, indiceInicial, alunoNome, perguntasPorI
 
                 {/* Rodapé */}
                 {(av.arquivo_inbody_url || (podeEditar && onEditar)) && (
-                    <div className="bg-white dark:bg-slate-800 px-5 py-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap justify-end gap-2 shrink-0">
+                    <div className="bg-white dark:bg-slate-800 px-3 sm:px-5 py-3 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-4 border-t border-slate-200 dark:border-slate-700 flex flex-wrap justify-end gap-2 shrink-0">
                         {podeEditar && onEditar && (
-                            <button type="button" onClick={() => onEditar(av)} className="px-5 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2">
+                            <button type="button" onClick={() => onEditar(av)} className="max-sm:flex-1 justify-center px-5 py-3 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-600 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2">
                                 <Pencil className="w-4 h-4" />{' '}{tx("Editar avaliação")}
                             </button>
                         )}
                         {av.arquivo_inbody_url && (
-                            <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2">
+                            <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className="max-sm:flex-1 justify-center px-5 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2">
                                 <FileText className="w-4 h-4" />{' '}{tx("Abrir arquivo InBody")}
                             </a>
                         )}
@@ -414,6 +417,7 @@ const ModalVerAvaliacao = ({ avaliacoes, indiceInicial, alunoNome, perguntasPorI
                 )}
             </div>
         </div>
+        </CamadaDoApp>
     );
 };
 
@@ -458,8 +462,44 @@ const TabAvaliacoes = ({ avaliacoes, alunoNome, podeExcluir, onExcluir, podeEdit
                 <CartaoEvolucao titulo={tx("% Gordura")} valores={cronologica.map((a) => parseNum(a.pgc))} sufixo="%" tipo="gordura" corLinha="stroke-rose-500" />
             </div>
 
+            {/* Celular (26/11/2026): um cartão por avaliação (tocar abre a folha) */}
+            <div className="md:hidden space-y-2">
+                {paraTabela.map((av) => {
+                    const m = massaMuscular(av);
+                    const g = gorduraKg(av);
+                    const botao = 'flex-1 h-10 inline-flex items-center justify-center gap-1.5 rounded-xl border text-[11px] font-black uppercase tracking-widest';
+                    return (
+                        <CartaoCelular key={av.id}
+                            titulo={`${formatarDataBR(av.data || av.created_at)}${av.hora ? ` · ${String(av.hora).substring(0, 5)}` : ''}`}
+                            subtitulo={<span className="uppercase">{nomeCurto(av.professor)}</span>}>
+                            <GradeCartao colunas={2}>
+                                <NumeroCartao rotulo={tx("Peso")} valor={fmt(av.peso) ? tx("{v1} kg", { v1: fmt(av.peso) }) : '—'} />
+                                <NumeroCartao rotulo={tx("Massa muscular")} valor={m !== null ? tx("{v1} kg", { v1: fmt(m) }) : '—'} cor="text-blue-600 dark:text-blue-400" />
+                                <NumeroCartao rotulo={tx("Gordura")} valor={g !== null ? tx("{v1} kg", { v1: fmt(g) }) : '—'} cor="text-orange-600 dark:text-orange-400" />
+                                <NumeroCartao rotulo={tx("% Gordura")} valor={fmt(av.pgc) ? `${fmt(av.pgc)}%` : '—'} cor="text-rose-600 dark:text-rose-400" />
+                            </GradeCartao>
+                            <div className="mt-2.5 flex gap-2">
+                                <button type="button" onClick={() => abrir(av.id)} className={`${botao} bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800`}>
+                                    <Eye className="w-3.5 h-3.5" />{tx("Ver avaliação")}
+                                </button>
+                                {av.arquivo_inbody_url && (
+                                    <a href={av.arquivo_inbody_url} target="_blank" rel="noopener noreferrer" className={`${botao} !flex-none px-3 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 border-blue-200 dark:border-blue-800`}>
+                                        <FileText className="w-3.5 h-3.5" />PDF
+                                    </a>
+                                )}
+                                {podeExcluir && onExcluir && (
+                                    <button type="button" onClick={() => onExcluir(av.id)} aria-label={tx("Excluir avaliação")} className="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl border border-rose-200 text-rose-600 dark:border-rose-500/30 dark:text-rose-400">
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </div>
+                        </CartaoCelular>
+                    );
+                })}
+            </div>
+
             {/* Tabela */}
-            <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-sm">
+            <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-sm">
                 <table className="w-full text-left whitespace-nowrap">
                     <thead className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
                         <tr>

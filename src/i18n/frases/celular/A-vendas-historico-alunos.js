@@ -3,6 +3,7 @@
 // Formato: "texto em português": "tradução".
 export default {
     'en-US': {
+        "Avaliar": "Assess",
         "Data (mais novas)": "Date (newest)",
         "Data (mais antigas)": "Date (oldest)",
         "Aluno (A a Z)": "Student (A to Z)",
@@ -18,6 +19,7 @@ export default {
         "Escolha a pessoa para enviar": "Choose the person to send",
     },
     'es-AR': {
+        "Avaliar": "Evaluar",
         "Data (mais novas)": "Fecha (más nuevas)",
         "Data (mais antigas)": "Fecha (más antiguas)",
         "Aluno (A a Z)": "Socio (A a Z)",

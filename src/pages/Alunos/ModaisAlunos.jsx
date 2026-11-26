@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, X, AlertTriangle, Loader2, ShieldAlert } from 'lucide-react';
 import { formatarCPF, executarExclusaoAluno } from './utils.js';
 import { tx } from '../../i18n/traduzir.js';
+import { CamadaDoApp } from '../Lancamentos/celular/camada.jsx';
 
 export const ModalConfirmarExclusaoAluno = ({
     isOpen,
@@ -51,9 +52,10 @@ export const ModalConfirmarExclusaoAluno = ({
     };
 
     return (
+        <CamadaDoApp>
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]">
-            <div className="bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-800">
-                <div className="bg-slate-900 px-6 py-5 flex items-center justify-between">
+            <div className="bg-white dark:bg-slate-900 rounded-[24px] shadow-2xl w-full max-w-md max-h-[90dvh] md:max-h-full overflow-y-auto border border-slate-200 dark:border-slate-800">
+                <div className="bg-slate-900 px-4 md:px-6 py-4 md:py-5 gap-2 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-400 flex items-center justify-center">
                             <Trash2 className="w-5 h-5" />
@@ -70,13 +72,13 @@ export const ModalConfirmarExclusaoAluno = ({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                        className="shrink-0 w-10 h-10 md:w-auto md:h-auto flex items-center justify-center p-2 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                <form onSubmit={handleConfirmar} className="p-6 space-y-4">
+                <form onSubmit={handleConfirmar} className="p-4 md:p-6 space-y-4">
                     <div className="bg-slate-50 dark:bg-slate-800/70 p-4 rounded-2xl border border-slate-200 dark:border-slate-700">
                         <p className="text-xs font-black text-slate-800 dark:text-white uppercase">
                             {aluno.nome}
@@ -115,18 +117,18 @@ export const ModalConfirmarExclusaoAluno = ({
                         />
                     </div>
 
-                    <div className="pt-3 flex justify-end gap-3">
+                    <div className="pt-3 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            className="h-11 sm:h-auto px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                         >
                             {tx("Cancelar")}
                         </button>
                         <button
                             type="submit"
                             disabled={excluindo || !motivo.trim()}
-                            className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
+                            className="h-11 sm:h-auto justify-center px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white text-xs font-black uppercase tracking-widest transition-all flex items-center gap-2 shadow-sm"
                         >
                             {excluindo ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                             {tx("Confirmar Exclusão")}
@@ -135,5 +137,6 @@ export const ModalConfirmarExclusaoAluno = ({
                 </form>
             </div>
         </div>
+        </CamadaDoApp>
     );
 };
