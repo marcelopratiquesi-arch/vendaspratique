@@ -8,7 +8,7 @@ import { tx } from '../../i18n/traduzir.js';
 // "Mais" abre a janela "Como foi o contato?" (onde fica o "Não quer").
 // Interessado já marcado: clicar de novo desmarca (volta para "Contatado"), como antes na Migração.
 // ==========================================
-const base = 'px-2.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60 transition-colors';
+const base = 'max-md:h-11 max-md:justify-center max-md:rounded-xl px-2.5 py-1.5 rounded-lg border text-[10px] font-black uppercase tracking-widest flex items-center gap-1 disabled:opacity-60 transition-colors';
 
 const BotoesResultadoLinha = ({ linha, ocupado, onEscolher, onMais, onDesmarcarInteressado }) => {
     const interessado = linha.situacao === 'INTERESSADO';

@@ -1,4 +1,5 @@
 import { supabase } from '../../supabaseClient.js';
+import { ligarPara } from '../../components/celular/telefone.js';
 import { MENSAGENS_PADRAO, apenasDigitos, diaISO } from './utils';
 import { textoDoBanco, definirMensagensEmUso } from './embaralhador.js';
 
@@ -63,11 +64,8 @@ export const carregarContatosFeitosPeriodo = async ({ inicio, fim }) => {
 export const ehSemWhatsApp = (canal) => !!canal && canal !== 'WHATSAPP' && canal !== 'LIGACAO';
 export const rotuloCanal = (canal) => (canal === 'WHATSAPP' ? 'WhatsApp' : canal === 'LIGACAO' ? 'Ligação' : 'Sem WhatsApp');
 
-// Abre a ligação no MicroSIP (o mesmo botão de Ligar do Kanban)
-export const ligarPeloSip = (telefone) => {
-    const numero = apenasDigitos(telefone);
-    if (numero) window.location.href = `sip:${numero}`;
-};
+// Abre a ligação: MicroSIP no computador, discador no celular (26/11/2026)
+export const ligarPeloSip = (telefone) => ligarPara(apenasDigitos(telefone));
 
 // Grava o "Marcar como feito". Se outra pessoa marcou antes (registro repetido), considera feito.
 // Devolve false quando já estava gravado (não gravou de novo).

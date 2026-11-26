@@ -13,6 +13,7 @@ import { JanelaNaoContatar } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import JanelaResultadoContato from './JanelaResultadoContato';
 import BotoesResultadoLinha from './BotoesResultadoLinha';
+import CartaoAlunoFila, { BotaoCartaoFila } from './CartaoAlunoFila';
 import {
     ANDAMENTOS_BASE, VISOES_FILA, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
     semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR
@@ -437,10 +438,10 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
     const seletor = 'bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer';
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-6 animate-[fadeIn_0.3s_ease-out]">
+        <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-3 md:p-6 animate-[fadeIn_0.3s_ease-out]">
             <div className="flex flex-wrap justify-between items-start gap-4 mb-5 border-b border-slate-100 dark:border-slate-800 pb-5">
                 <div>
-                    <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+                    <h3 className="text-lg md:text-xl font-black text-slate-800 dark:text-white tracking-tight flex flex-wrap items-center gap-2">
                         <LifeBuoy className="w-6 h-6 text-blue-500" />{' '}{tx("Resgate de alunos")}
                         {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                     </h3>
@@ -448,7 +449,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 </div>
                 <div className="flex flex-wrap gap-2">
                     {CONTADORES.map(c => (
-                        <button key={c.chave} type="button" onClick={() => setFiltroAndamento(c.filtro)} className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border hover:brightness-95 ${c.classe} ${filtroAndamento === c.filtro ? 'ring-2 ring-blue-500/40' : ''}`}>{contagem[c.chave]} {tx(c.rotulo)}</button>
+                        <button key={c.chave} type="button" onClick={() => setFiltroAndamento(c.filtro)} className={`max-md:min-h-10 max-md:px-3 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border hover:brightness-95 ${c.classe} ${filtroAndamento === c.filtro ? 'ring-2 ring-blue-500/40' : ''}`}>{contagem[c.chave]} {tx(c.rotulo)}</button>
                     ))}
                 </div>
             </div>
@@ -465,49 +466,49 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
             )}
 
             {/* PUXAR PARA A MINHA FILA */}
-            <div className="mb-5 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-4 flex flex-wrap items-center gap-3">
-                <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para o meu funil:")}</span>
-                <select value={tipoPuxar} onChange={(e) => setTipoPuxar(e.target.value)} className={seletor}>
+            <div className="mb-5 bg-blue-50/60 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-3 md:p-4 flex flex-wrap items-center gap-2 md:gap-3">
+                <span className="max-md:w-full text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Puxar para o meu funil:")}</span>
+                <select value={tipoPuxar} onChange={(e) => setTipoPuxar(e.target.value)} className={`${seletor} max-md:h-11 max-md:flex-1 max-md:min-w-0`}>
                     {TIPOS_RESGATE.map(t => <option key={t.val} value={t.val}>{tx(t.label)}</option>)}
                 </select>
-                <select value={qtdPuxar} onChange={(e) => setQtdPuxar(Number(e.target.value))} className={seletor}>
+                <select value={qtdPuxar} onChange={(e) => setQtdPuxar(Number(e.target.value))} className={`${seletor} max-md:h-11 max-md:flex-1 max-md:min-w-0`}>
                     {QUANTIDADES_PUXAR.map(q => <option key={q} value={q}>{q}{' '}{tx("alunos")}</option>)}
                 </select>
-                <button type="button" onClick={() => puxar()} disabled={puxando || totalDisponiveis === 0 || faltaSql === 'RESGATE'} className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                <button type="button" onClick={() => puxar()} disabled={puxando || totalDisponiveis === 0 || faltaSql === 'RESGATE'} className="max-md:w-full max-md:h-11 max-md:justify-center px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                     {puxando ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}{' '}{tx("Puxar")}
                 </button>
                 <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">{totalDisponiveis}{' '}{tx("disponível(is)")}{' '}{tx("· os cadastrados mais recentemente vêm primeiro")}</span>
                 {paraEnviar.length > 0 && (
-                    <button type="button" onClick={enviarTodosParaCrm} disabled={puxando} className="px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-500/40 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-60" title={tx("Passa para o seu funil (Novo, com a etiqueta) todos os alunos que já estavam na sua fila")}>
+                    <button type="button" onClick={enviarTodosParaCrm} disabled={puxando} className="max-md:w-full max-md:min-h-11 max-md:justify-center px-3 py-2 rounded-xl border border-blue-300 dark:border-blue-500/40 bg-white dark:bg-slate-900 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 disabled:opacity-60" title={tx("Passa para o seu funil (Novo, com a etiqueta) todos os alunos que já estavam na sua fila")}>
                         <MessagesSquare className="w-4 h-4" />{' '}{tx("Enviar {qtd} da minha fila para o CRM", { qtd: paraEnviar.length })}
                     </button>
                 )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+            <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
+                <div className="flex max-md:grid max-md:grid-cols-2 max-md:w-full bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
                     {VISOES_FILA.map(v => (
-                        <button key={v.val} type="button" onClick={() => setVisao(v.val)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visao === v.val ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
+                        <button key={v.val} type="button" onClick={() => setVisao(v.val)} className={`max-md:h-10 max-md:justify-center max-md:px-1 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5 ${visao === v.val ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>
                             {v.val === 'SEM_TELEFONE' && <PhoneOff className="w-3.5 h-3.5" />}
                             {tx(v.label)}
                             {v.val === 'SEM_TELEFONE' && totalSemTelefone > 0 && <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-black flex items-center justify-center">{totalSemTelefone}</span>}
                         </button>
                     ))}
                 </div>
-                <div className="relative">
+                <div className="relative max-md:w-full">
                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar por nome, CPF ou telefone")} className="w-64 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30" />
-                    {busca && <button type="button" onClick={() => setBusca('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-3.5 h-3.5" /></button>}
+                    <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx("Buscar por nome, CPF ou telefone")} className="w-full sm:w-64 max-md:h-11 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30" />
+                    {busca && <button type="button" onClick={() => setBusca('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 max-md:right-0 max-md:p-3.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-3.5 h-3.5" /></button>}
                 </div>
-                <select value={filtroAndamento} onChange={(e) => setFiltroAndamento(e.target.value)} className={seletor}>
+                <select value={filtroAndamento} onChange={(e) => setFiltroAndamento(e.target.value)} className={`${seletor} max-md:h-11 max-md:flex-1 max-md:min-w-0`}>
                     {FILTROS_ANDAMENTO.map(f => <option key={f.val} value={f.val}>{tx(f.label)}</option>)}
                 </select>
-                <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className={seletor}>
+                <select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value)} className={`${seletor} max-md:h-11 max-md:flex-1 max-md:min-w-0`}>
                     {TIPOS_RESGATE.map(t => <option key={t.val} value={t.val}>{tx(t.label)}</option>)}
                 </select>
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{filtradas.length}{' '}{tx("aluno(s)")}</span>
                 {visao === 'SEM_TELEFONE' && filtradas.length > 0 && (
-                    <button type="button" onClick={copiarSemTelefone} className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" title={tx("Copia nome, CPF e matrícula para procurar os telefones no TECACE")}>
+                    <button type="button" onClick={copiarSemTelefone} className="max-md:h-11 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5" title={tx("Copia nome, CPF e matrícula para procurar os telefones no TECACE")}>
                         <Copy className="w-3.5 h-3.5" />{' '}{tx("Copiar lista")}
                     </button>
                 )}
@@ -518,7 +519,60 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 </p>
             )}
 
-            <div className="overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl">
+            {/* CELULAR: um cartão por aluno (as mesmas ações da tabela) */}
+            <div className="md:hidden space-y-2">
+                {filtradas.length === 0 ? (
+                    <p className="text-center py-12 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        {carregando ? tx("Carregando...") : visao === 'FILA' ? tx("Sua lista está vazia. Use \"Puxar\": os alunos vão direto para o seu funil.") : tx("Nenhum aluno neste filtro.")}
+                    </p>
+                ) :
+                    filtradas.slice(0, limite).map(l => {
+                            const a = ANDAMENTOS[l.etapa] || ANDAMENTOS.NAO_CONTATADO;
+                            const ocupado = salvando === l.aluno_id;
+                            const podeTrabalhar = l.minhaFila && !l.noFunil && l.etapa !== 'VOLTOU' && l.etapa !== 'GELADEIRA';
+                            const jaHoje = contatadosHoje.has(l.aluno_id);
+                            const detalhe = l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) })
+                                : l.noFunil ? `${tx(l.noFunil.fase)}${l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}` : detalheEtapa(l);
+                            const botoes = (
+                                <>
+                                    {l.semTel && <BotaoCartaoFila icone={PencilLine} cor="azulCheio" rotulo={tx("Atualizar telefone")} onClick={() => setContatoFicha(l)} />}
+                                    {l.noFunil && l.minhaFila && <BotaoCartaoFila icone={MessagesSquare} cor="azulCheio" rotulo={tx("Abrir no CRM")} onClick={() => onAbrirNoCrm?.(l.noFunil.lead)} />}
+                                    {podeTrabalhar && (
+                                        <>
+                                            <BotaoCartaoFila icone={ocupado ? Loader2 : MessageCircle} girando={ocupado} cor="verde" rotulo={tx("WhatsApp")} desabilitado={ocupado} onClick={() => abrirWhatsApp(l)} />
+                                            <BotaoCartaoFila icone={PhoneCall} rotulo={tx("Ligar")} desabilitado={ocupado} onClick={() => ligar(l)} />
+                                        </>
+                                    )}
+                                    {l.disponivel && visao !== 'FILA' && <BotaoCartaoFila icone={ArrowRightCircle} cor="azulCheio" rotulo={tx("Pegar para mim")} desabilitado={puxando || faltaSql === 'RESGATE'} onClick={() => puxar(l)} />}
+                                </>
+                            );
+                            const avisos = (
+                                <>
+                                    {l.noFunil && !l.minhaFila && <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx("No funil de {nome}", { nome: String(l.dono || '').split(' ')[0] })}</p>}
+                                    {podeTrabalhar && jaHoje && <p className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 flex items-center gap-1"><Check className="w-3.5 h-3.5" />{tx("Contatado hoje")}</p>}
+                                </>
+                            );
+                            const resultado = podeTrabalhar && l.situacao !== 'NAO_CONTATADO' ? (
+                                <BotoesResultadoLinha linha={l} ocupado={ocupado} onEscolher={(tipo) => aplicarResultado(l, tipo)} onMais={() => setResultadoPara(l)} onDesmarcarInteressado={() => desmarcarInteresse(l)} />
+                            ) : null;
+                            const menu = [
+                                podeTrabalhar && { chave: 'crm', icone: MessagesSquare, rotulo: tx("Enviar para o CRM"), desabilitado: ocupado, onClick: () => enviarParaCrm(l) },
+                                podeTrabalhar && l.situacao === 'NAO_CONTATADO' && { chave: 'devolver', icone: Undo2, rotulo: tx("Devolver para os Disponíveis"), desabilitado: ocupado, onClick: () => devolver(l) },
+                                l.situacao !== 'VOLTOU' && { chave: 'nao', icone: Ban, rotulo: tx("Não contatar"), perigo: true, onClick: () => setBloqueando(l) },
+                            ];
+                            return (
+                                <CartaoAlunoFila key={l.aluno_id} nome={l.nome} onNome={() => setContatoFicha(l)}
+                                    info={[l.status_aluno, l.data_cadastro ? tx("cadastro {dia}", { dia: String(l.data_cadastro).slice(0, 10).split('-').reverse().join('/') }) : null, l.cpf && `CPF ${l.cpf}`, l.matricula && `${tx("Matrícula")} ${l.matricula}`].filter(Boolean).join(' · ')}
+                                    telefone={l.semTel ? (l.telefone ? `${l.telefone} ✗` : tx("sem telefone")) : l.telefone} semTelefone={l.semTel}
+                                    andamento={<span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{tx(a.rotulo)}</span>}
+                                    detalhe={detalhe} detalheAtrasado={l.paraHoje && l.voltaEm && l.voltaEm < hoje}
+                                    naFila={visao === 'TODOS' ? `${tx("Na fila de")}: ${l.disponivel ? tx("Disponível") : (l.dono ? String(l.dono).split(' ')[0] : '—')}` : null}
+                                    avisos={avisos} botoes={botoes} resultado={resultado} menu={menu} />
+                            );
+                        })}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto custom-scrollbar border border-slate-200 dark:border-slate-800 rounded-xl">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-50 dark:bg-slate-800/60">
                         <tr>
@@ -629,7 +683,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 </table>
             </div>
             {filtradas.length > limite && (
-                <button type="button" onClick={() => setLimite(n => n + POR_PAGINA)} className="w-full mt-3 py-3 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl flex items-center justify-center gap-1.5">
+                <button type="button" onClick={() => setLimite(n => n + POR_PAGINA)} className="w-full mt-3 py-3 max-md:min-h-12 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 rounded-xl flex items-center justify-center gap-1.5">
                     <ChevronDown className="w-4 h-4" />{' '}{tx("Ver mais (")}{filtradas.length - limite}{' '}{tx("restantes)")}
                 </button>
             )}
