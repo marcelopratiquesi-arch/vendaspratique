@@ -4401,4 +4401,11 @@ export default {
     "Licença não dada.": "Permission not granted.",
     "Entre no sistema de novo para enviar.": "Sign in again to send.",
     "Sem conexão com o servidor dos avisos.": "No connection to the notifications server.",
+    "O celular não mostrou a pergunta de licença.": "The phone did not show the permission prompt.",
+    "O ajudante do aparelho não ligou. Feche o app e abra de novo.": "The device helper did not start. Close the app and open it again.",
+    "O banco demorou para guardar o aparelho. Tente de novo.": "The database took too long to save the device. Try again.",
+    "O aparelho não respondeu. Tente de novo.": "The device did not respond. Try again.",
+    "O serviço de avisos do Google não respondeu. Confira a internet e o Google Play Services e tente de novo.": "Google's notification service did not respond. Check the internet and Google Play Services and try again.",
+    "Libere à mão: Configurações do celular → Apps → Vendas → Notificações → Permitir. Depois volte aqui e toque em \"Ativar avisos\" de novo.": "Allow it manually: phone Settings → Apps → Vendas → Notifications → Allow. Then come back and tap \"Enable notifications\" again.",
+    "Toque em \"Ativar avisos\" de novo. Se repetir, mande um print para o Admin.": "Tap \"Enable notifications\" again. If it happens again, send a screenshot to the Admin.",
 };

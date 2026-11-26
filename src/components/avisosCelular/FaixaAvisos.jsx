@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { BellRing, BellOff, Share, Loader2, Smartphone } from 'lucide-react';
 import { tx } from '../../i18n/traduzir.js';
 import { avisar } from '../avisar.js';
-import { situacaoDoAparelho, ativarAvisos, religarAparelhoEmSilencio, lerModoAvisos, EVENTO_AVISOS_ATIVADOS } from './avisosPush.js';
+import { situacaoDoAparelho, ativarAvisos, religarAparelhoEmSilencio, lerModoAvisos, EVENTO_AVISOS_ATIVADOS, ERRO_PERGUNTA_NAO_APARECEU } from './avisosPush.js';
 
 // ==========================================
 // FAIXA "ATIVE OS AVISOS" (25/11/2026, decisão do dono: ninguém pode ignorar os avisos)
@@ -15,6 +15,7 @@ export default function FaixaAvisos({ papelReal }) {
     const [modo, setModo] = useState(null);
     const [situacao, setSituacao] = useState(null);
     const [ativando, setAtivando] = useState(false);
+    const [problema, setProblema] = useState(''); // o que travou na última tentativa (fica escrito na faixa)
 
     const conferir = useCallback(async () => {
         const m = await lerModoAvisos();
@@ -40,10 +41,12 @@ export default function FaixaAvisos({ papelReal }) {
 
     const ativar = async () => {
         setAtivando(true);
+        setProblema('');
         try {
             await ativarAvisos();
             avisar(tx('Avisos ativados neste aparelho.'), 'sucesso');
         } catch (e) {
+            if (e.message !== 'BLOQUEADO') setProblema(e.message);
             if (e.message !== 'BLOQUEADO') avisar(tx('Não foi possível ativar os avisos: {erro}', { erro: tx(e.message) }), 'erro');
         } finally {
             setAtivando(false);
@@ -61,6 +64,14 @@ export default function FaixaAvisos({ papelReal }) {
                 {situacao === 'ativar' && <><span className="font-black uppercase tracking-widest">{tx('Ative os avisos do sistema neste aparelho.')}</span> {tx('Os comunicados e cobranças da diretoria chegam aqui, como mensagem.')}</>}
                 {situacao === 'instalar' && <><span className="font-black uppercase tracking-widest">{tx('Para receber os avisos no iPhone, instale o app.')}</span> {tx('Toque em')} <Share className="w-3.5 h-3.5 inline -mt-0.5" /> {tx('Compartilhar → "Adicionar à Tela de Início" e abra o sistema pelo ícone "Vendas".')}</>}
                 {situacao === 'sem_suporte' && <><span className="font-black uppercase tracking-widest">{tx('Este navegador não recebe avisos.')}</span> {tx('Use o Google Chrome no computador ou no Android, ou o app instalado no iPhone.')}</>}
+                {situacao === 'ativar' && problema && (
+                    <span className="block mt-1.5 rounded-lg bg-white/15 px-2 py-1.5">
+                        ⚠️ {tx(problema)}{' '}
+                        {problema === ERRO_PERGUNTA_NAO_APARECEU
+                            ? tx('Libere à mão: Configurações do celular → Apps → Vendas → Notificações → Permitir. Depois volte aqui e toque em "Ativar avisos" de novo.')
+                            : tx('Toque em "Ativar avisos" de novo. Se repetir, mande um print para o Admin.')}
+                    </span>
+                )}
                 {situacao === 'bloqueado' && <><span className="font-black uppercase tracking-widest">{tx('Os avisos estão bloqueados neste aparelho.')}</span> {tx('Libere nas configurações: no Android, Configurações → Apps → Vendas (ou Chrome) → Notificações; no iPhone, Ajustes → Notificações → Vendas; no computador, o cadeado ao lado do endereço → Notificações → Permitir.')}</>}
             </div>
             {situacao === 'ativar' && (

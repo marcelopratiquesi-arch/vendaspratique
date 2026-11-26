@@ -4401,4 +4401,11 @@ export default {
     "Licença não dada.": "Permiso no otorgado.",
     "Entre no sistema de novo para enviar.": "Ingresá de nuevo al sistema para enviar.",
     "Sem conexão com o servidor dos avisos.": "Sin conexión con el servidor de avisos.",
+    "O celular não mostrou a pergunta de licença.": "El celular no mostró la pregunta de permiso.",
+    "O ajudante do aparelho não ligou. Feche o app e abra de novo.": "El asistente del dispositivo no arrancó. Cerrá la app y abrila de nuevo.",
+    "O banco demorou para guardar o aparelho. Tente de novo.": "La base tardó en guardar el dispositivo. Probá de nuevo.",
+    "O aparelho não respondeu. Tente de novo.": "El dispositivo no respondió. Probá de nuevo.",
+    "O serviço de avisos do Google não respondeu. Confira a internet e o Google Play Services e tente de novo.": "El servicio de avisos de Google no respondió. Revisá internet y Google Play Services y probá de nuevo.",
+    "Libere à mão: Configurações do celular → Apps → Vendas → Notificações → Permitir. Depois volte aqui e toque em \"Ativar avisos\" de novo.": "Habilitalo a mano: Configuración del celular → Apps → Vendas → Notificaciones → Permitir. Después volvé acá y tocá \"Activar avisos\" de nuevo.",
+    "Toque em \"Ativar avisos\" de novo. Se repetir, mande um print para o Admin.": "Tocá \"Activar avisos\" de nuevo. Si se repite, mandale una captura al Admin.",
 };

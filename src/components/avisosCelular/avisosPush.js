@@ -14,6 +14,14 @@ export const EVENTO_AVISOS_ATIVADOS = 'pratique-avisos-ativados';
 
 const seguro = async (fn, padrao = null) => { try { return await fn(); } catch { return padrao; } };
 
+// Cada etapa da ativação tem um limite de tempo (26/11/2026: no Android o botão ficou rodando para sempre).
+// Passou do limite = erro com o nome da etapa, para a tela dizer onde travou.
+const comPrazo = (promessa, segundos, mensagem) => Promise.race([
+    promessa,
+    new Promise((_, rejeitar) => setTimeout(() => rejeitar(new Error(mensagem)), segundos * 1000)),
+]);
+export const ERRO_PERGUNTA_NAO_APARECEU = 'O celular não mostrou a pergunta de licença.';
+
 export const ehIphone = () => /iphone|ipad|ipod/i.test(navigator.userAgent || '');
 export const navegadorAceitaAvisos = () =>
     typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -42,7 +50,8 @@ async function registroDoAjudante() {
     if (!('serviceWorker' in navigator)) return null;
     let reg = await navigator.serviceWorker.getRegistration();
     if (!reg) reg = await navigator.serviceWorker.register('/sw.js');
-    return navigator.serviceWorker.ready.then(() => reg);
+    if (reg.active) return reg;
+    return comPrazo(navigator.serviceWorker.ready, 15, 'O ajudante do aparelho não ligou. Feche o app e abra de novo.');
 }
 
 const chaveEmBytes = (base64) => {
@@ -59,20 +68,28 @@ const descreverAparelho = () => {
 
 async function guardarInscricao(inscricao) {
     const json = inscricao.toJSON();
-    const { error } = await supabase.rpc('push_registrar_aparelho', {
+    const { error } = await comPrazo(supabase.rpc('push_registrar_aparelho', {
         p_endpoint: json.endpoint, p_p256dh: json.keys?.p256dh, p_auth: json.keys?.auth, p_dispositivo: descreverAparelho(),
-    });
+    }), 20, 'O banco demorou para guardar o aparelho. Tente de novo.');
     if (error) throw new Error(error.message || 'Não foi possível guardar o aparelho.');
 }
 
 /** Botão "Ativar avisos" (precisa ser num toque da pessoa: o iPhone só pergunta assim). */
 export async function ativarAvisos() {
     if (!navegadorAceitaAvisos()) throw new Error('Este navegador não recebe avisos.');
-    const licenca = await Notification.requestPermission();
+    // O Chrome do Android às vezes não mostra a pergunta (modo "silencioso" das notificações) e a promessa nunca
+    // termina: depois de 20 s a tela ensina a liberar nas configurações do app.
+    const licenca = Notification.permission === 'granted'
+        ? 'granted'
+        : await comPrazo(Notification.requestPermission(), 20, ERRO_PERGUNTA_NAO_APARECEU);
     if (licenca !== 'granted') throw new Error(licenca === 'denied' ? 'BLOQUEADO' : 'Licença não dada.');
     const reg = await registroDoAjudante();
-    let inscricao = await reg.pushManager.getSubscription();
-    if (!inscricao) inscricao = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chaveEmBytes(VAPID_PUBLICA) });
+    let inscricao = await comPrazo(reg.pushManager.getSubscription(), 15, 'O aparelho não respondeu. Tente de novo.');
+    if (!inscricao) {
+        inscricao = await comPrazo(
+            reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chaveEmBytes(VAPID_PUBLICA) }),
+            25, 'O serviço de avisos do Google não respondeu. Confira a internet e o Google Play Services e tente de novo.');
+    }
     await guardarInscricao(inscricao);
     window.dispatchEvent(new Event(EVENTO_AVISOS_ATIVADOS));
 }
