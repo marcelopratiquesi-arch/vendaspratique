@@ -161,6 +161,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '907', nome: 'Configurações: Permissões', tipo: 'ver', padrao: SO_ADMIN, travada: true },
     { codigo: '908', nome: 'Marcar as unidades de cada Mentor', tipo: 'fazer', padrao: SO_ADMIN, travada: true, descricao: 'Só o Admin.' },
     { codigo: '912', nome: 'Configurações: Backup', tipo: 'ver', padrao: SO_ADMIN, travada: true, descricao: 'Só o Admin (19/11/2026): cópia de segurança dos dados e dos arquivos, conferir um arquivo e o aviso ao entrar quando a última cópia passa de 7 dias.' },
+    { codigo: '913', nome: 'Enviar aviso no celular', tipo: 'fazer', padrao: SO_ADMIN, mudavelPara: ['MENTOR'], banco: true, descricao: 'Comunicados → Aviso no celular e a caixinha "Avisar também no celular" do comunicado (25/11/2026). Só o Admin; dá para liberar o Mentor.' },
 ];
 
 export const PERMISSAO_POR_CODIGO = new Map(CATALOGO_PERMISSOES.map(p => [p.codigo, p]));

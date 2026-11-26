@@ -9,6 +9,8 @@ import {
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { reduzirImagem } from '../../components/reduzirImagem.js';
+import { podeFazer } from '../../permissoes/catalogoPermissoes.js';
+import { enviarAvisoCelular, linkDaTela } from '../../components/avisosCelular/avisosPush.js';
 
 export default function FormularioComunicado({ usuarioLogado, unidades = [], onVoltar, onSalvo }) {
     const { t } = useI18n();
@@ -47,6 +49,9 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
         ? unidades
         : unidades.filter(u => String(u.nome || '').toUpperCase().trim() === String(usuarioLogado?.unidade || '').toUpperCase().trim());
     const [tipoAlvo, setTipoAlvo] = useState(ehMentor ? 'MINHAS' : 'GLOBAL');
+    // Aviso no celular (25/11/2026, decisão do dono; permissão 913): o celular de quem recebe o comunicado apita
+    const podeAvisarCelular = podeFazer(usuarioLogado, '913');
+    const [avisarCelular, setAvisarCelular] = useState(true);
     const [valorAlvo, setValorAlvo] = useState('TODOS');
     const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
     const [horaInicio, setHoraInicio] = useState(new Date().toTimeString().slice(0, 5));
@@ -223,6 +228,28 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                     p_valor_alvo: entrega.valor
                 });
                 if (rpcError) throw rpcError;
+            }
+
+            // Aviso no celular: para as mesmas pessoas do comunicado (as que ficaram na caixa de entrada).
+            // Comunicado agendado para depois: o aviso não sai agora (sairia antes de o comunicado aparecer).
+            if (podeAvisarCelular && avisarCelular) {
+                if (new Date(inicioEm).getTime() > Date.now() + 5 * 60 * 1000) {
+                    avisar(tx('Comunicado agendado: o aviso no celular não foi enviado agora. No dia, mande pela tela "Aviso no celular".'), 'atencao');
+                } else {
+                    try {
+                        const r = await enviarAvisoCelular({
+                            titulo: tx('Novo comunicado'),
+                            texto: titulo.trim().slice(0, 240),
+                            link: linkDaTela('comunicados'),
+                            destino: { tipo: 'comunicado', id: comData.id },
+                            destinoResumo: tipoAlvo === 'GLOBAL' ? 'Comunicado · todos' : `Comunicado · ${valorAlvo}`,
+                            comunicadoId: comData.id,
+                        });
+                        avisar(tx('Comunicado publicado. Aviso no celular: chegou em {ok} de {total} aparelho(s); {sem} pessoa(s) ainda não ativaram.', { ok: r.entregues, total: r.aparelhos, sem: r.semAparelho?.length || 0 }), 'sucesso');
+                    } catch (erroAviso) {
+                        avisar(tx('Comunicado publicado, mas o aviso no celular falhou: {erro}', { erro: tx(erroAviso.message) }), 'atencao');
+                    }
+                }
             }
 
             onSalvo();
@@ -429,6 +456,16 @@ export default function FormularioComunicado({ usuarioLogado, unidades = [], onV
                         </div>
                     </div>
                 </section>
+
+                {podeAvisarCelular && (
+                    <label className="flex items-start gap-3 cursor-pointer rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 px-4 py-3">
+                        <input type="checkbox" checked={avisarCelular} onChange={(e) => setAvisarCelular(e.target.checked)} className="mt-0.5 w-4 h-4 accent-blue-600" />
+                        <span>
+                            <span className="block text-xs font-black uppercase tracking-widest text-blue-700 dark:text-blue-300">{tx("Avisar também no celular")}</span>
+                            <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">{tx("O celular de quem recebe este comunicado apita \"Novo comunicado\" com o título; ao tocar, abre os Comunicados.")}</span>
+                        </span>
+                    </label>
+                )}
 
                 <button 
                     type="submit" disabled={loading}

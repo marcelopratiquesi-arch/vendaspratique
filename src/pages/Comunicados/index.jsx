@@ -2,10 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../../supabaseClient.js';
 import { useI18n } from '../../i18n/I18nContext.jsx';
 import FormularioComunicado from './Formulario.jsx';
+import AvisoCelular from './AvisoCelular.jsx';
 import { 
     Megaphone, Plus, Search, Calendar, CheckCircle, 
     HelpCircle, Info, ShieldAlert, X, Loader2, Trash2, Eye, FileText,
-    BarChart3, Users, Lock, Unlock, ArrowLeft, ChevronLeft, ChevronRight
+    BarChart3, Users, Lock, Unlock, ArrowLeft, ChevronLeft, ChevronRight, BellRing
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -381,6 +382,10 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
         }
     };
 
+    if (modo === 'avisoCelular') {
+        return <AvisoCelular usuarioLogado={usuarioLogado} unidades={unidades} onVoltar={() => setModo('lista')} />;
+    }
+
     if (modo === 'criar') {
         return <FormularioComunicado usuarioLogado={usuarioLogado} unidades={unidades} onVoltar={() => setModo('lista')} onSalvo={() => { setModo('lista'); fetchDados(); }} />;
     }
@@ -416,6 +421,11 @@ export default function CentralComunicados({ usuarioLogado, unidades }) {
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input type="text" placeholder={t('communications.search', { defaultValue: 'Buscar...' })} value={filtroTexto} onChange={(e) => setFiltroTexto(e.target.value)} className="w-full bg-white dark:bg-white/5 border border-slate-200/70 dark:border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs font-bold text-slate-700 dark:text-white placeholder-slate-400 outline-none focus:ring-2 focus:ring-blue-500/50 shadow-sm" />
                     </div>
+                    {podeFazer(usuarioLogado, '913') && (
+                        <button onClick={() => setModo('avisoCelular')} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-white dark:bg-white/5 border border-blue-200 dark:border-blue-500/30 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-500/10 px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shrink-0">
+                            <BellRing className="w-4 h-4" /> {tx('Aviso no celular')}
+                        </button>
+                    )}
                     {isGestor && (
                         <button onClick={() => setModo('criar')} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-600 hover:from-blue-500 hover:to-blue-500 text-white px-5 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-[0_4px_14px_0_rgba(37,99,235,0.39)] active:scale-95 shrink-0">
                             <Plus className="w-4 h-4" /> {t('communications.new', { defaultValue: 'Novo' })}

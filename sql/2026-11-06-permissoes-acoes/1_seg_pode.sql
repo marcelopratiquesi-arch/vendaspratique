@@ -123,7 +123,8 @@ insert into public.permissoes_padrao (codigo, padrao, travada, rede, mudavel_par
   ('905', array['ADMIN'], true, false, null),
   ('907', array['ADMIN'], true, false, null),
   ('908', array['ADMIN'], true, false, null),
-  ('912', array['ADMIN'], true, false, null)
+  ('912', array['ADMIN'], true, false, null),
+  ('913', array['ADMIN'], false, false, array['MENTOR'])
 on conflict (codigo) do update
    set padrao = excluded.padrao, travada = excluded.travada, rede = excluded.rede, mudavel_para = excluded.mudavel_para;
 

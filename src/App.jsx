@@ -60,6 +60,22 @@ import JanelaPedidosAcesso from './components/acesso/JanelaPedidosAcesso.jsx';
 import MeusAcessos from './components/acesso/MeusAcessos.jsx';
 import PaginaAcessos from './pages/Acessos/index.jsx';
 import { ehAppInstalado, marcarInicioLoginApp, loginDoAppVenceu, esquecerInicioLoginApp, HORAS_LOGIN_APP } from './components/appInstalado.js';
+import FaixaAvisos from './components/avisosCelular/FaixaAvisos.jsx';
+import { soltarAparelho } from './components/avisosCelular/avisosPush.js';
+
+// Aviso no celular (25/11/2026): tocar no aviso abre o sistema com ?tela=ID (ou ?tela=analise:ABA). Lido uma vez.
+const lerTelaDoAviso = () => {
+    try {
+        const url = new URL(window.location.href);
+        const tela = url.searchParams.get('tela');
+        if (!tela) return null;
+        url.searchParams.delete('tela');
+        window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+        const [id, aba] = tela.split(':');
+        return { id, aba: aba || null };
+    } catch { return null; }
+};
+const TELA_DO_AVISO = typeof window !== 'undefined' ? lerTelaDoAviso() : null;
 
 // 📐 Tamanho geral da interface (veja o useEffect "Escala da interface").
 // Desde 09/11/2026 cada computador escolhe na barra do topo (guardado no computador). Pequeno = 0.8, o tamanho
@@ -240,7 +256,10 @@ export default function App() {
         const lugar = lerLugarSalvo(perfil?.email);
         const podeTrocar = perfil?.role === 'ADMIN' || perfil?.role === 'MENTOR' || (perfil?.unidadesLider?.length > 1);
         setUnidadeGlobal(podeTrocar && lugar?.unidade ? lugar.unidade : 'TODAS');
-        if (lugar?.tela) setActiveTab(lugar.tela);
+        if (TELA_DO_AVISO?.id) {
+            setActiveTab(TELA_DO_AVISO.id);
+            if (TELA_DO_AVISO.id === 'analise' && TELA_DO_AVISO.aba) setTimeout(() => pedirAbaAnalise(TELA_DO_AVISO.aba), 0);
+        } else if (lugar?.tela) setActiveTab(lugar.tela);
         setUsuarioLogado(perfil);
     }, []);
 
@@ -256,6 +275,7 @@ export default function App() {
         esquecerLugar();
         esquecerInicioLoginApp();
         esquecerRegistroDoLogin();
+        await soltarAparelho(); // avisos no celular: este aparelho deixa de receber os avisos deste login
         try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
         recarregarNaVersaoMaisNova();
     }, []);
@@ -1000,6 +1020,7 @@ export default function App() {
         await registrarEvento('LOGOUT'); // histórico de acessos (12/11/2026); sem o SQL só avisa no console
         esquecerRegistroDoLogin();
         esquecerInicioLoginApp();
+        await soltarAparelho(); // avisos no celular: este aparelho deixa de receber os avisos deste login
         try { await supabase.auth.signOut(); } catch (err) { console.error('Erro ao sair:', err); }
         recarregarNaVersaoMaisNova();
     };
@@ -1213,6 +1234,9 @@ export default function App() {
                     comunicadoBloqueante={activeGateComm} 
                     onConcluido={() => setTriggerSync(prev => prev + 1)}
                 />
+
+                {/* Avisos no celular (25/11/2026): faixa "Ative os avisos" até este aparelho receber; sem fechar */}
+                <FaixaAvisos papelReal={usuarioLogado?.role} />
 
                 <main key={unidadeGlobal} className="flex-1 overflow-y-auto custom-scrollbar p-3 sm:p-4 lg:p-5 relative z-0 h-full w-full">
                     {/* Rede de segurança: erro numa tela mostra o aviso só nela; o menu continua (zera ao trocar de tela) */}
