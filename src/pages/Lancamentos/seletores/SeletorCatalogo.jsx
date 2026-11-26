@@ -6,6 +6,9 @@ import { normalizeString } from '../../AnaliseVendas/utils.js';
 import { MAIS_VENDIDOS, GRUPOS_PLANO, COR_NEUTRA, grupoDoPlanoNaLista, corDoPlano, posicaoNaOrdem } from './gruposCatalogo.js';
 // Mesmo cálculo de comissão da tela (Lancamentos/utils.js), só para mostrar o valor do catálogo
 import { safeNumber, formatMoney } from '../utils.js';
+import { CamadaDoApp } from '../celular/camada.jsx';
+import CabecalhoLista from './CabecalhoLista.jsx';
+import { ehCelularAgora } from '../../../components/celular/ehCelular.js';
 import { combinaBusca, useFecharAoClicarFora, tratarTeclado, CLASSE_CAMPO, CLASSE_PAINEL } from './comum.js';
 
 // As listas (mais vendidos, grupos e ordem dos planos) ficam em gruposCatalogo.js, fáceis de editar
@@ -18,14 +21,16 @@ const SeletorCatalogo = ({ tipo, itens = [], valor, onEscolher, aberto, setAbert
     const caixaRef = useRef(null);
     const buscaRef = useRef(null);
     const listaRef = useRef(null);
+    const painelRef = useRef(null);
     const ehPlano = tipo === 'plano';
 
     const fechar = useCallback(() => setAberto(false), [setAberto]);
-    useFecharAoClicarFora(aberto, caixaRef, fechar);
+    useFecharAoClicarFora(aberto, caixaRef, fechar, painelRef);
     useEffect(() => {
         if (!aberto) return;
         setBusca('');
-        setTimeout(() => buscaRef.current?.focus(), 20);
+        // No celular o teclado não abre sozinho (taparia metade da lista); a busca está no topo
+        if (!ehCelularAgora()) setTimeout(() => buscaRef.current?.focus(), 20);
     }, [aberto]);
 
     // Seções da lista (com busca aplicada) e a lista "achatada" para o teclado
@@ -89,8 +94,9 @@ const SeletorCatalogo = ({ tipo, itens = [], valor, onEscolher, aberto, setAbert
             </button>
 
             {aberto && (
-                <div className={CLASSE_PAINEL}>
-                    <div className="p-3 border-b border-[#EEF1F6] dark:border-slate-800">
+                <CamadaDoApp><div ref={painelRef} className={CLASSE_PAINEL}>
+                    <CabecalhoLista titulo={tx('Item do catálogo')} onVoltar={fechar} />
+                    <div className="shrink-0 p-3 border-b border-[#EEF1F6] dark:border-slate-800">
                         <label className="h-11 px-3 bg-[#F3F5FA] rounded-xl flex items-center gap-2 dark:bg-slate-800">
                             <Search className="w-4 h-4 text-[#5B6478] shrink-0" />
                             <span className="sr-only">{textoBusca}</span>
@@ -112,7 +118,7 @@ const SeletorCatalogo = ({ tipo, itens = [], valor, onEscolher, aberto, setAbert
                                 <div className="flex flex-wrap gap-2">
                                     {atalhos.map(a => (
                                         <button key={a.nome} type="button" onClick={() => escolher(a)}
-                                            className={`h-9 px-3 rounded-full border text-[13px] font-semibold inline-flex items-center gap-2 transition-colors ${a.nome === valor ? 'border-[#1D4FD8] bg-[#EEF3FF] text-[#0B1F4B] dark:bg-blue-500/15 dark:text-white' : 'border-[#D6DCE8] text-[#0F172A] hover:bg-[#F3F5FA] dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}>
+                                            className={`h-10 md:h-9 px-3 rounded-full border text-[13px] font-semibold inline-flex items-center gap-2 transition-colors ${a.nome === valor ? 'border-[#1D4FD8] bg-[#EEF3FF] text-[#0B1F4B] dark:bg-blue-500/15 dark:text-white' : 'border-[#D6DCE8] text-[#0F172A] hover:bg-[#F3F5FA] dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}>
                                             <Quadradinho cor={corDoPlano(a.nome)} />{a.nome}
                                         </button>
                                     ))}
@@ -121,7 +127,7 @@ const SeletorCatalogo = ({ tipo, itens = [], valor, onEscolher, aberto, setAbert
                         )}
                     </div>
 
-                    <ul ref={listaRef} id={`${idCampo}-lista`} role="listbox" className="max-h-72 overflow-y-auto overflow-x-hidden py-1 custom-scrollbar">
+                    <ul ref={listaRef} id={`${idCampo}-lista`} role="listbox" className="flex-1 min-h-0 pb-[env(safe-area-inset-bottom)] md:flex-none md:max-h-72 md:pb-1 overflow-y-auto overflow-x-hidden py-1 custom-scrollbar">
                         {plana.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-[#5B6478] dark:text-slate-400">{tx('Nada encontrado.')}</li>}
                         {secoes.map(secao => (
                             <li key={secao.chave} role="presentation">
@@ -147,7 +153,7 @@ const SeletorCatalogo = ({ tipo, itens = [], valor, onEscolher, aberto, setAbert
                                             >
                                                 {marcado && <span className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r-full" style={{ background: cor }} aria-hidden="true" />}
                                                 {ehPlano && <Quadradinho cor={cor} />}
-                                                <span className="flex-1 min-w-0 truncate text-[14px] font-semibold text-[#0F172A] dark:text-white">{item.nome}</span>
+                                                <span className="flex-1 min-w-0 break-words md:truncate text-[14px] font-semibold text-[#0F172A] dark:text-white">{item.nome}</span>
                                                 <span className="text-[13px] text-[#5B6478] tabular-nums shrink-0 dark:text-slate-400">{formatMoney(safeNumber(item.valor))}</span>
                                             </li>
                                         );
@@ -156,7 +162,7 @@ const SeletorCatalogo = ({ tipo, itens = [], valor, onEscolher, aberto, setAbert
                             </li>
                         ))}
                     </ul>
-                </div>
+                </div></CamadaDoApp>
             )}
         </div>
     );

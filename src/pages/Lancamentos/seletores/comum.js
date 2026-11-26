@@ -13,13 +13,14 @@ export const iniciais = (nome) => {
 };
 
 // Fecha a lista ao clicar fora dela
-export const useFecharAoClicarFora = (aberto, ref, fechar) => {
+// (outraRef: no celular a lista abre em tela cheia, fora da caixa do campo)
+export const useFecharAoClicarFora = (aberto, ref, fechar, outraRef) => {
     useEffect(() => {
         if (!aberto) return undefined;
-        const aoClicar = (e) => { if (ref.current && !ref.current.contains(e.target)) fechar(); };
+        const aoClicar = (e) => { if (ref.current && !ref.current.contains(e.target) && !outraRef?.current?.contains(e.target)) fechar(); };
         document.addEventListener('mousedown', aoClicar);
         return () => document.removeEventListener('mousedown', aoClicar);
-    }, [aberto, ref, fechar]);
+    }, [aberto, ref, fechar, outraRef]);
 };
 
 // Teclado: ↑ ↓ andam, Enter escolhe, Esc fecha
@@ -48,5 +49,5 @@ export const useModoEscuro = () => {
 
 // Classes do campo fechado (botão que abre a lista)
 export const CLASSE_CAMPO = 'w-full h-11 px-3.5 bg-white border border-[#D6DCE8] rounded-xl flex items-center gap-2.5 text-left text-[14px] outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] transition-colors disabled:bg-[#F3F5FA] disabled:cursor-not-allowed dark:bg-slate-900 dark:border-slate-700 dark:disabled:bg-slate-800';
-// Painel flutuante: rolagem só vertical
-export const CLASSE_PAINEL = 'absolute z-40 left-0 right-0 mt-2 bg-white border border-[#E4E8F0] rounded-2xl shadow-[0_12px_32px_rgba(15,23,42,0.12)] overflow-hidden dark:bg-slate-900 dark:border-slate-700';
+// Painel da lista: no computador flutua embaixo do campo; no celular é tela cheia (26/11/2026). Rolagem só vertical
+export const CLASSE_PAINEL = 'fixed inset-0 z-[200] flex flex-col bg-white overflow-hidden dark:bg-slate-900 md:absolute md:inset-auto md:top-full md:block md:z-40 md:left-0 md:right-0 md:mt-2 md:border md:border-[#E4E8F0] md:rounded-2xl md:shadow-[0_12px_32px_rgba(15,23,42,0.12)] md:dark:border-slate-700';

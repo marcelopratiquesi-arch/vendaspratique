@@ -8,6 +8,7 @@ import { buscarUnidadesDoAluno, moverVinculoAlunos, mesmaUnidade, pendenciasCada
 import AvisoCadastroIncompleto from '../../components/AvisoCadastroIncompleto.jsx';
 import SeletorCatalogo from './seletores/SeletorCatalogo.jsx';
 import SeletorConsultor from './seletores/SeletorConsultor.jsx';
+import { RodapeFixo } from './celular/camada.jsx';
 import { BookOpen, Box, Briefcase, Trash2, Plus, Minus, MessageSquare, Loader2, Check, CheckCircle2, AlertTriangle, UserRoundPen, UserPlus, CreditCard, CalendarDays, Building2, ChevronDown, Phone, Mail } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
@@ -357,7 +358,19 @@ const FormVenda = ({
 
     const rotulo = 'block text-[12px] font-bold uppercase tracking-[0.07em] text-[#3B4458] mb-2 dark:text-slate-300';
     const campoBase = 'w-full h-12 bg-white border border-[#D6DCE8] rounded-xl px-3.5 text-[14px] font-medium text-[#0F172A] outline-none focus:border-[#1D4FD8] focus:ring-2 focus:ring-[#1D4FD8]/20 transition-colors placeholder:text-[#5B6478] dark:bg-slate-900 dark:border-slate-700 dark:text-white';
-    const cartao = 'bg-white rounded-[20px] border border-[#E4E8F0] p-5 md:p-6 dark:bg-slate-900 dark:border-slate-800';
+    const cartao = 'bg-white rounded-[20px] border border-[#E4E8F0] p-3.5 md:p-6 dark:bg-slate-900 dark:border-slate-800';
+    // Total + Confirmar: no computador ficam na faixa "Finalizar"; no celular, presos no rodapé (26/11/2026)
+    const blocoTotal = (
+        <>
+            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#5B6478] dark:text-slate-400">{tx('Comissão total')}</p>
+            <p className="text-[20px] md:text-[24px] leading-tight font-extrabold text-[#0F172A] tabular-nums whitespace-nowrap dark:text-white">{formatMoney(totalVenda)}</p>
+        </>
+    );
+    const conteudoBotaoConfirmar = isSubmitting
+        ? <><Loader2 className="w-5 h-5 animate-spin" />{tx("Processando Caixa...")}</>
+        : <><Check className="w-5 h-5" />{tx('Confirmar venda')}</>;
+    const classeBotaoConfirmar = `h-12 px-5 rounded-xl text-[15px] font-bold flex items-center justify-center gap-2 transition-colors ${podeConfirmar ? 'bg-[#0E9F6E] text-white hover:bg-[#0B7A52]' : 'bg-[#E4E8F0] text-[#5B6478] cursor-not-allowed dark:bg-slate-700 dark:text-slate-400'}`;
+
     const TituloSecao = ({ numero, texto }) => (
         <div className="flex items-center gap-3 mb-5">
             <span className="w-8 h-8 rounded-lg bg-[#0B1F4B] text-white text-[14px] font-extrabold flex items-center justify-center shrink-0 dark:bg-blue-600">{numero}</span>
@@ -391,7 +404,7 @@ const FormVenda = ({
                 unidadeDestino={formData.unidade}
             />
 
-            <form onSubmit={handleSubmitVenda} className="space-y-4 animate-[fadeIn_0.3s_ease-out] pb-10">
+            <form id="form-venda" onSubmit={handleSubmitVenda} className="space-y-4 animate-[fadeIn_0.3s_ease-out] pb-2 md:pb-10">
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
                         <div className="bg-white p-8 rounded-3xl shadow-2xl flex flex-col items-center text-center animate-[zoomIn_0.2s_ease-out] max-w-sm w-full mx-4 border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
@@ -521,24 +534,24 @@ const FormVenda = ({
 
                     {/* Cada item numa LINHA SÓ: Categoria · Item · Consultor · Qtd · Comissão · lixeira (como uma tabela).
                         Rótulos só na 1ª linha no computador; no celular (< 900px) a linha quebra e todos têm rótulo. */}
-                    <div className="divide-y divide-[#EEF1F6] dark:divide-slate-800">
+                    <div className="space-y-3 min-[900px]:space-y-0 min-[900px]:divide-y min-[900px]:divide-[#EEF1F6] min-[900px]:dark:divide-slate-800">
                         {itensForm.map((item, indice) => {
                             // Rótulo visível na 1ª linha; nas outras, só no celular (e sempre para leitor de tela)
                             const rotuloLinha = `${rotulo} ${indice > 0 ? 'min-[900px]:sr-only' : ''}`;
                             return (
-                                <div key={item.id} className="py-3 first:pt-0 flex flex-wrap items-end gap-2.5">
+                                <div key={item.id} className="flex flex-wrap items-end gap-2.5 max-[899px]:p-3 max-[899px]:rounded-2xl max-[899px]:border max-[899px]:border-[#E4E8F0] max-[899px]:dark:border-slate-700 min-[900px]:py-3 min-[900px]:first:pt-0">
                                     {/* Categoria: segmento de 3 botões com ícone */}
                                     <div className="w-full min-[900px]:w-auto shrink-0 flex items-end justify-between gap-2">
-                                        <div>
+                                        <div className="flex-1 min-w-0 min-[900px]:flex-none">
                                         <span className={rotuloLinha}>{tx('Categoria')} *</span>
-                                        <div className="h-11 inline-flex items-center p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="radiogroup" aria-label={tx('Categoria')}>
+                                        <div className="h-12 min-[900px]:h-11 w-full grid grid-cols-3 min-[900px]:w-auto min-[900px]:inline-flex items-center p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="radiogroup" aria-label={tx('Categoria')}>
                                             {[['plano', 'Plano', BookOpen], ['produto', 'Produto', Box], ['servico', 'Serviço', Briefcase]].map(([valorTipo, nome, Icone]) => {
                                                 const ativo = item.tipo === valorTipo;
                                                 return (
                                                     <button key={valorTipo} type="button" role="radio" aria-checked={ativo}
                                                         onClick={() => { if (!ativo) { handleItemChange(item.id, 'tipo', valorTipo); setListaAberta({ id: item.id, campo: 'catalogo' }); } }}
-                                                        className={`h-9 px-2.5 rounded-lg text-[13px] font-semibold flex items-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] ${ativo ? 'bg-white text-[#0B1F4B] shadow-sm dark:bg-slate-900 dark:text-white' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
-                                                        <Icone className="w-4 h-4" />{tx(nome)}
+                                                        className={`h-10 min-[900px]:h-9 px-1 min-[900px]:px-2.5 rounded-lg text-[13px] font-semibold flex items-center justify-center gap-1.5 whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] ${ativo ? 'bg-white text-[#0B1F4B] shadow-sm dark:bg-slate-900 dark:text-white' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
+                                                        <Icone className="w-4 h-4 shrink-0 max-[379px]:hidden" />{tx(nome)}
                                                     </button>
                                                 );
                                             })}
@@ -554,7 +567,7 @@ const FormVenda = ({
                                     </div>
 
                                     {/* Item do catálogo: largura flexível com limite */}
-                                    <div className="flex-1 min-w-[200px] max-w-[340px] basis-[200px]">
+                                    <div className="flex-1 min-w-0 basis-full min-[600px]:basis-[200px] min-[600px]:min-w-[200px] min-[900px]:max-w-[340px]">
                                         <label htmlFor={`venda-item-${item.id}`} className={rotuloLinha}>{tx('Item do catálogo')} *</label>
                                         <SeletorCatalogo
                                             idCampo={`venda-item-${item.id}`}
@@ -572,7 +585,7 @@ const FormVenda = ({
                                     </div>
 
                                     {/* Consultor (filtrado pela unidade escolhida no topo) */}
-                                    <div className="flex-1 min-w-[180px] max-w-[280px] basis-[180px]">
+                                    <div className="flex-1 min-w-0 basis-full min-[600px]:basis-[180px] min-[600px]:min-w-[180px] min-[900px]:max-w-[280px]">
                                         <label htmlFor={`venda-consultor-${item.id}`} className={rotuloLinha}>{tx('Consultor')} *</label>
                                         <SeletorConsultor
                                             idCampo={`venda-consultor-${item.id}`}
@@ -585,25 +598,25 @@ const FormVenda = ({
                                     </div>
 
                                     {/* Qtd − 1 + */}
-                                    <div className="w-[108px] shrink-0">
+                                    <div className="flex-1 min-w-0 min-[900px]:flex-none min-[900px]:w-[108px] min-[900px]:shrink-0">
                                         <span className={rotuloLinha}>{tx("Qtd")}</span>
                                         <div className="h-11 flex items-stretch border border-[#D6DCE8] rounded-xl overflow-hidden bg-white dark:bg-slate-900 dark:border-slate-700">
                                             <button type="button" disabled={!item.nomeItem || item.quantidade <= 1} onClick={() => handleItemChange(item.id, 'quantidade', String(Math.max(1, (parseInt(item.quantidade) || 1) - 1)))}
-                                                aria-label={tx('Diminuir quantidade')} className="w-9 shrink-0 flex items-center justify-center text-[#0F172A] hover:bg-[#F3F5FA] disabled:text-[#C3CAD8] disabled:hover:bg-transparent dark:text-white dark:hover:bg-slate-800 dark:disabled:text-slate-600">
+                                                aria-label={tx('Diminuir quantidade')} className="w-11 min-[900px]:w-9 shrink-0 flex items-center justify-center text-[#0F172A] hover:bg-[#F3F5FA] disabled:text-[#C3CAD8] disabled:hover:bg-transparent dark:text-white dark:hover:bg-slate-800 dark:disabled:text-slate-600">
                                                 <Minus className="w-4 h-4" />
                                             </button>
                                             <input type="number" min="1" disabled={!item.nomeItem} value={item.quantidade} aria-label={tx('Quantidade')}
                                                 onChange={(e) => handleItemChange(item.id, 'quantidade', e.target.value)}
                                                 className="w-full min-w-0 text-center bg-transparent text-[14px] font-bold text-[#0F172A] outline-none tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none disabled:text-[#C3CAD8] dark:text-white" />
                                             <button type="button" disabled={!item.nomeItem} onClick={() => handleItemChange(item.id, 'quantidade', String((parseInt(item.quantidade) || 1) + 1))}
-                                                aria-label={tx('Aumentar quantidade')} className="w-9 shrink-0 flex items-center justify-center text-[#0F172A] hover:bg-[#F3F5FA] disabled:text-[#C3CAD8] disabled:hover:bg-transparent dark:text-white dark:hover:bg-slate-800 dark:disabled:text-slate-600">
+                                                aria-label={tx('Aumentar quantidade')} className="w-11 min-[900px]:w-9 shrink-0 flex items-center justify-center text-[#0F172A] hover:bg-[#F3F5FA] disabled:text-[#C3CAD8] disabled:hover:bg-transparent dark:text-white dark:hover:bg-slate-800 dark:disabled:text-slate-600">
                                                 <Plus className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* Comissão do item (valor × quantidade) */}
-                                    <div className="w-[108px] shrink-0">
+                                    <div className="flex-1 min-w-0 min-[900px]:flex-none min-[900px]:w-[108px] min-[900px]:shrink-0">
                                         <span className={`${rotuloLinha} text-right`}>{tx('Comissão')}</span>
                                         <div className="h-11 px-3 bg-[#F3F5FA] rounded-xl flex items-center justify-end text-[14px] font-extrabold text-[#0F172A] tabular-nums whitespace-nowrap dark:bg-slate-800 dark:text-white" title={tx("Calculado automaticamente")} aria-label={tx('Comissão do item {n}', { n: indice + 1 })}>
                                             {item.valor}
@@ -647,20 +660,29 @@ const FormVenda = ({
                         <input type="text" name="observacao" value={formData.observacao} onChange={handleMainChange} disabled={!vendaLiberada}
                             placeholder={tx('Observação de caixa (opcional) — ex.: pagamento no PIX')} className={`${campoBase} pl-10`} />
                     </label>
-                    <div className="flex items-center justify-between lg:justify-end gap-4 shrink-0">
-                        <div className="text-right">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-[#5B6478] dark:text-slate-400">{tx('Comissão total')}</p>
-                            <p className="text-[24px] leading-tight font-extrabold text-[#0F172A] tabular-nums dark:text-white">{formatMoney(totalVenda)}</p>
-                        </div>
+                    <div className="hidden md:flex items-center justify-between lg:justify-end gap-4 shrink-0">
+                        <div className="text-right">{blocoTotal}</div>
                         <span title={oQueFalta || ''} className="inline-flex">
-                            <button type="submit" disabled={!podeConfirmar}
-                                className={`h-12 px-5 rounded-xl text-[15px] font-bold flex items-center gap-2 transition-colors ${podeConfirmar ? 'bg-[#0E9F6E] text-white hover:bg-[#0B7A52]' : 'bg-[#E4E8F0] text-[#5B6478] cursor-not-allowed dark:bg-slate-700 dark:text-slate-400'}`}>
-                                {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />{tx("Processando Caixa...")}</> : <><Check className="w-5 h-5" />{tx('Confirmar venda')}</>}
+                            <button type="submit" disabled={!podeConfirmar} className={classeBotaoConfirmar}>
+                                {conteudoBotaoConfirmar}
                             </button>
                         </span>
                     </div>
                 </section>
-                {oQueFalta && vendaLiberada && <p className="text-right text-[12px] font-semibold text-[#5B6478] -mt-2 dark:text-slate-400">{oQueFalta}</p>}
+                {oQueFalta && vendaLiberada && <p className="hidden md:block text-right text-[12px] font-semibold text-[#5B6478] -mt-2 dark:text-slate-400">{oQueFalta}</p>}
+                {/* Celular: total e Confirmar presos no rodapé (decisão do dono, 26/11/2026) */}
+                {!sucesso && (
+                    <RodapeFixo>
+                        {oQueFalta && <p className="text-[12px] font-semibold text-amber-700 mb-1.5 leading-snug dark:text-amber-300">{oQueFalta}</p>}
+                        <div className="flex items-center gap-3">
+                            <div className="shrink-0">{blocoTotal}</div>
+                            {/* O botão fica fora do formulário na tela; o "form" liga ele ao formulário */}
+                            <button type="submit" form="form-venda" disabled={!podeConfirmar} className={`flex-1 min-w-0 ${classeBotaoConfirmar}`}>
+                                {conteudoBotaoConfirmar}
+                            </button>
+                        </div>
+                    </RodapeFixo>
+                )}
             </form>
         </>
     );

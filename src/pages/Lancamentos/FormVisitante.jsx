@@ -12,6 +12,7 @@ import { textoMensagemEnviada } from '../CrmVisitantes/utils.js';
 import { tentarAbrirNoWhatsApp, abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { RodapeFixo } from './celular/camada.jsx';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
 
@@ -477,7 +478,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
     const labelClass = "block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 ml-1 dark:text-slate-400";
     const inputClassBase = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500 transition-all shadow-sm placeholder:text-slate-400 dark:bg-slate-800/60 dark:border-slate-800 dark:text-white dark:focus:bg-slate-900";
-    const sectionClass = "bg-white p-6 md:p-8 rounded-[24px] border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800";
+    const sectionClass = "bg-white p-4 md:p-8 rounded-[24px] border border-slate-200 shadow-sm dark:bg-slate-900 dark:border-slate-800";
 
     const mostrarLista = listaAberta && !alunoEncontrado;
 
@@ -492,7 +493,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 unidadeDestino={leadForm.unidade}
             />
 
-            <form onSubmit={handleSubmitVisitante} className="max-w-3xl mx-auto space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
+            <form id="form-visitante" onSubmit={handleSubmitVisitante} className="max-w-3xl mx-auto space-y-4 md:space-y-6 animate-[fadeIn_0.3s_ease-out] pb-2 md:pb-10">
                 
                 {sucesso && (
                     <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
@@ -518,7 +519,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
                 {/* 1. IDENTIFICAÇÃO */}
                 <div className={sectionClass}>
-                    <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-5 md:mb-8 pb-4 border-b border-slate-100 dark:border-slate-800">
                         <h3 className="text-lg font-black text-slate-800 flex items-center gap-2 dark:text-white">
                             <UserPlus className="w-6 h-6 text-blue-500" />{' '}{tx("Cadastro de Visitante")}
                         </h3>
@@ -555,10 +556,10 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                 )}
                             </div>
                             <div className="flex flex-wrap items-center justify-between gap-3">
-                                <button type="button" onClick={() => setMaisOpcoes(v => !v)} className="text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 dark:hover:text-slate-300">
+                                <button type="button" onClick={() => setMaisOpcoes(v => !v)} className="min-h-10 md:min-h-0 text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-1 dark:hover:text-slate-300">
                                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${maisOpcoes ? 'rotate-180' : ''}`} />{tx("mais opções")}
                                 </button>
-                                <button type="button" onClick={() => { setModo('aluno'); requestAnimationFrame(() => inputClienteRef.current?.focus()); }} className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 flex items-center gap-1 dark:text-blue-400">
+                                <button type="button" onClick={() => { setModo('aluno'); requestAnimationFrame(() => inputClienteRef.current?.focus()); }} className="min-h-10 md:min-h-0 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 flex items-center gap-1 dark:text-blue-400">
                                     <Search className="w-3.5 h-3.5" />{tx("Já é aluno? Buscar no cadastro")}
                                 </button>
                             </div>
@@ -574,7 +575,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
                     {modo === 'aluno' && (
                     <div className="flex flex-col gap-6">
-                        <button type="button" onClick={() => { trocarPessoa(); setModo('rapido'); }} className="self-start -mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 flex items-center gap-1 dark:text-blue-400">
+                        <button type="button" onClick={() => { trocarPessoa(); setModo('rapido'); }} className="min-h-10 md:min-h-0 self-start -mt-2 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-700 flex items-center gap-1 dark:text-blue-400">
                             <UserPlus className="w-3.5 h-3.5" />{tx("Visitante novo (só nome e telefone)")}
                         </button>
                         <div className="flex flex-col md:flex-row md:items-start gap-6">
@@ -603,7 +604,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                 </div>
 
                                 {mostrarLista && (
-                                    <div id="lista-visitantes" role="listbox" className="absolute left-0 right-0 top-full mt-2 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden dark:bg-slate-900 dark:border-slate-800">
+                                    <div id="lista-visitantes" role="listbox" className="absolute left-0 right-0 top-full mt-2 z-30 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden max-md:max-h-[50dvh] max-md:overflow-y-auto dark:bg-slate-900 dark:border-slate-800">
                                         {buscandoLista && sugestoes.length === 0 && (
                                             <p className="px-4 py-4 text-[11px] font-bold text-slate-400 flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" />{' '}{tx("Buscando...")}</p>
                                         )}
@@ -665,10 +666,10 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                     <EtiquetasUnidade unidades={unidadesAluno} unidadeMinha={unidadeMinha} className="mt-2" />
                                 </div>
                                 <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto shrink-0">
-                                    <button type="button" onClick={trocarPessoa} className="px-5 py-2.5 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20">
+                                    <button type="button" onClick={trocarPessoa} className="min-h-11 md:min-h-0 px-5 py-2.5 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20">
                                         <RefreshCw className="w-4 h-4" />{' '}{tx("Trocar pessoa")}
                                     </button>
-                                    <button type="button" onClick={abrirCadastro} className="px-5 py-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
+                                    <button type="button" onClick={abrirCadastro} className="min-h-11 md:min-h-0 px-5 py-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm">
                                         <UserRoundPen className="w-4 h-4" />{' '}{tx("Completar cadastro")}
                                     </button>
                                 </div>
@@ -699,10 +700,10 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                         </div>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto shrink-0">
-                                        <button type="button" onClick={trocarPessoa} className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
+                                        <button type="button" onClick={trocarPessoa} className="min-h-11 md:min-h-0 px-5 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                                             <RefreshCw className="w-4 h-4" />{' '}{tx("Trocar pessoa")}
                                         </button>
-                                        <button type="button" onClick={abrirCadastro} className="px-5 py-2.5 bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:border-blue-500/30">
+                                        <button type="button" onClick={abrirCadastro} className="min-h-11 md:min-h-0 px-5 py-2.5 bg-white border border-slate-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-blue-400 dark:hover:bg-blue-500/10 dark:hover:border-blue-500/30">
                                             <UserRoundPen className="w-4 h-4" />{' '}{tx("Editar Cadastro")}
                                         </button>
                                     </div>
@@ -713,7 +714,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                         <h4 className="text-sm font-black text-amber-800 uppercase tracking-tight mb-1 dark:text-amber-300">{tx("Registro Inexistente")}</h4>
                                         <p className="text-xs font-bold text-amber-700/70">{tx("Esta pessoa ainda não possui cadastro.")}</p>
                                     </div>
-                                    <button type="button" onClick={abrirCadastro} className="w-full md:w-auto px-5 py-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0">
+                                    <button type="button" onClick={abrirCadastro} className="min-h-11 md:min-h-0 w-full md:w-auto px-5 py-2.5 bg-amber-500 text-white hover:bg-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-sm shrink-0">
                                         <UserPlus className="w-4 h-4" />{' '}{tx("Cadastrar Visitante Rápido")}
                                     </button>
                                 </div>
@@ -725,7 +726,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                 <p className="text-xs font-bold text-amber-800 flex items-center gap-2 dark:text-amber-300">
                                     <PhoneOff className="w-4 h-4 shrink-0" />{' '}{tx("Sem telefone no cadastro: o consultor não vai conseguir retornar o contato.")}
                                 </p>
-                                <button type="button" onClick={abrirCadastro} className="px-4 py-2 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shrink-0 dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20">
+                                <button type="button" onClick={abrirCadastro} className="min-h-10 md:min-h-0 px-4 py-2 bg-white border border-amber-200 text-amber-700 hover:bg-amber-100 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shrink-0 dark:bg-slate-900 dark:border-amber-500/30 dark:text-amber-400 dark:hover:bg-amber-500/20">
                                     {tx("Adicionar telefone")}
                                 </button>
                             </div>
@@ -750,7 +751,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                                 onClick={() => escolherInteresse(op)}
                                                 disabled={!pronto}
                                                 aria-pressed={ativo}
-                                                className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${ativo ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:border-blue-500/30 dark:hover:text-blue-400'}`}
+                                                className={`min-h-10 md:min-h-0 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border transition-colors ${ativo ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-blue-300 hover:text-blue-600 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:border-blue-500/30 dark:hover:text-blue-400'}`}
                                             >
                                                 {tx(op)}
                                             </button>
@@ -786,15 +787,15 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
 
                         {modo === 'rapido' && pronto && (
                             <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-                                <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5"><MessageCircle className="w-4 h-4" />{' '}{tx("Mensagem de boas-vindas")}</span>
-                                    <button type="button" onClick={() => setModeloBV(modeloBoasVindas(mensagensProntas))} className="text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Gerar outra")}</button>
+                                    <button type="button" onClick={() => setModeloBV(modeloBoasVindas(mensagensProntas))} className="min-h-10 md:min-h-0 text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:text-emerald-900 dark:text-emerald-300 flex items-center gap-1"><RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Gerar outra")}</button>
                                 </div>
                                 <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 whitespace-pre-wrap">{textoBoasVindas}</p>
                             </div>
                         )}
 
-                        <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col-reverse md:flex-row justify-end gap-3 dark:border-slate-800">
+                        <div className="hidden md:flex mt-8 pt-6 border-t border-slate-100 flex-col-reverse md:flex-row justify-end gap-3 dark:border-slate-800">
                             {modo === 'rapido' ? (
                                 <button type="submit" disabled={isSubmitting || sucesso || !pronto} className="w-full md:w-auto bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50 font-black uppercase tracking-widest py-4 px-8 rounded-2xl shadow-sm transition-all duration-200 flex justify-center items-center gap-2 text-xs active:scale-[0.98]" title={tx("Salva o visitante no funil e já abre o WhatsApp com a mensagem de boas-vindas")}>
                                     {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{tx("Salvando...")}</> : <><MessageCircle className="w-5 h-5" />{' '}{tx("Salvar e enviar no WhatsApp")}</>}
@@ -807,6 +808,18 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                         </div>
                     </div>
                 </div>
+                {/* Celular: botão de enviar preso no rodapé, como no Lançar venda (26/11/2026) */}
+                {!sucesso && (
+                    <RodapeFixo>
+                        {!pronto && <p className="text-[12px] font-semibold text-amber-700 mb-1.5 leading-snug dark:text-amber-300">{modo === 'rapido' ? tx('Preencha o nome e o telefone para enviar') : tx('Escolha a pessoa para enviar')}</p>}
+                        <button type="submit" form="form-visitante" disabled={isSubmitting || !pronto}
+                            className={`w-full h-12 text-white disabled:opacity-50 font-black uppercase tracking-widest rounded-xl flex justify-center items-center gap-2 text-[12px] ${modo === 'rapido' ? 'bg-emerald-600' : 'bg-blue-600'}`}>
+                            {isSubmitting
+                                ? <><Loader2 className="w-5 h-5 animate-spin" />{' '}{modo === 'rapido' ? tx("Salvando...") : tx("Inserindo no CRM...")}</>
+                                : modo === 'rapido' ? <><MessageCircle className="w-5 h-5" />{' '}{tx("Salvar e enviar no WhatsApp")}</> : <><Send className="w-5 h-5" />{' '}{tx("Enviar para o Funil CRM")}</>}
+                        </button>
+                    </RodapeFixo>
+                )}
             </form>
         </>
     );

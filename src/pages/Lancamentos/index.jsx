@@ -46,7 +46,7 @@ const LancamentoVendas = ({
             
             {/* Topo: abas à esquerda e etapas da venda à direita (desenho aprovado, 30/10/2026) */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
-                <div className="flex items-center gap-1 p-1.5 bg-white rounded-2xl border border-[#E4E8F0] w-fit dark:bg-slate-900 dark:border-slate-800" role="tablist">
+                <div className="flex items-center gap-1 p-1.5 bg-white rounded-2xl border border-[#E4E8F0] w-full sm:w-fit dark:bg-slate-900 dark:border-slate-800" role="tablist">
                     {[
                         ['venda', 'Lançar Venda', ShoppingCart],
                         ['visitante', 'Cadastrar Visitante', UserPlus],
@@ -54,8 +54,8 @@ const LancamentoVendas = ({
                         const ativa = abaMostrada === id;
                         return (
                             <button key={id} type="button" role="tab" aria-selected={ativa} onClick={() => handleTrocarAba(id)}
-                                className={`h-11 px-4 rounded-xl text-[14px] font-semibold flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] ${ativa ? 'bg-[#0B1F4B] text-white dark:bg-blue-600' : 'text-[#3B4458] hover:bg-[#F3F5FA] hover:text-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`}>
-                                <Icone className="w-4 h-4" />{tx(rotulo)}
+                                className={`flex-1 sm:flex-none min-w-0 justify-center h-11 px-2 sm:px-4 rounded-xl text-[12px] sm:text-[14px] leading-tight font-semibold flex items-center gap-1.5 sm:gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[#1D4FD8] ${ativa ? 'bg-[#0B1F4B] text-white dark:bg-blue-600' : 'text-[#3B4458] hover:bg-[#F3F5FA] hover:text-[#0F172A] dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white'}`}>
+                                <Icone className="w-4 h-4 shrink-0" />{tx(rotulo)}
                             </button>
                         );
                     })}

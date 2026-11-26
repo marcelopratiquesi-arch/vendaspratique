@@ -18,7 +18,7 @@ const AvisoCadastroIncompleto = ({ pendencias = [], onCompletar, liberar = '' })
                 </div>
             </div>
             {onCompletar && (
-                <button type="button" onClick={onCompletar} className="shrink-0 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors flex items-center justify-center gap-2">
+                <button type="button" onClick={onCompletar} className="shrink-0 h-11 sm:h-auto px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm transition-colors flex items-center justify-center gap-2">
                     <UserRoundPen className="w-4 h-4" />{' '}{tx("Completar cadastro")}
                 </button>
             )}

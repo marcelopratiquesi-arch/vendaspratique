@@ -4,6 +4,9 @@
 import React, { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { ChevronDown, Search, Check } from 'lucide-react';
 import { tx } from '../../../i18n/traduzir.js';
+import { CamadaDoApp } from '../celular/camada.jsx';
+import CabecalhoLista from './CabecalhoLista.jsx';
+import { ehCelularAgora } from '../../../components/celular/ehCelular.js';
 import { combinaBusca, useFecharAoClicarFora, tratarTeclado, lerUltimoConsultor, guardarUltimoConsultor, useModoEscuro, CLASSE_CAMPO, CLASSE_PAINEL } from './comum.js';
 import { setorDoColaborador, ordemDoSetor, montarNomesCurtos, iniciaisDoConsultor } from './setoresEquipe.js';
 
@@ -21,15 +24,17 @@ const SeletorConsultor = ({ consultores = [], valor, onEscolher, aberto, setAber
     const caixaRef = useRef(null);
     const buscaRef = useRef(null);
     const listaRef = useRef(null);
+    const painelRef = useRef(null);
     const escuro = useModoEscuro();
 
     const fechar = useCallback(() => setAberto(false), [setAberto]);
-    useFecharAoClicarFora(aberto, caixaRef, fechar);
+    useFecharAoClicarFora(aberto, caixaRef, fechar, painelRef);
     useEffect(() => {
         if (!aberto) return;
         setBusca('');
         setUltimo(lerUltimoConsultor());
-        setTimeout(() => buscaRef.current?.focus(), 20);
+        // No celular o teclado não abre sozinho (taparia metade da lista); a busca está no topo
+        if (!ehCelularAgora()) setTimeout(() => buscaRef.current?.focus(), 20);
     }, [aberto]);
 
     // Nome curto de cada pessoa (com desempate entre homônimos da mesma unidade)
@@ -96,8 +101,9 @@ const SeletorConsultor = ({ consultores = [], valor, onEscolher, aberto, setAber
             </button>
 
             {aberto && (
-                <div className={`${CLASSE_PAINEL} min-w-[260px]`}>
-                    <div className="p-3 border-b border-[#EEF1F6] dark:border-slate-800">
+                <CamadaDoApp><div ref={painelRef} className={`${CLASSE_PAINEL} md:min-w-[260px]`}>
+                    <CabecalhoLista titulo={tx('Consultor')} onVoltar={fechar} />
+                    <div className="shrink-0 p-3 border-b border-[#EEF1F6] dark:border-slate-800">
                         <label className="h-11 px-3 bg-[#F3F5FA] rounded-xl flex items-center gap-2 dark:bg-slate-800">
                             <Search className="w-4 h-4 text-[#5B6478] shrink-0" />
                             <span className="sr-only">{tx('Buscar consultor…')}</span>
@@ -114,7 +120,7 @@ const SeletorConsultor = ({ consultores = [], valor, onEscolher, aberto, setAber
                             />
                         </label>
                     </div>
-                    <ul ref={listaRef} id={`${idCampo}-lista`} role="listbox" className="max-h-72 overflow-y-auto overflow-x-hidden py-1 custom-scrollbar">
+                    <ul ref={listaRef} id={`${idCampo}-lista`} role="listbox" className="flex-1 min-h-0 pb-[env(safe-area-inset-bottom)] md:flex-none md:max-h-72 md:pb-1 overflow-y-auto overflow-x-hidden py-1 custom-scrollbar">
                         {plana.length === 0 && <li className="px-4 py-6 text-center text-[13px] text-[#5B6478] dark:text-slate-400">{consultores.length === 0 ? tx('Nenhum consultor ativo nesta unidade.') : tx('Nada encontrado.')}</li>}
                         {secoes.map(secao => (
                             <li key={secao.chave} role="presentation">
@@ -138,7 +144,11 @@ const SeletorConsultor = ({ consultores = [], valor, onEscolher, aberto, setAber
                                                 className={`min-h-11 px-4 py-1.5 flex items-center gap-2.5 cursor-pointer ${marcado ? 'bg-[#EEF3FF] dark:bg-blue-500/15' : indice === ativo ? 'bg-[#F3F5FA] dark:bg-slate-800' : ''}`}
                                             >
                                                 <Avatar nome={c.nome} setor={c.setorInfo} escuro={escuro} />
-                                                <span className="flex-1 min-w-0 truncate text-[14px] font-semibold text-[#0F172A] dark:text-white">{c.curto}</span>
+                                                <span className="flex-1 min-w-0">
+                                                    <span className="block truncate text-[14px] font-semibold text-[#0F172A] dark:text-white">{c.curto}</span>
+                                                    {/* Celular: o nome completo aparece embaixo (no computador está no balão do mouse) */}
+                                                    {c.nome !== c.curto && <span className="block md:hidden text-[11px] font-medium text-[#5B6478] break-words dark:text-slate-400">{c.nome}</span>}
+                                                </span>
                                                 {marcado && <Check className="w-4 h-4 shrink-0 text-[#1D4FD8] dark:text-blue-300" strokeWidth={3} aria-hidden="true" />}
                                             </li>
                                         );
@@ -147,7 +157,7 @@ const SeletorConsultor = ({ consultores = [], valor, onEscolher, aberto, setAber
                             </li>
                         ))}
                     </ul>
-                </div>
+                </div></CamadaDoApp>
             )}
         </div>
     );
