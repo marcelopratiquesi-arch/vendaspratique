@@ -3,6 +3,7 @@ import { Building2, Send, HelpCircle, ArrowRight, Loader2, ArrowUp, ArrowDown, A
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
 import { estiloDaUnidade, DIAS_SEM_PLANO_ALERTA, faixaProdutividade, PRODUTIVIDADE_ATENCAO, PRODUTIVIDADE_BOA } from './calculosRede.js';
 import BotaoCentralUnidade from '../../../components/BotaoCentralUnidade.jsx';
+import { GradeCartao, NumeroCartao, OrdenarCelular } from '../../../components/celular/Cartao.jsx';
 
 // ==========================================
 // QUADRO "PLANOS POR UNIDADE" — só na Visão da Rede (Admin/Mentor com o topo em "Todas"; decisão do dono, 06/11/2026)
@@ -181,7 +182,7 @@ const QuadroPlanosPorUnidade = ({
                 <div className="flex flex-wrap items-center gap-2">
                     {ordem.coluna && (
                         <button type="button" onClick={() => setOrdem({ coluna: null, direcao: 'desc' })}
-                            className="text-[12px] font-bold text-blue-700 hover:underline dark:text-blue-400">{tx('Voltar à ordem normal')}</button>
+                            className="hidden md:inline text-[12px] font-bold text-blue-700 hover:underline dark:text-blue-400">{tx('Voltar à ordem normal')}</button>
                     )}
                     <div className="h-10 p-1 rounded-xl bg-[#EEF1F6] inline-flex dark:bg-slate-800" role="group" aria-label={tx('Modo do quadro')}>
                         {[{ m: 'resumido', rotulo: tx('Resumido') }, { m: 'detalhado', rotulo: tx('Detalhado') }].map(({ m, rotulo }) => (
@@ -198,7 +199,110 @@ const QuadroPlanosPorUnidade = ({
                 </div>
             </div>
 
-            <div className="overflow-x-auto custom-scrollbar">
+            {/* Celular (26/11/2026): um cartão por unidade; tocar no cartão abre o Dashboard dela (igual à linha da tabela) */}
+            <div className="md:hidden px-4 pb-2 space-y-2">
+                <OrdenarCelular
+                    valor={ordem.coluna ? `${ordem.coluna}:${ordem.direcao}` : ''}
+                    onChange={(v) => { if (!v) { setOrdem({ coluna: null, direcao: 'desc' }); return; } const [coluna, direcao] = v.split(':'); setOrdem({ coluna, direcao }); }}
+                    opcoes={[
+                        { valor: '', rotulo: tx('Ordem normal') },
+                        { valor: 'unidade:asc', rotulo: `${tx('Unidade')} (A→Z)` },
+                        ...[['planos', 'Planos'], ['plus', 'Plus'], ...(resumido ? [] : [['fit', 'Fit'], ['personal', 'Personal Class']]), ['nutri', 'Nutri'], ['produtividade', 'Produtividade'], ['produtos', 'Produtos'],
+                            ...(resumido ? [] : [['servicos', 'Serviços']]), ['cancelamentos', 'Saídas'], ...(resumido ? [['saldo', 'Saldo']] : []), ['faturamento', 'Faturamento'], ['ativos', 'Ativos']]
+                            .flatMap(([c, r]) => [{ valor: `${c}:desc`, rotulo: `${tx(r)} ↓` }, { valor: `${c}:asc`, rotulo: `${tx(r)} ↑` }]),
+                    ]} />
+                {linhasOrdenadas.map(l => {
+                    const { cor } = estiloDaUnidade(l.indice, escuro);
+                    const zerado = l.planos === 0;
+                    const temTecace = l.nutriInfo?.tecace !== null && l.nutriInfo?.tecace !== undefined;
+                    const saldo = VALOR_ORDEM.saldo(l);
+                    return (
+                        <div key={l.chave} role="button" tabIndex={0} onClick={() => onAbrirUnidade(l.nome)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') onAbrirUnidade(l.nome); }}
+                            aria-label={tx('Abrir o Dashboard da unidade')}
+                            className={`rounded-2xl border p-3 outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:bg-[#F8FAFD] dark:active:bg-slate-800/60 ${zerado ? 'bg-rose-50/60 border-rose-200 dark:bg-rose-500/5 dark:border-rose-500/30' : 'bg-white border-[#E4E8F0] dark:bg-slate-900 dark:border-slate-800'}`}>
+                            <div className="flex items-start justify-between gap-2">
+                                <span className="min-w-0 flex items-center gap-2">
+                                    <span className="w-3 h-3 rounded-[3px] shrink-0" style={{ background: cor }} aria-hidden="true" />
+                                    <span className="text-[14px] font-bold text-[#0F172A] break-words dark:text-white">{l.nome}</span>
+                                </span>
+                                <span className="shrink-0 flex items-center gap-2">
+                                    <BotaoCentralUnidade unidade={l.nome} usuario={usuario} />
+                                    <ArrowRight className="w-4 h-4 text-[#5B6478] dark:text-slate-400" aria-hidden="true" />
+                                </span>
+                            </div>
+                            {(zerado || l.parouDeVender) && (
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                    {zerado && <span className="min-h-5 px-2 py-0.5 rounded-md bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-black uppercase tracking-wide inline-flex items-center dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30">{tx('Não vendeu no período')}</span>}
+                                    {l.parouDeVender && (
+                                        <span className="min-h-5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black uppercase tracking-wide inline-flex items-center dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30">
+                                            {tx('Sem plano há {dias} dias', { dias: l.diasSemPlano })} · {tx('Último plano em {dia}. O selo aparece com {dias} dias ou mais sem plano.', { dia: ddmm(l.ultimoPlano), dias: DIAS_SEM_PLANO_ALERTA })}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+                            <div className="mt-2 flex items-center gap-3">
+                                <span className={`text-lg font-extrabold tabular-nums ${zerado ? 'text-[#B42318] dark:text-rose-300' : 'text-[#0F172A] dark:text-white'}`}>{dois(l.planos)}</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[#5B6478] dark:text-slate-400">{tx('Planos')}</span>
+                                <span className="flex-1 h-2 rounded-full bg-[#EEF1F6] overflow-hidden flex gap-px dark:bg-slate-800" aria-hidden="true">
+                                    <span className="h-full flex gap-px" style={{ width: `${(l.planos / maior) * 100}%` }}>
+                                        {gruposBase.filter(g => l.grupos[g.chave] > 0).map(g => (
+                                            <span key={g.chave} className="h-full" style={{ flex: l.grupos[g.chave], background: corGrupo(g) }} />
+                                        ))}
+                                    </span>
+                                </span>
+                                <span className="shrink-0">
+                                    {carregandoAnterior ? <Loader2 className="w-3 h-3 animate-spin text-slate-400" /> : temComparativo ? <Variacao atual={l.planos} antes={l.anterior} titulo={tituloVariacao} /> : null}
+                                </span>
+                            </div>
+                            <div className="mt-2">
+                                <GradeCartao>
+                                    <NumeroCartao rotulo={tx('Plus')} valor={dois(l.grupos.PLUS || 0)} />
+                                    {!resumido && <NumeroCartao rotulo={tx('Fit')} valor={dois(l.grupos.FIT || 0)} />}
+                                    {!resumido && <NumeroCartao rotulo={tx('Personal Class')} valor={dois(l.grupos['PERSONAL CLASS'] || 0)} />}
+                                    {!resumido && temOutros && <NumeroCartao rotulo={tx('Outros')} valor={dois(l.grupos['OUTROS PLANOS'] || 0)} />}
+                                    <NumeroCartao rotulo={tx('Nutri')} cor="text-[#0B7A52] dark:text-emerald-400"
+                                        valor={<>{l.nutri > 0 ? dois(l.nutri) : '—'}{l.nutriInfo?.divergencia && <span className="text-[11px]" aria-label={tx('Tecace menor que as vendas do sistema: conferir')}> ⚠️</span>}</>}
+                                        extra={temTecace && l.nutri > 0 ? `${tx('Vendas pelo sistema: {n}', { n: l.nutriInfo.internas })} · ${tx('Adicional Tecace: {n}', { n: l.nutriInfo.adicional })}` : null} />
+                                    <NumeroCartao rotulo={tx('Produtividade')} valor={<SeloProdutividade valor={l.produtividade} />} />
+                                    <NumeroCartao rotulo={tx('Produtos')} valor={dois(l.produtos)}
+                                        extra={l.produtos > l.produtosValidos ? <span className="text-amber-700 dark:text-amber-300">{tx('{qtd} fora da meta', { qtd: l.produtos - l.produtosValidos })}</span> : null} />
+                                    {!resumido && <NumeroCartao rotulo={tx('Serviços')} valor={dois(l.servicos)} />}
+                                    <NumeroCartao rotulo={tx('Saídas')} valor={semMovimento || l.cancelamentos === null ? '—' : dois(l.cancelamentos)} />
+                                    {resumido && <NumeroCartao rotulo={tx('Saldo')} valor={semMovimento || saldo === null ? '—' : `${saldo > 0 ? '+' : saldo < 0 ? '−' : ''}${Math.abs(saldo)}`}
+                                        cor={semMovimento || saldo === null || saldo === 0 ? 'text-[#5B6478] dark:text-slate-400' : saldo > 0 ? 'text-[#0B7A52] dark:text-emerald-400' : 'text-[#B42318] dark:text-rose-300'} />}
+                                    <NumeroCartao rotulo={tx('Faturamento')} valor={semMovimento || l.faturamento === null ? '—' : moedaCurta(l.faturamento)} />
+                                    <NumeroCartao rotulo={tx('Ativos')} valor={l.ativos === null ? '—' : Number(l.ativos).toLocaleString(localeAtual())} />
+                                </GradeCartao>
+                            </div>
+                        </div>
+                    );
+                })}
+                {linhas.length > 1 && (
+                    <div className="rounded-2xl border border-[#E4E8F0] bg-[#F8FAFD] p-3 dark:bg-slate-800/60 dark:border-slate-700">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="text-[12px] font-black uppercase tracking-[0.07em] text-[#0F172A] dark:text-white">{tx('Rede')}</span>
+                            <span className="flex items-center gap-2">
+                                <span className="text-lg font-extrabold text-[#0F172A] tabular-nums dark:text-white">{dois(totalPlanos)}</span>
+                                {temComparativo && !carregandoAnterior && <Variacao atual={totalPlanos} antes={soma('anterior')} titulo={tituloVariacao} />}
+                            </span>
+                        </div>
+                        <div className="mt-2">
+                            <GradeCartao>
+                                <NumeroCartao rotulo={tx('Plus')} valor={dois(somaGrupo('PLUS'))} />
+                                <NumeroCartao rotulo={tx('Nutri')} valor={totalNutri > 0 ? dois(totalNutri) : '—'} />
+                                <NumeroCartao rotulo={tx('Produtividade')} valor={<SeloProdutividade valor={produtividadeRede} />} />
+                                <NumeroCartao rotulo={tx('Produtos')} valor={dois(soma('produtos'))} />
+                                <NumeroCartao rotulo={tx('Saídas')} valor={semMovimento || !algum('cancelamentos') ? '—' : dois(soma('cancelamentos'))} />
+                                <NumeroCartao rotulo={tx('Ativos')} valor={ativosLancados === 0 ? '—' : soma('ativos').toLocaleString(localeAtual())}
+                                    extra={ativosLancados > 0 ? `${ativosLancados}/${linhas.length}` : null} />
+                            </GradeCartao>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto custom-scrollbar">
                 <table className={`w-full ${resumido ? 'min-w-[820px]' : 'min-w-[1100px]'} text-left border-collapse`}>
                     <thead>
                         <tr>
@@ -285,7 +389,7 @@ ${tx('Total Nutri: {n}', { n: l.nutriInfo.total })}` : undefined}>
                                                 <span className="font-extrabold text-[#0B7A52] dark:text-emerald-400">{dois(l.nutri)}</span>
                                                 {l.nutriInfo?.divergencia && <span className="text-[11px]" aria-label={tx('Tecace menor que as vendas do sistema: conferir')}>⚠️</span>}
                                                 {l.nutriInfo?.tecace !== null && l.nutriInfo?.tecace !== undefined && (
-                                                    <span role="tooltip" className="pointer-events-none absolute left-0 top-full mt-1 z-40 hidden group-hover/nutri:block group-focus/nutri:block w-[210px] bg-slate-800 text-white text-[11px] font-semibold text-left leading-snug px-3 py-2 rounded-lg shadow-lg whitespace-normal dark:bg-slate-700">
+                                                    <span role="tooltip" className="pointer-events-none absolute left-0 top-full mt-1 z-40 hidden group-hover/nutri:block group-focus/nutri:block w-[min(210px,70vw)] bg-slate-800 text-white text-[11px] font-semibold text-left leading-snug px-3 py-2 rounded-lg shadow-lg whitespace-normal dark:bg-slate-700">
                                                         <b className="block uppercase tracking-widest text-[10px] mb-1">NUTRI — {l.nome}</b>
                                                         {tx('Vendas pelo sistema: {n}', { n: l.nutriInfo.internas })}<br />
                                                         {tx('Adicional Tecace: {n}', { n: l.nutriInfo.adicional })}<br />
@@ -357,7 +461,8 @@ ${tx('Total Nutri: {n}', { n: l.nutriInfo.total })}` : undefined}>
                 </table>
             </div>
             <p className="px-4 md:px-6 py-3 text-[11px] text-[#5B6478] dark:text-slate-400">
-                {tx('Clique numa unidade para abrir o Dashboard dela. Clique no título de uma coluna para ordenar. As cores das unidades são as mesmas do Ritmo do mês.')}
+                <span className="hidden md:inline">{tx('Clique numa unidade para abrir o Dashboard dela. Clique no título de uma coluna para ordenar. As cores das unidades são as mesmas do Ritmo do mês.')}</span>
+                <span className="md:hidden">{tx('Toque numa unidade para abrir o Dashboard dela. As cores das unidades são as mesmas do Ritmo do mês.')}</span>
             </p>
         </section>
     );

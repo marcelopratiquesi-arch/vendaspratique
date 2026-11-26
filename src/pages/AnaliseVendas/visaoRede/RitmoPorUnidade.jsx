@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceArea } from 'recharts';
 import { tx } from '../../../i18n/traduzir.js';
 import { estiloDaUnidade, ritmoPorUnidade } from './calculosRede.js';
+import { useEhCelular } from '../../../components/celular/ehCelular.js';
 
 // ==========================================
 // RITMO DO MÊS POR UNIDADE — "Corrida com destaque" (decisão do dono, 06/11/2026)
@@ -44,6 +45,7 @@ const RitmoPorUnidade = ({ unidadesRede, contados, faixa, hojeIso, escuro, espec
     const ordem = useMemo(() => (dados ? [...unidadesRede].sort((a, b) => (dados.totais.get(b.chave) || 0) - (dados.totais.get(a.chave) || 0) || a.nome.localeCompare(b.nome, 'pt-BR')) : []), [dados, unidadesRede]);
     const [fixada, setFixada] = useState(null);   // clique: fica destacada
     const [sobMouse, setSobMouse] = useState(null); // passar o mouse: destaca enquanto o mouse estiver em cima
+    const celular = useEhCelular(); // celular: gráfico mais baixo e dias do eixo mais espaçados
 
     if (!dados) return null;
     // Só até hoje (sem o resto do mês vazio espremendo o gráfico)
@@ -71,7 +73,7 @@ const RitmoPorUnidade = ({ unidadesRede, contados, faixa, hojeIso, escuro, espec
 
     return (
         <>
-            <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={tx('Unidade em destaque')} onMouseLeave={() => setSobMouse(null)}>
+            <div className="mt-4 flex flex-nowrap overflow-x-auto snap-x snap-proximity pb-1 md:pb-0 md:flex-wrap md:overflow-visible md:snap-none items-center gap-2" role="group" aria-label={tx('Unidade em destaque')} onMouseLeave={() => setSobMouse(null)}>
                 {ordem.map((u, i) => {
                     const { cor } = estiloDaUnidade(u.indice, escuro);
                     const ativo = u.chave === chaveDestaque;
@@ -80,7 +82,7 @@ const RitmoPorUnidade = ({ unidadesRede, contados, faixa, hojeIso, escuro, espec
                         <button key={u.chave} type="button" aria-pressed={fixada === u.chave}
                             onClick={() => clicar(u.chave)} onMouseEnter={() => setSobMouse(u.chave)} onFocus={() => setSobMouse(u.chave)} onBlur={() => setSobMouse(null)}
                             title={fixada === u.chave ? tx('Clique de novo para soltar o destaque') : tx('Clique para deixar esta unidade em destaque')}
-                            className={`h-9 px-3 rounded-full border text-[12px] font-semibold inline-flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativo ? 'bg-[#0B1F4B] border-[#0B1F4B] text-white dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-[#D6DCE8] text-[#0F172A] hover:bg-[#F3F5FA] dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}>
+                            className={`h-10 md:h-9 shrink-0 snap-start px-3 rounded-full border text-[12px] font-semibold inline-flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativo ? 'bg-[#0B1F4B] border-[#0B1F4B] text-white dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-[#D6DCE8] text-[#0F172A] hover:bg-[#F3F5FA] dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}>
                             <span className="text-[11px] font-bold tabular-nums opacity-70">{i + 1}º</span>
                             <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: cor }} aria-hidden="true" />
                             <span className="truncate max-w-[140px]">{u.nome}</span>
@@ -89,16 +91,16 @@ const RitmoPorUnidade = ({ unidadesRede, contados, faixa, hojeIso, escuro, espec
                     );
                 })}
             </div>
-            <div className="mt-3 h-[300px]" onMouseLeave={() => setSobMouse(null)}>
+            <div className="mt-3 h-[240px] md:h-[300px]" onMouseLeave={() => setSobMouse(null)}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={linhas} margin={{ top: 24, right: 24, left: 0, bottom: 4 }}>
+                    <LineChart data={linhas} margin={{ top: 24, right: celular ? 12 : 24, left: 0, bottom: 4 }}>
                         <CartesianGrid vertical={false} stroke={corGrade} />
                         {especiais.filter(e => e.i < n).map(e => (
                             <ReferenceArea key={`sdf-${e.i}`} x1={Math.max(0, e.i - 0.5)} x2={Math.min(n - 1, e.i + 0.5)} ifOverflow="hidden"
                                 fill={e.letra === 'F' ? '#F59E0B' : '#94A3B8'} fillOpacity={e.letra === 'F' ? 0.1 : 0.08} stroke="none"
                                 label={{ value: e.letra, position: 'insideTop', fontSize: 10, fontWeight: 800, fill: e.letra === 'F' ? '#D97706' : corEixo }} />
                         ))}
-                        <XAxis dataKey="i" type="number" domain={[0, Math.max(n - 1, 1)]} ticks={ticks}
+                        <XAxis dataKey="i" type="number" domain={[0, Math.max(n - 1, 1)]} ticks={ticks} minTickGap={celular ? 14 : 5}
                             tickFormatter={(i) => rotuloDia(i, true)} tick={{ fill: corEixo, fontSize: 12 }} axisLine={{ stroke: corGrade }} tickLine={false} />
                         <YAxis allowDecimals={false} tickCount={5} domain={[0, 'auto']} tick={{ fill: corEixo, fontSize: 12 }} axisLine={false} tickLine={false} width={36} />
                         <Tooltip content={<ConteudoDica rotuloDia={rotuloDia} nomes={nomes} destaque={keyDestaque} escuro={escuro} />} />
@@ -121,7 +123,8 @@ const RitmoPorUnidade = ({ unidadesRede, contados, faixa, hojeIso, escuro, espec
             </div>
             <p className="mt-1 text-[11px] text-[#5B6478] dark:text-slate-400">
                 {tx('Cada linha é a soma de planos da unidade desde o começo do período (só sobe).')}
-                {' '}{tx('Passe o mouse ou clique no nome da unidade (ou na linha) para destacá-la. Passe o mouse num dia para ver a posição de cada unidade.')}
+                {' '}<span className="hidden md:inline">{tx('Passe o mouse ou clique no nome da unidade (ou na linha) para destacá-la. Passe o mouse num dia para ver a posição de cada unidade.')}</span>
+                <span className="md:hidden">{tx('Toque no nome da unidade para destacá-la (arraste os nomes para o lado). Toque num dia para ver a posição de cada unidade.')}</span>
             </p>
         </>
     );

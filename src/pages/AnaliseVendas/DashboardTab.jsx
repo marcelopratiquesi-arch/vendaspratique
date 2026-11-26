@@ -26,6 +26,9 @@ import {
 } from 'lucide-react';
 import GestaoAVistaProdutos from './gestaoAVista/GestaoAVistaProdutos.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { CartaoCelular } from '../../components/celular/Cartao.jsx';
+import Dica from '../../components/celular/Dica.jsx';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
 
 // ==========================================
 // DASHBOARD PRINCIPAL — visual aprovado pelo dono (30/10/2026)
@@ -139,7 +142,7 @@ const DraggableWindow = ({ isOpen, onClose, title, subtitle, icon: Icon, iconCol
                 minHeight: `min(${minHeight}px, calc(100vh - 16px))`,
                 maxHeight: 'calc(100vh - 16px)'
             }}
-            className="fixed z-[200] bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] flex flex-col border border-slate-300 resize overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-slate-900 dark:border-slate-700"
+            className="fixed z-[200] bg-white rounded-[24px] shadow-[0_20px_60px_rgba(0,0,0,0.3)] flex flex-col border border-slate-300 md:resize overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-slate-900 dark:border-slate-700"
         >
             {/* CABEÇALHO (ÁREA DE ARRASTE) */}
             <div
@@ -160,7 +163,7 @@ const DraggableWindow = ({ isOpen, onClose, title, subtitle, icon: Icon, iconCol
                     onMouseDown={(e) => e.stopPropagation()}
                     onClick={onClose}
                     aria-label={tx("Fechar")}
-                    className="hover:rotate-90 transition-transform bg-white/10 p-2 rounded-full hover:bg-white/20 shrink-0"
+                    className="hover:rotate-90 transition-transform bg-white/10 w-10 h-10 md:w-auto md:h-auto flex items-center justify-center md:block p-2 rounded-full hover:bg-white/20 shrink-0"
                 >
                     <X className="w-5 h-5 text-white" />
                 </button>
@@ -263,8 +266,8 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
 
     if (!aberto) return null;
     return (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4" style={{ background: 'rgba(11,31,75,0.45)' }} onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
-            <div role="dialog" aria-modal="true" aria-label={tx('Planos vendidos')} className="bg-white rounded-[20px] shadow-2xl w-[min(900px,100%)] max-h-[calc(100vh-16px)] flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-slate-900">
+        <div className="fixed inset-0 z-[200] flex items-stretch md:items-center justify-center p-0 md:p-4" style={{ background: 'rgba(11,31,75,0.45)' }} onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
+            <div role="dialog" aria-modal="true" aria-label={tx('Planos vendidos')} className="bg-white rounded-none md:rounded-[20px] shadow-2xl w-full md:w-[min(900px,100%)] h-[100dvh] md:h-auto md:max-h-[calc(100vh-16px)] flex flex-col overflow-hidden animate-[zoomIn_0.2s_ease-out] dark:bg-slate-900">
                 <div className="px-5 py-4 border-b border-[#EEF1F6] flex items-start justify-between gap-3 dark:border-slate-800">
                     <div className="min-w-0">
                         <h3 className="text-[18px] font-extrabold text-[#0F172A] dark:text-white">{tx('Planos vendidos')}{nomeGrupo ? ` · ${nomeGrupo}` : ''}</h3>
@@ -290,7 +293,18 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
                     {visiveis.length === 0 ? (
                         <p className="text-center text-[13px] font-semibold text-[#5B6478] py-12 dark:text-slate-400">{doGrupo.length === 0 ? tx('Nenhum plano registrado neste filtro.') : tx('Nenhum aluno encontrado nesta busca.')}</p>
                     ) : (
-                        <table className="w-full min-w-[640px] text-left border-collapse">
+                        <>
+                        {/* Celular (26/11/2026): um cartão por aluno no lugar da tabela */}
+                        <div className="md:hidden p-3 space-y-2">
+                            {visiveis.map(({ venda, qtd }, i) => (
+                                <CartaoCelular key={venda.id || i}
+                                    titulo={venda.nome_aluno || venda.nome || '—'}
+                                    subtitulo={`${venda.cpf ? formatarCPF(venda.cpf) : '—'} · ${dataHora(venda)}`}>
+                                    <span className="inline-flex items-center h-7 px-2.5 rounded-full bg-[#E8EEFF] text-[#1D4FD8] text-[12px] font-bold break-words dark:bg-blue-500/15 dark:text-blue-300">{venda.produto}{qtd > 1 ? ` ×${qtd}` : ''}</span>
+                                </CartaoCelular>
+                            ))}
+                        </div>
+                        <table className="hidden md:table w-full min-w-[640px] text-left border-collapse">
                             <thead className="sticky top-0 bg-white dark:bg-slate-900">
                                 <tr>
                                     {['Aluno', 'CPF', 'Plano', 'Data e hora'].map(c => (
@@ -311,9 +325,10 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
                                 ))}
                             </tbody>
                         </table>
+                        </>
                     )}
                 </div>
-                <div className="px-5 py-3 bg-[#F8FAFD] border-t border-[#EEF1F6] flex flex-wrap items-center justify-between gap-2 text-[13px] dark:bg-slate-800/60 dark:border-slate-800">
+                <div className="px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:py-3 bg-[#F8FAFD] border-t border-[#EEF1F6] flex flex-wrap items-center justify-between gap-2 text-[13px] dark:bg-slate-800/60 dark:border-slate-800">
                     <span className="font-medium text-[#3B4458] dark:text-slate-300">{tx('Mostrando {x} de {y}', { x: mostrando, y: total })}</span>
                     <span className="font-extrabold text-[#0F172A] dark:text-white">{tx('Total da lista')}: <span className="tabular-nums">{total}</span></span>
                 </div>
@@ -335,6 +350,7 @@ const DashboardTab = ({
 }) => {
     const { t, locale } = useI18n();
     const escuro = useModoEscuro();
+    const celular = useEhCelular(); // celular: gráficos mais baixos e com menos margem
     const [modalProdOpen, setModalProdOpen] = useState(false);
     const [modalServicosOpen, setModalServicosOpen] = useState(false);    // Lista de planos aberta: null = fechada; { grupo: '' } = todos os planos base; { grupo, plano } = filtrada
     const [listaPlanosGrupo, setListaPlanosGrupo] = useState(null);
@@ -815,6 +831,37 @@ const DashboardTab = ({
         );
     };
 
+    // Planos de um grupo das Assinaturas (aberto pela seta): o mesmo na tabela (computador) e no cartão (celular)
+    const detalheDoGrupo = (g, planosDoGrupo) => (
+        <div className="bg-[#F8FAFD] border border-[#EEF1F6] rounded-xl px-4 py-2 dark:bg-slate-800/60 dark:border-slate-800">
+            {planosDoGrupo.length === 0 ? (
+                <p className="text-[13px] font-semibold text-[#5B6478] py-3 dark:text-slate-400">{tx('Nenhuma venda deste grupo no período.')}</p>
+            ) : (
+                <>
+                    {/* Nível 1: cada plano do grupo (clicar = lista só daquele plano) */}
+                    <ul className="divide-y divide-[#EEF1F6] dark:divide-slate-700">
+                        {planosDoGrupo.map(([nomePlano, qtd]) => (
+                            <li key={nomePlano}>
+                                <button type="button" onClick={() => setListaPlanosGrupo({ grupo: g.chave, plano: nomePlano })}
+                                    className="w-full min-h-10 py-2 flex items-center justify-between gap-3 text-left text-[14px] rounded-lg hover:bg-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-900">
+                                    <span className="min-w-0 flex items-center gap-2 flex-wrap">
+                                        <span className="font-bold text-[#0F172A] dark:text-white">{nomePlano}</span>
+                                        {descontinuados.has(nomePlano) && <span className="h-6 px-2 rounded-full bg-[#EEF1F6] text-[#3B4458] text-[11px] font-bold inline-flex items-center dark:bg-slate-700 dark:text-slate-200">{tx('descontinuado')}</span>}
+                                    </span>
+                                    <span className="shrink-0 font-extrabold text-[#0F172A] tabular-nums dark:text-white">{qtd}</span>
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                    {/* Nível 2: todas as vendas do grupo */}
+                    <button type="button" onClick={() => setListaPlanosGrupo({ grupo: g.chave })} className="mt-1 mb-1 h-10 px-2 text-[13px] font-bold text-[#1D4FD8] hover:underline dark:text-blue-300">
+                        {tx('Ver todos os {qtd} de {grupo}', { qtd: g.total, grupo: tx(g.rotulo) })} →
+                    </button>
+                </>
+            )}
+        </div>
+    );
+
     return (
         <div className="space-y-4 animate-[fadeIn_0.2s_ease-out] relative">
 
@@ -927,7 +974,7 @@ const DashboardTab = ({
                         {textoPeriodo && <span className="h-7 px-3 rounded-full bg-white/10 text-[12px] font-bold text-white flex items-center tabular-nums">{textoPeriodo}</span>}
                     </div>
                     <div className="flex flex-wrap items-end gap-x-4 gap-y-1">
-                        <span className="text-[64px] leading-none font-extrabold tracking-tight tabular-nums" title={t('analytics.dashboard.kpiTooltip', { defaultValue: 'Métrica deduplicada para espelhar número real de alunos' })}>{dois(totalPlanos)}</span>
+                        <span className="text-5xl md:text-[64px] leading-none font-extrabold tracking-tight tabular-nums" title={t('analytics.dashboard.kpiTooltip', { defaultValue: 'Métrica deduplicada para espelhar número real de alunos' })}>{dois(totalPlanos)}</span>
                         {temComparativo && (
                             <div className="pb-1.5">
                                 {(() => {
@@ -1122,7 +1169,7 @@ const DashboardTab = ({
                                 <div className="inline-flex p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('O que mostrar no ritmo')}>
                                     {[['unidades', 'Por unidade'], ['rede', 'Rede × meses anteriores']].map(([id, nome]) => (
                                         <button key={id} type="button" aria-pressed={ritmoVisao === id} onClick={() => setRitmoVisao(id)}
-                                            className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${ritmoVisao === id ? 'bg-blue-600 text-white shadow-sm' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
+                                            className={`h-10 md:h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${ritmoVisao === id ? 'bg-blue-600 text-white shadow-sm' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
                                             {tx(nome)}
                                         </button>
                                     ))}
@@ -1132,7 +1179,7 @@ const DashboardTab = ({
                             {!ritmoPorUnidadeAtivo && <div className="inline-flex p-1 bg-[#F3F5FA] rounded-xl gap-1 dark:bg-slate-800" role="group" aria-label={tx('Como mostrar o ritmo')}>
                                 {[['dia', 'Por dia'], ['acumulado', 'Acumulado']].map(([id, nome]) => (
                                     <button key={id} type="button" aria-pressed={modoRitmo === id} onClick={() => setModoRitmo(id)}
-                                        className={`h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${modoRitmo === id ? 'bg-white text-[#0B1F4B] shadow-sm dark:bg-slate-900 dark:text-white' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
+                                        className={`h-10 md:h-8 px-3 rounded-lg text-[12px] font-bold transition-colors ${modoRitmo === id ? 'bg-white text-[#0B1F4B] shadow-sm dark:bg-slate-900 dark:text-white' : 'text-[#3B4458] hover:text-[#0F172A] dark:text-slate-300 dark:hover:text-white'}`}>
                                         {tx(nome)}
                                     </button>
                                 ))}
@@ -1180,9 +1227,9 @@ const DashboardTab = ({
                             {ritmo.pior && <span>{tx('Pior dia')}: <strong className="font-extrabold text-[#B42318] dark:text-rose-300">{formatDataBR(ritmo.pior.dia).slice(0, 5)} · {ritmo.pior.qtd}</strong></span>}
                             <span>{tx('Média por dia')}: <strong className="font-extrabold text-[#0F172A] dark:text-white">{ritmo.media.toLocaleString(localeAtual(), { maximumFractionDigits: 1 })}</strong></span>
                         </div>
-                        <div className="mt-3 h-[260px]">
+                        <div className="mt-3 h-[220px] md:h-[260px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <ComposedChart data={ritmo.linhas} margin={{ top: 16, right: 16, left: 0, bottom: 4 }}>
+                                <ComposedChart data={ritmo.linhas} margin={{ top: 16, right: celular ? 8 : 16, left: 0, bottom: 4 }}>
                                     <defs>
                                         <linearGradient id="montanhaRitmo" x1="0" y1="0" x2="0" y2="1">
                                             <stop offset="0%" stopColor={corRitmo} stopOpacity={0.5} />
@@ -1215,12 +1262,12 @@ const DashboardTab = ({
                                 </ComposedChart>
                             </ResponsiveContainer>
                         </div>
-                        <p className="mt-1 text-[11px] text-[#5B6478] dark:text-slate-400">{tx('A linha pontilhada é a média por dia. Passe o mouse num dia para ver quantos planos saíram.')} {tx('As faixas S (sábado), D (domingo) e F (feriado) são do mês atual.')}</p>
+                        <p className="mt-1 text-[11px] text-[#5B6478] dark:text-slate-400"><span className="hidden md:inline">{tx('A linha pontilhada é a média por dia. Passe o mouse num dia para ver quantos planos saíram.')}</span><span className="md:hidden">{tx('A linha pontilhada é a média por dia. Toque num dia para ver quantos planos saíram.')}</span> {tx('As faixas S (sábado), D (domingo) e F (feriado) são do mês atual.')}</p>
                     </>
                 ) : (
-                    <div className="mt-4 h-[260px]">
+                    <div className="mt-4 h-[220px] md:h-[260px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={ritmo.linhas} margin={{ top: 16, right: 44, left: 0, bottom: 4 }}>
+                            <LineChart data={ritmo.linhas} margin={{ top: 16, right: celular ? 24 : 44, left: 0, bottom: 4 }}>
                                 <CartesianGrid vertical={false} stroke={corGrade} />
                                 {ritmo.especiais.map(e => (
                                 <ReferenceArea key={`sdf-${e.i}`} x1={Math.max(0, e.i - 0.5)} x2={Math.min(ritmo.linhas.length - 1, e.i + 0.5)} ifOverflow="hidden"
@@ -1281,7 +1328,51 @@ const DashboardTab = ({
                             {gruposTabela.length === 0 ? (
                                 <p className="text-center text-[13px] font-semibold text-[#5B6478] py-10 dark:text-slate-400">{t('analytics.dashboard.emptyPlans', { defaultValue: 'Nenhum plano vendido.' })}</p>
                             ) : (
-                                <div className="overflow-x-auto custom-scrollbar">
+                                <>
+                                {/* Celular (26/11/2026): um cartão por grupo; a seta abre os planos como na tabela */}
+                                <div className="md:hidden space-y-2">
+                                    {gruposTabela.map(g => {
+                                        const aberto = grupoAberto === g.chave;
+                                        const ehNutri = g.chave === 'NUTRI';
+                                        const part = totalPlanos > 0 ? (g.total / totalPlanos) * 100 : 0;
+                                        const planosDoGrupo = Object.entries(gruposPlanos[g.chave]?.detalhes || {})
+                                            .filter(([, qtd]) => qtd > 0)
+                                            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+                                        return (
+                                            <div key={g.chave} className="border border-[#EEF1F6] rounded-2xl p-3 dark:border-slate-800">
+                                                <button type="button" onClick={() => setGrupoAberto(aberto ? null : g.chave)} aria-expanded={aberto} aria-label={tx('Ver planos de {grupo}', { grupo: tx(g.rotulo) })}
+                                                    className="w-full flex items-start justify-between gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-xl">
+                                                    <span className="min-w-0">
+                                                        <span className="inline-flex items-center gap-2.5 text-[15px] font-bold text-[#0F172A] dark:text-white"><span className="w-3 h-3 rounded-[3px] shrink-0" style={{ background: corDoGrupo(g) }} />{tx(g.rotulo)}</span>
+                                                        {ehNutri && <span className="block mt-0.5 ml-[22px] text-[11px] font-semibold text-[#5B6478] dark:text-slate-400">{tx('Adicional · não conta como ativo')}</span>}
+                                                    </span>
+                                                    <span className="shrink-0 flex items-center gap-2">
+                                                        <span className="text-lg font-extrabold text-[#0F172A] tabular-nums dark:text-white">{dois(g.total)}</span>
+                                                        <span className={`w-10 h-10 rounded-xl border inline-flex items-center justify-center ${aberto ? 'bg-[#0B1F4B] border-[#0B1F4B] text-white dark:bg-blue-600 dark:border-blue-600' : 'border-[#D6DCE8] text-[#0F172A] dark:border-slate-700 dark:text-white'}`}>
+                                                            <ChevronDown className={`w-4 h-4 transition-transform ${aberto ? 'rotate-180' : ''}`} />
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                                <span className="mt-2 flex items-center gap-3">
+                                                    <span className="flex-1 h-3 rounded-full bg-[#EEF1F6] overflow-hidden dark:bg-slate-800">
+                                                        <span className="block h-full rounded-full" style={ehNutri
+                                                            ? { width: `${Math.min(adesaoNutri, 100)}%`, background: `repeating-linear-gradient(135deg, ${corDoGrupo(g)} 0 5px, ${corDoGrupo(g)}99 5px 9px)` }
+                                                            : { width: `${part}%`, background: corDoGrupo(g) }} />
+                                                    </span>
+                                                    <span className="shrink-0 text-right text-[13px] font-semibold text-[#3B4458] tabular-nums whitespace-nowrap dark:text-slate-300">
+                                                        {ehNutri ? tx('{pct}% de adesão', { pct: Math.round(adesaoNutri) }) : `${Math.round(part)}%`}
+                                                    </span>
+                                                </span>
+                                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[12px] font-semibold text-[#3B4458] dark:text-slate-300">
+                                                    <span>{tx('Mês ant. (mesmas datas)')}: <strong className="font-extrabold tabular-nums">{temComparativo ? g.anterior : '—'}</strong></span>
+                                                    {temComparativo && <SeloVariacao atual={g.total} antes={g.anterior} />}
+                                                </div>
+                                                {aberto && <div className="mt-3">{detalheDoGrupo(g, planosDoGrupo)}</div>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="hidden md:block overflow-x-auto custom-scrollbar">
                                     <table className="w-full min-w-[760px] text-left border-collapse">
                                         <thead>
                                             <tr>
@@ -1332,33 +1423,7 @@ const DashboardTab = ({
                                                         {aberto && (
                                                             <tr>
                                                                 <td colSpan={6} className="px-0 py-3">
-                                                                    <div className="bg-[#F8FAFD] border border-[#EEF1F6] rounded-xl px-4 py-2 dark:bg-slate-800/60 dark:border-slate-800">
-                                                                        {planosDoGrupo.length === 0 ? (
-                                                                            <p className="text-[13px] font-semibold text-[#5B6478] py-3 dark:text-slate-400">{tx('Nenhuma venda deste grupo no período.')}</p>
-                                                                        ) : (
-                                                                            <>
-                                                                                {/* Nível 1: cada plano do grupo (clicar = lista só daquele plano) */}
-                                                                                <ul className="divide-y divide-[#EEF1F6] dark:divide-slate-700">
-                                                                                    {planosDoGrupo.map(([nomePlano, qtd]) => (
-                                                                                        <li key={nomePlano}>
-                                                                                            <button type="button" onClick={() => setListaPlanosGrupo({ grupo: g.chave, plano: nomePlano })}
-                                                                                                className="w-full min-h-10 py-2 flex items-center justify-between gap-3 text-left text-[14px] rounded-lg hover:bg-white transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:hover:bg-slate-900">
-                                                                                                <span className="min-w-0 flex items-center gap-2 flex-wrap">
-                                                                                                    <span className="font-bold text-[#0F172A] dark:text-white">{nomePlano}</span>
-                                                                                                    {descontinuados.has(nomePlano) && <span className="h-6 px-2 rounded-full bg-[#EEF1F6] text-[#3B4458] text-[11px] font-bold inline-flex items-center dark:bg-slate-700 dark:text-slate-200">{tx('descontinuado')}</span>}
-                                                                                                </span>
-                                                                                                <span className="shrink-0 font-extrabold text-[#0F172A] tabular-nums dark:text-white">{qtd}</span>
-                                                                                            </button>
-                                                                                        </li>
-                                                                                    ))}
-                                                                                </ul>
-                                                                                {/* Nível 2: todas as vendas do grupo */}
-                                                                                <button type="button" onClick={() => setListaPlanosGrupo({ grupo: g.chave })} className="mt-1 mb-1 h-10 px-2 text-[13px] font-bold text-[#1D4FD8] hover:underline dark:text-blue-300">
-                                                                                    {tx('Ver todos os {qtd} de {grupo}', { qtd: g.total, grupo: tx(g.rotulo) })} →
-                                                                                </button>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
+                                                                    {detalheDoGrupo(g, planosDoGrupo)}
                                                                 </td>
                                                             </tr>
                                                         )}
@@ -1368,6 +1433,7 @@ const DashboardTab = ({
                                         </tbody>
                                     </table>
                                 </div>
+                                </>
                             )}
                             <p className="mt-4 text-[13px] font-medium text-[#5B6478] flex items-center gap-2 dark:text-slate-400">
                                 {faixaAnterior ? (
@@ -1392,10 +1458,10 @@ const DashboardTab = ({
                                     const naoConta = p.sabores ? p.sabores.reduce((s, x) => s + (foraDaMetaPorProduto[x.produto] || 0), 0) : (foraDaMetaPorProduto[p.nome] || 0);
                                     return (
                                         <li key={p.chave} className="border border-[#EEF1F6] rounded-xl dark:border-slate-800">
-                                            <div className="flex items-center gap-3 p-3">
+                                            <div className="flex flex-wrap md:flex-nowrap items-center gap-3 p-3">
                                                 <span className={`w-10 h-10 rounded-xl flex items-center justify-center text-[13px] font-extrabold shrink-0 ${idx < 3 ? 'bg-[#0B1F4B] text-white dark:bg-blue-600' : 'bg-[#F3F5FA] text-[#3B4458] dark:bg-slate-800 dark:text-slate-200'}`}>{idx + 1}º</span>
-                                                <span className="flex-1 min-w-0">
-                                                    <span className="block text-[15px] font-bold text-[#0F172A] truncate dark:text-white">
+                                                <span className="flex-1 min-w-[calc(100%-4rem)] md:min-w-0">
+                                                    <span className="block text-[15px] font-bold text-[#0F172A] break-words md:truncate dark:text-white">
                                                         {p.nome}
                                                         {complemento && <span className="font-medium text-[#5B6478] dark:text-slate-400"> · {complemento}</span>}
                                                     </span>
@@ -1404,9 +1470,10 @@ const DashboardTab = ({
                                                     </span>
                                                 </span>
                                                 {naoConta > 0 && (
-                                                    <span className="h-8 px-2.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[12px] font-black inline-flex items-center tabular-nums shrink-0 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
+                                                    <span className="h-8 px-2.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 text-[12px] font-black inline-flex items-center gap-1 tabular-nums shrink-0 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
                                                         title={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })}>
                                                         {tx('{qtd} não conta', { qtd: naoConta })}
+                                                        <span className="md:hidden"><Dica alinhar="left" texto={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })} /></span>
                                                     </span>
                                                 )}
                                                 <span className="h-8 px-3 rounded-full bg-[#C2410C] text-white text-[13px] font-extrabold inline-flex items-center tabular-nums shrink-0">{p.total} {tx('un')}</span>
@@ -1421,7 +1488,7 @@ const DashboardTab = ({
                                                 <ul className="mx-3 mb-3 bg-[#FFF8F2] rounded-xl px-4 py-1 divide-y divide-[#FBE3CF] dark:bg-orange-500/10 dark:divide-orange-500/20">
                                                     {p.sabores.map(s => (
                                                         <li key={s.produto} className="py-2 flex items-center justify-between gap-3 text-[14px]">
-                                                            <span className="font-semibold text-[#0F172A] dark:text-white" title={s.produto}>{s.nome}</span>
+                                                            <span className="min-w-0 font-semibold text-[#0F172A] break-words dark:text-white" title={s.produto}>{s.nome}{s.produto !== s.nome && <span className="md:hidden block text-[11px] font-medium text-[#5B6478] dark:text-slate-400">{s.produto}</span>}</span>
                                                             <span className="font-extrabold text-[#C2410C] tabular-nums dark:text-orange-300">{s.qtd} {tx('un')}</span>
                                                         </li>
                                                     ))}

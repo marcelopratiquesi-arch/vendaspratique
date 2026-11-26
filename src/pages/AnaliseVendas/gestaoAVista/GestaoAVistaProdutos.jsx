@@ -105,7 +105,7 @@ const EditorMeta = ({ unidade, meta, usuario, onSalvou }) => {
     };
     if (!aberto) {
         return (
-            <button type="button" onClick={(e) => { e.stopPropagation(); setAberto(true); }} className="inline-flex items-center gap-1.5 h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10">
+            <button type="button" onClick={(e) => { e.stopPropagation(); setAberto(true); }} className="inline-flex items-center gap-1.5 h-10 md:h-8 px-2.5 rounded-lg border border-blue-200 text-blue-700 text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/10">
                 <Pencil className="w-3 h-3" />{tx('Meta por pessoa')}: {meta}
             </button>
         );
@@ -113,11 +113,11 @@ const EditorMeta = ({ unidade, meta, usuario, onSalvou }) => {
     return (
         <span className="inline-flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             <input type="text" inputMode="numeric" autoFocus value={valor} onChange={(e) => setValor(e.target.value.replace(/\D/g, '').slice(0, 2))} onKeyDown={(e) => { if (e.key === 'Enter') salvar(); if (e.key === 'Escape') setAberto(false); }}
-                className="w-14 h-8 px-2 rounded-lg border border-slate-300 bg-white text-sm font-black text-center dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
-            <button type="button" onClick={salvar} disabled={salvando} className="h-8 w-8 rounded-lg bg-blue-600 text-white inline-flex items-center justify-center hover:bg-blue-700 disabled:opacity-50">
+                className="w-16 md:w-14 h-10 md:h-8 px-2 rounded-lg border border-slate-300 bg-white text-sm font-black text-center dark:bg-slate-800 dark:border-slate-700 dark:text-white" />
+            <button type="button" onClick={salvar} disabled={salvando} className="h-10 w-10 md:h-8 md:w-8 rounded-lg bg-blue-600 text-white inline-flex items-center justify-center hover:bg-blue-700 disabled:opacity-50">
                 {salvando ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
             </button>
-            <button type="button" onClick={() => setAberto(false)} className="h-8 w-8 rounded-lg text-slate-500 hover:bg-slate-100 inline-flex items-center justify-center dark:hover:bg-slate-800"><X className="w-3.5 h-3.5" /></button>
+            <button type="button" onClick={() => setAberto(false)} className="h-10 w-10 md:h-8 md:w-8 rounded-lg text-slate-500 hover:bg-slate-100 inline-flex items-center justify-center dark:hover:bg-slate-800"><X className="w-3.5 h-3.5" /></button>
         </span>
     );
 };
@@ -255,7 +255,7 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
         const txt = mensagemGestao({ grupos, situacao, rotuloPeriodo, mesAtual, mesFoco: mesDoFiltro });
         abrirModalWhatsapp?.(txt, { titulo: 'Gestão à Vista — Produtos', icone: 'send', cor: 'emerald' });
     };
-    const selectCls = 'h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200';
+    const selectCls = 'h-10 md:h-9 px-2.5 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200';
 
     return (
         <div className="space-y-4">
@@ -292,13 +292,13 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                     <option value="">{tx('Todos os meses')}</option>
                     {mesesOpcoes.map(m => <option key={m} value={m}>{mesLongo(m)}</option>)}
                 </select>
-                <label className="relative inline-flex items-center flex-1 min-w-[160px] max-w-xs">
+                <label className="relative inline-flex items-center flex-1 min-w-full md:min-w-[160px] max-w-none md:max-w-xs">
                     <Search className="w-3.5 h-3.5 absolute left-2.5 text-slate-400 pointer-events-none" />
                     <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por nome...')} className={`${selectCls} w-full pl-8`} />
                 </label>
                 {visaoRede && grupos.length > 1 && (
                     <button type="button" onClick={() => setAbertas(grupos.every(g => abertas[g.unidade]) ? {} : Object.fromEntries(grupos.map(g => [g.unidade, true])))}
-                        className="h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        className="h-10 md:h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                         {grupos.every(g => abertas[g.unidade]) ? tx('Fechar todas') : tx('Abrir todas')}
                     </button>
                 )}
@@ -351,12 +351,12 @@ const GestaoAVistaProdutos = ({ usuario, colaboradores = [], vendasTodas = [], p
                                         <li key={l.id}>
                                             <button type="button" onClick={() => setDetalhe(aberto ? null : l.id)} aria-expanded={aberto}
                                                 className="w-full flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-800/40">
-                                                <span className="w-40 shrink-0 min-w-0">
+                                                <span className="w-full md:w-40 shrink-0 min-w-0">
                                                     <span className="block text-[13px] font-black text-slate-800 dark:text-white truncate">{nomeCurto(l.nome)}</span>
                                                     <span className="block text-[10px] font-semibold text-slate-400 uppercase truncate">{l.setor}{l.fim ? ` · ${tx('desligado')} ${dataBr(l.fim)}` : ''}</span>
                                                 </span>
                                                 <MiniGrafico meses={l.meses} mesAtual={mesAtual} mesFoco={mesDoFiltro} />
-                                                <span className="flex-1 min-w-[180px]">
+                                                <span className="flex-1 min-w-0 md:min-w-[180px]">
                                                     <span className={`block text-[12px] font-bold ${COR_FRASE[frase.tipo]}`}>{ICONE_FRASE[frase.tipo]} {frase.texto}</span>
                                                     <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                                                         {l.ultima ? `${tx('Última venda')}: ${dataBr(l.ultima)} · ${l.diasSemVender === 0 ? tx('hoje') : `${tx('há')} ${l.diasSemVender} ${tx('dias')}`}` : tx('Nenhuma venda registrada no período selecionado.')}
