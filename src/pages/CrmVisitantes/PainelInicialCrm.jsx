@@ -11,6 +11,8 @@ import RelatorioConsultor from './RelatorioConsultor';
 import { SeletorPeriodo } from '../HistoricoVendas/FiltrosCompactos.jsx';
 import { usePeriodoPadrao, dentroDaFaixa } from '../../components/periodoPadrao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { CartaoCelular } from '../../components/celular/Cartao.jsx';
+import Dica from '../../components/celular/Dica.jsx';
 import { tipoDoDia } from '../AnaliseVendas/feriados.js';
 import { podeVer, podeFazer } from '../../permissoes/catalogoPermissoes.js';
 import { consumirSubaba, avisarSubabaAtual, EVENTO_PEDIR_SUBABA } from '../../components/subAbas.js';
@@ -441,12 +443,12 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                         {/* Meta de hoje (pessoas diferentes) */}
                         <div className="flex items-center gap-2" title={metaAtrasada ? tx('Muito abaixo do esperado para este horário (menos da metade do ritmo para chegar a 150 no fim do turno).') : tx('Meta do dia: pessoas diferentes contatadas hoje')}>
                             <span className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.pessoasHoje >= 150 ? 'bg-emerald-500' : metaAtrasada ? 'bg-rose-500' : 'bg-orange-500'}`} style={{ width: `${Math.max(l.pessoasHoje > 0 ? 3 : 0, Math.min(100, (l.pessoasHoje / 150) * 100))}%` }} /></span>
-                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${metaAtrasada ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{metaAtrasada ? '⚠️ ' : ''}{l.pessoasHoje}/150 {tx('hoje')}</span>
+                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap max-md:whitespace-normal max-md:text-right ${metaAtrasada ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{metaAtrasada ? '⚠️ ' : ''}{l.pessoasHoje}/150 {tx('hoje')}</span>
                         </div>
                         {/* Carteira × limite */}
                         <div className="flex items-center gap-2" title={tx('Em trabalho: Novo + Em Contato (sem os que estão Em Espera). Limite de {limite}. Em espera: {espera}.', { limite: LIMITE_CARTEIRA, espera: l.emEspera })}>
                             <span className="flex-1 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden"><span className={`block h-full rounded-full ${l.emAtendimento > LIMITE_CARTEIRA ? 'bg-rose-500' : 'bg-blue-500'}`} style={{ width: `${Math.min(100, (l.emAtendimento / LIMITE_CARTEIRA) * 100)}%` }} /></span>
-                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap ${l.emAtendimento > LIMITE_CARTEIRA ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{l.emAtendimento.toLocaleString(localeAtual())}/{LIMITE_CARTEIRA}{l.emAtendimento > LIMITE_CARTEIRA ? ' ⚠️' : ''}{l.emEspera ? <span className="text-sky-600 dark:text-sky-400"> · {tx('espera')} {l.emEspera.toLocaleString(localeAtual())}</span> : null}</span>
+                            <span className={`text-[10px] font-black tabular-nums whitespace-nowrap max-md:whitespace-normal max-md:text-right ${l.emAtendimento > LIMITE_CARTEIRA ? 'text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300'}`}>{l.emAtendimento.toLocaleString(localeAtual())}/{LIMITE_CARTEIRA}{l.emAtendimento > LIMITE_CARTEIRA ? ' ⚠️' : ''}{l.emEspera ? <span className="text-sky-600 dark:text-sky-400"> · {tx('espera')} {l.emEspera.toLocaleString(localeAtual())}</span> : null}</span>
                         </div>
                         <div className="grid grid-cols-3 gap-1 text-center bg-slate-50 dark:bg-slate-800/60 rounded-xl py-1.5">
                             <div title={tx('Agendados para hoje ou atrasados')}><p className={`text-sm font-black leading-none ${l.atrasadosAgenda ? 'text-rose-600 dark:text-rose-400' : 'text-blue-600 dark:text-blue-400'}`}>{l.paraHoje}</p><p className="text-[10px] font-bold uppercase text-slate-400 mt-0.5">{tx('Para hoje')}</p></div>
@@ -458,7 +460,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             </button>
             {carteiraVazia && (
                 <button type="button" onClick={onAbrirDistribuir} title={tx('Abrir o passo Distribuir do "Abastecer carteiras"')}
-                    className="w-full px-3 py-2 border-t border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 flex items-center justify-center gap-1.5 transition-colors">
+                    className="w-full max-md:min-h-10 px-3 py-2 border-t border-amber-200 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 hover:bg-amber-100 dark:hover:bg-amber-500/20 text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-300 flex items-center justify-center gap-1.5 transition-colors">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />{tx('Carteira vazia: distribuir contatos')}
                 </button>
             )}
@@ -468,7 +470,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
 
     // Poucas pessoas: cartões maiores (com 2 recepcionistas sobrava tela vazia)
     const gradeCartoes = (pessoas) => (
-        <div className={`grid gap-3 ${pessoas.length <= 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'}`}>
+        <div className={`grid gap-3 ${pessoas.length <= 4 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1 min-[400px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6'}`}>
             {pessoas.map(c => cartaoRecepcionista(c))}
         </div>
     );
@@ -504,7 +506,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                         <div className="flex items-center gap-1.5 mt-0.5">
                             <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 truncate">{nomeUnidade}</span>
                             {unidadeFoco && (
-                                <button type="button" onClick={() => setUnidadeFoco(null)} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest" title={tx("Voltar a ver todas as unidades")}>
+                                <button type="button" onClick={() => setUnidadeFoco(null)} className="inline-flex items-center gap-0.5 max-md:h-8 max-md:px-2.5 shrink-0 px-1.5 py-0.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-widest" title={tx("Voltar a ver todas as unidades")}>
                                     <X className="w-3 h-3" />{tx("Ver todas")}
                                 </button>
                             )}
@@ -515,13 +517,13 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
 
                 <div className="hidden sm:block w-px h-8 bg-slate-200 dark:bg-slate-800" />
 
-                <nav className="flex items-center gap-1 overflow-x-auto custom-scrollbar">
+                <nav className="flex items-center gap-1 overflow-x-auto custom-scrollbar max-md:w-full max-md:order-last">
                     {ABAS.map(a => {
                         const Icone = a.icone;
                         const ativa = abaMostrada === a.id;
                         return (
                             <button key={a.id} type="button" onClick={() => setAba(a.id)}
-                                className={`h-10 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex items-center gap-2 transition-all ${ativa ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
+                                className={`h-10 max-md:flex-1 max-md:justify-center max-md:px-2 px-4 rounded-xl text-[11px] font-black uppercase tracking-widest whitespace-nowrap flex items-center gap-2 transition-all ${ativa ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/20' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-white'}`}>
                                 <Icone className="w-4 h-4" />{tx(a.rotulo)}
                             </button>
                         );
@@ -568,7 +570,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                 const somaFechados = g.pessoas.reduce((s, p) => s + (linhaDe(p)?.fechados || 0), 0);
                                 return (
                                     <div key={g.chave} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-                                        <button type="button" onClick={() => alternarGrupo(g.chave)} className="w-full px-4 py-3 flex items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                                        <button type="button" onClick={() => alternarGrupo(g.chave)} className="w-full px-4 py-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
                                             <span className="flex items-center gap-2 min-w-0">
                                                 <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform ${aberto ? '' : '-rotate-90'}`} />
                                                 <span className="text-sm font-black uppercase text-slate-800 dark:text-white truncate">{g.nome}</span>
@@ -579,7 +581,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                                                 <span className="text-emerald-600 dark:text-emerald-400">{somaFechados}{' '}{tx("Fechou")}</span>
                                             </span>
                                         </button>
-                                        {aberto && <div className="px-4 pb-4 pt-1">{gradeCartoes(g.pessoas)}</div>}
+                                        {aberto && <div className="px-2 md:px-4 pb-3 md:pb-4 pt-1">{gradeCartoes(g.pessoas)}</div>}
                                     </div>
                                 );
                             })}
@@ -594,7 +596,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             {/* ABA PAINEL (07/11/2026): faixa fina com os números da carteira + uma tabela só (PainelCrm.jsx) */}
             {abaMostrada === 'painel' && (
                 <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
+                    <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
                         {[
                             [Activity, 'Ações no período', kpis.acoes, 'text-blue-600 dark:text-blue-400', 'Tudo o que a recepção fez no período: WhatsApp, ligações, notas e mudanças de fase.'],
                             [PhoneForwarded, 'Em atendimento', kpis.emAtendimento, 'text-blue-600 dark:text-blue-400', 'Contatos nas carteiras das recepcionistas (Novo e Em Contato).'],
@@ -602,9 +604,10 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                             [CheckCircle2, 'Fechados no período', kpis.fechados, 'text-emerald-600 dark:text-emerald-400', 'Contatos que a recepcionista passou para Fechado (fechou plano).'],
                             [Database, 'Base aguardando', kpis.base, 'text-slate-500 dark:text-slate-400', 'Contatos no Banco Bruto, ainda sem recepcionista.'],
                             [Snowflake, 'Na Geladeira', kpis.geladeira, 'text-cyan-500', 'Contatos Perdidos (voltam a ser trabalhados depois de 30 dias).']
-                        ].map(([Icone, rotulo, valor, cor, dica]) => (
-                            <span key={rotulo} title={tx(dica)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                                <Icone className={`w-3.5 h-3.5 ${cor}`} />{tx(rotulo)}: <strong className="text-base font-black text-slate-800 dark:text-white">{valor}</strong>
+                        ].map(([Icone, rotulo, valor, cor, dica], i) => (
+                            <span key={rotulo} title={tx(dica)} className="inline-flex items-center gap-1.5 min-w-0 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                                <Icone className={`w-3.5 h-3.5 shrink-0 ${cor}`} /><span className="max-md:flex-1 max-md:min-w-0 max-md:leading-tight">{tx(rotulo)}:</span> <strong className="text-base font-black text-slate-800 dark:text-white">{valor}</strong>
+                                <span className="md:hidden"><Dica texto={tx(dica)} alinhar={i % 2 === 0 ? 'left' : 'right'} /></span>
                             </span>
                         ))}
                     </div>
@@ -626,9 +629,9 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
 
             {/* ABA CONTATOS (07/11/2026): "Pessoas contatadas" (antigo Relatório) | "O que aconteceu" (antigo Histórico) */}
             {abaMostrada === 'contatos' && (
-                <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-fit">
+                <div className="flex max-md:grid max-md:grid-cols-2 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-fit max-md:w-full">
                     {[['pessoas', 'Pessoas contatadas'], ['acontecimentos', 'O que aconteceu']].map(([id, rotulo]) => (
-                        <button key={id} type="button" onClick={() => setSubContatos(id)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${subContatos === id ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>{tx(rotulo)}</button>
+                        <button key={id} type="button" onClick={() => setSubContatos(id)} className={`max-md:h-10 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${subContatos === id ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>{tx(rotulo)}</button>
                     ))}
                 </div>
             )}
@@ -649,34 +652,56 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             {/* CONTATOS → O que aconteceu */}
             {abaMostrada === 'contatos' && subContatos === 'acontecimentos' && (
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-                    <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                    <div className="px-3 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                         <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2">
                             <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />{' '}{tx("O que aconteceu")}
                             <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">{acontecimentos.length}</span>
                         </h4>
-                        <div className="flex flex-wrap items-center gap-2">
-                            <div className="relative">
+                        <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+                            <div className="relative max-md:w-full">
                                 <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                                 <input
                                     type="text"
                                     value={buscaAcontecimentos}
                                     onChange={(e) => setBuscaAcontecimentos(e.target.value)}
                                     placeholder={tx("Buscar por nome, CPF ou telefone")}
-                                    className="w-64 max-w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
+                                    className="w-full sm:w-64 max-md:h-10 max-w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-9 pr-8 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
                                 />
                                 {buscaAcontecimentos && (
-                                    <button type="button" onClick={() => setBuscaAcontecimentos('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
+                                    <button type="button" onClick={() => setBuscaAcontecimentos('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 max-md:right-0 max-md:p-3 text-slate-400 hover:text-slate-700 dark:hover:text-white" title={tx("Limpar busca")}>
                                         <X className="w-3.5 h-3.5" />
                                     </button>
                                 )}
                             </div>
-                            <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value)} className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer">
+                            <select value={filtroPessoa} onChange={(e) => setFiltroPessoa(e.target.value)} className="max-md:w-full max-md:h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 outline-none cursor-pointer">
                                 <option value="">{tx("Todas as recepcionistas")}</option>
                                 {recepcionistas.map(r => <option key={r.id} value={normalizarNome(r.nome)}>{r.nome}</option>)}
                             </select>
                         </div>
                     </div>
-                    <div className="overflow-x-auto custom-scrollbar">
+                    <div className="md:hidden p-2 space-y-2">
+                        {acontecimentos.length === 0 ? (
+                            <p className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">{carregando ? tx("Carregando...") : tx("Nada registrado no período.")}</p>
+                        ) : acontecimentos.slice(0, limiteLista).map(h => {
+                            const lead = leadPorId.get(String(h.lead_id));
+                            const token = lead ? STATUS_TOKENS[lead.status] : null;
+                            return (
+                                <CartaoCelular key={h.id}
+                                    titulo={lead ? (
+                                        <button type="button" onClick={() => setContatoFicha(lead)} className="uppercase text-left min-h-8 text-blue-700 dark:text-blue-400 underline underline-offset-2">{lead.nome}</button>
+                                    ) : <span className="text-slate-400 font-semibold">{tx("Contato fora da lista atual")}</span>}
+                                    subtitulo={`${String(h.consultor || '').split(' ')[0].toUpperCase()} · ${tempoRelativo(h.data_registro || h.created_at)} · ${formatarDataHora(h.data_registro || h.created_at)}`}>
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                        <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{tx(h.tipo_acao)}</span>
+                                        {lead?.tipo_lead && <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx(lead.tipo_lead)}</span>}
+                                        {lead && <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded border ${token?.bg || ''} ${token?.text || 'text-slate-500 dark:text-slate-400'} ${token?.border || 'border-slate-200 dark:border-slate-800'}`}>{tx(lead.status)}</span>}
+                                    </div>
+                                    {h.observacao && <p className="mt-1.5 text-[12px] font-medium text-slate-500 dark:text-slate-400 break-words">{h.observacao}</p>}
+                                </CartaoCelular>
+                            );
+                        })}
+                    </div>
+                    <div className="hidden md:block overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-max">
                             <thead className="bg-slate-50 dark:bg-slate-800/60">
                                 <tr>
@@ -717,7 +742,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
                         </table>
                     </div>
                     {acontecimentos.length > limiteLista && (
-                        <button type="button" onClick={() => setLimiteLista(n => n + 30)} className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5 transition-colors">
+                        <button type="button" onClick={() => setLimiteLista(n => n + 30)} className="w-full py-3 max-md:min-h-12 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5 transition-colors">
                             <ChevronDown className="w-4 h-4" />{' '}{tx("Ver mais (")}{acontecimentos.length - limiteLista}{' '}{tx("restantes)")}
                         </button>
                     )}

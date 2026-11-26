@@ -71,11 +71,11 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
 
     return (
         <div className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-sm flex items-start justify-center p-3 md:p-8 overflow-y-auto animate-[fadeIn_0.15s_ease-out]" onMouseDown={(e) => { if (e.target === e.currentTarget) onFechar(); }}>
-            <div className="w-full min-w-0 max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-5 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-ficha-recepcionista">
+            <div className="w-full min-w-0 max-w-6xl my-auto bg-[#F8FAFC] dark:bg-slate-950 rounded-[20px] p-4 md:p-6 flex flex-col shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="titulo-ficha-recepcionista">
 
                 <div className="mb-5 flex items-center">
                     <button type="button" onClick={onFechar}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
+                        className="inline-flex items-center gap-1.5 max-md:h-10 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[10px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm dark:bg-slate-900 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800/60">
                         <ArrowLeft className="w-3.5 h-3.5" />{tx('Voltar para o CRM')}
                     </button>
                 </div>
@@ -85,7 +85,7 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
                     <div className="flex items-center gap-4 min-w-0">
                         <div className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl font-black shadow-sm shrink-0">{String(recepcionista.nome || '?').charAt(0)}</div>
                         <div className="min-w-0">
-                            <h2 id="titulo-ficha-recepcionista" className="text-[19px] font-extrabold text-slate-800 uppercase tracking-tight mb-1.5 dark:text-white">{recepcionista.nome}</h2>
+                            <h2 id="titulo-ficha-recepcionista" className="text-[19px] font-extrabold text-slate-800 uppercase tracking-tight mb-1.5 break-words dark:text-white">{recepcionista.nome}</h2>
                             <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-[12px] font-medium text-slate-500 dark:text-slate-400">
                                 <span className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-blue-500" />{recepcionista.unidade || '—'}</span>
                                 <span className="hidden sm:block w-px h-3 bg-slate-300 dark:bg-slate-700" />
@@ -100,10 +100,10 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
                         </div>
                     </div>
                     <div className="flex items-center gap-2 w-full lg:w-auto shrink-0">
-                        <button type="button" onClick={onVerRelatorio} className="flex-1 sm:flex-none px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-1.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60">
+                        <button type="button" onClick={onVerRelatorio} className="flex-1 sm:flex-none max-md:h-11 px-4 py-2 rounded-lg border border-slate-200 bg-white text-[11px] font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-1.5 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800/60">
                             <FileText className="w-3.5 h-3.5" />{tx('Ver relatório')}
                         </button>
-                        <button type="button" onClick={onAbrirCrm} className="flex-1 sm:flex-none px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5">
+                        <button type="button" onClick={onAbrirCrm} className="flex-1 sm:flex-none max-md:h-11 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-bold uppercase tracking-wider shadow-sm flex items-center justify-center gap-1.5">
                             {tx('Abrir o CRM dela')}<ArrowRight className="w-3.5 h-3.5" />
                         </button>
                     </div>
@@ -164,7 +164,26 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
                     {aba === 'acoes' && (
                         <div className="bg-white rounded-xl border border-slate-200/80 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                             {acoes.length === 0 ? <p className="py-10 text-center text-[12px] font-bold text-slate-400">{tx('Sem ação no período')}</p> : (
-                                <div className="overflow-x-auto custom-scrollbar">
+                                <>
+                                <div className="md:hidden divide-y divide-slate-100 dark:divide-slate-800">
+                                    {acoes.slice(0, limite).map(h => {
+                                        const lead = leadPorId.get(String(h.lead_id));
+                                        const Icone = iconeAcao(h.tipo_acao);
+                                        return (
+                                            <div key={h.id} className="p-3">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-700 dark:text-slate-200"><Icone className="w-3.5 h-3.5 text-slate-400" />{tx(h.tipo_acao)}</span>
+                                                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">{tempoRelativo(h.data_registro || h.created_at)}</span>
+                                                </div>
+                                                {lead
+                                                    ? <button type="button" onClick={() => onAbrirContato(lead)} className="mt-1 min-h-8 text-left text-[13px] font-black uppercase text-blue-700 underline underline-offset-2 break-words dark:text-blue-400">{lead.nome}</button>
+                                                    : <p className="mt-1 text-[12px] font-semibold text-slate-400">{tx('Contato fora da lista atual')}</p>}
+                                                {h.observacao && <p className="text-[12px] font-semibold text-slate-500 break-words dark:text-slate-400">{h.observacao}</p>}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <div className="hidden md:block overflow-x-auto custom-scrollbar">
                                     <table className="w-full min-w-[620px]">
                                         <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                                             <tr><th className={th}>{tx('Quando')}</th><th className={th}>{tx('Ação')}</th><th className={th}>{tx('Contato')}</th><th className={th}>{tx('Detalhe')}</th></tr>
@@ -189,9 +208,10 @@ const FichaRecepcionista = ({ recepcionista, linha, acoes = [], leadPorId, perio
                                         </tbody>
                                     </table>
                                 </div>
+                                </>
                             )}
                             {acoes.length > limite && (
-                                <button type="button" onClick={() => setLimite(n => n + 30)} className="w-full py-3 border-t border-slate-100 text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 dark:hover:bg-blue-500/10">
+                                <button type="button" onClick={() => setLimite(n => n + 30)} className="w-full py-3 max-md:min-h-12 border-t border-slate-100 text-[10px] font-bold uppercase tracking-wider text-blue-600 hover:bg-blue-50 dark:border-slate-800 dark:text-blue-400 dark:hover:bg-blue-500/10">
                                     {tx('Ver mais ({qtd} restantes)', { qtd: acoes.length - limite })}
                                 </button>
                             )}

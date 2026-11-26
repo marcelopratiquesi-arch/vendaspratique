@@ -5,6 +5,7 @@ import { normalizarNome, formatarDataHora, ehCanceladoOuInativo, dataLocalISO } 
 import { carregarContatosFeitosPeriodo, ehSemWhatsApp, rotuloCanal } from './contatosFeitos';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
+import { CartaoCelular } from '../../components/celular/Cartao.jsx';
 
 // ==========================================
 // RELATÓRIO POR RECEPCIONISTA (Etapa D)
@@ -168,17 +169,17 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
 
     return (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div className="px-3 md:px-5 py-3 md:py-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-200 flex items-center gap-2">
                     <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />{' '}{tx("Relatório por recepcionista")}
                     {carregando && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
                 </h4>
-                <div className="flex flex-wrap items-center gap-2">
-                    <select value={pessoa} onChange={(e) => onPessoa(e.target.value)} className={seletor}>
+                <div className="flex flex-wrap items-center gap-2 max-md:w-full">
+                    <select value={pessoa} onChange={(e) => onPessoa(e.target.value)} className={`${seletor} max-md:h-10 max-md:flex-1 max-md:min-w-0`}>
                         <option value="">{tx("Todas as recepcionistas")}</option>
                         {recepcionistas.map(r => <option key={r.id} value={normalizarNome(r.nome)}>{r.nome}</option>)}
                     </select>
-                    <button type="button" onClick={exportarCSV} disabled={filtradas.length === 0} className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                    <button type="button" onClick={exportarCSV} disabled={filtradas.length === 0} className="max-md:h-10 max-md:justify-center px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
                         <Download className="w-3.5 h-3.5" />{' '}{tx("Exportar")}
                     </button>
                 </div>
@@ -197,7 +198,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
             )}
 
             {/* TOTAIS POR TIPO (clicar filtra a lista) */}
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            <div className="p-3 md:p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 md:gap-3">
                 <button type="button" onClick={() => setTipoFiltro('')} className={`text-left rounded-xl border p-3 transition-all ${!tipoFiltro ? 'border-blue-500 ring-2 ring-blue-200 dark:ring-blue-500/30 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-500/30'}`}>
                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{tx("Todos")}</p>
                     <p className="text-2xl font-black text-slate-800 dark:text-white">{daPessoa.length}</p>
@@ -211,7 +212,29 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
                 ))}
             </div>
 
-            <div className="overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-slate-800">
+            <div className="md:hidden p-2 space-y-2 border-t border-slate-100 dark:border-slate-800">
+                {filtradas.length === 0 ? (
+                    <p className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">{carregando ? tx("Carregando...") : tx("Nenhum contato no período.")}</p>
+                ) : filtradas.slice(0, limite).map(l => (
+                    <CartaoCelular key={l.id}
+                        titulo={<button type="button" onClick={() => setContatoFicha(l.contato)} className="min-h-8 text-left uppercase text-blue-700 dark:text-blue-400 underline underline-offset-2">{l.nome}</button>}
+                        subtitulo={`${String(l.consultor || '').split(' ')[0].toUpperCase()} · ${formatarDataHora(l.quando)}`}>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 px-2 py-1 rounded">{ROTULO_TIPO[l.tipo] || l.tipo}</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest">
+                                {l.semWhatsApp
+                                    ? <span className="text-rose-600 dark:text-rose-400">{tx("Sem WhatsApp")}</span>
+                                    : <span className={l.meio === 'WhatsApp' ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-slate-400'}>{l.meio}</span>}
+                            </span>
+                            <span className="text-[10px] font-black uppercase text-slate-400">{l.unidade}</span>
+                        </div>
+                        {l.semWhatsApp && l.justificativa && <p className="mt-1 text-[12px] font-semibold text-rose-600 dark:text-rose-400 break-words">{l.justificativa}</p>}
+                        {l.feitoPor && <p className="mt-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 break-words">{l.feitoPor}</p>}
+                    </CartaoCelular>
+                ))}
+            </div>
+
+            <div className="hidden md:block overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-slate-800">
                 <table className="w-full text-left border-collapse min-w-max">
                     <thead className="bg-slate-50 dark:bg-slate-800/60">
                         <tr>
@@ -249,7 +272,7 @@ const RelatorioConsultor = ({ recepcionistas = [], leads = [], usuarioLogado, un
                 </table>
             </div>
             {filtradas.length > limite && (
-                <button type="button" onClick={() => setLimite(n => n + 100)} className="w-full py-3 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5">
+                <button type="button" onClick={() => setLimite(n => n + 100)} className="w-full py-3 max-md:min-h-12 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1.5">
                     <ChevronDown className="w-4 h-4" />{' '}{tx("Ver mais (")}{filtradas.length - limite}{' '}{tx("restantes)")}
                 </button>
             )}

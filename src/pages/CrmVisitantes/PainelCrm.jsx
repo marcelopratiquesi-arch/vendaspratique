@@ -6,6 +6,7 @@ import { formatarDataHora, normalizarNome, abrirNoWhatsApp, ehMudancaPorCompra, 
 import { useResultadosRecepcao } from './useResultadosRecepcao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
+import { OrdenarCelular, GradeCartao, NumeroCartao } from '../../components/celular/Cartao.jsx';
 
 // ==========================================
 // PAINEL DA ENTRADA DO CRM (07/11/2026, decisão do dono: "não vejo motivo para ter 5 abas")
@@ -472,6 +473,65 @@ const PainelCrm = ({
         catch { avisar(tx('Não foi possível copiar. Selecione o texto e copie.'), 'erro'); }
     };
 
+    // CELULAR (26/11/2026): os mesmos números da tabela, em cartões (usa a mesma "celula" de cada coluna)
+    const alternarUnidade = (chave) => setAbertas(prev => { const n = new Set(prev); if (n.has(chave)) n.delete(chave); else n.add(chave); return n; });
+    const colunaDe = (id) => colunas.find(c => c.id === id);
+    const numeroDe = (id, dados, className = '') => { const c = colunaDe(id); return c ? <div className={`min-w-0 ${className}`}><NumeroCartao rotulo={tx(c.rotulo)} valor={c.celula(dados)} /></div> : null; };
+    const numerosDoCartao = (dados) => {
+        const extrasDetalhe = colunas.filter(c => c.detalhe);
+        return (
+            <div className="space-y-2">
+                <GradeCartao>{numeroDe('comecou', dados)}{numeroDe('ligacoes', dados)}{numeroDe('whatsapp', dados)}</GradeCartao>
+                <div className="grid grid-cols-3 gap-2">
+                    {numeroDe('fechou', dados)}
+                    <div className="col-span-2 min-w-0 rounded-xl bg-slate-50 dark:bg-slate-800/60 px-2 py-1.5">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('Última ação')}</div>
+                        <div className="[&_.whitespace-nowrap]:whitespace-normal">{colunaDe('ultima').celula(dados)}</div>
+                    </div>
+                </div>
+                {Object.keys(dados.publico).length > 0 && (
+                    <div className="[&>div]:justify-start [&>div]:gap-1.5 [&_span]:text-[12px] [&_span]:gap-1 [&>div>span]:px-2 [&>div>span]:py-1">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-1">{tx('Público')}</div>
+                        {colunaDe('publico').celula(dados)}
+                    </div>
+                )}
+                {extrasDetalhe.length > 0 && <GradeCartao>{extrasDetalhe.map(c => <NumeroCartao key={c.id} rotulo={tx(c.rotulo)} valor={c.celula(dados)} />)}</GradeCartao>}
+            </div>
+        );
+    };
+    const opcoesOrdem = [{ valor: '', rotulo: tx('Padrão') }, ...colunas.filter(c => !c.semOrdem).flatMap(c => [
+        { valor: `${c.id}|desc`, rotulo: `${tx(c.rotulo)} ↓` }, { valor: `${c.id}|asc`, rotulo: `${tx(c.rotulo)} ↑` }
+    ])];
+    const metaDaPessoa = (p) => (p.noiteAindaNao && !p.primeiraHoje
+        ? <span className="block text-[12px] font-bold text-indigo-500 dark:text-indigo-300">{tx('turno da noite · começa às {h}h', { h: HORA_INICIO_NOITE })}</span>
+        : periodoTemHoje && (
+            <span className="flex items-center gap-2">
+                <span className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden dark:bg-slate-800">
+                    <span className={`block h-full rounded-full ${p.pessoasHoje.size >= META_DIARIA ? 'bg-emerald-500' : 'bg-orange-500'}`} style={{ width: `${Math.min(100, (p.pessoasHoje.size / META_DIARIA) * 100)}%` }} />
+                </span>
+                <span className="text-[13px] font-black text-slate-700 tabular-nums whitespace-nowrap dark:text-slate-200">{tx('{qtd} pessoas', { qtd: p.pessoasHoje.size })}</span>
+            </span>
+        ));
+    const cartaoPessoa = (l, p) => {
+        const parada = !p.ligacoes && !p.whatsapp && !p.semWhatsapp;
+        return (
+            <div key={`${l.chave}-${p.chave}`} role="button" tabIndex={0} onClick={() => onAbrirResumo && onAbrirResumo(p.colaborador)}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 shadow-sm space-y-2 cursor-pointer active:bg-slate-50 dark:active:bg-slate-800/60">
+                <div className="flex items-center gap-1.5">
+                    <span className={`min-w-0 flex-1 text-[13px] font-black break-words ${parada && !p.noiteAindaNao ? 'text-slate-400 dark:text-slate-500' : 'text-slate-800 dark:text-white'}`}>
+                        {p.nome.split(' ').slice(0, 2).join(' ')}
+                        {p.turno === 'MANHA' && <Sun className="inline w-3.5 h-3.5 ml-1.5 text-amber-500" aria-label={tx('manhã')} />}
+                        {p.turno === 'NOITE' && <Moon className="inline w-3.5 h-3.5 ml-1.5 text-indigo-400" aria-label={tx('noite')} />}
+                    </span>
+                    {p.semHoje > LIMITE_SEM_WHATSAPP && <span className="shrink-0 text-[11px] font-black text-rose-600 dark:text-rose-400">⚠️ {p.semHoje} {tx('Sem WhatsApp')}</span>}
+                    <ChevronDown className="w-4 h-4 shrink-0 -rotate-90 text-slate-400" />
+                </div>
+                {metaDaPessoa(p)}
+                {numerosDoCartao(p)}
+            </div>
+        );
+    };
+
     const th = 'px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap select-none';
     const corAlerta = { rose: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30', amber: 'bg-amber-50 dark:bg-amber-500/10 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-500/30' };
     const mostrarUnidades = visaoGlobal && !unidadeEscopo;
@@ -481,14 +541,14 @@ const PainelCrm = ({
             {/* Faixa: período, Resumido/Detalhado, situação das unidades e cobrança */}
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 max-md:w-full max-md:grid max-md:grid-cols-2">
                         {['resumido', 'detalhado'].map(m => (
-                            <button key={m} type="button" onClick={() => setModo(m)} className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${modo === m ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>{tx(m === 'resumido' ? 'Resumido' : 'Detalhado')}</button>
+                            <button key={m} type="button" onClick={() => setModo(m)} className={`max-md:h-10 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${modo === m ? 'bg-white dark:bg-slate-900 shadow-sm text-blue-700 dark:text-blue-400' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'}`}>{tx(m === 'resumido' ? 'Resumido' : 'Detalhado')}</button>
                         ))}
                     </div>
                     <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{tx(rotuloPeriodo)}</span>
                     {mostrarUnidades && (
-                        <button type="button" onClick={() => setAbertas(abertas.size ? new Set() : new Set(linhas.map(l => l.chave)))} className="h-8 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5">
+                        <button type="button" onClick={() => setAbertas(abertas.size ? new Set() : new Set(linhas.map(l => l.chave)))} className="h-8 max-md:h-10 px-3 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5">
                             {abertas.size ? <ChevronsDownUp className="w-3.5 h-3.5" /> : <ChevronsUpDown className="w-3.5 h-3.5" />}{tx(abertas.size ? 'Fechar todas' : 'Abrir todas')}
                         </button>
                     )}
@@ -500,7 +560,7 @@ const PainelCrm = ({
                         <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${SITUACOES.SEM_ACAO.classe}`}>{resumo.semAcao}{' '}{tx("sem ação")}</span>
                         <span className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border ${SITUACOES.SEM_USO.classe}`}>{resumo.semUso}{' '}{tx("sem uso")}</span>
                     </>}
-                    {podeCobrar && <button type="button" onClick={montarCobranca} disabled={carregando} className="h-8 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Send className="w-3.5 h-3.5" />{tx('Cobrar no WhatsApp')}</button>}
+                    {podeCobrar && <button type="button" onClick={montarCobranca} disabled={carregando} className="h-8 max-md:h-10 max-md:w-full max-md:justify-center px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5"><Send className="w-3.5 h-3.5" />{tx('Cobrar no WhatsApp')}</button>}
                 </div>
             </div>
 
@@ -511,26 +571,26 @@ const PainelCrm = ({
                         const Icone = a.icone;
                         const ativo = alerta === a.id;
                         return (
-                            <button key={a.id} type="button" onClick={() => setAlerta(ativo ? '' : a.id)} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${corAlerta[a.cor]} ${ativo ? 'ring-2 ring-blue-500/50' : 'hover:brightness-95'}`}>
+                            <button key={a.id} type="button" onClick={() => setAlerta(ativo ? '' : a.id)} className={`inline-flex items-center gap-1.5 max-md:min-h-10 max-md:text-left px-2.5 py-1.5 rounded-lg border text-[11px] font-bold transition-all ${corAlerta[a.cor]} ${ativo ? 'ring-2 ring-blue-500/50' : 'hover:brightness-95'}`}>
                                 <Icone className="w-3.5 h-3.5" />{a.texto(a.qtd)}
                             </button>
                         );
                     })}
-                    {alerta && <button type="button" onClick={() => setAlerta('')} className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline">{tx('Limpar filtro')}</button>}
+                    {alerta && <button type="button" onClick={() => setAlerta('')} className="max-md:h-10 max-md:px-2 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400 hover:underline">{tx('Limpar filtro')}</button>}
                 </div>
             )}
 
             {mensagem !== null && (
                 <div className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4" onClick={() => setMensagem(null)}>
-                    <div className="bg-white rounded-2xl shadow-xl w-[min(560px,100%)] p-5 space-y-3 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-2xl shadow-xl w-[min(560px,100%)] max-h-[90dvh] overflow-y-auto p-4 md:p-5 space-y-3 dark:bg-slate-900" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between">
                             <h3 className="text-[13px] font-black uppercase tracking-widest text-slate-800 dark:text-white">{tx('Cobrança do dia')}</h3>
-                            <button type="button" onClick={() => setMensagem(null)} aria-label={tx('Fechar')} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => setMensagem(null)} aria-label={tx('Fechar')} className="w-8 h-8 max-md:w-10 max-md:h-10 shrink-0 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"><X className="w-4 h-4" /></button>
                         </div>
                         <textarea value={mensagem} onChange={(e) => setMensagem(e.target.value)} rows={14} className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-[12px] font-mono text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
-                        <div className="flex justify-end gap-2">
-                            <button type="button" onClick={copiar} className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Copy className="w-4 h-4" />{tx('Copiar')}</button>
-                            <button type="button" onClick={() => abrirNoWhatsApp('', mensagem)} className="h-10 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Send className="w-4 h-4" />{tx('Enviar no WhatsApp')}</button>
+                        <div className="grid grid-cols-2 gap-2 md:flex md:justify-end">
+                            <button type="button" onClick={copiar} className="h-10 max-md:h-12 justify-center px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Copy className="w-4 h-4" />{tx('Copiar')}</button>
+                            <button type="button" onClick={() => abrirNoWhatsApp('', mensagem)} className="h-10 max-md:h-12 justify-center text-center px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2"><Send className="w-4 h-4" />{tx('Enviar no WhatsApp')}</button>
                         </div>
                     </div>
                 </div>
@@ -550,7 +610,44 @@ const PainelCrm = ({
             {visiveis.length === 0 ? (
                 <p className="text-center py-10 text-[10px] font-black uppercase tracking-widest text-slate-400">{carregando ? tx("Carregando...") : tx("Nenhuma recepcionista para mostrar.")}</p>
             ) : (
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto custom-scrollbar">
+                <>
+                <div className="md:hidden space-y-2">
+                    <OrdenarCelular valor={ordem.col ? `${ordem.col}|${ordem.dir}` : ''} opcoes={opcoesOrdem}
+                        onChange={(v) => { const [col, dir] = v.split('|'); setOrdem({ col: col || '', dir: dir || 'desc' }); }} />
+                    {visiveis.map(l => {
+                        const aberta = !mostrarUnidades || !!alerta || abertas.has(l.chave);
+                        if (!mostrarUnidades) return <React.Fragment key={l.chave}>{l.pessoas.map(p => cartaoPessoa(l, p))}</React.Fragment>;
+                        const pct = l.metaUnidade ? Math.min(100, (l.pessoasHojeUnidade / l.metaUnidade) * 100) : 0;
+                        return (
+                            <div key={l.chave} className="space-y-2">
+                                <div className="bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 space-y-2">
+                                    <button type="button" onClick={() => alternarUnidade(l.chave)} aria-expanded={aberta} className="w-full min-h-10 text-left space-y-1.5">
+                                        <span className="flex items-center gap-2">
+                                            <ChevronDown className={`w-5 h-5 text-slate-400 shrink-0 transition-transform ${aberta ? '' : '-rotate-90'}`} />
+                                            <span className="min-w-0 flex-1 text-sm font-black uppercase text-slate-800 dark:text-white break-words">{l.unidade}</span>
+                                            <span className="shrink-0 text-[10px] font-black text-slate-400 bg-white dark:bg-slate-900 px-1.5 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">{l.pessoas.length}</span>
+                                        </span>
+                                        <span className="flex flex-wrap items-center gap-2">
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-md border ${l.situacao.classe}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full ${l.situacao.bolinha}`}></span>{tx(l.situacao.rotulo)}
+                                            </span>
+                                            {l.pessoas.length === 0 && !alerta && <span className="text-[10px] font-bold text-rose-500">{tx("Nenhuma recepcionista")}</span>}
+                                        </span>
+                                        {l.pessoas.length > 0 && periodoTemHoje && (
+                                            <span className="flex items-center gap-2">
+                                                <span className="flex-1 h-2 rounded-full bg-slate-200 overflow-hidden dark:bg-slate-700"><span className="block h-full rounded-full bg-blue-500" style={{ width: `${pct}%` }} /></span>
+                                                <span className="text-[13px] font-black text-slate-700 dark:text-slate-200 tabular-nums whitespace-nowrap">{tx('{qtd} pessoas', { qtd: l.pessoasHojeUnidade })}</span>
+                                            </span>
+                                        )}
+                                    </button>
+                                    {l.pessoas.length > 0 && !aberta && numerosDoCartao(somaDaUnidade(l))}
+                                </div>
+                                {aberta && <div className="pl-2 space-y-2 border-l-2 border-blue-200 dark:border-blue-500/30">{l.pessoas.map(p => cartaoPessoa(l, p))}</div>}
+                            </div>
+                        );
+                    })}
+                </div>
+                <div className="hidden md:block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto custom-scrollbar">
                     <table className="w-full min-w-[760px] border-collapse text-left">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>
@@ -625,6 +722,7 @@ const PainelCrm = ({
                         </tbody>
                     </table>
                 </div>
+                </>
             )}
         </div>
     );
