@@ -101,7 +101,7 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
         );
     };
 
-    const botao = 'p-2 rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors dark:bg-slate-900 dark:border-slate-700 dark:text-slate-400';
+    const botao = 'max-md:p-3 p-2 rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors dark:bg-slate-900 dark:border-slate-700 dark:text-slate-400';
     const acoes = (u) => {
         const p = papelDe(u);
         return (
@@ -125,14 +125,14 @@ const AbaLogins = ({ usuarios = [], unidades = [], vinculos = {}, excecoesPorEma
                 </button>
                 {ORDEM_PAPEIS.map(p => (
                     <button key={p} type="button" onClick={() => setPapel(papel === p ? '' : p)} aria-pressed={papel === p}
-                        className={`text-[11px] font-black uppercase tracking-widest px-2 py-1 rounded-lg transition-colors ${papel === p ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
+                        className={`max-md:h-10 text-[11px] font-black uppercase tracking-widest px-2 py-1 rounded-lg transition-colors ${papel === p ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'}`}>
                         {tx(NOME_PAPEL[p])} <span className="text-[13px]">{resumo.porPapel[p]}</span>
                     </button>
                 ))}
                 <div className="flex-1" />
                 {avisos.length > 0 ? (
                     <button type="button" onClick={() => setConferirAberto(v => !v)} aria-expanded={conferirAberto}
-                        className="h-8 px-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
+                        className="h-10 md:h-8 px-3 rounded-xl border border-amber-200 bg-amber-50 text-amber-800 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-300">
                         <AlertTriangle className="w-3.5 h-3.5" />{avisos.length === 1 ? tx('1 para conferir') : tx('{qtd} para conferir', { qtd: avisos.length })}
                         {conferirAberto ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                     </button>

@@ -64,7 +64,7 @@ const JanelaLogin = ({ login = null, unidades = [], onCancelar, onSalvar }) => {
                         <KeyRound className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         {editando ? tx('Editar login') : tx('Novo login')}
                     </h3>
-                    <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx('Fechar')} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white">
+                    <button type="button" onClick={onCancelar} disabled={salvando} aria-label={tx('Fechar')} className="max-md:p-3 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:hover:text-white">
                         <X className="w-4 h-4" />
                     </button>
                 </div>

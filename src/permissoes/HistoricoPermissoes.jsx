@@ -59,20 +59,20 @@ const HistoricoPermissoes = ({ usuarios = [], fechar }) => {
     const th = 'px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 whitespace-nowrap dark:text-slate-400';
 
     return (
-        <div className="fixed inset-0 z-[80] bg-slate-900/50 flex items-center justify-center p-4" onClick={fechar}>
+        <div className="fixed inset-0 z-[80] bg-slate-900/50 flex items-center justify-center p-0 md:p-4" onClick={fechar}>
             <div role="dialog" aria-modal="true" aria-label={tx('Histórico das permissões')} onClick={(e) => e.stopPropagation()}
-                className="w-[min(960px,100%)] max-h-[85vh] flex flex-col bg-white rounded-2xl border border-slate-200 shadow-xl dark:bg-slate-900 dark:border-slate-800">
-                <div className="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 dark:border-slate-800">
+                className="w-[min(960px,100%)] h-[100dvh] md:h-auto md:max-h-[85vh] flex flex-col bg-white rounded-none md:rounded-2xl border border-slate-200 shadow-xl dark:bg-slate-900 dark:border-slate-800">
+                <div className="px-3 py-3 md:px-5 md:py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 dark:border-slate-800">
                     <h3 className="text-[13px] font-black uppercase tracking-widest text-slate-800 flex items-center gap-2 dark:text-white">
                         <History className="w-4 h-4 text-blue-600 dark:text-blue-400" />{tx('Histórico das permissões')}
                     </h3>
-                    <div className="flex items-center gap-2">
-                        <div className="relative">
+                    <div className="flex items-center gap-2 max-md:w-full">
+                        <div className="relative max-md:flex-1">
                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                             <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por número, nome ou pessoa...')}
-                                className="h-9 w-[min(260px,60vw)] pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
+                                className="h-10 md:h-9 w-full md:w-[min(260px,60vw)] pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
                         </div>
-                        <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="h-9 w-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="shrink-0 h-10 w-10 md:h-9 md:w-9 rounded-xl border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                             <X className="w-4 h-4" />
                         </button>
                     </div>
@@ -86,7 +86,7 @@ const HistoricoPermissoes = ({ usuarios = [], fechar }) => {
                     ) : filtradas.length === 0 ? (
                         <p className="py-12 text-center text-[11px] font-black uppercase tracking-widest text-slate-400">{tx('Nenhuma mudança registrada.')}</p>
                     ) : (
-                        <table className="w-full min-w-[720px] text-left border-collapse">
+                        <table className="tabela-arrasta w-full min-w-[720px] text-left border-collapse">
                             <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 dark:bg-slate-800 dark:border-slate-800">
                                 <tr>
                                     <th className={th}>{tx('Quando')}</th>

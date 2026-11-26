@@ -53,7 +53,7 @@ const DiferencasPadrao = ({ regras, excecoes, usuarios = [], termo = '', bancoPr
     const nomePerm = (l) => (l.p ? tx(l.p.nome) : tx('Permissão que não existe mais'));
     const botaoVoltar = (k, onClick) => (
         <button type="button" onClick={onClick} disabled={gravando === k}
-            className="h-8 px-3 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 inline-flex items-center gap-1.5 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+            className="h-10 md:h-8 px-3 rounded-lg border border-slate-200 text-[10px] font-black uppercase tracking-widest text-slate-600 inline-flex items-center gap-1.5 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
             <RotateCcw className="w-3 h-3" />{tx('Voltar ao padrão')}
         </button>
     );
@@ -99,7 +99,7 @@ const DiferencasPadrao = ({ regras, excecoes, usuarios = [], termo = '', bancoPr
                     const papel = papelDe(g.login);
                     return (
                         <div key={g.email} className="border-t border-slate-200 dark:border-slate-800">
-                            <p className="px-4 pt-3 pb-1 text-[12px] font-black text-slate-800 uppercase dark:text-white">
+                            <p className="px-4 pt-3 pb-1 text-[12px] font-black text-slate-800 uppercase max-md:break-words dark:text-white">
                                 {g.login?.nome || g.email}
                                 <span className="normal-case font-semibold text-slate-400"> · {g.login ? `${tx(NOME_PAPEL[papel] || papel)}${g.login.unidade ? ` · ${g.login.unidade}` : ''}` : tx('login que não existe mais')} · {g.email}</span>
                             </p>

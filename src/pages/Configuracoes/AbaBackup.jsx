@@ -168,7 +168,7 @@ const AbaBackup = ({ nomeLogado = '', emailLogado = '' }) => {
                         </p>
                     </div>
                 </div>
-                <button type="button" onClick={() => setAjudaAberta(a => !a)} className="text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1 underline underline-offset-2">
+                <button type="button" onClick={() => setAjudaAberta(a => !a)} className="max-md:h-10 text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1 underline underline-offset-2">
                     <HelpCircle className="w-4 h-4" />{ajudaAberta ? tx('Fechar rotina') : tx('Rotina recomendada')}
                 </button>
             </div>
@@ -208,8 +208,8 @@ const AbaBackup = ({ nomeLogado = '', emailLogado = '' }) => {
                                         const p = progresso[t];
                                         return (
                                             <tr key={t} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
-                                                <td className="px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200">{t}</td>
-                                                <td className="px-3 py-1.5 text-right font-semibold whitespace-nowrap">
+                                                <td className="px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 max-md:break-all">{t}</td>
+                                                <td className="px-3 py-1.5 text-right font-semibold md:whitespace-nowrap">
                                                     {p.situacao === 'erro' ? <span className="text-amber-600 dark:text-amber-400">{tx(p.erro || 'erro ao ler')}</span>
                                                         : p.situacao === 'ok' ? <span className="text-emerald-600 dark:text-emerald-400">✓ {numero(p.feitos)}</span>
                                                             : <span className="text-slate-500 dark:text-slate-400">{numero(p.feitos)}{p.total ? ` / ${numero(p.total)}` : ''}…</span>}
@@ -285,8 +285,8 @@ const AbaBackup = ({ nomeLogado = '', emailLogado = '' }) => {
                         <p className="text-[12px] font-bold text-slate-700 dark:text-slate-200">
                             {tx('{nome}: feito em {data} por {quem}.', { nome: conferencia.nome, data: dataHora(conferencia.criado_em), quem: conferencia.criado_por || '—' })}
                         </p>
-                        <div className="max-h-80 overflow-y-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                            <table className="w-full text-[12px]">
+                        <div className="max-h-80 overflow-auto rounded-xl border border-slate-200 dark:border-slate-800">
+                            <table className="tabela-arrasta w-full max-md:min-w-[520px] text-[12px]">
                                 <thead className="bg-slate-50 sticky top-0 dark:bg-slate-800">
                                     <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
                                         <th className="px-3 py-2 text-left">{tx('Tabela')}</th>
@@ -302,7 +302,7 @@ const AbaBackup = ({ nomeLogado = '', emailLogado = '' }) => {
                                         const dif = Number.isFinite(noArquivo) && Number.isFinite(hoje) ? hoje - noArquivo : null;
                                         return (
                                             <tr key={t} className="border-b border-slate-100 last:border-0 dark:border-slate-800">
-                                                <td className="px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200">{t}</td>
+                                                <td className="px-3 py-1.5 font-bold text-slate-700 dark:text-slate-200 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:break-all">{t}</td>
                                                 <td className="px-3 py-1.5 text-right font-semibold">{noArquivo === undefined ? <span className="text-amber-600 dark:text-amber-400">{tx('fora do arquivo')}</span> : numero(noArquivo)}</td>
                                                 <td className="px-3 py-1.5 text-right font-semibold">{numero(hoje)}</td>
                                                 <td className={`px-3 py-1.5 text-right font-black ${dif === null || dif === 0 ? 'text-slate-400' : dif > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
@@ -327,7 +327,7 @@ const AbaBackup = ({ nomeLogado = '', emailLogado = '' }) => {
                     <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx('Nenhuma cópia registrada.')}</p>
                 ) : (
                     <div className="overflow-x-auto">
-                        <table className="w-full text-[12px]">
+                        <table className="tabela-arrasta w-full max-md:min-w-[560px] text-[12px]">
                             <thead>
                                 <tr className="text-[10px] font-black uppercase tracking-widest text-slate-500 border-b border-slate-200 dark:text-slate-400 dark:border-slate-800">
                                     <th className="px-3 py-2 text-left">{tx('Quando')}</th>

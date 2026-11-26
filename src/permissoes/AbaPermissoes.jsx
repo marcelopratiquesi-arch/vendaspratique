@@ -24,7 +24,7 @@ const emailDe = (u) => String(u?.email || '').toLowerCase().trim();
 
 const Chave = ({ ligado, onClick, disabled, rotulo, alterado }) => (
     <button type="button" role="switch" aria-checked={ligado} aria-label={rotulo} title={rotulo} onClick={onClick} disabled={disabled}
-        className={`relative w-10 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 ${ligado ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
+        className={`relative max-md:after:absolute max-md:after:-inset-2 max-md:after:content-[''] w-10 h-6 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 disabled:opacity-50 ${ligado ? 'bg-blue-600' : 'bg-slate-300 dark:bg-slate-700'}`}>
         <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${ligado ? 'left-[18px]' : 'left-0.5'}`} />
         {alterado && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-slate-900" aria-hidden="true" />}
     </button>
@@ -218,10 +218,10 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
         <div className="space-y-4">
             {/* Faixa do topo: modo, busca e filtro */}
             <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center gap-3 justify-between dark:bg-slate-900 dark:border-slate-800">
-                <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="tablist" aria-label={tx('Modo')}>
+                <div className="abas-rolaveis flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="tablist" aria-label={tx('Modo')}>
                     {[['nivel', tx('Por nível'), Layers], ['login', tx('Exceções por login'), UserCog], ['diferencas', tx('O que está diferente'), ListChecks]].map(([id, rotulo, Icone]) => (
                         <button key={id} type="button" role="tab" aria-selected={modo === id} onClick={() => setModo(id)}
-                            className={`h-9 px-3 rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-2 transition-colors ${modo === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                            className={`h-10 md:h-9 px-3 whitespace-nowrap rounded-lg text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-2 transition-colors ${modo === id ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                             <Icone className="w-4 h-4" />{rotulo}
                             {id === 'diferencas' && qtdDiferencas > 0 && <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center ${modo === id ? 'bg-white text-blue-700' : 'bg-amber-500 text-white'}`}>{qtdDiferencas}</span>}
                             {id === 'login' && qtdExcecoesTotal > 0 && <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] flex items-center justify-center ${modo === id ? 'bg-white text-blue-700' : 'bg-amber-500 text-white'}`}>{qtdExcecoesTotal}</span>}
@@ -229,24 +229,24 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
                     ))}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative">
+                    <div className="relative max-md:w-full">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input type="text" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder={tx('Buscar por número ou nome...')}
-                            className="h-9 w-[min(260px,70vw)] pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
+                            className="h-10 md:h-9 w-full md:w-[min(260px,70vw)] pl-9 pr-3 rounded-xl border border-slate-200 bg-slate-50 text-[12px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800/60 dark:border-slate-700 dark:text-white" />
                     </div>
                     <select value={tipoFiltro} onChange={(e) => setTipoFiltro(e.target.value)} aria-label={tx('Tipo de permissão')}
-                        className="h-9 px-3 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                        className="h-10 md:h-9 px-3 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                         <option value="todas">{tx('Todas')}</option>
                         <option value="ver">{tx('Telas e abas')}</option>
                         <option value="fazer">{tx('Ações')}</option>
                     </select>
                     <button type="button" onClick={() => setHistoricoAberto(true)} disabled={semTabelas}
-                        className="h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 inline-flex items-center gap-1.5 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                        className="h-10 md:h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 inline-flex items-center gap-1.5 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                         <History className="w-3.5 h-3.5" />{tx('Histórico')}
                     </button>
                     {modo === 'nivel' && qtdMudancas > 0 && (
                         <button type="button" onClick={voltarTudoAoPadrao} disabled={gravando === 'tudo'}
-                            className="h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 inline-flex items-center gap-1.5 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                            className="h-10 md:h-9 px-3 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest text-slate-600 inline-flex items-center gap-1.5 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
                             <RotateCcw className="w-3.5 h-3.5" />{tx('Voltar ao padrão')} ({qtdMudancas})
                         </button>
                     )}
@@ -284,7 +284,7 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
                 <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap items-center gap-3 dark:bg-slate-900 dark:border-slate-800">
                     <label htmlFor="perm-login" className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('Login')}</label>
                     <select id="perm-login" value={loginEscolhido} onChange={(e) => setLoginEscolhido(e.target.value)}
-                        className="h-10 min-w-[min(360px,100%)] px-3 rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white">
+                        className="h-10 min-w-[min(360px,100%)] max-w-full px-3 rounded-xl border border-slate-200 bg-white text-[13px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-white">
                         <option value="">{tx('Selecione um login...')}</option>
                         {logins.map(u => {
                             const qtd = qtdExcecoes(emailDe(u));
@@ -300,14 +300,14 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
                         <div className="w-full sm:w-auto sm:ml-auto flex flex-wrap items-center gap-2">
                             <Copy className="w-3.5 h-3.5 text-slate-400" aria-hidden="true" />
                             <select value={origemCopia} onChange={(e) => setOrigemCopia(e.target.value)} aria-label={tx('Copiar exceções de outro login')}
-                                className="h-9 min-w-[min(260px,100%)] px-3 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
+                                className="h-10 md:h-9 min-w-[min(260px,100%)] max-w-full px-3 rounded-xl border border-slate-200 bg-white text-[12px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200">
                                 <option value="">{tx('Copiar exceções de outro login...')}</option>
                                 {logins.filter(u => emailDe(u) !== emailDe(login) && qtdExcecoes(emailDe(u)) > 0).map(u => (
                                     <option key={emailDe(u)} value={emailDe(u)}>{(u.nome || u.email)} · {tx(NOME_PAPEL[papelDe(u)] || papelDe(u))} · {tx('{qtd} exceções', { qtd: qtdExcecoes(emailDe(u)) })}</option>
                                 ))}
                             </select>
                             <button type="button" onClick={copiarExcecoes} disabled={!origemCopia || gravando === 'copia'}
-                                className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-40">
+                                className="h-10 md:h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest inline-flex items-center gap-1.5 disabled:opacity-40">
                                 {gravando === 'copia' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}{tx('Copiar')}
                             </button>
                         </div>
@@ -325,11 +325,11 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
             ) : (
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
                     <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full min-w-[720px] text-left border-collapse">
+                        <table className="tabela-arrasta w-full min-w-[720px] text-left border-collapse">
                             <thead className="bg-slate-50 border-b border-slate-200 dark:bg-slate-800/60 dark:border-slate-800">
                                 <tr>
-                                    <th className={`${th} w-16`}>{tx('Nº')}</th>
-                                    <th className={th}>{tx('Permissão')}</th>
+                                    <th className={`${th} w-16 max-md:w-12 max-md:min-w-12 max-md:max-w-12 max-md:!px-2`}>{tx('Nº')}</th>
+                                    <th className={`${th} max-md:sticky max-md:left-12 max-md:z-[5] max-md:bg-slate-50 max-md:dark:bg-slate-800`}>{tx('Permissão')}</th>
                                     <th className={th}>{tx('Tipo')}</th>
                                     {modo === 'nivel'
                                         ? PAPEIS.map(papel => <th key={papel} className={`${th} text-center`}>{tx(NOME_PAPEL[papel])}</th>)
@@ -339,14 +339,14 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
                             {grupos.map(g => (
                                 <tbody key={g.centena}>
                                     <tr className="bg-slate-50/70 dark:bg-slate-800/40">
-                                        <td colSpan={modo === 'nivel' ? 3 + PAPEIS.length : 4} className="px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
-                                            {String(g.centena).padStart(1, '0')}xx · {tx(g.nome)}
+                                        <td colSpan={modo === 'nivel' ? 3 + PAPEIS.length : 4} className="max-md:!static max-md:!bg-transparent px-3 py-2 text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">
+                                            <span className="max-md:sticky max-md:left-3">{String(g.centena).padStart(1, '0')}xx · {tx(g.nome)}</span>
                                         </td>
                                     </tr>
                                     {g.itens.map(p => (
                                         <tr key={p.codigo} className="border-t border-slate-100 dark:border-slate-800">
-                                            <td className="px-3 py-2"><span className="font-mono text-[12px] font-black text-slate-700 dark:text-slate-200">{p.codigo}</span></td>
-                                            <td className="px-3 py-2">
+                                            <td className="px-3 py-2 max-md:w-12 max-md:min-w-12 max-md:max-w-12 max-md:px-2"><span className="font-mono text-[12px] font-black text-slate-700 dark:text-slate-200">{p.codigo}</span></td>
+                                            <td className="px-3 py-2 max-md:sticky max-md:left-12 max-md:z-[5] max-md:bg-white max-md:dark:bg-slate-900 max-md:w-[150px] max-md:min-w-[150px] max-md:max-w-[150px] max-md:px-2 max-md:break-words max-md:shadow-[6px_0_8px_-6px_rgba(15,23,42,0.18)]">
                                                 <p className="text-[13px] font-bold text-slate-800 dark:text-white">{tx(p.nome)}</p>
                                                 {p.descricao && <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{tx(p.descricao)}</p>}
                                             </td>
@@ -376,7 +376,7 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
                                                 return (
                                                     <td className="px-3 py-2">
                                                         <div className="flex justify-center">
-                                                            <div className="inline-flex bg-slate-100 p-0.5 rounded-lg gap-0.5 dark:bg-slate-800" role="group" aria-label={tx('Exceção para {codigo}', { codigo: p.codigo })}>
+                                                            <div className="inline-flex max-md:flex-col bg-slate-100 p-0.5 rounded-lg gap-0.5 dark:bg-slate-800" role="group" aria-label={tx('Exceção para {codigo}', { codigo: p.codigo })}>
                                                                 {[
                                                                     ['padrao', `${tx('Padrão')} (${doNivel ? tx('sim') : tx('não')})`, 'bg-white text-slate-800 shadow-sm dark:bg-slate-900 dark:text-white'],
                                                                     ['liberar', tx('Liberar'), 'bg-emerald-600 text-white shadow-sm'],
@@ -384,7 +384,7 @@ const AbaPermissoes = ({ usuarios = [], loginInicial = '' }) => {
                                                                 ].map(([id, rotulo, corAtiva]) => (
                                                                     <button key={id} type="button" aria-pressed={atual === id} disabled={gravando === k}
                                                                         onClick={() => atual !== id && mudarExcecao(p, id)}
-                                                                        className={`h-7 px-2.5 rounded-md text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-colors ${atual === id ? corAtiva : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
+                                                                        className={`h-10 md:h-7 px-2.5 rounded-md text-[10px] font-black uppercase tracking-wide whitespace-nowrap transition-colors ${atual === id ? corAtiva : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'}`}>
                                                                         {rotulo}
                                                                     </button>
                                                                 ))}

@@ -38,7 +38,7 @@ const AvisoBackup = ({ usuario, aoFazerBackup }) => {
 
     return (
         <div className="fixed inset-0 z-[85] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-[fadeIn_0.2s_ease-out]" role="dialog" aria-modal="true" aria-labelledby="aviso-backup-titulo">
-            <div className="bg-white rounded-2xl shadow-2xl w-[min(480px,100%)] overflow-hidden border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+            <div className="bg-white rounded-2xl shadow-2xl w-[min(480px,100%)] max-h-[92dvh] overflow-y-auto border border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                 <div className={`px-6 py-5 flex items-start gap-3 text-white ${situacao.nivel === 'atencao' ? 'bg-amber-500' : 'bg-rose-600'}`}>
                     <DatabaseBackup className="w-6 h-6 shrink-0 mt-0.5" />
                     <div className="min-w-0 flex-1">
@@ -47,7 +47,7 @@ const AvisoBackup = ({ usuario, aoFazerBackup }) => {
                             {situacao.nivel === 'nunca' ? tx('Nenhuma cópia feita ainda') : tx('Última cópia há {dias} dias', { dias: situacao.dias })}
                         </p>
                     </div>
-                    <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
+                    <button type="button" onClick={fechar} aria-label={tx('Fechar')} className="shrink-0 p-2.5 -m-2.5 opacity-80 hover:opacity-100"><X className="w-5 h-5" /></button>
                 </div>
                 <div className="px-6 py-5 space-y-2">
                     <p className="text-sm font-bold text-slate-700 leading-snug dark:text-slate-200">
