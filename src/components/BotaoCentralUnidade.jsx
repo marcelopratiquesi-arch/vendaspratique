@@ -13,7 +13,7 @@ const BotaoCentralUnidade = ({ unidade, usuario, comTexto = false, className = '
     return (
         <button type="button" title={rotulo} aria-label={rotulo}
             onClick={(e) => { e.stopPropagation(); abrirCentralUnidade(unidade); }}
-            className={`shrink-0 inline-flex items-center gap-1 rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/20 ${comTexto ? 'h-6 px-2 text-[10px] font-bold uppercase tracking-wider' : 'w-6 h-6 justify-center'} ${className}`}>
+            className={`shrink-0 inline-flex items-center gap-1 rounded-lg md:rounded-md border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300 dark:hover:bg-blue-500/20 ${comTexto ? 'h-10 md:h-6 px-3 md:px-2 justify-center text-[10px] font-bold uppercase tracking-wider' : 'w-10 h-10 md:w-6 md:h-6 justify-center'} ${className}`}>
             <Building2 className="w-3.5 h-3.5" />{comTexto && tx('Central')}
         </button>
     );

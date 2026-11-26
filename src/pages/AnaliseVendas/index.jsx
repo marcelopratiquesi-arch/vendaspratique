@@ -23,6 +23,7 @@ import { registrarEnvioRelatorio, ROTULO_TURNO } from '../Pendencias/relatorioFe
 import { tx } from '../../i18n/traduzir.js';
 import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
 
 const getLocalISODate = () => {
     const d = new Date();
@@ -61,6 +62,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
     }, [rolarParaMov, abaPrincipal]);
     // Botão "Filtros" do cabeçalho: mostra/esconde Consultores, Planos, Produtos e Serviços
     const [filtrosAbertos, setFiltrosAbertos] = useState(false);
+    const ehCelular = useEhCelular(); // celular: botões do cabeçalho em 2 colunas e período na largura toda
     const [tipoFiltro, setTipoFiltro] = useState('mes');
     const [filtroMes, setFiltroMes] = useState(String(new Date().getMonth() + 1).padStart(2, '0'));
     const [filtroAno, setFiltroAno] = useState(new Date().getFullYear().toString());
@@ -541,15 +543,17 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             </p>
                         </div>
                     </div>
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="grid grid-cols-2 w-full gap-2 md:flex md:flex-wrap md:items-center md:w-auto">
                         {/* Central da Unidade (09/11/2026): a unidade que está na tela (Líder: a dele; Admin/Mentor: a escolhida no topo) */}
                         <BotaoCentralUnidade unidade={temVisaoGlobal ? (filtroUnidade === 'TODOS' ? null : filtroUnidade) : usuarioLogado?.unidade} usuario={usuarioLogado} comTexto className="!h-10 !px-3 !rounded-xl" />
                         {temFiltroAtivo && (
-                            <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-[#3B4458] hover:text-[#0F172A] hover:bg-slate-100 flex items-center gap-1.5 transition-colors dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800">
+                            <button type="button" onClick={limparFiltros} className="h-10 px-3 rounded-xl text-[12px] font-bold text-[#3B4458] hover:text-[#0F172A] hover:bg-slate-100 flex items-center justify-center md:justify-start gap-1.5 transition-colors dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800">
                                 <RefreshCw className="w-3.5 h-3.5" />{' '}{tx("Limpar filtros")}
                             </button>
                         )}
+                        <div className="col-span-2 md:contents">
                         <SeletorPeriodo
+                            larguraTotal={ehCelular}
                             rotulo={rotuloPeriodo}
                             preset={presetPeriodo}
                             tipo={tipoFiltro}
@@ -562,11 +566,12 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             anos={anosUnicos.filter(a => a !== 'TODOS')}
                             onAplicar={aplicarPeriodo}
                         />
+                        </div>
                         <button
                             type="button"
                             onClick={() => setFiltrosAbertos(a => !a)}
                             aria-expanded={filtrosAbertos}
-                            className={`h-10 px-3.5 rounded-xl border text-[13px] font-bold flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${filtrosAbertos || filtrosAtivos.length > 0 ? 'bg-[#0B1F4B] border-[#0B1F4B] text-white dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-[#D6DCE8] text-[#0F172A] hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}
+                            className={`h-10 px-3.5 rounded-xl border text-[13px] font-bold flex items-center justify-center md:justify-start gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${filtrosAbertos || filtrosAtivos.length > 0 ? 'bg-[#0B1F4B] border-[#0B1F4B] text-white dark:bg-blue-600 dark:border-blue-600' : 'bg-white border-[#D6DCE8] text-[#0F172A] hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-white dark:hover:bg-slate-800'}`}
                         >
                             <SlidersHorizontal className="w-4 h-4" />{tx("Filtros")}
                             {filtrosAtivos.length > 0 && <span className="min-w-5 h-5 px-1 rounded-full bg-white text-[#0B1F4B] text-[11px] font-black flex items-center justify-center">{filtrosAtivos.length}</span>}
@@ -589,9 +594,9 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                     <div className="px-4 md:px-5 pb-4 flex flex-wrap items-center gap-2">
                         <span className="text-[11px] font-bold text-[#5B6478] dark:text-slate-400">{tx("Filtros ativos:")}</span>
                         {filtrosAtivos.map(f => (
-                            <span key={f.id} className="inline-flex items-center gap-1.5 h-7 pl-2.5 pr-1 rounded-full bg-[#EEF1F6] text-[12px] font-semibold text-[#3B4458] dark:bg-slate-800 dark:text-slate-200">
+                            <span key={f.id} className="inline-flex items-center gap-1.5 h-9 md:h-7 pl-2.5 pr-1 rounded-full bg-[#EEF1F6] text-[12px] font-semibold text-[#3B4458] dark:bg-slate-800 dark:text-slate-200">
                                 {tx(f.texto)}
-                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-5 h-5 rounded-full bg-[#D6DCE8] hover:bg-slate-300 text-[#3B4458] flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
+                                <button type="button" onClick={f.remover} aria-label={tx("Remover filtro: {texto}", { texto: f.texto })} className="w-8 h-8 md:w-5 md:h-5 rounded-full bg-[#D6DCE8] hover:bg-slate-300 text-[#3B4458] flex items-center justify-center transition-colors dark:bg-slate-700 dark:text-slate-300">
                                     <X className="w-3 h-3" strokeWidth={3} />
                                 </button>
                             </span>
@@ -601,7 +606,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
             </div>
 
             {/* Navegação: abas em pílula (ativa = azul-marinho) */}
-            <div className="bg-white rounded-2xl border border-[#E4E8F0] p-1.5 flex gap-1 overflow-x-auto custom-scrollbar w-full sm:w-max max-w-full dark:bg-slate-900 dark:border-slate-800" role="tablist" aria-label={tx("Seções")}>
+            <div className="bg-white rounded-2xl border border-[#E4E8F0] p-1.5 flex gap-1 overflow-x-auto snap-x snap-proximity md:snap-none custom-scrollbar w-full sm:w-max max-w-full dark:bg-slate-900 dark:border-slate-800" role="tablist" aria-label={tx("Seções")}>
                 {[
                     ['dashboard', BarChart3],
                     ['visaoGeral', Target],
@@ -617,7 +622,7 @@ const AnaliseDashboard = ({ usuarioLogado, vendas = [], visitantes = [], avaliac
                             role="tab"
                             aria-selected={ativa}
                             onClick={() => setAbaPrincipal(id)}
-                            className={`h-10 px-4 rounded-full text-[13px] whitespace-nowrap flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-[#0B1F4B] text-white font-bold dark:bg-blue-600' : 'text-[#3B4458] hover:text-[#0F172A] hover:bg-[#F3F5FA] font-semibold dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'}`}
+                            className={`h-10 px-4 rounded-full text-[13px] whitespace-nowrap shrink-0 snap-start flex items-center gap-2 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${ativa ? 'bg-[#0B1F4B] text-white font-bold dark:bg-blue-600' : 'text-[#3B4458] hover:text-[#0F172A] hover:bg-[#F3F5FA] font-semibold dark:text-slate-300 dark:hover:text-white dark:hover:bg-slate-800'}`}
                         >
                             <Icone className={`w-4 h-4 ${id === 'rankingGlobal' && !ativa ? 'text-amber-500' : ''}`} /> {tx(ROTULO_ABA[id])}
                         </button>
