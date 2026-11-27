@@ -399,8 +399,8 @@ const RankingGlobalTab = ({
                         </div>
                     )}
 
-                    <div className="overflow-x-auto custom-scrollbar">
-                        <table className="w-full text-left border-collapse min-w-[750px]">
+                    <div className="tc-rolar overflow-x-auto custom-scrollbar">
+                        <table className="tc-tabela tc-sem-primeira w-full text-left border-collapse min-w-[750px]">
                             <thead>
                                 <tr className="border-b border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-800">
                                     <th className="py-3 px-4 text-[10px] font-black text-slate-500 uppercase tracking-widest w-14 text-center dark:text-slate-400">{tx("Pos")}</th>
@@ -463,8 +463,8 @@ const RankingGlobalTab = ({
                                                         : <span className="text-[12px] font-black text-slate-400 tabular-nums">{idx + 1}º</span>}
                                                 </td>
                                                 <td className="py-3 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white z-10 border-r border-slate-100 dark:text-white dark:bg-slate-900 dark:border-slate-800">
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <span className="flex items-center gap-1.5 min-w-0"><span className="truncate">{uni.nome}</span><BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} /></span>
+                                                    <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-1 md:gap-2">
+                                                        <span className="flex flex-wrap md:flex-nowrap items-center gap-1.5 min-w-0"><span className="md:hidden text-[12px] text-slate-500 dark:text-slate-400">{idx < 3 ? MEDALHAS[idx] : `${idx + 1}º`}</span><span className="truncate">{uni.nome}</span><BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} /></span>
                                                         <span className="text-[10px] font-bold text-slate-400 tabular-nums shrink-0" title={tx("Participação no total da rede")}>
                                                             {pctDaRede(valorEscopoUnidade)}%
                                                         </span>

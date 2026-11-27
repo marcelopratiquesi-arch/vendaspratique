@@ -29,6 +29,8 @@ import {
     Users
 } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
+import { TotalRedeCelular, TabelaUnidadesCelular } from './relatorio/ComparativoUnidadesCelular.jsx';
+import { useEhCelular } from '../../components/celular/ehCelular.js';
 import { tx } from '../../i18n/traduzir.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
 
@@ -53,6 +55,7 @@ const RelatorioTab = ({
 
     const [unidadesRecolhidas, setUnidadesRecolhidas] = useState({});
     const [visaoDetalhada, setVisaoDetalhada] = useState(false);
+    const celular = useEhCelular();
 
     // Estado do Modal de Auditoria (Vendas, Visitantes e Avaliações)
     const [modalConfig, setModalConfig] = useState({
@@ -146,11 +149,19 @@ const RelatorioTab = ({
         modalConfig
     });
 
+    // Celular, Admin/Mentor com várias unidades (27/11/2026): total colorido + tabela para comparar; os cartões começam fechados
+    const compararUnidades = temVisaoGlobal && unidadesOrdenadas.length > 1;
+    const estaRecolhida = (unidade, mapa = unidadesRecolhidas) => mapa[unidade] ?? (celular && compararUnidades);
     const toggleUnidade = (unidade) => {
         setUnidadesRecolhidas(prev => ({
             ...prev,
-            [unidade]: !prev[unidade]
+            [unidade]: !estaRecolhida(unidade, prev)
         }));
+    };
+    const idDaUnidade = (unidade) => `relatorio-${String(unidade).replace(/\W+/g, '-')}`;
+    const irParaUnidade = (unidade) => {
+        setUnidadesRecolhidas(prev => ({ ...prev, [unidade]: false }));
+        setTimeout(() => document.getElementById(idDaUnidade(unidade))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
     };
 
     const abrirModalAuditoria = (titulo, unidade, tipoTabela, registros, totalUnicos) => {
@@ -272,7 +283,9 @@ const RelatorioTab = ({
                 extrairDadosPessoa={extrairDadosPessoa}
             />
 
-            <div className="space-y-8">
+            <div className="space-y-4 md:space-y-8">
+                {compararUnidades && <TotalRedeCelular periodo={labelFiltroAtual} unidades={unidadesOrdenadas.map(u => ({ nome: u, itens: resumoDaUnidade(relatorioPorUnidade[u]) }))} />}
+
                 {/* 📌 BARRA DE AÇÕES GERENCIAIS E EXPORTAÇÃO */}
                 {unidadesOrdenadas.length > 0 && permissaoGerencial && (
                     <div className="bg-white p-4 md:p-6 rounded-[24px] shadow-sm border border-slate-200 flex flex-col md:flex-row gap-6 items-center justify-between no-drag dark:bg-slate-900 dark:border-slate-800">
@@ -330,6 +343,8 @@ const RelatorioTab = ({
                     </div>
                 )}
 
+                {compararUnidades && <TabelaUnidadesCelular onIr={irParaUnidade} unidades={unidadesOrdenadas.map(u => ({ nome: u, itens: resumoDaUnidade(relatorioPorUnidade[u]) }))} />}
+
                 {/* 🏢 CARDS SANFONA POR UNIDADE COM INTERAÇÃO DE MODAL */}
                 {unidadesOrdenadas.length === 0 ? (
                     <div className="bg-white rounded-[24px] border border-slate-200 shadow-sm flex flex-col items-center justify-center h-64 opacity-60 pointer-events-none dark:bg-slate-900 dark:border-slate-800">
@@ -343,7 +358,7 @@ const RelatorioTab = ({
                 ) : (
                     unidadesOrdenadas.map(unidade => {
                         const dados = relatorioPorUnidade[unidade];
-                        const isRecolhido = unidadesRecolhidas[unidade];
+                        const isRecolhido = estaRecolhida(unidade);
 
                         const hasVisitantes = dados.visitantes.length > 0;
                         const hasAvaliacoes = dados.avaliacoes.length > 0;
@@ -351,7 +366,7 @@ const RelatorioTab = ({
                         const gruposUnidadeFiltrados = gruposParaExibir(dados.grupos);
 
                         return (
-                            <div key={unidade} className="bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300 dark:bg-slate-900 dark:border-slate-800">
+                            <div key={unidade} id={idDaUnidade(unidade)} className="scroll-mt-4 bg-white border border-slate-200 rounded-[24px] shadow-sm overflow-hidden transition-all duration-300 dark:bg-slate-900 dark:border-slate-800">
                                 <div
                                     className="bg-slate-900 px-4 md:px-6 py-4 md:py-5 flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-5 transition-colors cursor-pointer select-none group"
                                     onClick={() => toggleUnidade(unidade)}
@@ -400,9 +415,9 @@ const RelatorioTab = ({
                                 </div>
 
                                 {/* Faixa fina de resumo (visual compacto) */}
-                                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-6 py-3 bg-white border-t border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                                <div className="grid grid-cols-3 md:flex md:flex-wrap items-center gap-x-3 md:gap-x-5 gap-y-2 px-4 md:px-6 py-3 bg-white border-t border-slate-200 dark:bg-slate-900 dark:border-slate-800">
                                     {resumoDaUnidade(dados).map(item => (
-                                        <div key={item.rotulo} className="flex items-baseline gap-1.5">
+                                        <div key={item.rotulo} className="min-w-0 flex flex-col md:flex-row md:items-baseline gap-0 md:gap-1.5">
                                             <span className={`text-lg font-black tabular-nums ${item.valor > 0 ? item.cor : 'text-slate-300 dark:text-slate-600'}`}>{item.valor}</span>
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx(item.rotulo)}</span>
                                             {item.produtos && <span className="self-center">{caixinhaForaDaMeta(foraDaMetaPorUnidade[unidade] || 0)}</span>}

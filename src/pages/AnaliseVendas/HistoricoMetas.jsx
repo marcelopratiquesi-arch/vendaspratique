@@ -113,7 +113,7 @@ const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) =
                     ) : linhas.length === 0 ? (
                         <p className="py-10 text-center text-[13px] font-semibold text-slate-500 dark:text-slate-400">{tx('Nenhuma meta cadastrada nos meses anteriores.')}</p>
                     ) : (
-                        <table className="w-full min-w-[640px] border-collapse">
+                        <table className="tc-tabela w-full min-w-[640px] border-collapse">
                             <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
                                 <tr>
                                     <th className={`${th} !text-left`}>{tx('Mês')}</th>

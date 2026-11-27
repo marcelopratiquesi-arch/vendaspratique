@@ -3,6 +3,8 @@
 // MovimentoDiarioPainel (padrão) = tabela por dia, com o valor do dia e o acumulado do mês.
 import React, { useEffect, useMemo, useState } from 'react';
 import { Save, Loader2, Check, Pencil, HelpCircle, AlertTriangle, ArrowDownRight, ArrowUpRight, Wallet, UserPlus, UserMinus, Users, Leaf } from 'lucide-react';
+import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
+import { ORDEM_NORMAL, proximaOrdem, ordenarLinhas } from '../../components/ordenacao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
 import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, useHojeIso, ativosAntesDe } from './movimentoDiario.js';
@@ -331,6 +333,12 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
         });
         return [...mapa.values()].map(r => ({ ...r, entradasAcum: entradasAcumuladasAte(entradas, r.dia) })).sort((a, b) => b.dia.localeCompare(a.dia));
     }, [entradas, derivados, faixa]);
+    // Ordenar clicando no título (27/11/2026). Ordem normal = dia mais recente primeiro
+    const [ordem, setOrdem] = useState(ORDEM_NORMAL);
+    const diasOrdenados = ordenarLinhas(porDia, ordem, {
+        dia: (r) => r.dia, ativos: (r) => r.ativos, nutri: (r) => r.nutri, entradas: (r) => r.entradas, canc: (r) => r.cancDia,
+        saldo: (r) => r.entradas - (r.cancDia || 0), fat: (r) => r.fatDia,
+    }, (r) => r.dia);
     const total = porDia.reduce((t, r) => ({ entradas: t.entradas + r.entradas, cancelamentos: t.cancelamentos + (r.cancDia || 0), faturamento: t.faturamento + (r.fatDia || 0) }), { entradas: 0, cancelamentos: 0, faturamento: 0 });
 
     return (
@@ -345,28 +353,36 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
             {semTabela && <AvisoSemTabela />}
             {!(unidade && unidade !== 'TODOS') && <p className="mb-3 text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx('Escolha uma unidade no seletor do topo para lançar a movimentação.')}</p>}
 
-            <div className="min-w-0 overflow-auto custom-scrollbar max-h-[460px] border border-slate-100 rounded-xl dark:border-slate-800">
+            <div className="tc-rolar min-w-0 overflow-auto custom-scrollbar md:max-h-[460px] border border-slate-100 rounded-xl dark:border-slate-800">
                 {porDia.length === 0 ? (
                     <p className="text-center text-[13px] font-semibold text-slate-500 py-10 dark:text-slate-400">{tx('Nenhum movimento no período escolhido.')}</p>
                 ) : (
-                    <table className="w-full min-w-[700px] text-left border-collapse">
+                    <table className="tc-tabela w-full min-w-[700px] text-left border-collapse">
                         <thead className="sticky top-0 z-10 bg-white dark:bg-slate-900">
                             <tr>
-                                {[['Dia', 'left'], ['Ativos', 'right'], ['Nutri', 'right'], ['Entradas', 'right'], ['Cancelamentos', 'right'], ['Saldo', 'right'], ['Faturamento', 'right'], ['', 'right']].map(([c, al], i) => (
-                                    <th key={i} className={`px-2 py-2.5 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:text-slate-400 text-${al}`}>
-                                        {c ? tx(c) : <span className="sr-only">{tx('Editar')}</span>}
-                                        {c === 'Saldo' && <Dica texto={tx('Saldo = entradas − cancelamentos do dia.')} />}
-                                    </th>
+                                {[['dia', 'Dia', 'left'], ['ativos', 'Ativos', 'right'], ['nutri', 'Nutri', 'right'], ['entradas', 'Entradas', 'right'], ['canc', 'Cancelamentos', 'right'], ['saldo', 'Saldo', 'right'], ['fat', 'Faturamento', 'right']].map(([id, c, al]) => (
+                                    <TituloOrdenavel key={id} coluna={id} ordem={ordem} onOrdenar={(col) => setOrdem(o => proximaOrdem(o, col))} alinhar={al}
+                                        dica={id === 'saldo' ? tx('Saldo = entradas − cancelamentos do dia.') : undefined}
+                                        className={`px-2 py-2.5 border-b border-slate-100 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:text-slate-400 text-${al}`}>
+                                        {tx(c)}
+                                    </TituloOrdenavel>
                                 ))}
+                                <th className="hidden md:table-cell px-2 py-2.5 border-b border-slate-100 dark:border-slate-800"><span className="sr-only">{tx('Editar')}</span></th>
                             </tr>
                         </thead>
                         <tbody>
-                            {porDia.map(r => {
+                            {diasOrdenados.map(r => {
                                 const saldo = r.entradas - (r.cancDia || 0);
                                 return (
                                     <tr key={r.dia} className="border-b border-slate-50 dark:border-slate-800">
                                         <td className="px-2 py-2 whitespace-nowrap">
                                             <span className="block text-[13px] font-bold text-slate-800 capitalize dark:text-white">{diaCurto(r.dia)}</span>
+                                            {podeEditar && (
+                                                <button type="button" onClick={() => aoEditarDia(r.dia)} aria-label={tx('Editar o dia {dia}', { dia: diaCurto(r.dia) })}
+                                                    className="md:hidden my-1 w-10 h-8 rounded-lg border border-slate-200 text-slate-600 inline-flex items-center justify-center dark:border-slate-700 dark:text-slate-300">
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
                                             {r.diasCobertos > 1 && r.cancDia !== null && <span className="block text-[10px] font-semibold text-amber-600 dark:text-amber-400">{tx('soma de {qtd} dias', { qtd: r.diasCobertos })}</span>}
                                         </td>
                                         <td className="px-2 py-2 text-right tabular-nums whitespace-nowrap">
@@ -381,7 +397,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                                         <Celula dia={r.cancDia} acum={r.cancAcum} cor="text-rose-700 dark:text-rose-300" />
                                         <td className={`px-2 py-2 text-[13px] font-black text-right tabular-nums ${saldo > 0 ? 'text-emerald-700 dark:text-emerald-400' : saldo < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-600 dark:text-slate-300'}`}>{sinal(saldo)}</td>
                                         <Celula dia={r.fatDia} acum={r.fatAcum} cor="text-slate-800 dark:text-white" formatar={dinheiro} />
-                                        <td className="px-2 py-1.5 text-right">
+                                        <td className="hidden md:table-cell px-2 py-1.5 text-right">
                                             {podeEditar && (
                                                 <button type="button" onClick={() => aoEditarDia(r.dia)} aria-label={tx('Editar o dia {dia}', { dia: diaCurto(r.dia) })}
                                                     className="w-9 h-9 rounded-lg border border-slate-200 text-slate-600 inline-flex items-center justify-center hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
@@ -402,7 +418,7 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
                                 <td className="px-2 py-2.5 text-[13px] font-black text-rose-700 text-right tabular-nums dark:text-rose-300"><ArrowDownRight className="w-3.5 h-3.5 inline mr-0.5" />{total.cancelamentos}</td>
                                 <td className="px-2 py-2.5 text-[13px] font-black text-slate-800 text-right tabular-nums dark:text-white">{sinal(total.entradas - total.cancelamentos)}</td>
                                 <td className="px-2 py-2.5 text-[13px] font-black text-slate-800 text-right tabular-nums whitespace-nowrap dark:text-white"><Wallet className="w-3.5 h-3.5 inline mr-1 text-slate-500" />{dinheiro(total.faturamento)}</td>
-                                <td />
+                                <td className="hidden md:table-cell" />
                             </tr>
                         </tfoot>
                     </table>

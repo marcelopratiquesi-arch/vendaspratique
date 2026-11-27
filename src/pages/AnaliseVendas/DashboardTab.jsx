@@ -292,7 +292,7 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
                     {visiveis.length === 0 ? (
                         <p className="text-center text-[13px] font-semibold text-[#5B6478] py-12 dark:text-slate-400">{doGrupo.length === 0 ? tx('Nenhum plano registrado neste filtro.') : tx('Nenhum aluno encontrado nesta busca.')}</p>
                     ) : (
-                        <table className="w-full min-w-[640px] text-left border-collapse">
+                        <table className="tc-tabela w-full min-w-[640px] text-left border-collapse">
                             <thead className="sticky top-0 bg-white dark:bg-slate-900">
                                 <tr>
                                     {['Aluno', 'CPF', 'Plano', 'Data e hora'].map(c => (

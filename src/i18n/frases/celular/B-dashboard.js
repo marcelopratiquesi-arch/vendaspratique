@@ -3,6 +3,9 @@
 // Formato: "texto em português": "tradução".
 export default {
     'en-US': {
+        "Total da rede": "Network total",
+        "Comparar unidades": "Compare units",
+        "Toque no nome de uma unidade para ir até o relatório dela.": "Tap a unit name to jump to its report.",
         "Toque nos números para ver os alunos •": "Tap the numbers to see the members •",
         "Ordem normal": "Normal order",
         "Toque numa unidade para abrir o Dashboard dela. As cores das unidades são as mesmas do Ritmo do mês.": "Tap a unit to open its Dashboard. Unit colors are the same as in the Month's pace.",
@@ -10,6 +13,9 @@ export default {
         'A linha pontilhada é a média por dia. Toque num dia para ver quantos planos saíram.': 'The dotted line is the daily average. Tap a day to see how many plans were sold.',
     },
     'es-AR': {
+        "Total da rede": "Total de la red",
+        "Comparar unidades": "Comparar sedes",
+        "Toque no nome de uma unidade para ir até o relatório dela.": "Tocá el nombre de una sede para ir a su informe.",
         "Toque nos números para ver os alunos •": "Tocá los números para ver los socios •",
         "Ordem normal": "Orden normal",
         "Toque numa unidade para abrir o Dashboard dela. As cores das unidades são as mesmas do Ritmo do mês.": "Tocá una sede para abrir su Dashboard. Los colores de las sedes son los mismos del Ritmo del mes.",

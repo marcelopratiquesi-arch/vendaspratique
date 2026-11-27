@@ -1,0 +1,50 @@
+/* Tabelas no celular (grupo B, aprovado pelo dono em 27/11/2026): nome parado na esquerda, título parado em cima,
+   total preso embaixo e o resto desliza para o lado. Só vale até 767px: o computador não muda.
+   Uso: <div className="tc-rolar"><table className="tc-tabela">. Janela que já rola sozinha: só tc-tabela. */
+@media (max-width: 767px) {
+    .tc-rolar { overflow: auto; max-height: 72dvh; -webkit-overflow-scrolling: touch; }
+    .tc-rolar.tc-cheio { max-height: 100%; height: 100%; }
+
+    .tc-tabela { border-collapse: separate; border-spacing: 0; }
+    .tc-tabela tbody td { border-bottom: 1px solid #eef1f6; height: 40px; }
+
+    .tc-tabela thead th { position: sticky; top: 0; z-index: 6; background-color: #f8fafc; }
+    .tc-tabela tfoot td { position: sticky; bottom: 0; z-index: 6; background-color: #f8fafc; }
+
+    /* 1ª coluna parada (linhas de aviso com colspan ficam de fora) */
+    .tc-tabela:not(.tc-sem-primeira) tr > :first-child:not([colspan]),
+    .tc-tabela.tc-sem-primeira tr > :nth-child(2) {
+        position: sticky; left: 0; z-index: 5;
+        width: 132px; min-width: 132px; max-width: 132px;
+        padding-left: 10px; padding-right: 8px;
+        white-space: normal; overflow-wrap: anywhere; text-align: left;
+        background-color: #fff;
+        box-shadow: 6px 0 8px -6px rgba(15, 23, 42, 0.22);
+    }
+    /* Ranking: a coluna "Pos" some (a posição vai junto do nome) */
+    .tc-tabela.tc-sem-primeira tr > :first-child:not([colspan]) { display: none; }
+
+    .tc-tabela:not(.tc-sem-primeira) thead tr > :first-child:not([colspan]),
+    .tc-tabela:not(.tc-sem-primeira) tfoot tr > :first-child:not([colspan]),
+    .tc-tabela.tc-sem-primeira thead tr > :nth-child(2),
+    .tc-tabela.tc-sem-primeira tfoot tr > :nth-child(2) { z-index: 8; background-color: #f8fafc; }
+
+    /* Nomes compridos quebram a linha em vez de cortar */
+    .tc-tabela tbody tr > :first-child .truncate,
+    .tc-tabela.tc-sem-primeira tbody tr > :nth-child(2) .truncate { white-space: normal; overflow: visible; max-width: 100%; }
+
+    /* Selos dentro da coluna parada ("Não vendeu no período") crescem para caber o texto */
+    .tc-tabela tbody tr > :first-child .h-5 { height: auto; min-height: 20px; padding-top: 2px; padding-bottom: 2px; }
+
+    .tc-tabela tbody tr.tc-zero > :first-child { background-color: #fff1f2; }
+
+    .dark .tc-tabela tbody td { border-bottom-color: #1e293b; }
+    .dark .tc-tabela thead th, .dark .tc-tabela tfoot td { background-color: #1e293b; }
+    .dark .tc-tabela:not(.tc-sem-primeira) tbody tr > :first-child:not([colspan]),
+    .dark .tc-tabela.tc-sem-primeira tbody tr > :nth-child(2) { background-color: #0f172a; }
+    .dark .tc-tabela:not(.tc-sem-primeira) thead tr > :first-child:not([colspan]),
+    .dark .tc-tabela:not(.tc-sem-primeira) tfoot tr > :first-child:not([colspan]),
+    .dark .tc-tabela.tc-sem-primeira thead tr > :nth-child(2),
+    .dark .tc-tabela.tc-sem-primeira tfoot tr > :nth-child(2) { background-color: #1e293b; }
+    .dark .tc-tabela tbody tr.tc-zero > :first-child { background-color: #2a1220; }
+}

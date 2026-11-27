@@ -5,6 +5,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Activity, Send, Loader2 } from 'lucide-react';
 import { supabase } from '../../supabaseClient.js';
+import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
+import { ORDEM_NORMAL, proximaOrdem, ordenarLinhas } from '../../components/ordenacao.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { contarPlanosDoCard } from './utils.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo, hojeIso, ontemIso, ehDomingo, diaDeLancamentoAtual, diaDeLancamentoAnterior, diasDeLancamentoEntre } from './movimentoDiario.js';
@@ -102,6 +104,12 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
     }).sort((a, b) => b.situacao.nivel - a.situacao.nivel || (a.ultimo?.data || '').localeCompare(b.ultimo?.data || '') || a.nome.localeCompare(b.nome)),
     [unidades, vendasFiltradas, planos, produtos, derivados, faixa, ultimos, ativosPorUnidade, temCampoAtivos, temCampoNutri, nutriTecace]);
 
+    // Ordenar clicando no título (27/11/2026). Ordem normal = mais atrasadas primeiro (a mensagem do WhatsApp não muda)
+    const [ordem, setOrdem] = useState(ORDEM_NORMAL);
+    const linhasNaTela = ordenarLinhas(linhas, ordem, {
+        unidade: (l) => l.nome, situacao: (l) => l.situacao.nivel, ativos: (l) => l.ativos, nutri: (l) => l.nutri.total, entradas: (l) => l.entradas,
+        saidas: (l) => l.saidas, saldo: (l) => (l.saidas === null ? null : l.entradas - l.saidas), faturamento: (l) => l.faturamento, ultimo: (l) => l.ultimo?.data,
+    }, (l) => l.nome);
     const total = linhas.reduce((t, l) => ({ nutri: t.nutri + l.nutri.total, ativos: t.ativos + (l.ativos || 0), entradas: t.entradas + l.entradas, saidas: t.saidas + (l.saidas || 0), faturamento: t.faturamento + (l.faturamento || 0) }), { nutri: 0, ativos: 0, entradas: 0, saidas: 0, faturamento: 0 });
     const emDia = linhas.filter(l => l.situacao.nivel === 0).length;
     const incompletas = linhas.filter(l => l.situacao.nivel === 1).length;
@@ -195,23 +203,21 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
             {semTabela ? (
                 <p className="px-5 py-6 text-[12px] font-semibold text-amber-700 dark:text-amber-400">{tx('Falta criar a tabela no banco: rode o arquivo sql/2026-10-31-movimento-diario/1_tabela_movimento_diario.sql no SQL Editor do Supabase.')}</p>
             ) : (
-                <div className="overflow-x-auto custom-scrollbar">
-                    <table className="w-full min-w-[920px] text-left border-collapse">
+                <div className="tc-rolar overflow-x-auto custom-scrollbar">
+                    <table className="tc-tabela w-full min-w-[920px] text-left border-collapse">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>
-                                <th className={th}>{tx('Unidade')}</th>
-                                <th className={th}>{tx('Situação')}</th>
-                                <th className={`${th} text-right`}>{tx('Ativos')}</th>
-                                <th className={`${th} text-right`}>{tx('Nutri')}</th>
-                                <th className={`${th} text-right`}>{tx('Entradas')}</th>
-                                <th className={`${th} text-right`}>{tx('Saídas')}</th>
-                                <th className={`${th} text-right`}>{tx('Saldo')}</th>
-                                <th className={`${th} text-right`}>{tx('Faturamento')}</th>
-                                <th className={th}>{tx('Último lançamento')}</th>
+                                {[['unidade', 'Unidade', true, false], ['situacao', 'Situação', false, false], ['ativos', 'Ativos', false, true], ['nutri', 'Nutri', false, true], ['entradas', 'Entradas', false, true],
+                                    ['saidas', 'Saídas', false, true], ['saldo', 'Saldo', false, true], ['faturamento', 'Faturamento', false, true], ['ultimo', 'Último lançamento', false, false]].map(([id, rotulo, texto, direita]) => (
+                                    <TituloOrdenavel key={id} coluna={id} texto={texto} ordem={ordem} onOrdenar={(col, t) => setOrdem(o => proximaOrdem(o, col, t))}
+                                        alinhar={direita ? 'right' : 'left'} className={direita ? `${th} text-right` : th}>
+                                        {tx(rotulo)}
+                                    </TituloOrdenavel>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {linhas.map(l => {
+                            {linhasNaTela.map(l => {
                                 const saldo = l.saidas === null ? null : l.entradas - l.saidas;
                                 return (
                                     <tr key={l.nome} className="border-t border-slate-100 dark:border-slate-800">
@@ -256,7 +262,8 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                         </tbody>
                         <tfoot>
                             <tr className="border-t border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-800/60">
-                                <td className="px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white" colSpan={2}>{tx('Total')}</td>
+                                <td className="px-3 py-3 text-[11px] font-black uppercase tracking-widest text-slate-800 dark:text-white" >{tx('Total')}</td>
+                                <td />
                                 <td className="px-3 py-3 text-[13px] font-black text-right tabular-nums text-slate-800 dark:text-white">{total.ativos || '—'}</td>
                                 <td className="px-3 py-3 text-[13px] font-black text-right tabular-nums text-emerald-700 dark:text-emerald-400">{total.nutri}</td>
                                 <td className="px-3 py-3 text-[13px] font-black text-right tabular-nums text-emerald-700 dark:text-emerald-400">{total.entradas}</td>

@@ -147,8 +147,8 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'VENDA') {
             return (
-                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
+                <div className="tc-rolar tc-cheio w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                    <table className="tc-tabela w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
                                 <th className="py-4 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest sticky left-0 bg-slate-100/90 backdrop-blur dark:text-slate-400">{tx("Aluno")}</th>
@@ -191,8 +191,8 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'VISITANTE') {
             return (
-                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
+                <div className="tc-rolar tc-cheio w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                    <table className="tc-tabela w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
                                 <th className="py-4 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest sticky left-0 bg-slate-100/90 backdrop-blur dark:text-slate-400">{tx("Visitante / Aluno")}</th>
@@ -235,8 +235,8 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'AVALIACAO') {
             return (
-                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
-                    <table className="w-full text-left border-collapse min-w-[800px]">
+                <div className="tc-rolar tc-cheio w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                    <table className="tc-tabela w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
                                 <th className="py-4 px-5 text-[10px] font-black text-slate-500 uppercase tracking-widest sticky left-0 bg-slate-100/90 backdrop-blur dark:text-slate-400">{tx("Aluno Avaliado")}</th>

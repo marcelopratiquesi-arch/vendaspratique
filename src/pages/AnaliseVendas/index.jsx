@@ -21,6 +21,7 @@ import { avisar } from '../../components/avisar.js';
 import { abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { registrarEnvioRelatorio, ROTULO_TURNO } from '../Pendencias/relatorioFechamento.js';
 import { tx } from '../../i18n/traduzir.js';
+import './tabelaCelular.css';
 import { podeVer } from '../../permissoes/catalogoPermissoes.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
 import { useEhCelular } from '../../components/celular/ehCelular.js';

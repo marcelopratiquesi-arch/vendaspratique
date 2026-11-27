@@ -198,8 +198,8 @@ const QuadroPlanosPorUnidade = ({
                 </div>
             </div>
 
-            <div className="overflow-x-auto custom-scrollbar">
-                <table className={`w-full ${resumido ? 'min-w-[820px]' : 'min-w-[1100px]'} text-left border-collapse`}>
+            <div className="tc-rolar overflow-x-auto custom-scrollbar">
+                <table className={`tc-tabela w-full ${resumido ? 'min-w-[820px]' : 'min-w-[1100px]'} text-left border-collapse`}>
                     <thead>
                         <tr>
                             <Titulo coluna="unidade">{tx('Unidade')}</Titulo>
@@ -225,7 +225,7 @@ const QuadroPlanosPorUnidade = ({
                             const zerado = l.planos === 0;
                             return (
                                 <tr key={l.chave} onClick={() => onAbrirUnidade(l.nome)}
-                                    className={`border-b border-[#F1F3F8] last:border-0 cursor-pointer transition-colors hover:bg-[#F8FAFD] dark:border-slate-800 dark:hover:bg-slate-800/60 ${zerado ? 'bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
+                                    className={`border-b border-[#F1F3F8] last:border-0 cursor-pointer transition-colors hover:bg-[#F8FAFD] dark:border-slate-800 dark:hover:bg-slate-800/60 ${zerado ? 'tc-zero bg-rose-50/60 dark:bg-rose-500/5' : ''}`}>
                                     <td className={`${px} ${py}`}>
                                         <span className="flex items-center gap-2 min-w-0">
                                             <span className="w-3 h-3 rounded-[3px] shrink-0" style={{ background: cor }} aria-hidden="true" />

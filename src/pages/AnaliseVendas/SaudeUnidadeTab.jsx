@@ -629,8 +629,8 @@ const SaudeUnidadeTab = ({
                         })}
                     </div>
                 </div>
-                <div className="overflow-x-auto custom-scrollbar pb-1">
-                    <table className="w-full text-left border-collapse min-w-[760px]">
+                <div className="tc-rolar overflow-x-auto custom-scrollbar pb-1">
+                    <table className="tc-tabela w-full text-left border-collapse min-w-[760px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>
                                 <Titulo campo="nome" alinhar="left" dica={tx('Nome do plano, produto ou serviço no catálogo.')}>{tx('Item')}</Titulo>
