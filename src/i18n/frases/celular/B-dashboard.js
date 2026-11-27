@@ -3,6 +3,8 @@
 // Formato: "texto em português": "tradução".
 export default {
     'en-US': {
+        "Não vendeu": "No sales",
+        "{dias}d sem plano": "{dias}d with no plan",
         "Total da rede": "Network total",
         "Comparar unidades": "Compare units",
         "Toque no nome de uma unidade para ir até o relatório dela.": "Tap a unit name to jump to its report.",
@@ -13,6 +15,8 @@ export default {
         'A linha pontilhada é a média por dia. Toque num dia para ver quantos planos saíram.': 'The dotted line is the daily average. Tap a day to see how many plans were sold.',
     },
     'es-AR': {
+        "Não vendeu": "No vendió",
+        "{dias}d sem plano": "{dias}d sin plan",
         "Total da rede": "Total de la red",
         "Comparar unidades": "Comparar sedes",
         "Toque no nome de uma unidade para ir até o relatório dela.": "Tocá el nombre de una sede para ir a su informe.",

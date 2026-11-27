@@ -10,7 +10,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Send, ChevronDown, Loader2 } from 'lucide-react';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { normalizeString } from '../AnaliseVendas/utils.js';
-import { CartaoCelular, GradeCartao, NumeroCartao } from '../../components/celular/Cartao.jsx';
+import { CartaoCelular } from '../../components/celular/Cartao.jsx';
+import TituloOrdenavel from '../../components/TituloOrdenavel.jsx';
+import { ORDEM_NORMAL, proximaOrdem, ordenarLinhas } from '../../components/ordenacao.js';
+import '../AnaliseVendas/tabelaCelular.css';
 import { buscarEnviosRelatorio, buscarConferenciasRelatorio, acharRegistroTurno, turnosDoDia, situacaoDoTurno, nomesDoTurno, INICIO_COBRANCA_RELATORIO, TEXTO_REGRA_RELATORIO, pedirConferirRelatorio } from './relatorioFechamento.js';
 
 const paraIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -59,6 +62,7 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
     const [conferencias, setConferencias] = useState([]);
     const [carregando, setCarregando] = useState(false);
     const [aberto, setAberto] = useState(true);
+    const [ordem, setOrdem] = useState(ORDEM_NORMAL); // ordenar clicando no título (resumo por unidade)
     const dias = useMemo(() => diasDoPeriodo(faixa), [faixa]);
     const chaveDias = dias.length ? `${dias[0]}|${dias[dias.length - 1]}` : '';
 
@@ -121,8 +125,8 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
                 ) : (
                     <div className="overflow-x-auto custom-scrollbar border-t border-slate-100 dark:border-slate-800">
                         {/* CELULAR (26/11/2026): um cartão por dia (uma unidade) ou por unidade (várias) */}
-                        <div className="md:hidden p-2 space-y-2 bg-slate-50 dark:bg-slate-950/40">
-                            {umaUnidade ? [...dias].reverse().map(d => {
+                        {umaUnidade && <div className="md:hidden p-2 space-y-2 bg-slate-50 dark:bg-slate-950/40">
+                            {[...dias].reverse().map(d => {
                                 const turnos = turnosDoDia(d);
                                 return (
                                     <CartaoCelular key={d} titulo={<>{ddmm(d)} <span className="font-bold text-slate-400 uppercase">{diaSemana(d)}</span></>}>
@@ -136,20 +140,9 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
                                         ))}
                                     </CartaoCelular>
                                 );
-                            }) : resumo.map(r => (
-                                <CartaoCelular key={r.unidade} titulo={<span className="uppercase">{r.unidade}</span>} direita={<span className="text-sm font-black tabular-nums text-slate-700 dark:text-slate-200">{r.pct}%</span>}>
-                                    <div className="h-2 mb-2 bg-slate-100 rounded-full overflow-hidden dark:bg-slate-800"><div className={`h-full rounded-full ${r.pct >= 90 ? 'bg-emerald-500' : r.pct >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${r.pct}%` }} /></div>
-                                    <GradeCartao colunas={2}>
-                                        <NumeroCartao rotulo={tx('No prazo')} valor={r.noPrazo} cor="text-emerald-600 dark:text-emerald-400" />
-                                        <NumeroCartao rotulo={tx('Atrasados')} valor={r.atrasados} cor="text-amber-600 dark:text-amber-400" />
-                                        <NumeroCartao rotulo={tx('Não enviados')} valor={r.naoEnviados} cor="text-rose-600 dark:text-rose-400" />
-                                        <NumeroCartao rotulo={tx('Conferidos no grupo')} valor={r.conferidos} cor="text-blue-600 dark:text-blue-400" />
-                                    </GradeCartao>
-                                </CartaoCelular>
-                            ))}
-                            {!umaUnidade && <p className="px-1 text-[11px] font-semibold text-slate-500 leading-snug dark:text-slate-400">{tx('O sistema não viu o envio, mas o Líder conferiu no grupo que foi enviado. Muitos aqui = a recepção não está clicando em Copiar/Enviar no horário.')}</p>}
-                        </div>
-                        <div className="hidden md:block">
+                            })}
+                        </div>}
+                        <div className={umaUnidade ? 'hidden md:block' : 'tc-rolar'}>
                         {umaUnidade ? (
                             <table className="w-full text-left border-collapse min-w-[640px]">
                                 <thead className="bg-slate-50 dark:bg-slate-800/60">
@@ -175,19 +168,20 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
                                 </tbody>
                             </table>
                         ) : (
-                            <table className="w-full text-left border-collapse min-w-[640px]">
+                            <table className="tc-tabela w-full text-left border-collapse min-w-[640px]">
                                 <thead className="bg-slate-50 dark:bg-slate-800/60">
                                     <tr>
-                                        <th className={th}>{tx('Unidade')}</th>
-                                        <th className={`${th} text-right`}>{tx('No prazo')}</th>
-                                        <th className={`${th} text-right`}>{tx('Atrasados')}</th>
-                                        <th className={`${th} text-right`}>{tx('Não enviados')}</th>
-                                        <th className={`${th} text-right`} title={tx('O sistema não viu o envio, mas o Líder conferiu no grupo que foi enviado. Muitos aqui = a recepção não está clicando em Copiar/Enviar no horário.')}>{tx('Conferidos no grupo')}</th>
-                                        <th className={`${th} w-48`}>{tx('Enviados')}</th>
+                                        {[['unidade', 'Unidade'], ['noPrazo', 'No prazo'], ['atrasados', 'Atrasados'], ['naoEnviados', 'Não enviados'], ['conferidos', 'Conferidos no grupo'], ['pct', 'Enviados']].map(([id, rotulo]) => (
+                                            <TituloOrdenavel key={id} coluna={id} texto={id === 'unidade'} ordem={ordem} onOrdenar={(col, t) => setOrdem(o => proximaOrdem(o, col, t))}
+                                                alinhar={id === 'unidade' || id === 'pct' ? 'left' : 'right'} className={`${th} whitespace-nowrap ${id === 'pct' ? 'w-48 max-md:min-w-[140px]' : id === 'unidade' ? '' : 'text-right'}`}
+                                                dica={id === 'conferidos' ? tx('O sistema não viu o envio, mas o Líder conferiu no grupo que foi enviado. Muitos aqui = a recepção não está clicando em Copiar/Enviar no horário.') : undefined}>
+                                                {tx(rotulo)}
+                                            </TituloOrdenavel>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                                    {resumo.map(r => (
+                                    {ordenarLinhas(resumo, ordem, { unidade: (r) => r.unidade, noPrazo: (r) => r.noPrazo, atrasados: (r) => r.atrasados, naoEnviados: (r) => r.naoEnviados, conferidos: (r) => r.conferidos, pct: (r) => r.pct }, (r) => r.unidade).map(r => (
                                         <tr key={r.unidade}>
                                             <td className="px-4 py-2.5 text-[12px] font-black uppercase text-slate-800 dark:text-white">{r.unidade}</td>
                                             <td className="px-4 py-2.5 text-right text-[12px] font-black text-emerald-600 tabular-nums dark:text-emerald-400">{r.noPrazo}</td>
@@ -206,6 +200,7 @@ const PainelEnviosRelatorio = ({ unidades = [], faixa, colaboradores = [], podeC
                             </table>
                         )}
                         </div>
+                        {!umaUnidade && <p className="md:hidden px-5 pt-2 text-[11px] font-semibold text-slate-500 leading-snug dark:text-slate-400">{tx('O sistema não viu o envio, mas o Líder conferiu no grupo que foi enviado. Muitos aqui = a recepção não está clicando em Copiar/Enviar no horário.')}</p>}
                         {!umaUnidade && <p className="px-5 py-2.5 text-[11px] font-bold text-slate-400">{tx('Escolha uma unidade no topo para ver dia a dia.')}</p>}
                         <p className="px-5 py-2.5 border-t border-slate-100 text-[11px] font-semibold text-slate-500 leading-snug dark:border-slate-800 dark:text-slate-400">{tx(TEXTO_REGRA_RELATORIO)}</p>
                     </div>

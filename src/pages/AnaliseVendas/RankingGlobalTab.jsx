@@ -24,6 +24,8 @@ import {
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
+import { podeVer } from '../../permissoes/catalogoPermissoes.js';
+import { CODIGO_PERMISSAO_CENTRAL } from '../../components/centralUnidade.js';
 import { nutriDaUnidade } from './nutriTecace.js';
 import { useNutriTecaceMes } from './useNutriTecace.js';
 
@@ -280,6 +282,7 @@ const RankingGlobalTab = ({
         ['SERVICOS', 'Só serviços', totaisRedeMatriz.totalServicos],
     ];
 
+    const verCentral = podeVer(usuarioLogado, CODIGO_PERMISSAO_CENTRAL); // no celular a Central é a última coluna
     const classeBotaoNumero = 'inline-flex items-center justify-center min-w-[40px] px-2.5 py-1 rounded-lg text-[12px] font-black border tabular-nums transition-colors cursor-pointer';
 
     return (
@@ -439,6 +442,7 @@ const RankingGlobalTab = ({
                                             {tx("Composição de Itens Vendidos (Clique para auditar)")}
                                         </th>
                                     )}
+                                    {verCentral && <th className="md:hidden py-3 px-3 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center dark:text-slate-400">{tx("Central")}</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -464,7 +468,7 @@ const RankingGlobalTab = ({
                                                 </td>
                                                 <td className="py-3 px-4 font-black text-slate-800 uppercase tracking-tight text-xs sticky left-0 bg-white z-10 border-r border-slate-100 dark:text-white dark:bg-slate-900 dark:border-slate-800">
                                                     <div className="flex flex-wrap md:flex-nowrap items-center justify-between gap-1 md:gap-2">
-                                                        <span className="flex flex-wrap md:flex-nowrap items-center gap-1.5 min-w-0"><span className="md:hidden text-[12px] text-slate-500 dark:text-slate-400">{idx < 3 ? MEDALHAS[idx] : `${idx + 1}º`}</span><span className="truncate">{uni.nome}</span><BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} /></span>
+                                                        <span className="flex flex-wrap md:flex-nowrap items-center gap-1.5 min-w-0"><span className="md:hidden text-[12px] text-slate-500 dark:text-slate-400">{idx < 3 ? MEDALHAS[idx] : `${idx + 1}º`}</span><span className="truncate">{uni.nome}</span><span className="hidden md:inline-flex"><BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} /></span></span>
                                                         <span className="text-[10px] font-bold text-slate-400 tabular-nums shrink-0" title={tx("Participação no total da rede")}>
                                                             {pctDaRede(valorEscopoUnidade)}%
                                                         </span>
@@ -532,6 +536,7 @@ ${tx('Total Nutri: {n}', { n: uni.nutriInfo.total })}` : tx("Clique para auditar
                                                         </div>
                                                     </td>
                                                 )}
+                                                {verCentral && <td className="md:hidden px-3 text-center"><BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} className="!w-10 !h-8" /></td>}
                                             </tr>
                                         );
                                     })
@@ -562,6 +567,7 @@ ${tx('Total Nutri: {n}', { n: uni.nutriInfo.total })}` : tx("Clique para auditar
                                                 {tx("100% da Categoria na Rede")}
                                             </td>
                                         )}
+                                        {verCentral && <td className="md:hidden" />}
                                     </tr>
                                 </tfoot>
                             )}

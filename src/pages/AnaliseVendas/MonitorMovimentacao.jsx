@@ -12,6 +12,8 @@ import { contarPlanosDoCard } from './utils.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo, hojeIso, ontemIso, ehDomingo, diaDeLancamentoAtual, diaDeLancamentoAnterior, diasDeLancamentoEntre } from './movimentoDiario.js';
 import { nutriDaUnidade, INICIO_COBRANCA_NUTRI } from './nutriTecace.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
+import { podeVer } from '../../permissoes/catalogoPermissoes.js';
+import { CODIGO_PERMISSAO_CENTRAL } from '../../components/centralUnidade.js';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -180,6 +182,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
         abrirModalWhatsapp?.(txt, { titulo: tipo === 'resumo' ? 'Movimentação – resumo' : 'Movimentação – detalhado', icone: 'target', cor: 'blue' });
     };
 
+    const verCentral = podeVer(usuario, CODIGO_PERMISSAO_CENTRAL); // no celular a Central é a última coluna
     const th = 'px-3 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400';
     return (
         <section className="bg-white rounded-[24px] border border-slate-200 shadow-sm mb-8 overflow-hidden dark:bg-slate-900 dark:border-slate-800">
@@ -214,6 +217,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                                         {tx(rotulo)}
                                     </TituloOrdenavel>
                                 ))}
+                                {verCentral && <th className={`${th} md:hidden text-center`}>{tx('Central')}</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -221,7 +225,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                                 const saldo = l.saidas === null ? null : l.entradas - l.saidas;
                                 return (
                                     <tr key={l.nome} className="border-t border-slate-100 dark:border-slate-800">
-                                        <td className="px-3 py-3 text-[12px] font-black text-slate-800 dark:text-white"><span className="inline-flex items-center gap-2">{l.nome}<BotaoCentralUnidade unidade={l.nome} usuario={usuario} /></span></td>
+                                        <td className="px-3 py-3 text-[12px] font-black text-slate-800 dark:text-white"><span className="inline-flex items-center gap-2">{l.nome}<span className="hidden md:inline-flex"><BotaoCentralUnidade unidade={l.nome} usuario={usuario} /></span></span></td>
                                         <td className="px-3 py-3">
                                             <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wider ${CORES[l.situacao.cor]}`}>{l.situacao.rotulo}</span>
                                             {l.situacao.falta.length > 0 && (
@@ -256,6 +260,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                                                 </>
                                             ) : <span className="text-[12px] font-bold text-rose-600 dark:text-rose-400">{tx('nunca lançou')}</span>}
                                         </td>
+                                        {verCentral && <td className="md:hidden px-3 text-center"><BotaoCentralUnidade unidade={l.nome} usuario={usuario} className="!w-10 !h-8" /></td>}
                                     </tr>
                                 );
                             })}
@@ -271,6 +276,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                                 <td className="px-3 py-3 text-[13px] font-black text-right tabular-nums text-slate-800 dark:text-white">{total.entradas - total.saidas > 0 ? '+' : ''}{total.entradas - total.saidas}</td>
                                 <td className="px-3 py-3 text-[13px] font-black text-right tabular-nums text-slate-800 whitespace-nowrap dark:text-white">{dinheiro(total.faturamento)}</td>
                                 <td />
+                                {verCentral && <td className="md:hidden" />}
                             </tr>
                         </tfoot>
                     </table>

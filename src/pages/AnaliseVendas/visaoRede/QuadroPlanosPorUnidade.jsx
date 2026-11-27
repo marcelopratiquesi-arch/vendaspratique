@@ -3,6 +3,8 @@ import { Building2, Send, HelpCircle, ArrowRight, Loader2, ArrowUp, ArrowDown, A
 import { tx, localeAtual } from '../../../i18n/traduzir.js';
 import { estiloDaUnidade, DIAS_SEM_PLANO_ALERTA, faixaProdutividade, PRODUTIVIDADE_ATENCAO, PRODUTIVIDADE_BOA } from './calculosRede.js';
 import BotaoCentralUnidade from '../../../components/BotaoCentralUnidade.jsx';
+import { podeVer } from '../../../permissoes/catalogoPermissoes.js';
+import { CODIGO_PERMISSAO_CENTRAL } from '../../../components/centralUnidade.js';
 
 // ==========================================
 // QUADRO "PLANOS POR UNIDADE" — só na Visão da Rede (Admin/Mentor com o topo em "Todas"; decisão do dono, 06/11/2026)
@@ -85,6 +87,7 @@ const QuadroPlanosPorUnidade = ({
     const [ordem, setOrdem] = useState({ coluna: null, direcao: 'desc' });
     const [modo, setModo] = useState(lerModo);
     const resumido = modo === 'resumido';
+    const verCentral = podeVer(usuario, CODIGO_PERMISSAO_CENTRAL); // no celular a Central é a última coluna
     const trocarModo = (m) => {
         setModo(m);
         gravarModo(m);
@@ -216,7 +219,8 @@ const QuadroPlanosPorUnidade = ({
                             {resumido && <Titulo coluna="saldo" dica={tx('Planos vendidos menos saídas no período. Verde = a unidade ganhou alunos; vermelho = perdeu. "—" = não lançou as saídas.')}>{tx('Saldo')}</Titulo>}
                             <Titulo coluna="faturamento" dica={tx('Dinheiro que entrou, digitado na Movimentação. Não é comissão. "—" = não lançou.')}>{tx('Faturamento')}</Titulo>
                             <Titulo coluna="ativos" dica={tx('Último número de ativos lançado pela unidade até o fim do período. "—" = nunca lançou.')}>{tx('Ativos')}</Titulo>
-                            <th className={th} aria-label={tx('Abrir')} />
+                            <th className={`${th} hidden md:table-cell`} aria-label={tx('Abrir')} />
+                            {verCentral && <th className={`${th} md:hidden text-center`}>{tx('Central')}</th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -229,17 +233,18 @@ const QuadroPlanosPorUnidade = ({
                                     <td className={`${px} ${py}`}>
                                         <span className="flex items-center gap-2 min-w-0">
                                             <span className="w-3 h-3 rounded-[3px] shrink-0" style={{ background: cor }} aria-hidden="true" />
-                                            <span className="text-[14px] font-bold text-[#0F172A] truncate max-w-[200px] dark:text-white" title={l.nome}>{l.nome}</span>
+                                            <span className="text-[12px] md:text-[14px] font-bold text-[#0F172A] truncate max-w-[200px] dark:text-white" title={l.nome}>{l.nome}</span>
                                             {/* Central da Unidade (09/11/2026); clicar na linha continua trocando o topo */}
-                                            <BotaoCentralUnidade unidade={l.nome} usuario={usuario} />
+                                            <span className="hidden md:inline-flex"><BotaoCentralUnidade unidade={l.nome} usuario={usuario} /></span>
                                         </span>
                                         {(zerado || l.parouDeVender) && (
-                                            <span className="mt-1 ml-5 flex flex-wrap gap-1">
-                                                {zerado && <span className="h-5 px-2 rounded-md bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-black uppercase tracking-wide inline-flex items-center dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30">{tx('Não vendeu no período')}</span>}
+                                            <span className="md:mt-1 ml-5 flex flex-wrap gap-1">
+                                                {zerado && <span className="h-5 px-2 rounded-md bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-black uppercase tracking-wide inline-flex items-center dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30"><span className="hidden md:inline">{tx('Não vendeu no período')}</span><span className="md:hidden whitespace-nowrap">{tx('Não vendeu')}</span></span>}
                                                 {l.parouDeVender && (
                                                     <span className="h-5 px-2 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black uppercase tracking-wide inline-flex items-center dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
                                                         title={tx('Último plano em {dia}. O selo aparece com {dias} dias ou mais sem plano.', { dia: ddmm(l.ultimoPlano), dias: DIAS_SEM_PLANO_ALERTA })}>
-                                                        {tx('Sem plano há {dias} dias', { dias: l.diasSemPlano })}
+                                                        <span className="hidden md:inline">{tx('Sem plano há {dias} dias', { dias: l.diasSemPlano })}</span>
+                                                        <span className="md:hidden whitespace-nowrap">{tx('{dias}d sem plano', { dias: l.diasSemPlano })}</span>
                                                     </span>
                                                 )}
                                             </span>
@@ -249,7 +254,7 @@ const QuadroPlanosPorUnidade = ({
                                         <span className="flex items-center gap-3">
                                             <span className={`w-8 text-[15px] font-extrabold tabular-nums ${zerado ? 'text-[#B42318] dark:text-rose-300' : 'text-[#0F172A] dark:text-white'}`}>{dois(l.planos)}</span>
                                             {/* Mini barra: tamanho = planos da unidade ÷ maior unidade; cores = grupos (as bolinhas dos títulos Plus/Fit/Personal) */}
-                                            <span className={`${resumido ? 'w-[64px]' : 'w-[120px]'} h-2 rounded-full bg-[#EEF1F6] overflow-hidden flex gap-px shrink-0 dark:bg-slate-800`} aria-hidden="true">
+                                            <span className={`hidden md:flex ${resumido ? 'w-[64px]' : 'w-[120px]'} h-2 rounded-full bg-[#EEF1F6] overflow-hidden gap-px shrink-0 dark:bg-slate-800`} aria-hidden="true">
                                                 <span className="h-full flex gap-px" style={{ width: `${(l.planos / maior) * 100}%` }}>
                                                     {gruposBase.filter(g => l.grupos[g.chave] > 0).map(g => (
                                                         <span key={g.chave} className="h-full" style={{ flex: l.grupos[g.chave], background: corGrupo(g) }}
@@ -259,7 +264,7 @@ const QuadroPlanosPorUnidade = ({
                                             </span>
                                             {/* Resumido: o "vs mês passado" fica ao lado (linha mais baixa) */}
                                             {resumido && (
-                                                <span className="min-w-[88px]">
+                                                <span className="md:min-w-[88px]">
                                                     {carregandoAnterior ? <Loader2 className="w-3 h-3 animate-spin text-slate-400" /> : temComparativo ? <Variacao atual={l.planos} antes={l.anterior} titulo={tituloVariacao} /> : null}
                                                 </span>
                                             )}
@@ -312,7 +317,8 @@ ${tx('Total Nutri: {n}', { n: l.nutriInfo.total })}` : undefined}>
                                     {resumido && celSaldo(VALOR_ORDEM.saldo(l))}
                                     <td className={td}>{celFaturamento(l.faturamento)}</td>
                                     <td className={td}>{l.ativos === null ? '—' : Number(l.ativos).toLocaleString(localeAtual())}</td>
-                                    <td className={`${px} ${py} text-right`}>
+                                    {verCentral && <td className="md:hidden px-3 text-center"><BotaoCentralUnidade unidade={l.nome} usuario={usuario} className="!w-10 !h-8" /></td>}
+                                    <td className={`${px} ${py} text-right hidden md:table-cell`}>
                                         <span className="inline-flex w-8 h-8 rounded-lg border border-[#D6DCE8] items-center justify-center text-[#0F172A] dark:border-slate-700 dark:text-white" title={tx('Abrir o Dashboard da unidade')}>
                                             <ArrowRight className="w-3.5 h-3.5" />
                                         </span>
@@ -350,7 +356,8 @@ ${tx('Total Nutri: {n}', { n: l.nutriInfo.total })}` : undefined}>
                                         </span>
                                     )}
                                 </td>
-                                <td />
+                                <td className="hidden md:table-cell" />
+                                {verCentral && <td className="md:hidden" />}
                             </tr>
                         </tfoot>
                     )}
