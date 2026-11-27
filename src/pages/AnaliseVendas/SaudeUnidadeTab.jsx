@@ -9,6 +9,8 @@ import {
     TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, HelpCircle, ArrowUpDown, ArrowDown, ArrowUp,
     HeartPulse, Info, CircleSlash, Sparkles, Users, ChevronDown
 } from 'lucide-react';
+import { CartaoCelular, GradeCartao, NumeroCartao, OrdenarCelular } from '../../components/celular/Cartao.jsx';
+import DicaToque from '../../components/celular/Dica.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
 // ==========================================
@@ -469,23 +471,23 @@ const SaudeUnidadeTab = ({
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
 
             {/* RESUMO EM UMA FAIXA */}
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-5 py-4 flex flex-wrap items-center gap-x-6 gap-y-3 dark:bg-slate-900 dark:border-slate-800">
+            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 md:px-5 py-4 grid grid-cols-2 md:flex md:flex-wrap items-center gap-x-4 md:gap-x-6 gap-y-3 dark:bg-slate-900 dark:border-slate-800">
                 {/* Unidade inteira ou uma equipe (setor do cadastro) */}
-                <div className="relative">
+                <div className="relative col-span-2 md:col-span-1">
                     <Users className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none ${equipe !== 'TODAS' ? 'text-blue-700 dark:text-blue-400' : 'text-slate-400'}`} />
                     <select
                         value={equipe}
                         onChange={(e) => setEquipe(e.target.value)}
                         aria-label={tx('Ver a unidade inteira ou uma equipe')}
                         title={tx('A equipe é o setor do cadastro da Equipe. Escolhendo uma, todos os números contam só as vendas das pessoas daquele setor.')}
-                        className={`h-9 pl-9 pr-8 rounded-xl border text-[12px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${equipe !== 'TODAS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:text-slate-200'}`}
+                        className={`w-full md:w-auto h-10 md:h-9 pl-9 pr-8 rounded-xl border text-[12px] appearance-none cursor-pointer outline-none focus:ring-2 focus:ring-blue-500 transition-colors ${equipe !== 'TODAS' ? 'bg-blue-50 border-blue-300 text-blue-700 font-bold dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-400' : 'bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold dark:bg-slate-900 dark:border-slate-800 dark:hover:border-slate-700 dark:text-slate-200'}`}
                     >
                         <option value="TODAS">{unidadeFixa ? tx('Unidade inteira') : tx('Todas as equipes')}</option>
                         {equipesDisponiveis.map(s => <option key={s} value={s}>{tx('Equipe')}: {s}</option>)}
                     </select>
                     <ChevronDown className="w-4 h-4 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400" />
                 </div>
-                <div className="flex items-baseline gap-2 flex-wrap">
+                <div className="col-span-2 md:col-span-1 flex items-baseline gap-2 flex-wrap">
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('Vendas')} · {nomeUnidade}</span>
                     <span className="text-lg font-black text-slate-800 tabular-nums dark:text-white">{d.totalAtual}</span>
                     <Variacao valor={variacao(d.totalAtual, d.totalAntes)} />
@@ -493,7 +495,7 @@ const SaudeUnidadeTab = ({
                 </div>
                 <div className="h-5 w-px bg-slate-200 hidden lg:block dark:bg-slate-700" />
                 {CATEGORIAS.map(([cat, nome]) => (
-                    <div key={cat} className="flex items-baseline gap-1.5 whitespace-nowrap">
+                    <div key={cat} className="flex flex-wrap md:flex-nowrap items-baseline gap-1.5 md:whitespace-nowrap">
                         <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx(nome)}</span>
                         <span className="text-base font-black text-slate-700 tabular-nums dark:text-slate-200">{d.tot.atual[cat]}</span>
                         <Variacao valor={variacao(d.tot.atual[cat], d.tot.antes[cat])} />
@@ -501,25 +503,27 @@ const SaudeUnidadeTab = ({
                             <span className="self-center h-5 px-1.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-black inline-flex items-center dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30"
                                 title={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })}>
                                 {tx('{qtd} fora da meta', { qtd: d.tot.atual.foraMeta })}
+                                <span className="md:hidden ml-1"><DicaToque alinhar="left" texto={tx('Doses únicas acima do limite de {limite} por mês na unidade: não contam para a meta (a comissão é paga normalmente).', { limite: LIMITE_DOSES_POR_UNIDADE_MES })} /></span>
                             </span>
                         )}
                     </div>
                 ))}
                 {/* Nutri é adicional: aparece à parte, não soma nos planos */}
-                <div className="flex items-baseline gap-1.5 whitespace-nowrap" title={tx('Adicionais Nutri (combos + PRATIQUE NUTRI). Não somam no total de planos.')}>
-                    <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">{tx('Nutri (adicional)')}</span>
+                <div className="flex flex-wrap md:flex-nowrap items-baseline gap-1.5 md:whitespace-nowrap" title={tx('Adicionais Nutri (combos + PRATIQUE NUTRI). Não somam no total de planos.')}>
+                    <span className="text-[12px] font-semibold text-emerald-700 dark:text-emerald-400">{tx('Nutri (adicional)')}<span className="md:hidden ml-1"><DicaToque alinhar="left" texto={tx('Adicionais Nutri (combos + PRATIQUE NUTRI). Não somam no total de planos.')} /></span></span>
                     <span className="text-base font-black text-slate-700 tabular-nums dark:text-slate-200">{d.tot.atual.NUTRI}</span>
                     <Variacao valor={variacao(d.tot.atual.NUTRI, d.tot.antes.NUTRI)} />
                 </div>
-                <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+                <div className="flex flex-wrap md:flex-nowrap items-baseline gap-1.5 md:whitespace-nowrap">
                     <span className="text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx('Comissão')}</span>
                     <span className="text-base font-black text-emerald-700 tabular-nums dark:text-emerald-400">{formatarComissao(d.tot.atual.comissao)}</span>
                 </div>
-                <span className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400">
+                <span className="col-span-2 md:col-span-1 md:ml-auto inline-flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-slate-400">
                     {carregando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                     <span className="cursor-help inline-flex items-center gap-1" title={tx('Comparado com o período anterior do mesmo tamanho. Mês em andamento: comparado com o mês passado até o mesmo dia.')}>
                         <Info className="w-3.5 h-3.5" />{tx(rotuloPeriodo)} {tx('vs')} {textoAnterior}
                     </span>
+                    <span className="md:hidden"><DicaToque alinhar="left" texto={tx('Comparado com o período anterior do mesmo tamanho. Mês em andamento: comparado com o mês passado até o mesmo dia.')} /></span>
                 </span>
             </div>
 
@@ -587,7 +591,7 @@ const SaudeUnidadeTab = ({
                     </div>
                 )}>
                 {mostrarEvolucao ? (
-                    <div className="h-64" role="img" aria-label={tx('Gráfico da evolução das vendas no período')}>
+                    <div className="h-56 md:h-64" role="img" aria-label={tx('Gráfico da evolução das vendas no período')}>
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={d.evolucao} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
                                 <CartesianGrid vertical={false} stroke={corGrade} />
@@ -612,21 +616,50 @@ const SaudeUnidadeTab = ({
                 <div className="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 dark:border-slate-800">
                     <div>
                         <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx('Item por item')}</h3>
-                        <p className="text-[11px] font-semibold text-slate-400 mt-0.5">{tx('Clique no título de uma coluna para ordenar.')}</p>
+                        <p className="hidden md:block text-[11px] font-semibold text-slate-400 mt-0.5">{tx('Clique no título de uma coluna para ordenar.')}</p>
                     </div>
-                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1 dark:bg-slate-800" role="tablist" aria-label={tx('Categoria:')}>
+                    <div className="flex bg-slate-100 p-1 rounded-xl gap-1 max-w-full overflow-x-auto dark:bg-slate-800" role="tablist" aria-label={tx('Categoria:')}>
                         {CATEGORIAS.map(([cat, nome]) => {
                             const ativo = categoria === cat;
                             return (
                                 <button key={cat} type="button" role="tab" aria-selected={ativo} onClick={() => setCategoria(cat)}
-                                    className={`h-8 px-3 rounded-lg text-[12px] flex items-center gap-1.5 transition-colors ${ativo ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
+                                    className={`h-10 md:h-8 px-3 shrink-0 rounded-lg text-[12px] flex items-center gap-1.5 transition-colors ${ativo ? 'bg-white shadow-sm text-blue-700 font-extrabold dark:bg-slate-900 dark:text-blue-400' : 'text-slate-500 hover:text-slate-800 font-bold dark:text-slate-400 dark:hover:text-white'}`}>
                                     {tx(nome)}<span className={`text-[11px] tabular-nums ${ativo ? 'text-blue-500' : 'text-slate-400'}`}>{d.tot.atual[cat]}</span>
                                 </button>
                             );
                         })}
                     </div>
                 </div>
-                <div className="overflow-x-auto custom-scrollbar pb-1">
+                {/* Celular (26/11/2026): um cartão por item; a ordem vem do "Ordenar por" */}
+                <div className="md:hidden p-3 space-y-2">
+                    <OrdenarCelular valor={`${ordem.campo}:${ordem.desc ? 'desc' : 'asc'}`}
+                        onChange={(v) => { const [campo, dir] = v.split(':'); setOrdem({ campo, desc: dir === 'desc' }); }}
+                        opcoes={[['qtd', 'Agora'], ['qtdAnt', 'Antes'], ['variacao', 'Variação'], ['comissao', 'Comissão']]
+                            .flatMap(([c, r]) => [{ valor: `${c}:desc`, rotulo: `${tx(r)} ↓` }, { valor: `${c}:asc`, rotulo: `${tx(r)} ↑` }])
+                            .concat([{ valor: 'nome:asc', rotulo: `${tx('Item')} (A→Z)` }, { valor: 'nome:desc', rotulo: `${tx('Item')} (Z→A)` }])} />
+                    {linhas.length === 0 && <p className="py-10 text-center text-xs font-black text-slate-400 uppercase tracking-widest">{tx('Nenhuma venda nesta categoria nos dois períodos.')}</p>}
+                    {linhas.map(it => {
+                        const pct = totalCategoria > 0 ? Math.round((it.qtd / totalCategoria) * 100) : 0;
+                        const situacao = it.qtd === 0 ? <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/30"><CircleSlash className="w-3 h-3" />{tx('Parou de vender')}</span>
+                            : it.nome === maisVendido ? <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-500/10 dark:border-blue-500/30">{tx('Mais vendido')}</span>
+                                : it.nome === menosVendido ? <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border text-slate-600 bg-slate-50 border-slate-200 dark:text-slate-300 dark:bg-slate-800/60 dark:border-slate-800">{tx('Menos vendido')}</span>
+                                    : null;
+                        return (
+                            <CartaoCelular key={it.nome} titulo={<span className="uppercase">{it.nome}</span>} direita={<Variacao valor={it.variacao} novo={it.qtd > 0 && it.qtdAnt === 0} />}>
+                                <GradeCartao>
+                                    <NumeroCartao rotulo={tx('Agora')} valor={it.qtd} />
+                                    <NumeroCartao rotulo={tx('Antes')} valor={it.qtdAnt} cor="text-slate-500 dark:text-slate-400" />
+                                    <NumeroCartao rotulo={tx('% do total')} valor={`${pct}%`} />
+                                </GradeCartao>
+                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                                    <span className="text-[12px] font-bold text-slate-600 tabular-nums dark:text-slate-300">{tx('Comissão')}: {formatarComissao(it.comissao)}</span>
+                                    {situacao}
+                                </div>
+                            </CartaoCelular>
+                        );
+                    })}
+                </div>
+                <div className="hidden md:block overflow-x-auto custom-scrollbar pb-1">
                     <table className="w-full text-left border-collapse min-w-[760px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>
