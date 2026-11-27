@@ -7,6 +7,7 @@ import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { avisar } from '../../components/avisar.js';
 import { useMovimentoDiario, salvarMovimentoDia, podeGravarMovimento, entradasAcumuladasAte, lerNumeroBR, numeroParaCampo, useHojeIso, ativosAntesDe } from './movimentoDiario.js';
 import { INICIO_COBRANCA_NUTRI } from './nutriTecace.js';
+import { CartaoCelular, GradeCartao, NumeroCartao } from '../../components/celular/Cartao.jsx';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const diaCurto = (iso) => new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
@@ -62,7 +63,7 @@ export const JanelaMovimento = ({ titulo, children, botoes, fechar }) => {
     }, [fechar]);
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-slate-900/50" onMouseDown={(e) => { if (e.target === e.currentTarget) fechar(); }}>
-            <div role="alertdialog" aria-modal="true" aria-label={titulo} className="w-[min(560px,100%)] bg-white rounded-2xl border-2 border-amber-300 shadow-2xl p-7 dark:bg-slate-900 dark:border-amber-500/40">
+            <div role="alertdialog" aria-modal="true" aria-label={titulo} className="w-[min(560px,100%)] max-h-[calc(100dvh-2rem)] overflow-y-auto bg-white rounded-2xl border-2 border-amber-300 shadow-2xl p-5 md:p-7 dark:bg-slate-900 dark:border-amber-500/40">
                 <div className="flex items-center gap-3 mb-4">
                     <AlertTriangle className="w-7 h-7 text-amber-500 shrink-0" />
                     <h4 className="text-lg font-black uppercase tracking-widest text-slate-800 dark:text-white">{titulo}</h4>
@@ -71,7 +72,7 @@ export const JanelaMovimento = ({ titulo, children, botoes, fechar }) => {
                 <div className="flex flex-wrap justify-end gap-2 mt-6">
                     {botoes.map((b, i) => (
                         <button key={i} type="button" onClick={b.acao} autoFocus={b.principal}
-                            className={`h-12 px-5 rounded-xl text-[13px] font-black uppercase tracking-widest transition-colors ${b.principal ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'}`}>
+                            className={`h-12 px-5 w-full sm:w-auto rounded-xl text-[13px] font-black uppercase tracking-widest transition-colors ${b.principal ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800'}`}>
                             {b.texto}
                         </button>
                     ))}
@@ -345,7 +346,47 @@ const MovimentoDiarioPainel = ({ unidade, faixa, movimento, entradas, podeEditar
             {semTabela && <AvisoSemTabela />}
             {!(unidade && unidade !== 'TODOS') && <p className="mb-3 text-[12px] font-semibold text-slate-500 dark:text-slate-400">{tx('Escolha uma unidade no seletor do topo para lançar a movimentação.')}</p>}
 
-            <div className="min-w-0 overflow-auto custom-scrollbar max-h-[460px] border border-slate-100 rounded-xl dark:border-slate-800">
+            {/* Celular (26/11/2026): um cartão por dia; o lápis troca o card Movimentação para aquele dia (igual à tabela) */}
+            {porDia.length > 0 && (
+                <div className="md:hidden space-y-2">
+                    {porDia.map(r => {
+                        const saldo = r.entradas - (r.cancDia || 0);
+                        const acum = (v, f = (x) => x) => (v !== null && v !== undefined ? tx('acum. {valor}', { valor: f(v) }) : null);
+                        return (
+                            <CartaoCelular key={r.dia}
+                                titulo={<span className="capitalize">{diaCurto(r.dia)}</span>}
+                                subtitulo={r.diasCobertos > 1 && r.cancDia !== null ? <span className="text-amber-600 dark:text-amber-400">{tx('soma de {qtd} dias', { qtd: r.diasCobertos })}</span> : null}
+                                direita={podeEditar ? (
+                                    <button type="button" onClick={() => aoEditarDia(r.dia)} aria-label={tx('Editar o dia {dia}', { dia: diaCurto(r.dia) })}
+                                        className="w-10 h-10 rounded-xl border border-slate-200 text-slate-600 inline-flex items-center justify-center hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+                                        <Pencil className="w-4 h-4" />
+                                    </button>
+                                ) : null}>
+                                <GradeCartao>
+                                    <NumeroCartao rotulo={tx('Ativos')} valor={r.ativos === null ? '—' : r.ativos}
+                                        extra={r.ativosVar !== null ? <span className={r.ativosVar < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>{sinal(r.ativosVar)}</span> : null} />
+                                    <NumeroCartao rotulo={tx('Nutri')} cor="text-emerald-700 dark:text-emerald-400" valor={r.nutri === null ? '—' : r.nutri}
+                                        extra={r.nutriVar !== null && r.nutriVar !== 0 ? sinal(r.nutriVar) : null} />
+                                    <NumeroCartao rotulo={tx('Entradas')} cor="text-emerald-700 dark:text-emerald-400" valor={r.entradas === null ? '—' : r.entradas} extra={acum(r.entradasAcum)} />
+                                    <NumeroCartao rotulo={tx('Cancelamentos')} cor="text-rose-700 dark:text-rose-300" valor={r.cancDia === null ? '—' : r.cancDia} extra={acum(r.cancAcum)} />
+                                    <NumeroCartao rotulo={tx('Saldo')} valor={sinal(saldo)}
+                                        cor={saldo > 0 ? 'text-emerald-700 dark:text-emerald-400' : saldo < 0 ? 'text-rose-700 dark:text-rose-300' : 'text-slate-600 dark:text-slate-300'} />
+                                    <NumeroCartao rotulo={tx('Faturamento')} valor={r.fatDia === null ? '—' : dinheiro(r.fatDia)} extra={acum(r.fatAcum, dinheiro)} />
+                                </GradeCartao>
+                            </CartaoCelular>
+                        );
+                    })}
+                    <CartaoCelular titulo={<span className="text-[11px] uppercase tracking-widest">{tx('Total do período')}</span>} className="!bg-slate-50 dark:!bg-slate-800">
+                        <GradeCartao>
+                            <NumeroCartao rotulo={tx('Entradas')} cor="text-emerald-700 dark:text-emerald-400" valor={total.entradas} />
+                            <NumeroCartao rotulo={tx('Cancelamentos')} cor="text-rose-700 dark:text-rose-300" valor={total.cancelamentos} />
+                            <NumeroCartao rotulo={tx('Saldo')} valor={sinal(total.entradas - total.cancelamentos)} />
+                        </GradeCartao>
+                        <div className="mt-2"><NumeroCartao rotulo={tx('Faturamento')} valor={dinheiro(total.faturamento)} /></div>
+                    </CartaoCelular>
+                </div>
+            )}
+            <div className={`min-w-0 overflow-auto custom-scrollbar md:max-h-[460px] border border-slate-100 rounded-xl dark:border-slate-800 ${porDia.length > 0 ? 'hidden md:block' : ''}`}>
                 {porDia.length === 0 ? (
                     <p className="text-center text-[13px] font-semibold text-slate-500 py-10 dark:text-slate-400">{tx('Nenhum movimento no período escolhido.')}</p>
                 ) : (

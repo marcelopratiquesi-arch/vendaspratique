@@ -220,7 +220,7 @@ const MetaItemCard = ({ label, dados, corTema, recompensa, ritmo, mes }) => {
             )}
 
             {/* NÍVEL 4 & 5: FALTANTE E STATUS/RECOMPENSA */}
-            <div className="flex justify-between items-center mt-auto">
+            <div className="flex flex-wrap md:flex-nowrap justify-between items-center gap-2 md:gap-0 mt-auto">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
                     {isBatida ? (
                         <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-100/60 px-2.5 py-1 rounded-md border border-emerald-200/50 uppercase font-black tracking-widest text-[10px] dark:text-emerald-400 dark:bg-emerald-500/20 dark:border-emerald-500/30">
@@ -596,7 +596,7 @@ const MetasTab = ({
 
                         
                         <div className="flex flex-col bg-gradient-to-b from-blue-50/50 to-white border border-blue-100 rounded-[24px] p-6 shadow-sm h-full dark:border-blue-500/30">
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex flex-wrap md:flex-nowrap items-center gap-3 mb-2">
                                 <Zap className="w-6 h-6 text-blue-600 shrink-0 dark:text-blue-400" />
                                 <h3 className="text-lg font-black text-blue-900 uppercase tracking-tight dark:text-blue-300">{tx("META START")}</h3>
                                 <span className="bg-blue-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">{tx("Primordial")}</span>
@@ -639,7 +639,7 @@ const MetasTab = ({
                         </div>
 
                         <div className="flex flex-col bg-gradient-to-b from-amber-50/50 to-white border border-amber-100 rounded-[24px] p-6 shadow-sm h-full dark:border-amber-500/30">
-                            <div className="flex items-center gap-3 mb-2">
+                            <div className="flex flex-wrap md:flex-nowrap items-center gap-3 mb-2">
                                 <Award className="w-6 h-6 text-amber-500 shrink-0" />
                                 <h3 className="text-lg font-black text-amber-900 uppercase tracking-tight dark:text-amber-300">{tx("META MENSAL")}</h3>
                                 <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-widest shrink-0">R$ {indicadoresMensal * 50}</span>
@@ -728,13 +728,13 @@ const MetasTab = ({
                         <div className="flex flex-wrap items-center gap-3">
                             <button 
                                 onClick={() => gerarMensagemMetaStart(item)} 
-                                className="px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:ring-2 focus:ring-blue-500/50 shadow-sm"
+                                className="h-10 md:h-auto flex-1 md:flex-none justify-center md:justify-start px-4 py-2.5 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:ring-2 focus:ring-blue-500/50 shadow-sm"
                             >
                                 <Share2 className="w-4 h-4" />{' '}{tx("Compartilhar Start")}
                             </button>
                             <button 
                                 onClick={() => gerarMensagemMetaMensal(item)} 
-                                className="px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:ring-2 focus:ring-amber-500/50 shadow-sm"
+                                className="h-10 md:h-auto flex-1 md:flex-none justify-center md:justify-start px-4 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2 focus:ring-2 focus:ring-amber-500/50 shadow-sm"
                             >
                                 <Share2 className="w-4 h-4" />{' '}{tx("Compartilhar Mensal")}
                             </button>

@@ -10,6 +10,7 @@ import { contarPlanosDoCard } from './utils.js';
 import { useMovimentoDiario, somarMovimentoNoPeriodo, hojeIso, ontemIso, ehDomingo, diaDeLancamentoAtual, diaDeLancamentoAnterior, diasDeLancamentoEntre } from './movimentoDiario.js';
 import { nutriDaUnidade, INICIO_COBRANCA_NUTRI } from './nutriTecace.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
+import { CartaoCelular, GradeCartao, NumeroCartao } from '../../components/celular/Cartao.jsx';
 
 const dinheiro = (v) => new Intl.NumberFormat(localeAtual(), { style: 'currency', currency: 'BRL' }).format(Number(v) || 0);
 const ddmm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -186,16 +187,61 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
                     <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"><Send className="w-3.5 h-3.5" />{tx('WhatsApp')}</span>
-                    <button type="button" onClick={() => enviarWhatsApp('detalhado')} className="h-9 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Detalhado')}</button>
-                    <button type="button" onClick={() => enviarWhatsApp('resumo')} className="h-9 px-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-black uppercase tracking-widest dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">{tx('Resumo')}</button>
+                    <button type="button" onClick={() => enviarWhatsApp('detalhado')} className="h-10 md:h-9 flex-1 md:flex-none px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-black uppercase tracking-widest">{tx('Detalhado')}</button>
+                    <button type="button" onClick={() => enviarWhatsApp('resumo')} className="h-10 md:h-9 flex-1 md:flex-none px-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-black uppercase tracking-widest dark:bg-blue-500/10 dark:border-blue-500/30 dark:text-blue-300">{tx('Resumo')}</button>
                 </div>
             </div>
             {semTabela ? (
                 <p className="px-5 py-6 text-[12px] font-semibold text-amber-700 dark:text-amber-400">{tx('Falta criar a tabela no banco: rode o arquivo sql/2026-10-31-movimento-diario/1_tabela_movimento_diario.sql no SQL Editor do Supabase.')}</p>
             ) : (
-                <div className="overflow-x-auto custom-scrollbar">
+                <>
+                {/* Celular (26/11/2026): um cartão por unidade, com a situação e o último lançamento */}
+                <div className="md:hidden p-3 space-y-2">
+                    {linhas.map(l => {
+                        const saldo = l.saidas === null ? null : l.entradas - l.saidas;
+                        return (
+                            <CartaoCelular key={l.nome}
+                                titulo={<span className="inline-flex flex-wrap items-center gap-2">{l.nome}<BotaoCentralUnidade unidade={l.nome} usuario={usuario} /></span>}
+                                direita={<span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wider ${CORES[l.situacao.cor]}`}>{l.situacao.rotulo}</span>}>
+                                {l.situacao.falta.length > 0 && (
+                                    <p className="mb-2 text-[11px] font-bold text-rose-600 dark:text-rose-400">{tx('Falta: {campos}', { campos: l.situacao.falta.map(c => tx(c)).join(', ') })}</p>
+                                )}
+                                <GradeCartao>
+                                    <NumeroCartao rotulo={tx('Ativos')} valor={l.ativos ?? '—'}
+                                        extra={l.ativosVar !== null ? <span className={l.ativosVar < 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}>{l.ativosVar > 0 ? '+' : ''}{l.ativosVar}</span> : null} />
+                                    <NumeroCartao rotulo={tx('Nutri')} cor="text-emerald-700 dark:text-emerald-400"
+                                        valor={<>{l.nutri.total}{l.nutri.divergencia && <span className="text-[11px]"> ⚠️</span>}</>}
+                                        extra={l.nutri.tecace !== null ? `${tx('Vendas pelo sistema: {n}', { n: l.nutri.internas })} · ${tx('Adicional Tecace: {n}', { n: l.nutri.adicional })}` : null} />
+                                    <NumeroCartao rotulo={tx('Entradas')} cor="text-emerald-700 dark:text-emerald-400" valor={l.entradas} />
+                                    <NumeroCartao rotulo={tx('Saídas')} cor="text-rose-700 dark:text-rose-300" valor={l.saidas ?? '—'} />
+                                    <NumeroCartao rotulo={tx('Saldo')} valor={saldo === null ? '—' : `${saldo > 0 ? '+' : ''}${saldo}`}
+                                        cor={saldo === null ? 'text-slate-400' : saldo >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-300'} />
+                                    <NumeroCartao rotulo={tx('Faturamento')} valor={l.faturamento === null ? '—' : dinheiro(l.faturamento)} />
+                                </GradeCartao>
+                                {l.nutri.divergencia && <p className="mt-2 text-[11px] font-bold text-amber-700 dark:text-amber-300">⚠️ {tx('Tecace ({t}) menor que as vendas: conferir', { t: l.nutri.tecace })}</p>}
+                                <div className="mt-2 text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{tx('Último lançamento')}: </span>
+                                    {l.ultimo ? (
+                                        <>{l.ultimo.data >= hojeIso() ? tx('hoje') : l.ultimo.data === ontemIso() ? tx('ontem') : tx('há {dias} dias', { dias: diasDesde(l.ultimo.data) })} · {ddmm(l.ultimo.data)}{l.ultimo.atualizado_em && ` · ${horaDe(l.ultimo.atualizado_em)}`}{l.ultimo.atualizado_por && <span className="uppercase text-slate-500 dark:text-slate-400"> · {l.ultimo.atualizado_por}</span>}</>
+                                    ) : <span className="text-rose-600 dark:text-rose-400">{tx('nunca lançou')}</span>}
+                                </div>
+                            </CartaoCelular>
+                        );
+                    })}
+                    <CartaoCelular titulo={<span className="text-[11px] uppercase tracking-widest">{tx('Total')}</span>} className="!bg-slate-50 dark:!bg-slate-800">
+                        <GradeCartao>
+                            <NumeroCartao rotulo={tx('Ativos')} valor={total.ativos || '—'} />
+                            <NumeroCartao rotulo={tx('Nutri')} valor={total.nutri} />
+                            <NumeroCartao rotulo={tx('Entradas')} valor={total.entradas} />
+                            <NumeroCartao rotulo={tx('Saídas')} valor={total.saidas} />
+                            <NumeroCartao rotulo={tx('Saldo')} valor={`${total.entradas - total.saidas > 0 ? '+' : ''}${total.entradas - total.saidas}`} />
+                            <NumeroCartao rotulo={tx('Faturamento')} valor={dinheiro(total.faturamento)} />
+                        </GradeCartao>
+                    </CartaoCelular>
+                </div>
+                <div className="hidden md:block overflow-x-auto custom-scrollbar">
                     <table className="w-full min-w-[920px] text-left border-collapse">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>
@@ -268,6 +314,7 @@ const MonitorMovimentacao = ({ unidades = [], faixa, vendasFiltradas = [], plano
                         </tfoot>
                     </table>
                 </div>
+                </>
             )}
         </section>
     );
