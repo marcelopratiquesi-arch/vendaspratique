@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Star, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText, CheckCircle2, Dumbbell, PhoneOff, MessageCircleOff, XCircle } from 'lucide-react';
+import { X, Star, ClipboardCheck, Clock3, ThumbsDown, PhoneMissed, MessageSquareText, CheckCircle2, Dumbbell, PhoneOff, MessageCircleOff, XCircle, UserCheck, IdCard } from 'lucide-react';
 import { somarDiasISO } from './utils';
 import { tx } from '../../i18n/traduzir.js';
 import { DIAS_VOLTA_PENSANDO, DIAS_VOLTA_SEM_RESPOSTA, DIAS_GELADEIRA, MAX_TENTATIVAS, dataBR } from './resultadoContato.js';
@@ -13,7 +13,7 @@ import { DIAS_VOLTA_PENSANDO, DIAS_VOLTA_SEM_RESPOSTA, DIAS_GELADEIRA, MAX_TENTA
 // textoNaoFunciona / textoNaoContatar (26/11/2026, decisão do dono; só no funil): "Telefone / WhatsApp não funciona" e
 // "Não contatar" (cliente pediu para não entrar mais em contato). Os dois vão para Perdido E para o "Não contatar":
 // ficam impedidos para sempre (a Geladeira libera em 30 dias; o "Não contatar" não).
-const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoInteressado, textoNaoQuer, obrigatorio = false, textoFechou, textoWellhub, textoNaoFunciona, textoNaoContatar }) => {
+const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoInteressado, textoNaoQuer, obrigatorio = false, textoFechou, textoWellhub, textoNaoFunciona, textoNaoContatar, textoJaAluno, textoPersonal }) => {
     const tentativas = Number(aluno.registro?.tentativas) || 0;
     const proxima = Math.min(tentativas + 1, MAX_TENTATIVAS);
     const vaiParaGeladeira = proxima >= MAX_TENTATIVAS;
@@ -23,10 +23,18 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
         { tipo: 'INTERESSADO', icone: Star, titulo: tx('Interessado'), texto: textoInteressado, cor: 'border-amber-200 dark:border-amber-500/30 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-amber-700 dark:text-amber-300' },
         { tipo: 'NAO_QUER', icone: ThumbsDown, titulo: tx('Não quer'), texto: textoNaoQuer, cor: 'border-cyan-200 dark:border-cyan-500/30 hover:bg-cyan-50 dark:hover:bg-cyan-500/10 text-cyan-700 dark:text-cyan-300' },
         textoWellhub && { tipo: 'WELLHUB', icone: Dumbbell, titulo: tx('Wellhub / Gympass'), texto: textoWellhub, cor: 'border-fuchsia-200 dark:border-fuchsia-500/30 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300' },
-        textoNaoFunciona && { tipo: 'NAO_FUNCIONA', icones: [PhoneOff, MessageCircleOff], titulo: tx('Telefone / WhatsApp não funciona'), texto: textoNaoFunciona, cor: 'border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
+        textoNaoFunciona && { tipo: 'NAO_FUNCIONA', icones: [PhoneOff, MessageCircleOff], titulo: tx('Telefone com problema'), texto: textoNaoFunciona, cor: 'border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
+        textoJaAluno && { tipo: 'JA_ALUNO', icone: UserCheck, titulo: tx('Já é aluno'), texto: textoJaAluno, cor: 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
+        textoPersonal && { tipo: 'PERSONAL', icone: IdCard, titulo: tx('É personal trainer'), texto: textoPersonal, cor: 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200' },
         textoNaoContatar && { tipo: 'NAO_CONTATAR', icone: XCircle, titulo: tx('Não contatar'), texto: textoNaoContatar, cor: 'border-rose-200 dark:border-rose-500/30 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-700 dark:text-rose-300' },
         textoFechou && { tipo: 'FECHOU', icone: CheckCircle2, titulo: tx('Comprou / fechou'), texto: textoFechou, cor: 'border-emerald-200 dark:border-emerald-500/30 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' }
     ].filter(Boolean);
+    // Opções agrupadas, um clique (27/11/2026, decisão do dono 3-A)
+    const grupos = [
+        { titulo: tx('Falei com a pessoa'), tipos: ['FECHOU', 'INTERESSADO', 'PENSANDO', 'NAO_QUER', 'WELLHUB', 'JA_ALUNO', 'PERSONAL', 'NAO_CONTATAR'] },
+        { titulo: tx('Não consegui falar'), tipos: ['SEM_RESPOSTA'] },
+        { titulo: tx('O número está errado?'), tipos: ['NAO_FUNCIONA'] }
+    ].map(g => ({ ...g, itens: g.tipos.map(t => opcoes.find(o => o.tipo === t)).filter(Boolean) })).filter(g => g.itens.length);
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center max-md:items-end bg-slate-900/60 backdrop-blur-sm p-4 max-md:p-0 max-md:pb-[var(--faixa-instalar)]" role="dialog" aria-modal="true">
             <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl w-[min(460px,100%)] border border-slate-200 dark:border-slate-800 overflow-hidden overflow-y-auto overscroll-contain max-h-[calc(100dvh-2rem)] max-md:w-full max-md:max-h-[92dvh] max-md:rounded-b-none max-md:pb-[env(safe-area-inset-bottom)]">
@@ -39,7 +47,9 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
                     {!obrigatorio && <button type="button" onClick={onFechar} aria-label={tx('Fechar')} className="p-2.5 -m-2 shrink-0 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"><X className="w-5 h-5" /></button>}
                 </div>
                 <div className="p-4 space-y-2">
-                    {opcoes.map(o => (
+                    {grupos.map(g => (<div key={g.titulo} className="space-y-2">
+                    <p className="pt-1 text-[10px] font-black uppercase tracking-widest text-slate-400">{g.titulo}</p>
+                    {g.itens.map(o => (
                         <button key={o.tipo} type="button" onClick={() => onEscolher(o.tipo)} className={`w-full text-left rounded-xl border px-4 py-3 flex items-start gap-3 transition-colors ${o.cor}`}>
                             {o.icones
                                 ? <span className="flex items-center gap-0.5 shrink-0 mt-0.5">{o.icones.map((Ic, i) => <Ic key={i} className="w-5 h-5" />)}</span>
@@ -50,6 +60,7 @@ const JanelaResultadoContato = ({ aluno, hoje, onEscolher, onFechar, textoIntere
                             </span>
                         </button>
                     ))}
+                    </div>))}
                 </div>
                 {obrigatorio ? (
                     <p className="px-5 pb-4 text-[10px] font-bold text-slate-400">{tx('Escolha um caminho: todo contato precisa de um destino.')}</p>

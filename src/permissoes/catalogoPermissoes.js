@@ -116,6 +116,7 @@ export const CATALOGO_PERMISSOES = [
     { codigo: '519', nome: 'CRM da recepcionista: Conversa', tipo: 'ver', padrao: TODOS, descricao: 'Contatos de um lado e a conversa do contato do outro (como o WhatsApp Business).' },
     { codigo: '520', nome: 'Base: puxar alunos do cadastro', tipo: 'fazer', padrao: TODOS, descricao: 'Traz para o Banco Bruto os alunos da unidade pelo status (Finalizado, Inativo...). Fica dentro da Base (517).' },
     { codigo: '521', nome: 'CRM da recepcionista: Resgate', tipo: 'ver', padrao: TODOS, descricao: 'Alunos finalizados e inativos (status do cadastro) numa fila separada, igual à Migração.' },
+    { codigo: '522', nome: 'CRM da recepcionista: Fora da fila', tipo: 'ver', padrao: TODOS, descricao: 'Telefone com problema, já é aluno e personal trainer. Sem bloqueio; volta ao Banco Bruto por aqui.' },
 
     // ---------- 6xx ALUNOS ----------
     { codigo: '601', nome: 'Ficha: aba Dados', tipo: 'ver', padrao: TODOS, travada: true, descricao: 'Aba principal da ficha (para esconder a tela, desligue o 006).' },

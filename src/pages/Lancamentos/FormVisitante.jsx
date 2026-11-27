@@ -12,6 +12,7 @@ import { textoMensagemEnviada } from '../CrmVisitantes/utils.js';
 import { tentarAbrirNoWhatsApp, abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
+import { telefoneUtilizavel } from '../CrmVisitantes/telefoneValido.js';
 import { RodapeFixo } from './celular/camada.jsx';
 
 const apenasDigitos = (valor) => String(valor || '').replace(/\D/g, '');
@@ -139,7 +140,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         && apenasDigitos(alunoEncontrado.cpf) === apenasDigitos(cpfBusca);
 
     const semTelefone = cpfConfere && apenasDigitos(alunoEncontrado.telefone).length < 10;
-    const rapidoPronto = rapido.nome.trim().length >= 2 && telRapido.length >= 10 && !cpfRapidoErro;
+    const rapidoPronto = rapido.nome.trim().length >= 2 && telefoneUtilizavel(telRapido) && !cpfRapidoErro;
     const pronto = modo === 'rapido' ? rapidoPronto : cpfConfere;
 
     // ==========================================
@@ -427,7 +428,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
     // boas-vindas no histórico em nome de quem atendeu (conta na meta dela).
     const enviarRapido = async () => {
         if (rapido.nome.trim().length < 2) return avisar(tx("Digite o nome do visitante."));
-        if (telRapido.length < 10) return avisar(tx("Digite o telefone com DDD."));
+        if (!telefoneUtilizavel(telRapido)) return avisar(tx("Digite o telefone com DDD."));
         if (cpfRapidoErro) return avisar(tx("CPF inválido. Corrija ou deixe em branco."));
         if (temVisaoGlobal && !leadForm.unidade) return avisar(tx("Selecione a Unidade do visitante."));
         if (!leadForm.vendedor) return avisar(tx("Selecione o consultor que atendeu o visitante."));

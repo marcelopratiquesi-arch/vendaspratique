@@ -9,7 +9,7 @@ import { supabase } from '../../supabaseClient.js';
 import { apenasDigitos, normalizarNome, tipoPeloStatusTecace } from './utils.js';
 import { carregarNaoContatar, estaNaoContatar } from './contatosFeitos.js';
 import { buscarComprasDePlano } from './compraDePlano.js';
-import { telefoneFalso } from '../CadastroGeral/utilsAlunos.js';
+import { telefoneUtilizavel } from './telefoneValido.js';
 
 export const QTDS_PUXAR = [50, 100, 200];
 export const DIAS_SEM_COMPRA = 30;
@@ -69,10 +69,7 @@ const alunosNoResgate = async () => {
     return new Set((data || []).filter(r => r.status !== 'NA_FILA' || (r.puxado_em && new Date(r.puxado_em).getTime() >= limite)).map(r => r.aluno_id));
 };
 
-const telefoneValido = (tel) => {
-    const t = apenasDigitos(tel);
-    return (t.length === 10 || t.length === 11) && !telefoneFalso(t);
-};
+const telefoneValido = telefoneUtilizavel;
 
 /**
  * Confere os alunos dos status escolhidos. Devolve { prontos, contagem } ou { erro: 'SQL_COMPRAS' }.

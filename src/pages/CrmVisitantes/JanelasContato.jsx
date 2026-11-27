@@ -112,7 +112,14 @@ export const JanelaJustificativa = ({ pessoa, onFechar, onConfirmar }) => {
 };
 
 // Mover para Perdido: o motivo é obrigatório. "Outro" é gravado como "Outro: texto escrito".
-export const JanelaMotivoPerda = ({ quantidade = 1, nome, onFechar, onConfirmar }) => {
+// Destinos que não são "venda perdida" (os mesmos da janela "Como foi o contato?"). Em lote não há bloqueio.
+const DESTINOS_ESPECIAIS = [
+    { tipo: 'WELLHUB', rotulo: 'Wellhub / Gympass' }, { tipo: 'NAO_FUNCIONA', rotulo: 'Telefone com problema' },
+    { tipo: 'JA_ALUNO', rotulo: 'Já é aluno' }, { tipo: 'PERSONAL', rotulo: 'É personal trainer' },
+    { tipo: 'NAO_CONTATAR', rotulo: 'Não contatar', bloqueia: true }
+];
+
+export const JanelaMotivoPerda = ({ quantidade = 1, nome, onFechar, onConfirmar, onEspecial }) => {
     const [valor, setValor] = useState('');
     const [outro, setOutro] = useState('');
     const [salvando, setSalvando] = useState(false);
@@ -129,8 +136,21 @@ export const JanelaMotivoPerda = ({ quantidade = 1, nome, onFechar, onConfirmar 
     return (
         <Moldura titulo={tx("Motivo da perda")} subtitulo={quantidade > 1 ? tx("{quantidade} contatos selecionados", { quantidade: quantidade }) : nome} icone={Snowflake} cor="bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400" onFechar={onFechar}>
             <p className="px-5 pt-4 text-xs font-bold text-slate-500 dark:text-slate-400">
-                {quantidade > 1 ? tx("Os {quantidade} contatos vão para a Geladeira (espera de 30 dias) com este motivo.", { quantidade: quantidade }) : tx("O contato vai para a Geladeira (espera de 30 dias).")}{' '}{tx("Por que não fechou?")}
+                {quantidade > 1 ? tx("Os {quantidade} contatos vão para a Geladeira com este motivo.", { quantidade: quantidade }) : tx("O contato vai para a Geladeira.")}{' '}{tx('Dá para resgatar depois de 30 dias; com 90 volta sozinho ao Banco Bruto.')}{' '}{tx("Por que não fechou?")}
             </p>
+            {onEspecial && (
+                <div className="px-5 pt-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{tx('É um destes casos? Um clique resolve')}</p>
+                    <div className="flex flex-wrap gap-2">
+                        {DESTINOS_ESPECIAIS.filter(o => !(o.bloqueia && quantidade > 1)).map(o => (
+                            <button key={o.tipo} type="button" disabled={salvando} onClick={async () => { setSalvando(true); await onEspecial(o.tipo); setSalvando(false); onFechar(); }}
+                                className={`max-md:min-h-10 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest disabled:opacity-60 ${o.bloqueia ? 'border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300' : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
+                                {tx(o.rotulo)}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
             <EscolhaComOutro opcoes={MOTIVOS_PERDA} valor={valor} setValor={setValor} outro={outro} setOutro={setOutro} />
             <div className="px-5 pb-5 flex justify-end gap-2">
                 <button type="button" onClick={onFechar} className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-300">{tx("Cancelar")}</button>

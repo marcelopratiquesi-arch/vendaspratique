@@ -13,6 +13,10 @@ import ContatosDeHoje from './ContatosDeHoje';
 import AbaMigracao from './AbaMigracao';
 import AbaResgate from './AbaResgate';
 import AbaNaoContatar from './AbaNaoContatar';
+import AbaForaDaFila from './AbaForaDaFila';
+import { MOTIVO_TELEFONE, MOTIVO_JA_ALUNO, MOTIVO_PERSONAL, camposVoltaBanco } from './foraDaFila.js';
+import { telefoneUtilizavel } from './telefoneValido.js';
+import { TEXTO_SEM_RESPOSTA, tentativasAnteriores, inicioDoCiclo, contarDiasDeContato } from './tentativas.js';
 import AbaHoje from './AbaHoje';
 import PuxarDoCadastro from './PuxarDoCadastro';
 import { buscarComprasDePlano, decidirPelasCompras, aplicarDecisoes } from './compraDePlano';
@@ -21,7 +25,7 @@ import JanelaResultadoContato from './JanelaResultadoContato';
 import { carregarNaoContatar, estaNaoContatar, incluirNaoContatar, carregarMensagensProntas, colocarNaoContatar } from './contatosFeitos';
 import { FASE_ESPERA, estaEmEspera, ocupaVaga, DIAS_SEM_CAMINHO, diaISO, contarPessoasDaMeta, ehMudancaPorCompra, LIMITE_CARTEIRA, FASES_EM_ATENDIMENTO, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos, ehVisitanteRecepcao, dataDaVisita, somarDiasISO, prioridadeContato, dataLocalISO, ehContatoDeFila } from './utils';
 import { parseSmartPaste } from '../CadastroGeral/utilsAlunos.js';
-import { Repeat, Ban, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy, ArrowRight } from 'lucide-react';
+import { Repeat, Ban, PhoneCall, CalendarClock, Search, X, ChevronLeft, ChevronRight, Send, MessagesSquare, MoreHorizontal, ChevronDown, LifeBuoy, ArrowRight } from 'lucide-react';
 import { Database, ClipboardPaste, Trash2, CheckCircle2, Info, AlertTriangle, Snowflake, RotateCcw, Table, Trophy, Target, LogOut, FileText, Kanban as KanbanIcon, List, PieChart, Loader2, CalendarCheck } from 'lucide-react';
 import { avisar } from '../../components/avisar.js';
 import { EVENTO_CONTATOS, EVENTO_CONTATOS_RECARREGAR } from '../../components/aoVivoContatos.js';
@@ -183,6 +187,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         migracao: podeVer(usuarioLogado, '510'),
         resgate: podeVer(usuarioLogado, '521'),
         naocontatar: podeVer(usuarioLogado, '511'),
+        foradafila: podeVer(usuarioLogado, '522'),
         dashboard: podeVer(usuarioLogado, '512'),
         relatorio: podeVer(usuarioLogado, '513'),
     };
@@ -591,6 +596,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             let motivoIgnorado = null;
             if (tipoTecace === 'ATIVO') motivoIgnorado = 'ALUNO ATIVO';
             else if (tipoEscolhido === 'AUTO' && !tipo && ehListaTecace) motivoIgnorado = `STATUS "${statusTecace || 'VAZIO'}" SEM CLASSIFICAÇÃO`;
+            // Telefone estragado não entra no CRM (27/11/2026). Se o CPF já existe com telefone ruim, a lista boa corrige.
+            if (!motivoIgnorado && !telefoneUtilizavel(telefone)) motivoIgnorado = 'TELEFONE INVÁLIDO';
             if (motivoIgnorado) tipo = '';
 
             if (nome) {
@@ -647,21 +654,54 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         setPasteSemTipo(!ehListaTecace && tipoEscolhido === 'AUTO' && mapeados.length > 0);
     };
 
+    // Contatos DESTA unidade com o mesmo CPF e telefone estragado recebem o telefone bom da lista.
+    // Quem estava em "Fora da fila" por telefone volta para o Banco Bruto.
+    const linhasQueCorrigem = previewLeads.filter(l => apenasDigitos(l.cpf).length === 11 && telefoneUtilizavel(l.telefone));
+    const corrigirTelefonesPelaLista = async () => {
+        const novos = new Map(linhasQueCorrigem.map(l => [apenasDigitos(l.cpf), apenasDigitos(l.telefone).replace(/^55(?=\d{10,11}$)/, '')]));
+        const cpfs = [...novos.keys()];
+        const corrigir = [];
+        for (let i = 0; i < cpfs.length; i += 200) {
+            const fatia = cpfs.slice(i, i + 200);
+            const { data, error } = await supabase.from('leads').select('id, cpf, telefone, status, motivo_perda, origem, vendedor')
+                .ilike('unidade', unidadeOperacao).in('cpf', [...fatia, ...fatia.map(formatarCPF)]);
+            if (error) { console.error('Smart Paste: erro ao procurar telefones para corrigir', error); return 0; }
+            corrigir.push(...(data || []).filter(l => !telefoneUtilizavel(l.telefone)));
+        }
+        const feitos = [];
+        for (let i = 0; i < corrigir.length; i += 10) {
+            await Promise.all(corrigir.slice(i, i + 10).map(async (lead) => {
+                const volta = lead.status === 'Arquivado' && lead.motivo_perda === MOTIVO_TELEFONE;
+                const campos = { telefone: novos.get(apenasDigitos(lead.cpf)), ...(volta ? camposVoltaBanco(lead) : {}) };
+                const { error } = await supabase.from('leads').update(campos).eq('id', lead.id);
+                if (error) return console.error('Smart Paste: telefone não corrigido', error);
+                feitos.push(lead.id);
+                setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, ...campos } : v));
+            }));
+        }
+        if (feitos.length) await registrarHistoricoLote(feitos.map(String), 'Reciclagem', 'Telefone corrigido pela lista importada.');
+        return feitos.length;
+    };
+
     const confirmarSmartPaste = async () => {
         if (pasteSemTipo) return avisar(tx("Esta lista não é do TECACE (não tem a coluna Status). Escolha no seletor se o lote é VISITANTE, CANCELADO ou INATIVO."));
         const leadsValidos = previewLeads.filter(l => !l.isDuplicado);
-        
-        if (leadsValidos.length === 0) {
-            avisar(tx("Nenhum lead novo para salvar. Todos os registros colados já existem na base."));
-            setTextoSmartPaste('');
-            setPreviewLeads([]);
-            setEstatisticasPaste({ novos: 0, duplicados: 0 });
-            return;
-        }
 
         if (!unidadeOperacao) { avisar(tx("Não foi possível saber a unidade destes contatos. Escolha uma unidade no topo ou a recepcionista que está operando.")); return; }
 
         setProcessandoPaste(true);
+        const telefonesCorrigidos = linhasQueCorrigem.length ? await corrigirTelefonesPelaLista() : 0;
+
+        if (leadsValidos.length === 0) {
+            avisar(telefonesCorrigidos
+                ? tx('{qtd} telefones estragados foram corrigidos por esta lista. Não há contatos novos.', { qtd: telefonesCorrigidos })
+                : tx("Nenhum lead novo para salvar. Todos os registros colados já existem na base."));
+            setTextoSmartPaste('');
+            setPreviewLeads([]);
+            setEstatisticasPaste({ novos: 0, duplicados: 0 });
+            setProcessandoPaste(false);
+            return;
+        }
 
         const agora = new Date().toISOString();
         const dataBR = new Date().toLocaleDateString('pt-BR');
@@ -739,6 +779,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         }
 
         let mensagem = tx('{qtd} leads inseridos na Base com sucesso!', { qtd: salvos.length });
+        if (telefonesCorrigidos) mensagem += '\n' + tx('{qtd} telefones estragados foram corrigidos por esta lista.', { qtd: telefonesCorrigidos });
         if (recusados.length > 0) {
             mensagem += '\n\n' + tx('{qtd} não foram salvos:', { qtd: recusados.length }) + '\n' + recusados.slice(0, 15).join('\n');
             if (recusados.length > 15) mensagem += '\n' + tx('...e mais {qtd}.', { qtd: recusados.length - 15 });
@@ -967,13 +1008,18 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 const ids = abertos.slice(i, i + 100).map(v => String(v.id));
                 const { data, error } = await supabase.from('historico_leads').select('lead_id, data_registro').in('lead_id', ids).in('tipo_acao', ['WhatsApp', 'Ligação']).limit(5000);
                 if (error) { console.error('Carteira automática: erro ao ler o histórico', error); return; }
-                (data || []).forEach(h => { const k = String(h.lead_id); const a = info.get(k) || { qtd: 0, ultima: '' }; a.qtd++; const d = dataLocalISO(h.data_registro); if (d > a.ultima) a.ultima = d; info.set(k, a); });
+                (data || []).forEach(h => { const k = String(h.lead_id); const a = info.get(k) || { datas: [], respostas: [], ultima: '' }; a.datas.push(h.data_registro); const d = dataLocalISO(h.data_registro); if (d > a.ultima) a.ultima = d; info.set(k, a); });
+                const { data: respostas, error: erroResp } = await supabase.from('historico_leads').select('lead_id, data_registro').in('lead_id', ids).eq('tipo_acao', 'Agendamento').or('observacao.like."Resultado: respondeu*",observacao.like."Resultado: interessado*"').limit(5000);
+                if (erroResp) { console.error('Carteira automática: erro ao ler as respostas', erroResp); return; }
+                (respostas || []).forEach(h => { const a = info.get(String(h.lead_id)); if (a) a.respostas.push(h.data_registro); });
             }
             abertos.forEach(v => {
-                const a = info.get(String(v.id)) || { qtd: 0, ultima: '' };
+                const a = info.get(String(v.id)) || { datas: [], respostas: [], ultima: '' };
+                // Tentativas = dias diferentes com WhatsApp/ligação no ciclo atual (zera quando responde ou volta para a carteira)
+                const qtd = contarDiasDeContato(a.datas, inicioDoCiclo(v.puxado_em, a.respostas));
                 const visitante = ehVisitanteRecepcao(v);
                 const referencia = [a.ultima, proxDe(v), dataLocalISO(v.puxado_em), visitante ? dataDaVisita(v) : ''].filter(Boolean).sort().pop() || '';
-                if (!visitante && normalizarStatus(v.status) === 'Em Contato' && a.qtd >= MAX_TENTATIVAS_FUNIL && a.ultima && a.ultima <= diaISO(-2)) paraGeladeira.push({ v, motivo: `${a.qtd} tentativas sem resposta` });
+                if (!visitante && normalizarStatus(v.status) === 'Em Contato' && qtd >= MAX_TENTATIVAS_FUNIL && a.ultima && a.ultima <= diaISO(-2)) paraGeladeira.push({ v, motivo: `${qtd} tentativas sem resposta` });
                 else if (referencia && referencia <= limiteSemCaminho) paraBanco.push(v);
             });
 
@@ -1023,6 +1069,54 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez por dia por unidade, quando os contatos chegam
     }, [unidadeOperacao, visitantes.length > 0, listaCompleta]);
+
+    // GELADEIRA ANTIGA (27/11/2026, decisão do dono): Perdido há 90 dias ou mais volta sozinho para o Banco Bruto
+    // (Migração, Resgate e Wellhub voltam para a aba de origem). Perdido sem data começa a contar hoje.
+    // De 30 a 90 dias a recepcionista continua podendo resgatar. "Não contatar" fica Arquivado, fora daqui.
+    const DIAS_VOLTA_GELADEIRA = 90;
+    const geladeiraConferida = useRef({});
+    useEffect(() => {
+        if (!unidadeOperacao || !listaCompleta) return;
+        const chave = `${unidadeOperacao}_${diaISO(0)}`;
+        if (geladeiraConferida.current[chave]) return;
+        const perdidos = visitantes.filter(v => daUnidadeOperacao(v) && v.status === 'Perdido' && podeContatar(v));
+        const semData = perdidos.filter(v => !v.perdido_em).map(v => v.id);
+        const limite = Date.now() - DIAS_VOLTA_GELADEIRA * 86400000;
+        const vencidos = perdidos.filter(v => v.perdido_em && new Date(v.perdido_em).getTime() <= limite);
+        if (!semData.length && !vencidos.length) return;
+        geladeiraConferida.current[chave] = true;
+        (async () => {
+            if (semData.length) {
+                const campos = { perdido_em: new Date().toISOString() };
+                for (let i = 0; i < semData.length; i += 500) {
+                    const lote = semData.slice(i, i + 500);
+                    const { error } = await atualizarLeads(lote, campos);
+                    if (error) { console.error('Geladeira: erro ao datar', error); return; }
+                    setVisitantes(prev => prev.map(v => lote.includes(v.id) ? { ...v, ...campos } : v));
+                }
+            }
+            let total = 0;
+            // Visitante mantém quem o atendeu: dois grupos com campos diferentes
+            for (const grupo of [vencidos.filter(v => !ehVisitanteRecepcao(v)), vencidos.filter(ehVisitanteRecepcao)]) {
+                for (let i = 0; i < grupo.length; i += 500) {
+                    const lote = grupo.slice(i, i + 500);
+                    const ids = lote.map(v => v.id);
+                    const campos = camposVoltaBanco(lote[0]);
+                    const { error } = await atualizarLeads(ids, campos);
+                    if (error) { console.error('Geladeira: erro ao devolver', error); return; }
+                    setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, ...campos } : v));
+                    const { error: erroHist } = await supabase.from('historico_leads').insert(lote.map(v => ({
+                        lead_id: String(v.id), tipo_acao: 'Reciclagem', consultor: 'Sistema',
+                        observacao: `Saiu da Geladeira após ${DIAS_VOLTA_GELADEIRA} dias${v.motivo_perda ? ` (motivo da perda: ${v.motivo_perda})` : ''}.`
+                    })));
+                    if (erroHist) console.warn('Geladeira: histórico não gravado', erroHist.message);
+                    total += ids.length;
+                }
+            }
+            if (total) avisar(tx('{qtd} contatos saíram da Geladeira (90 dias) e voltaram para o Banco Bruto.', { qtd: total }), 'sucesso');
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- uma vez por dia por unidade, quando a lista completa chega
+    }, [unidadeOperacao, visitantes.length, listaCompleta]);
 
     // Contato que comprou plano (decisão do dono, 06/11/2026; regras em compraDePlano.js): na MESMA unidade vai
     // sozinho para "Fechado" (conta para a recepcionista); em OUTRA unidade sai do CRM ("Arquivado").
@@ -1104,7 +1198,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         if (novoStatus !== 'Perdido' && !window.confirm(tx("Mover {length} contatos para a fase {novoStatus}?", { length: ids.length, novoStatus: novoStatus }))) return;
 
         const campos = camposDaFase(novoStatus, motivoPerda);
-        const anteriores = new Map(visitantes.filter(v => ids.includes(v.id)).map(v => [v.id, { status: v.status, perdido_em: v.perdido_em, motivo_perda: v.motivo_perda ?? null, proximo_contato: v.proximo_contato ?? null }]));
+        const alvos = visitantes.filter(v => ids.includes(v.id));
+        const reabriuLote = FASES_EM_ATENDIMENTO.includes(novoStatus) && alvos.length > 0 && alvos.every(v => v.status === 'Perdido' && v.puxado_por);
+        if (reabriuLote) campos.puxado_em = new Date().toISOString();
+        const anteriores = new Map(visitantes.filter(v => ids.includes(v.id)).map(v => [v.id, { ...(reabriuLote ? { puxado_em: v.puxado_em ?? null } : {}), status: v.status, perdido_em: v.perdido_em, motivo_perda: v.motivo_perda ?? null, proximo_contato: v.proximo_contato ?? null }]));
 
         setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, ...campos } : v));
         const { error } = await atualizarLeads(ids, campos);
@@ -1126,7 +1223,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         if (novoStatus === 'Perdido' && motivoPerda === undefined) { setPerdaPendente({ ids: [id], nome: leadAtual?.nome }); return; }
 
         const campos = camposDaFase(novoStatus, motivoPerda);
-        const anteriores = { status: statusAntigo, perdido_em: leadAtual?.perdido_em ?? null, motivo_perda: leadAtual?.motivo_perda ?? null, proximo_contato: leadAtual?.proximo_contato ?? null };
+        // Reabrir um Perdido (ex.: resgate da Geladeira) começa um ciclo novo: tentativas e prazos contam de agora
+        const reabriu = statusAntigo === 'Perdido' && FASES_EM_ATENDIMENTO.includes(novoStatus) && leadAtual?.puxado_por;
+        if (reabriu) campos.puxado_em = new Date().toISOString();
+        const anteriores = { ...(reabriu ? { puxado_em: leadAtual?.puxado_em ?? null } : {}), status: statusAntigo, perdido_em: leadAtual?.perdido_em ?? null, motivo_perda: leadAtual?.motivo_perda ?? null, proximo_contato: leadAtual?.proximo_contato ?? null };
 
         setVisitantes(prev => prev.map(v => v.id === id ? { ...v, ...campos } : v));
         setModalDetalhe(m => (m.show && m.lead?.id === id ? { ...m, lead: { ...m.lead, ...campos } } : m));
@@ -1423,6 +1523,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const abasMais = [
         visaoLiberada.geladeira && ['geladeira', Snowflake, `${tx("Geladeira")} (${meusLeadsGeladeira.length})`, tx("Perdidos: esperam 30 dias e podem voltar para o Kanban")],
         visaoLiberada.naocontatar && ['naocontatar', Ban, tx("Não contatar"), tx("Pediram para não receber mais contato")],
+        visaoLiberada.foradafila && ['foradafila', PhoneCall, tx("Fora da fila"), tx("Telefone com problema, já é aluno e personal")],
         visaoLiberada.dashboard && ['dashboard', PieChart, tx("Métricas"), tx("Números da carteira")],
         visaoLiberada.relatorio && ['relatorio', Table, tx("Relatório"), tx("Relatório de conversão")],
     ].filter(Boolean);
@@ -1456,15 +1557,58 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // Com data de volta depois de hoje, o contato vai para a coluna "Em Espera" (09/11/2026). No funil a janela é
     // obrigatória (sem "Decidir depois", decisão do dono 09/11/2026): todo contato sai com um caminho.
     // O resultado fica no histórico como "Agendamento" ("Resultado: ..."), que não conta na meta.
-    const TEXTO_SEM_RESPOSTA = 'Resultado: não respondeu';
+    const DESTINOS_FORA_DA_FILA = { NAO_FUNCIONA: MOTIVO_TELEFONE, JA_ALUNO: MOTIVO_JA_ALUNO, PERSONAL: MOTIVO_PERSONAL };
+    const destinarForaDaFila = async (leads, motivo) => {
+        const ids = leads.map(l => l.id);
+        if (!ids.length) return;
+        const campos = { status: 'Arquivado', motivo_perda: motivo, perdido_em: null, proximo_contato: null, puxado_por: null, puxado_em: null };
+        const anteriores = new Map(leads.map(l => [l.id, Object.fromEntries(Object.keys(campos).map(k => [k, l[k] ?? null]))]));
+        setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, ...campos } : v));
+        const { error } = await atualizarLeads(ids, campos);
+        if (error) {
+            setVisitantes(prev => prev.map(v => anteriores.has(v.id) ? { ...v, ...anteriores.get(v.id) } : v));
+            return avisar(tx("Erro de conexão. Revertendo ação."), 'erro');
+        }
+        const texto = `Resultado: ${motivo.toLowerCase()}. Saiu da fila (aba Fora da fila), sem bloqueio.`;
+        if (ids.length === 1) await registrarHistorico(ids[0], 'Agendamento', texto, true);
+        else await registrarHistoricoLote(ids.map(String), 'Agendamento', texto);
+        setModalDetalhe(m => (m.show && ids.includes(m.lead?.id) ? { show: false, lead: null } : m));
+        avisar(tx('{qtd} contato(s) foram para "Fora da fila": {motivo}.', { qtd: ids.length, motivo: tx(motivo) }), 'sucesso');
+    };
+    const bloquearContato = async (lead) => {
+        const motivo = 'Cliente pediu para não entrar mais em contato';
+        await registrarHistorico(lead.id, 'Agendamento', `Resultado: ${motivo.toLowerCase()}.`, true);
+        await alterarStatus(lead.id, 'Perdido', motivo);
+        const pessoa = { cpf: lead.cpf, lead_id: String(lead.id), nome: lead.nome, telefone: lead.telefone };
+        try {
+            await colocarNaoContatar({ unidade: lead.unidade || unidadeOperacao, ...pessoa, motivo, colocado_por: consultorLogado });
+            aoColocarNaoContatar(pessoa);
+        } catch (err) {
+            console.error('Erro ao colocar em Não contatar:', err);
+            avisar(tx('O contato foi para Perdido, mas não entrou no "Não contatar". Coloque pelo botão Não contatar. ({v1})', { v1: err?.message || '' }), 'erro');
+        }
+    };
+    // Opções especiais da janela "Motivo da perda" (as mesmas de "Como foi o contato?"; em lote não há bloqueio)
+    const aplicarDestinoEspecial = async (ids, tipo) => {
+        const leads = visitantes.filter(v => ids.includes(v.id));
+        if (!leads.length) return;
+        if (tipo === 'NAO_CONTATAR') { if (leads.length === 1) await bloquearContato(leads[0]); return; }
+        if (tipo === 'WELLHUB') { for (const lead of leads) { if (!(await enviarParaWellhub(lead))) break; } return; }
+        await destinarForaDaFila(leads, DESTINOS_FORA_DA_FILA[tipo]);
+    };
+
     const abrirResultadoFunil = (leadId) => {
         const lead = visitantes.find(v => String(v.id) === String(leadId));
         if (!lead || !['Novo', 'Em Contato'].includes(normalizarStatus(lead.status))) return;
         resultadoFunilRef.current = lead;
         setProximoPendente(p => (p?.posContato ? null : p));
         setResultadoFunil({ lead, tentativas: 0 });
-        supabase.from('historico_leads').select('id', { count: 'exact', head: true }).eq('lead_id', String(lead.id)).eq('tipo_acao', 'Agendamento').like('observacao', `${TEXTO_SEM_RESPOSTA}%`)
-            .then(({ count }) => setResultadoFunil(r => (r && r.lead.id === lead.id ? { ...r, tentativas: count || 0 } : r)));
+        // Tentativas só do ciclo atual e uma por dia (27/11/2026, regras em tentativas.js)
+        supabase.from('historico_leads').select('observacao, data_registro').eq('lead_id', String(lead.id)).eq('tipo_acao', 'Agendamento').like('observacao', 'Resultado:%')
+            .then(({ data }) => {
+                const tentativas = tentativasAnteriores(data || [], lead.puxado_em, diaISO(0));
+                setResultadoFunil(r => (r && r.lead.id === lead.id ? { ...r, tentativas } : r));
+            });
     };
     const fecharResultadoFunil = () => { resultadoFunilRef.current = null; setResultadoFunil(null); };
     const aplicarResultadoFunil = async (tipo) => {
@@ -1482,22 +1626,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             await enviarParaWellhub(lead);
             return;
         }
-        // Telefone/WhatsApp não funciona e "Não contatar" (26/11/2026, decisão do dono): Perdido + lista "Não contatar",
-        // para nunca mais aparecer (a Geladeira sozinha libera em 30 dias). Só Líder/Mentor/Admin tiram da lista.
-        if (tipo === 'NAO_FUNCIONA' || tipo === 'NAO_CONTATAR') {
-            const motivo = tipo === 'NAO_FUNCIONA' ? 'Telefone / WhatsApp não funciona' : 'Cliente pediu para não entrar mais em contato';
-            await registrarHistorico(lead.id, 'Agendamento', `Resultado: ${motivo.toLowerCase()}.`, true);
-            await alterarStatus(lead.id, 'Perdido', motivo);
-            const pessoa = { cpf: lead.cpf, lead_id: String(lead.id), nome: lead.nome, telefone: lead.telefone };
-            try {
-                await colocarNaoContatar({ unidade: lead.unidade || unidadeOperacao, ...pessoa, motivo, colocado_por: consultorLogado });
-                aoColocarNaoContatar(pessoa);
-            } catch (err) {
-                console.error('Erro ao colocar em Não contatar:', err);
-                avisar(tx('O contato foi para Perdido, mas não entrou no "Não contatar". Coloque pelo botão Não contatar. ({v1})', { v1: err?.message || '' }), 'erro');
-            }
-            return;
-        }
+        // Telefone com problema, já é aluno e personal (27/11/2026): saem da fila SEM bloqueio. "Não contatar" bloqueia.
+        if (DESTINOS_FORA_DA_FILA[tipo]) { await destinarForaDaFila([lead], DESTINOS_FORA_DA_FILA[tipo]); return; }
+        if (tipo === 'NAO_CONTATAR') { await bloquearContato(lead); return; }
         if (tipo === 'NAO_QUER') {
             await registrarHistorico(lead.id, 'Agendamento', 'Resultado: não quer.', true);
             await alterarStatus(lead.id, 'Perdido', 'Sem interesse / mudou de ideia');
@@ -1680,7 +1811,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                     </table>
                                 </div>
                                 
-                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || estatisticasPaste.novos === 0 || pasteSemTipo} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 dark:disabled:text-slate-400">
+                                <button onClick={confirmarSmartPaste} disabled={processandoPaste || (estatisticasPaste.novos === 0 && linhasQueCorrigem.length === 0) || pasteSemTipo} className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:bg-slate-300 disabled:text-slate-500 text-white font-black py-4 rounded-xl shadow-[0_4px_15px_rgba(16,185,129,0.3)] transition-all uppercase text-[10px] tracking-widest flex items-center justify-center gap-2 dark:disabled:text-slate-400">
                                     {processandoPaste ? <Loader2 className="w-5 h-5 animate-spin" /> : <><CheckCircle2 className="w-5 h-5" />{' '}{tx("Salvar")}{' '}{estatisticasPaste.novos}{' '}{tx("Novos no Banco")}</>}
                                 </button>
                             </div>
@@ -2255,6 +2386,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 />
             )}
 
+            {visaoMostrada === 'foradafila' && (
+                <AbaForaDaFila unidade={unidadeOperacao} operador={consultorLogado} />
+            )}
+
             {visaoMostrada === 'naocontatar' && (
                 <AbaNaoContatar
                     unidade={unidadeOperacao}
@@ -2284,6 +2419,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     onConfirmar={(motivo) => (perdaPendente.lote
                         ? alterarStatusEmLote(perdaPendente.ids, 'Perdido', motivo)
                         : alterarStatus(perdaPendente.ids[0], 'Perdido', motivo))}
+                    onEspecial={(tipo) => aplicarDestinoEspecial(perdaPendente.ids, tipo)}
                 />
             )}
 
@@ -2292,10 +2428,12 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     aluno={{ nome: resultadoFunil.lead.nome, registro: { tentativas: resultadoFunil.tentativas } }}
                     hoje={diaISO(0)}
                     textoInteressado={tx('Vai para Em Espera e volta para você amanhã.')}
-                    textoNaoQuer={tx('Vai para a Geladeira (sem interesse) e volta em 30 dias. Não entra no "Não contatar".')}
+                    textoNaoQuer={tx('Geladeira: dá para resgatar depois de 30 dias; com 90 volta sozinho ao Banco Bruto.')}
                     textoFechou={tx('Vai para Fechado.')}
                     textoWellhub={tx('Cliente do Wellhub / Gympass: sai do funil e vai para a aba Migração (oferecer Nutri).')}
-                    textoNaoFunciona={tx('Número errado ou não existe: vai para Perdido e nunca mais aparece para contato.')}
+                    textoNaoFunciona={tx('Sai da fila para correção. Só volta depois de corrigir o número. Não bloqueia a pessoa.')}
+                    textoJaAluno={tx('Sai da fila, sem bloqueio.')}
+                    textoPersonal={tx('Sai da fila, sem bloqueio.')}
                     textoNaoContatar={tx('Cliente pediu para não entrar mais em contato: vai para a lista "Não contatar" da rede.')}
                     obrigatorio
                     onEscolher={aplicarResultadoFunil}
