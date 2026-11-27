@@ -9,7 +9,6 @@ import {
     TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, HelpCircle, ArrowUpDown, ArrowDown, ArrowUp,
     HeartPulse, Info, CircleSlash, Sparkles, Users, ChevronDown
 } from 'lucide-react';
-import { CartaoCelular, GradeCartao, NumeroCartao, OrdenarCelular } from '../../components/celular/Cartao.jsx';
 import DicaToque from '../../components/celular/Dica.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 
@@ -616,7 +615,7 @@ const SaudeUnidadeTab = ({
                 <div className="px-5 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 dark:border-slate-800">
                     <div>
                         <h3 className="text-[12px] font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx('Item por item')}</h3>
-                        <p className="hidden md:block text-[11px] font-semibold text-slate-400 mt-0.5">{tx('Clique no título de uma coluna para ordenar.')}</p>
+                        <p className="text-[11px] font-semibold text-slate-400 mt-0.5">{tx('Clique no título de uma coluna para ordenar.')}</p>
                     </div>
                     <div className="flex bg-slate-100 p-1 rounded-xl gap-1 max-w-full overflow-x-auto dark:bg-slate-800" role="tablist" aria-label={tx('Categoria:')}>
                         {CATEGORIAS.map(([cat, nome]) => {
@@ -630,36 +629,7 @@ const SaudeUnidadeTab = ({
                         })}
                     </div>
                 </div>
-                {/* Celular (26/11/2026): um cartão por item; a ordem vem do "Ordenar por" */}
-                <div className="md:hidden p-3 space-y-2">
-                    <OrdenarCelular valor={`${ordem.campo}:${ordem.desc ? 'desc' : 'asc'}`}
-                        onChange={(v) => { const [campo, dir] = v.split(':'); setOrdem({ campo, desc: dir === 'desc' }); }}
-                        opcoes={[['qtd', 'Agora'], ['qtdAnt', 'Antes'], ['variacao', 'Variação'], ['comissao', 'Comissão']]
-                            .flatMap(([c, r]) => [{ valor: `${c}:desc`, rotulo: `${tx(r)} ↓` }, { valor: `${c}:asc`, rotulo: `${tx(r)} ↑` }])
-                            .concat([{ valor: 'nome:asc', rotulo: `${tx('Item')} (A→Z)` }, { valor: 'nome:desc', rotulo: `${tx('Item')} (Z→A)` }])} />
-                    {linhas.length === 0 && <p className="py-10 text-center text-xs font-black text-slate-400 uppercase tracking-widest">{tx('Nenhuma venda nesta categoria nos dois períodos.')}</p>}
-                    {linhas.map(it => {
-                        const pct = totalCategoria > 0 ? Math.round((it.qtd / totalCategoria) * 100) : 0;
-                        const situacao = it.qtd === 0 ? <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-500/10 dark:border-amber-500/30"><CircleSlash className="w-3 h-3" />{tx('Parou de vender')}</span>
-                            : it.nome === maisVendido ? <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border text-blue-700 bg-blue-50 border-blue-200 dark:text-blue-400 dark:bg-blue-500/10 dark:border-blue-500/30">{tx('Mais vendido')}</span>
-                                : it.nome === menosVendido ? <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md border text-slate-600 bg-slate-50 border-slate-200 dark:text-slate-300 dark:bg-slate-800/60 dark:border-slate-800">{tx('Menos vendido')}</span>
-                                    : null;
-                        return (
-                            <CartaoCelular key={it.nome} titulo={<span className="uppercase">{it.nome}</span>} direita={<Variacao valor={it.variacao} novo={it.qtd > 0 && it.qtdAnt === 0} />}>
-                                <GradeCartao>
-                                    <NumeroCartao rotulo={tx('Agora')} valor={it.qtd} />
-                                    <NumeroCartao rotulo={tx('Antes')} valor={it.qtdAnt} cor="text-slate-500 dark:text-slate-400" />
-                                    <NumeroCartao rotulo={tx('% do total')} valor={`${pct}%`} />
-                                </GradeCartao>
-                                <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-                                    <span className="text-[12px] font-bold text-slate-600 tabular-nums dark:text-slate-300">{tx('Comissão')}: {formatarComissao(it.comissao)}</span>
-                                    {situacao}
-                                </div>
-                            </CartaoCelular>
-                        );
-                    })}
-                </div>
-                <div className="hidden md:block overflow-x-auto custom-scrollbar pb-1">
+                <div className="overflow-x-auto custom-scrollbar pb-1">
                     <table className="w-full text-left border-collapse min-w-[760px]">
                         <thead className="bg-slate-50 dark:bg-slate-800/60">
                             <tr>

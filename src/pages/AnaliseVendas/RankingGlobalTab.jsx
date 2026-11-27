@@ -24,7 +24,6 @@ import {
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import BotaoCentralUnidade from '../../components/BotaoCentralUnidade.jsx';
-import { OrdenarCelular } from '../../components/celular/Cartao.jsx';
 import { nutriDaUnidade } from './nutriTecace.js';
 import { useNutriTecaceMes } from './useNutriTecace.js';
 
@@ -281,7 +280,7 @@ const RankingGlobalTab = ({
         ['SERVICOS', 'Só serviços', totaisRedeMatriz.totalServicos],
     ];
 
-    const classeBotaoNumero = 'inline-flex items-center justify-center min-w-[44px] h-10 md:h-auto md:min-w-[40px] px-2.5 py-1 rounded-lg text-[12px] font-black border tabular-nums transition-colors cursor-pointer';
+    const classeBotaoNumero = 'inline-flex items-center justify-center min-w-[40px] px-2.5 py-1 rounded-lg text-[12px] font-black border tabular-nums transition-colors cursor-pointer';
 
     return (
         <div className="space-y-6 animate-[fadeIn_0.3s_ease-out] pb-10">
@@ -348,7 +347,7 @@ const RankingGlobalTab = ({
                         <div>
                             <h3 className="text-sm font-black text-slate-800 uppercase tracking-widest dark:text-white">{tx("Ranking da rede")}</h3>
                             <p className="text-[11px] font-semibold text-slate-400 mt-0.5">
-                                <span className="hidden md:inline">{tx("Clique nos números para auditar os alunos ou no título da coluna para ordenar •")}</span><span className="md:hidden">{tx("Toque nos números para ver os alunos •")}</span>{' '}{rankingUnidades.length}{' '}{tx("Unidades Ativas")}
+                                {tx("Clique nos números para auditar os alunos ou no título da coluna para ordenar •")}{' '}{rankingUnidades.length}{' '}{tx("Unidades Ativas")}
                             </p>
                         </div>
                         <div className="flex bg-slate-100 p-1 rounded-xl overflow-x-auto snap-x md:snap-none custom-scrollbar gap-1 max-w-full dark:bg-slate-800" role="tablist" aria-label={tx("Categoria:")}>
@@ -400,90 +399,7 @@ const RankingGlobalTab = ({
                         </div>
                     )}
 
-                    {/* Celular (26/11/2026): um cartão por unidade; cada número abre a auditoria, como na matriz */}
-                    <div className="md:hidden p-3 space-y-2">
-                        <OrdenarCelular
-                            valor={colunaOrdemMatriz || ''}
-                            onChange={(v) => { if (!v) setColunaOrdemMatriz(null); else setColunaOrdemMatriz(v); }}
-                            opcoes={[{ valor: '', rotulo: criterioRanking === 'PLANOS' ? tx("Total Planos") : criterioRanking === 'TOTAL' ? tx("Total Geral") : tx(rotuloDoEscopo) },
-                                ...colunasMatrizVisiveis.map(col => ({ valor: col.key, rotulo: tx(col.label) }))]} />
-                        {rankingUnidades.length === 0 && (
-                            <p className="py-10 text-center text-xs font-black text-slate-400 uppercase tracking-widest">{tx("Nenhuma venda registrada nesta categoria para o período selecionado.")}</p>
-                        )}
-                        {rankingUnidades.map((uni, idx) => {
-                            const valorEscopoUnidade = valorDoEscopo(uni);
-                            const listaItensEspecificos = criterioRanking === 'PRODUTOS' ? uni.itensProdutosDetalhados : uni.itensServicosDetalhados;
-                            const numero = (rotulo, valor, maximo, abrir, extra, adicional) => (
-                                <div key={rotulo} className={`min-w-0 rounded-xl px-2 py-1.5 ${adicional ? 'bg-emerald-50/60 border border-dashed border-emerald-300 dark:bg-emerald-500/5 dark:border-emerald-500/30' : 'bg-slate-50 dark:bg-slate-800/60'}`}>
-                                    <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 truncate dark:text-slate-400">{rotulo}</div>
-                                    {valor > 0
-                                        ? <button type="button" onClick={abrir} className={`mt-1 w-full ${classeBotaoNumero} ${tomDaCelula(valor, maximo)}`}>{doisDigitos(valor)}</button>
-                                        : <div className="mt-1 h-10 flex items-center justify-center text-slate-300 font-bold text-xs dark:text-slate-600">—</div>}
-                                    {extra && <div className="mt-1 text-[10px] font-bold text-slate-500 leading-tight dark:text-slate-400">{extra}</div>}
-                                </div>
-                            );
-                            return (
-                                <div key={uni.nome} className="rounded-2xl border border-slate-200 bg-white p-3 dark:bg-slate-900 dark:border-slate-800">
-                                    <div className="flex items-start justify-between gap-2">
-                                        <span className="min-w-0 flex items-center gap-2">
-                                            {idx < 3 ? <span className="text-base shrink-0" aria-label={tx("{pos}º lugar", { pos: idx + 1 })}>{MEDALHAS[idx]}</span>
-                                                : <span className="text-[12px] font-black text-slate-400 tabular-nums shrink-0">{idx + 1}º</span>}
-                                            <span className="text-[13px] font-black text-slate-800 uppercase tracking-tight break-words dark:text-white">{uni.nome}</span>
-                                        </span>
-                                        <span className="shrink-0 flex items-center gap-2">
-                                            <span className="text-[11px] font-bold text-slate-500 tabular-nums dark:text-slate-400">{pctDaRede(valorEscopoUnidade)}{tx("% da Rede")}</span>
-                                            <BotaoCentralUnidade unidade={uni.nome} usuario={usuarioLogado} />
-                                        </span>
-                                    </div>
-                                    <div className="mt-2 grid grid-cols-3 gap-2">
-                                        {criterioRanking === 'TOTAL' && numero(tx("Total Geral"), uni.vendas, maximoPorColuna.TOTAL,
-                                            () => abrirModalAuditoria(`Todas as Vendas — ${uni.nome}`, uni.nome, 'VENDA', uni.todosRegistrosUnidade, uni.vendas))}
-                                        {(criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') && numero(criterioRanking === 'PLANOS' ? tx("Total Planos") : tx("Planos"), uni.totalPlanos, maximoPorColuna.PLANOS,
-                                            () => abrirModalAuditoria(`Todos os Planos — ${uni.nome}`, uni.nome, 'VENDA', uni.registrosPlanosUnidade, uni.totalPlanos))}
-                                        {colunasMatrizVisiveis.map(col => {
-                                            const valorCel = uni.colunas[col.key] || 0;
-                                            const regsCel = uni.registrosPorColuna[col.key] || [];
-                                            const extra = col.key === 'NUTRI' && uni.nutriInfo
-                                                ? `${tx('Vendas pelo sistema: {n}', { n: uni.nutriInfo.internas })} · ${tx('Adicional Tecace: {n}', { n: uni.nutriInfo.adicional })}`
-                                                : col.adicional ? tx('adicional') : null;
-                                            return numero(tx(col.label), valorCel, maximoPorColuna[col.key],
-                                                () => abrirModalAuditoria(`${col.label} — ${uni.nome}`, uni.nome, 'VENDA', regsCel, col.key === 'NUTRI' && uni.nutriInfo ? uni.nutriInfo.internas : valorCel), extra, col.adicional);
-                                        })}
-                                    </div>
-                                    {(criterioRanking === 'PRODUTOS' || criterioRanking === 'SERVICOS') && listaItensEspecificos.length > 0 && (
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {listaItensEspecificos.map(([nomeItem, itemData]) => (
-                                                <button key={nomeItem} type="button"
-                                                    onClick={() => abrirModalAuditoria(`${nomeItem} — ${uni.nome}`, uni.nome, 'VENDA', itemData.vendasAuditaveis, itemData.total)}
-                                                    className="inline-flex items-center gap-1.5 min-h-10 px-2.5 py-1 rounded-lg text-[11px] font-bold border bg-white text-slate-700 border-slate-200 max-w-full dark:bg-slate-900 dark:text-slate-200 dark:border-slate-800">
-                                                    <span className="font-black text-blue-700 tabular-nums dark:text-blue-400">{itemData.total}×</span>
-                                                    <span className="uppercase break-words text-left">{nomeItem}</span>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                        {rankingUnidades.length > 1 && (
-                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:bg-slate-800/60 dark:border-slate-700">
-                                <p className="text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">∑ {tx("TOTAL DA REDE")}</p>
-                                <div className="mt-2 grid grid-cols-3 gap-2 text-center">
-                                    {[...(criterioRanking === 'TOTAL' ? [[tx("Total Geral"), vendasGlobal]] : []),
-                                        ...((criterioRanking === 'TOTAL' || criterioRanking === 'PLANOS') ? [[tx("Planos"), totaisRedeMatriz.totalPlanos]] : []),
-                                        ...colunasMatrizVisiveis.map(col => [tx(col.label), totaisRedeMatriz[col.key]])].map(([r, v]) => (
-                                        <div key={r} className="rounded-xl bg-white px-2 py-1.5 dark:bg-slate-900">
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-slate-500 truncate dark:text-slate-400">{r}</div>
-                                            <div className="text-sm font-black tabular-nums text-slate-800 dark:text-white">{v > 0 ? doisDigitos(v) : '—'}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Matriz */}
-                    <div className="hidden md:block overflow-x-auto custom-scrollbar">
+                    <div className="overflow-x-auto custom-scrollbar">
                         <table className="w-full text-left border-collapse min-w-[750px]">
                             <thead>
                                 <tr className="border-b border-slate-200 bg-slate-50 dark:bg-slate-800/60 dark:border-slate-800">

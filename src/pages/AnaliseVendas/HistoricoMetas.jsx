@@ -9,14 +9,7 @@ import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { contarPlanosDoCard, getCategoriaItem, safeIsoDate } from './utils.js';
 import { aplicarLimiteDoses, qtdValidaProduto } from './limiteDoses.js';
 import { consolidarNutri, tecaceVigentePorMes } from './nutriTecace.js';
-import { CartaoCelular, LinhaCartao } from '../../components/celular/Cartao.jsx';
 
-// Celular (26/11/2026): "meta → realizado" numa linha do cartão
-const valorMeta = (meta, realizado) => {
-    if (!meta || Number(meta) <= 0) return <span className="text-slate-400">—</span>;
-    const bateu = realizado >= Number(meta);
-    return <><span className="text-[12px] font-bold text-slate-500 dark:text-slate-400">{meta} → </span><span className={bateu ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-300'}>{realizado} {bateu ? '✅' : '❌'}</span></>;
-};
 
 const VALOR_INDICADOR = 50;
 const nomeMes = (ano, mes) => new Date(Number(ano), Number(mes) - 1, 1).toLocaleDateString(localeAtual(), { month: 'short', year: 'numeric' });
@@ -120,31 +113,7 @@ const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) =
                     ) : linhas.length === 0 ? (
                         <p className="py-10 text-center text-[13px] font-semibold text-slate-500 dark:text-slate-400">{tx('Nenhuma meta cadastrada nos meses anteriores.')}</p>
                     ) : (
-                        <>
-                        <div className="md:hidden p-3 space-y-2">
-                            {linhas.map(({ m, r, semMetas, liberada, batidas, indicadores }) => (
-                                <CartaoCelular key={m.chave} titulo={<span className="capitalize">{nomeMes(m.ano, m.mes)}</span>}
-                                    direita={semMetas ? null : tipo === 'start'
-                                        ? <span className={`inline-flex px-2 py-0.5 rounded-md border text-[10px] font-black uppercase tracking-wider ${liberada ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-300 dark:border-emerald-500/30' : 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-500/10 dark:text-rose-300 dark:border-rose-500/30'}`}>{liberada ? tx('Liberada') : tx('Não liberada')}</span>
-                                        : <span className="text-[12px] font-black text-slate-800 dark:text-white">{tx('{b} de {n}', { b: batidas, n: indicadores })} · <span className="text-emerald-700 dark:text-emerald-400">R$ {batidas * VALOR_INDICADOR}</span></span>}>
-                                    {semMetas ? <p className="text-[12px] font-bold text-rose-600 dark:text-rose-400">{tx('Sem metas cadastradas')}</p> : tipo === 'start' ? (
-                                        <>
-                                            <LinhaCartao rotulo={tx('Nutri')} valor={valorMeta(m.meta_nutri, r.nutri)} />
-                                            <LinhaCartao rotulo={tx('Produto')} valor={valorMeta(m.meta_produtos, r.produto)} />
-                                            <LinhaCartao rotulo={tx('Personal Class')} valor={valorMeta(m.meta_personal, r.personal)} />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <LinhaCartao rotulo={tx('Ativos')} valor={valorMeta(m.meta_ativos_mensal, r.ativos)} />
-                                            <LinhaCartao rotulo={tx('Nutri')} valor={valorMeta(m.meta_nutri_mensal, r.nutri)} />
-                                            <LinhaCartao rotulo={tx('Plus')} valor={valorMeta(m.meta_plus_mensal, r.plus)} />
-                                            <LinhaCartao rotulo={tx('Personal Class')} valor={valorMeta(m.meta_pers_mensal, r.personal)} />
-                                        </>
-                                    )}
-                                </CartaoCelular>
-                            ))}
-                        </div>
-                        <table className="hidden md:table w-full min-w-[640px] border-collapse">
+                        <table className="w-full min-w-[640px] border-collapse">
                             <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800">
                                 <tr>
                                     <th className={`${th} !text-left`}>{tx('Mês')}</th>
@@ -176,7 +145,6 @@ const HistoricoMetas = ({ unidade, tipo, planos = [], produtos = [], fechar }) =
                                 ))}
                             </tbody>
                         </table>
-                        </>
                     )}
                 </div>
                 <p className="shrink-0 px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:py-3 border-t border-slate-100 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">

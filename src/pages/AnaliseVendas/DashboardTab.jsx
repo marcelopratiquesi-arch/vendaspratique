@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import GestaoAVistaProdutos from './gestaoAVista/GestaoAVistaProdutos.jsx';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
-import { CartaoCelular } from '../../components/celular/Cartao.jsx';
 import Dica from '../../components/celular/Dica.jsx';
 import { useEhCelular } from '../../components/celular/ehCelular.js';
 
@@ -293,18 +292,7 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
                     {visiveis.length === 0 ? (
                         <p className="text-center text-[13px] font-semibold text-[#5B6478] py-12 dark:text-slate-400">{doGrupo.length === 0 ? tx('Nenhum plano registrado neste filtro.') : tx('Nenhum aluno encontrado nesta busca.')}</p>
                     ) : (
-                        <>
-                        {/* Celular (26/11/2026): um cartão por aluno no lugar da tabela */}
-                        <div className="md:hidden p-3 space-y-2">
-                            {visiveis.map(({ venda, qtd }, i) => (
-                                <CartaoCelular key={venda.id || i}
-                                    titulo={venda.nome_aluno || venda.nome || '—'}
-                                    subtitulo={`${venda.cpf ? formatarCPF(venda.cpf) : '—'} · ${dataHora(venda)}`}>
-                                    <span className="inline-flex items-center h-7 px-2.5 rounded-full bg-[#E8EEFF] text-[#1D4FD8] text-[12px] font-bold break-words dark:bg-blue-500/15 dark:text-blue-300">{venda.produto}{qtd > 1 ? ` ×${qtd}` : ''}</span>
-                                </CartaoCelular>
-                            ))}
-                        </div>
-                        <table className="hidden md:table w-full min-w-[640px] text-left border-collapse">
+                        <table className="w-full min-w-[640px] text-left border-collapse">
                             <thead className="sticky top-0 bg-white dark:bg-slate-900">
                                 <tr>
                                     {['Aluno', 'CPF', 'Plano', 'Data e hora'].map(c => (
@@ -325,7 +313,6 @@ const ModalPlanos = ({ aberto, onFechar, lista, listaNutri = [], grupo, plano, t
                                 ))}
                             </tbody>
                         </table>
-                        </>
                     )}
                 </div>
                 <div className="px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:py-3 bg-[#F8FAFD] border-t border-[#EEF1F6] flex flex-wrap items-center justify-between gap-2 text-[13px] dark:bg-slate-800/60 dark:border-slate-800">

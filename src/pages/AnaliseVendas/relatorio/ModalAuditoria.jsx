@@ -13,7 +13,6 @@ import {
     Download
 } from 'lucide-react';
 import { ehCelularAgora } from '../../../components/celular/ehCelular.js';
-import { CartaoCelular } from '../../../components/celular/Cartao.jsx';
 import { tx } from '../../../i18n/traduzir.js';
 
 // ==========================================
@@ -148,7 +147,7 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'VENDA') {
             return (
-                <div className="hidden md:block w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
@@ -192,7 +191,7 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'VISITANTE') {
             return (
-                <div className="hidden md:block w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
@@ -236,7 +235,7 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'AVALIACAO') {
             return (
-                <div className="hidden md:block w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
@@ -288,61 +287,6 @@ const ModalAuditoria = ({
         }
 
         return null;
-    };
-
-    // Celular (26/11/2026): um cartão por registro, com os mesmos dados e botões de copiar da tabela
-    const renderCartoes = () => {
-        if (registrosFiltradosModal.length === 0) return null;
-        const linhaCopiar = (rotulo, valor, copiar) => (
-            <div className="flex items-center justify-between gap-2 py-0.5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{rotulo}</span>
-                <span className="flex items-center gap-1 min-w-0 font-mono text-[12px] font-bold text-slate-700 dark:text-slate-200"><span className="truncate">{valor}</span>{copiar && <CopyMiniButton textToCopy={copiar} />}</span>
-            </div>
-        );
-        const tipo = modalConfig.tipoTabela;
-        if (!['VENDA', 'VISITANTE', 'AVALIACAO'].includes(tipo)) return null;
-        return (
-            <div className="md:hidden p-3 space-y-2">
-                {registrosFiltradosModal.map((r, i) => {
-                    const pessoa = extrairDadosPessoa(r, dicionarioPessoas, cacheAlunosBanco);
-                    const titulo = (
-                        <span className="flex items-start gap-1 uppercase">
-                            <span className="min-w-0 break-words">{pessoa.nome}</span>
-                            <CopyMiniButton textToCopy={pessoa.nome} />
-                        </span>
-                    );
-                    if (tipo === 'VENDA') return (
-                        <CartaoCelular key={i} titulo={titulo} subtitulo={formatDataBR(r.data || r.created_at)}
-                            direita={<span className="text-sm font-black text-slate-800 tabular-nums dark:text-white">×{r.qtdConsolidada || r.quantidade || 1}</span>}>
-                            <p className="text-[12px] font-bold text-blue-700 uppercase break-words dark:text-blue-400">{r.produto}</p>
-                            {linhaCopiar('CPF', pessoa.cpf, pessoa.cpfPuro || pessoa.cpf)}
-                            {linhaCopiar(tx("Vendedor"), r.vendedor || tx("Sistema"))}
-                        </CartaoCelular>
-                    );
-                    if (tipo === 'VISITANTE') {
-                        const tel = r.telefone || r.celular || r.contato || r.whatsapp || 'Não informado';
-                        const responsavel = r.consultor || r.vendedor || r.responsavel || r.atendente || r.criado_por || 'Recepção';
-                        return (
-                            <CartaoCelular key={i} titulo={titulo} subtitulo={formatDataBR(r.data || r.criado_em || r.created_at)}>
-                                {linhaCopiar('CPF', pessoa.cpf, pessoa.cpfPuro || pessoa.cpf)}
-                                {linhaCopiar(tx("Telefone"), tel)}
-                                {linhaCopiar(tx("Consultor Resp."), responsavel)}
-                            </CartaoCelular>
-                        );
-                    }
-                    const prof = r.professor || r.avaliador || r.instrutor || r.profissional || r.responsavel || r.criado_por || 'Não informado';
-                    const statusAval = r.status || r.situacao || 'Concluída';
-                    return (
-                        <CartaoCelular key={i} titulo={titulo} subtitulo={formatDataBR(r.data || r.data_avaliacao || r.created_at)}
-                            direita={<span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30">{statusAval}</span>}>
-                            {pessoa.matricula && linhaCopiar(tx("MAT:"), pessoa.matricula)}
-                            {linhaCopiar('CPF', pessoa.cpf, pessoa.cpfPuro || pessoa.cpf)}
-                            {linhaCopiar(tx("Professor / Avaliador"), prof)}
-                        </CartaoCelular>
-                    );
-                })}
-            </div>
-        );
     };
 
     return (
@@ -438,7 +382,6 @@ const ModalAuditoria = ({
                 {/* Corpo da Tabela */}
                 <div className="flex-1 overflow-y-auto bg-slate-50 no-drag custom-scrollbar dark:bg-slate-800/60">
                     {renderTabela()}
-                    {renderCartoes()}
                 </div>
             </div>
         </div>
