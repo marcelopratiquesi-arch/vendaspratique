@@ -3,7 +3,7 @@
 > **ATENÇÃO (27/11/2026): o dono reprovou parte dos cartões.** Voltaram para TABELA: planos por unidade, movimentação por dia, monitoramento, metas anteriores, ranking global, item por item (Saúde), lista de planos e janela de auditoria. Onde a tabela abaixo falar em cartão nessas partes, não vale mais.
 > **Aprovado como está:** card Planos vendidos, Produtividade, Ritmo do mês, Assinaturas, Produtos, Ranking de produtos, Gestão à Vista, Metas da unidade, Relatórios na visão de Líder, resumo e gráficos da Saúde.
 > **Decisões:** tabela com o nome parado e arrastar para o lado em tudo (inclusive lista de alunos); linhas de 40px; mesma ordem de colunas do computador.
-> **Falta (esperando o dono aprovar a proposta 3):** nome parado nessas tabelas, ordenar pelo título e Relatórios de Admin/Mentor (total colorido + tabela de unidades + cartões por unidade). Link: https://claude.ai/artifact/S9R9tey9BkGFS7gLTHBT8S
+> **Proposta 3 APROVADA e publicada em 27/11/2026:** nome e título parados (`pages/AnaliseVendas/tabelaCelular.css`, classes `tc-rolar`/`tc-tabela`), ordenar pelo título (Movimentação e Monitoramento passaram a ordenar, também no computador) e Relatórios de Admin/Mentor no celular com total colorido + tabela de unidades (`relatorio/ComparativoUnidadesCelular.jsx`) + cartões fechados. O dono vai testar no celular e pedir os ajustes.
 
 
 Regra seguida: no celular (até 767px) o desenho muda; no computador nada muda (classes `md:` devolvem o de antes).
