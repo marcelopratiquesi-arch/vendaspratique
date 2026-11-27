@@ -1,6 +1,6 @@
 import React from 'react';
-import { Hourglass, CalendarClock } from 'lucide-react';
-import { diasParado, nivelParado, situacaoProximoContato, formatarDiaCurto } from './utils';
+import { Hourglass, CalendarClock, Star, MessageSquareText } from 'lucide-react';
+import { diasParado, nivelParado, situacaoProximoContato, formatarDiaCurto, normalizarStatus, FASES_EM_ATENDIMENTO } from './utils';
 import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
@@ -20,6 +20,24 @@ export const EtiquetaParado = ({ lead }) => {
     return (
         <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title={tx("Dias sem nenhuma ação neste contato (WhatsApp, ligação, anotação, mudança de fase)")}>
             <Hourglass className="w-3 h-3" />{' '}{tx("Parado há")}{' '}{dias}{' '}{tx("dias")}
+        </span>
+    );
+};
+
+// "Vai pensar" / "Interessado" (27/11/2026): o lead.resultado_contato é preenchido pelo CRM a partir do histórico
+// (regra em tentativas.js). Só aparece enquanto o contato está em trabalho ou em espera.
+export const EtiquetaResultado = ({ lead }) => {
+    const r = lead?.resultado_contato;
+    if (!r || !FASES_EM_ATENDIMENTO.includes(normalizarStatus(lead.status))) return null;
+    const interessado = r.tipo === 'INTERESSADO';
+    const cor = interessado
+        ? 'bg-amber-500 text-white border-amber-600'
+        : 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-500/30';
+    const Icone = interessado ? Star : MessageSquareText;
+    return (
+        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${cor}`} title={tx("Última resposta da pessoa em \"Como foi o contato?\"")}>
+            <Icone className="w-3 h-3" />{' '}{interessado ? tx("Interessado") : tx("Vai pensar")}
+            {r.semResposta > 0 && <span>{' '}· {tx("sem resposta {n}x", { n: r.semResposta })}</span>}
         </span>
     );
 };

@@ -6,7 +6,7 @@ import {
     podeEditarMensagensProntas, formatarDataHora, textoMensagemEnviada, rotuloMensagemDoLead,
     ordenarContatos, ORDENS_CONTATOS, lerOrdemContatos, salvarOrdemContatos
 } from './utils';
-import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
+import { EtiquetaParado, EtiquetaProximo, EtiquetaResultado } from './EtiquetasCrm';
 import MensagensProntas from './MensagensProntas';
 import { ROTULOS_MENSAGENS } from './embaralhador.js';
 import { carregarContatosDoAluno } from './contatosFeitos';
@@ -600,6 +600,7 @@ const Conversa = ({
                                         <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{v.tipo_lead ? tx(v.tipo_lead) : tx('Não Informado')}</span>
                                     </div>
                                     <div className="mt-1 flex flex-wrap gap-1 empty:hidden">
+                                        <EtiquetaResultado lead={v} />
                                         <EtiquetaProximo lead={v} />
                                         <EtiquetaParado lead={v} />
                                     </div>
@@ -686,6 +687,7 @@ const Conversa = ({
                             <div className="flex flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-400">
                                 <span>{lead.telefone || tx('sem telefone')}</span>
                                 <EtiquetaFase status={faseNaTela(lead)} />
+                                <EtiquetaResultado lead={lead} />
                                 <EtiquetaParado lead={lead} />
                                 {pessoaDiaAtual && pessoaDiaAtual.lead && (
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest ${pessoaDiaAtual.feito ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300'}`}>

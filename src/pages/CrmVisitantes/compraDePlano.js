@@ -59,7 +59,11 @@ export const decidirPelasCompras = (leads, compras) => {
         const cpf = apenasDigitos(lead.cpf);
         if (cpf.length !== 11 || ['MIGRACAO', 'WELLHUB'].includes(String(lead.tipo_lead || '').toUpperCase())) return;
         const fase = normalizarStatus(lead.status);
-        const entrou = dataLocalISO(dataDoLead(lead)) || '0000-00-00';
+        // Resgate (27/11/2026): o contato pode ser um ANTIGO reaberto (ex-aluno que já tinha fechado). Conta a compra feita
+        // depois de ele ser puxado de novo; senão a compra velha fecharia na hora. Sem dona (voltou para a aba): a aba cuida.
+        const resgate = String(lead.tipo_lead || '').toUpperCase() === 'RESGATE';
+        if (resgate && !lead.puxado_em) return;
+        const entrou = dataLocalISO(resgate ? lead.puxado_em : dataDoLead(lead)) || '0000-00-00';
         const depois = (porCpf.get(cpf) || []).filter(c => String(c.dia || '') >= entrou);
         if (depois.length === 0) return;
         const naUnidade = depois.find(c => mesmaUnidade(c.unidade, lead.unidade));
@@ -107,7 +111,7 @@ export const fecharContatosPelaVenda = async ({ cpf, unidade, itens, dia }) => {
         const plano = (itens || []).find(i => ehPlanoQueFecha(i.nomeItem || i.produto, i.tipo));
         if (cpfLimpo.length !== 11 || !plano || !unidade) return 0;
         const { data: leads, error } = await supabase.from('leads')
-            .select('id, cpf, unidade, status, tipo_lead, origem, vendedor, puxado_por, criado_em, data')
+            .select('id, cpf, unidade, status, tipo_lead, origem, vendedor, puxado_por, puxado_em, criado_em, data')
             .in('cpf', [cpfLimpo, cpfLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')]);
         if (error) { console.warn('CRM: não foi possível procurar o contato do aluno', error.message); return 0; }
         const daUnidade = (leads || []).filter(l => mesmaUnidade(l.unidade, unidade));

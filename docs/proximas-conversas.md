@@ -9,9 +9,9 @@ Ao terminar um assunto, atualizar o "Estado" dele aqui. **Nunca escrever dados p
 - Caminho das ligações (commit 57e7342): tentativas por ciclo, janela agrupada, aba "Fora da fila", Geladeira de 90 dias automática, telefone estragado não entra e a lista boa corrige.
 - Receitas: `checkup-sistema`, `mexer-no-banco`, `publicar` (.claude/skills).
 
-## Correção da tela quebrada (feita no computador em 27/11)
+## Correção da tela quebrada (27/11)
 `dataBR is not defined` em AbaMigracao.jsx (faltava no import; pontos de 16/11 e 26/11) + regra `no-undef` ligada no `.oxlintrc.json`.
-**Estado:** conferir com `git log` se já foi publicada; se não, publicar quando o dono pedir.
+**Estado:** PUBLICADA em 27/11 às 12h20 (commit 8c8b2fe). Falta o dono confirmar na tela logada.
 
 ## Conversa 1: Migração e Resgate (reescrever)
 **Frase para abrir:** "Leia docs/proximas-conversas.md e vamos fazer a Conversa 1: Migração e Resgate."
@@ -22,6 +22,9 @@ Ao terminar um assunto, atualizar o "Estado" dele aqui. **Nunca escrever dados p
 - **Parcela vencida e plano trancado: o dono decidiu NÃO criar essas opções.**
 - Não mexer em quem já está na Geladeira por causa da contagem antiga (decidido).
 - Regra do projeto: mostrar o plano e esperar aprovação.
+
+**Estado (27/11):** PUBLICADA em 27/11 a pedido do dono. Sem SQL. Build, lint e testes ok; telas não conferidas logado.
+Falta conferir depois de publicar: puxar 10 no Resgate e na Migração (sem 409 no Console); "Mais" num aluno antigo; marcar "Vai pensar" no funil e ver a etiqueta; buscar no Resgate. Se resetar de novo: F12 → Console → print da linha vermelha (a causa do reset no Resgate não foi confirmada). Não foi medido no banco quanto pesa cada causa do 409.
 
 ## Conversa 2: Telefones estragados e Wellhub
 **Frase:** "Leia docs/proximas-conversas.md e vamos fazer a Conversa 2: telefones."

@@ -39,6 +39,19 @@ export const QUANTIDADES_PUXAR = [10, 15, 20, 50];
 // funil). O banco tem a mesma regra nas funções crm_puxar_migracao / crm_puxar_resgate: sql/2026-11-09-crm-fila-3-dias.
 export const DIAS_PARA_DEVOLVER = 3;
 
+// Mesma janela do funil nas abas (27/11/2026, decisão do dono): além de vai pensar / não respondeu / interessado /
+// não quer (regras da própria aba), as opções abaixo. Textos para passar à JanelaResultadoContato.
+export const DESTINOS_DA_ABA = ['FECHOU', 'WELLHUB', 'NAO_FUNCIONA', 'JA_ALUNO', 'PERSONAL'];
+export const MOTIVO_BLOQUEIO_ABA = 'Cliente pediu para não entrar mais em contato';
+export const textosExtrasDaJanela = () => ({
+    textoFechou: tx('Vai para Fechado.'),
+    textoWellhub: tx('Cliente do Wellhub / Gympass: sai do funil e vai para a aba Migração (oferecer Nutri).'),
+    textoNaoFunciona: tx('Sai da fila para correção. Só volta depois de corrigir o número. Não bloqueia a pessoa.'),
+    textoJaAluno: tx('Sai da fila, sem bloqueio.'),
+    textoPersonal: tx('Sai da fila, sem bloqueio.'),
+    textoNaoContatar: tx('Cliente pediu para não entrar mais em contato: vai para a lista "Não contatar" da rede.')
+});
+
 export const dataBR = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().slice(0, 2).join('/') : '');
 
 // Telefone que não dá para ligar nem mandar WhatsApp (vazio, curto ou de preenchimento)

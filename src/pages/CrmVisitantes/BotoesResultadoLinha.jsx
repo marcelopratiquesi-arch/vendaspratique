@@ -31,7 +31,7 @@ const BotoesResultadoLinha = ({ linha, ocupado, onEscolher, onMais, onDesmarcarI
             </button>
             <button type="button" onClick={onMais} disabled={ocupado}
                 className={`${base} border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800`}
-                title={tx("Outras opções (Não quer)")}>
+                title={tx("Outras opções (não quer, comprou, já é aluno, telefone com problema...)")}>
                 <ClipboardCheck className="w-3.5 h-3.5" />{' '}{tx("Mais")}
             </button>
         </>

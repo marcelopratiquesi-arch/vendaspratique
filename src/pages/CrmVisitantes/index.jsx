@@ -16,7 +16,8 @@ import AbaNaoContatar from './AbaNaoContatar';
 import AbaForaDaFila from './AbaForaDaFila';
 import { MOTIVO_TELEFONE, MOTIVO_JA_ALUNO, MOTIVO_PERSONAL, camposVoltaBanco } from './foraDaFila.js';
 import { telefoneUtilizavel } from './telefoneValido.js';
-import { TEXTO_SEM_RESPOSTA, tentativasAnteriores, inicioDoCiclo, contarDiasDeContato } from './tentativas.js';
+import { TEXTO_SEM_RESPOSTA, tentativasAnteriores, inicioDoCiclo, contarDiasDeContato, etiquetaDoResultado } from './tentativas.js';
+import { consultarCpfs, motivoImpedimento, PODE_PUXAR } from './contatosPorCpf.js';
 import AbaHoje from './AbaHoje';
 import PuxarDoCadastro from './PuxarDoCadastro';
 import { buscarComprasDePlano, decidirPelasCompras, aplicarDecisoes } from './compraDePlano';
@@ -292,6 +293,22 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // não foi lido é lido inteiro uma vez; os já lidos só buscam as ações NOVAS desde a última leitura deles.
     // "Atualizar" (atualizarAgora) esquece tudo e lê inteiro de novo.
     const [ultimasAcoes, setUltimasAcoes] = useState({ carregado: false, mapa: {} });
+    // Resultados da janela "Como foi o contato?" por contato (etiqueta "Vai pensar" / "Interessado", 27/11/2026):
+    // lidos junto, do mesmo jeito econômico (inteiro na 1ª vez; depois só o que é novo)
+    const [resultadosLidos, setResultadosLidos] = useState({});
+    const guardarResultados = useCallback((linhas) => {
+        if (!linhas.length) return;
+        setResultadosLidos(prev => {
+            const novo = { ...prev };
+            linhas.forEach(h => {
+                const id = String(h.lead_id);
+                const lista = novo[id] || [];
+                if (lista.some(x => x.observacao === h.observacao && x.data_registro === h.data_registro)) return;
+                novo[id] = [...lista, { observacao: h.observacao, data_registro: h.data_registro }];
+            });
+            return novo;
+        });
+    }, []);
     const idsCarteira = useMemo(() => (consultorAtivo
         ? visitantes.filter(v => v.puxado_em && mesmoNome(v.puxado_por, consultorAtivo.nome) && ['Novo', 'Em Contato'].includes(v.status)).map(v => String(v.id)).sort().join(',')
         : ''), [visitantes, consultorAtivo]);
@@ -307,6 +324,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             const jaLidos = ids.filter(id => lidasEm.has(id));
             const desdeJaLidos = jaLidos.reduce((menor, id) => (!menor || lidasEm.get(id) < menor ? lidasEm.get(id) : menor), null);
             const mapa = {};
+            const resultados = [];
             const ler = async (lista, desde) => {
                 // De 100 em 100 contatos (cada um pode ter muitas ações no histórico)
                 for (let i = 0; i < lista.length; i += 100) {
@@ -318,6 +336,15 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     if (cancelado) return false;
                     if (error) { console.error('Erro ao ler a última ação dos contatos (parado há X dias):', error); return false; }
                     (data || []).forEach(h => { if (!mapa[h.lead_id]) mapa[h.lead_id] = h.data_registro; });
+                    let marcados = supabase.from('historico_leads').select('lead_id, observacao, data_registro')
+                        .in('lead_id', lista.slice(i, i + 100))
+                        .eq('tipo_acao', 'Agendamento')
+                        .like('observacao', 'Resultado:%');
+                    if (desde) marcados = marcados.gte('data_registro', desde);
+                    const r = await marcados.order('data_registro', { ascending: false }).limit(5000);
+                    if (cancelado) return false;
+                    if (r.error) { console.error('Erro ao ler os resultados dos contatos (etiquetas):', r.error); return false; }
+                    resultados.push(...(r.data || []));
                 }
                 return true;
             };
@@ -325,6 +352,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             if (jaLidos.length && !(await ler(jaLidos, desdeJaLidos))) return;
             if (cancelado) return;
             ids.forEach(id => lidasEm.set(id, marcaDestaLeitura));
+            guardarResultados(resultados);
             // Só troca a data se a nova for mais recente (a leitura parcial não traz as ações antigas)
             setUltimasAcoes(prev => {
                 const novoMapa = { ...prev.mapa };
@@ -335,7 +363,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             });
         })();
         return () => { cancelado = true; };
-    }, [idsCarteira, versaoDados]);
+    }, [idsCarteira, versaoDados, guardarResultados]);
     const marcarAcaoAgora = useCallback((leadIds) => {
         const agora = new Date().toISOString();
         setUltimasAcoes(prev => ({ ...prev, mapa: { ...prev.mapa, ...Object.fromEntries(leadIds.map(id => [String(id), agora])) } }));
@@ -377,6 +405,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             setProgressoHoje(prev => [...prev, { tipo: tipoAcao, observacao: observacao, data_contato: novoRegistro.data_registro, pessoa: `lead:${leadId}` }]);
         }
         if (ACOES_QUE_TIRAM_DO_PARADO.includes(tipoAcao)) marcarAcaoAgora([leadId]);
+
+        // Etiqueta "Vai pensar" / "Interessado" aparece na hora
+        if (tipoAcao === 'Agendamento' && observacao.startsWith('Resultado:')) guardarResultados([novoRegistro]);
 
         await supabase.from('historico_leads').insert([{
             lead_id: String(leadId),
@@ -1259,6 +1290,85 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         return alterarStatus(id, fase);
     };
 
+    // CONTATO DO ALUNO NAS ABAS (27/11/2026): procura no banco (regra em contatosPorCpf.js)
+    const textoImpedimento = (decisao) => {
+        const m = motivoImpedimento(decisao);
+        return tx(m.texto, { motivo: m.motivo ? tx(m.motivo) : '', nome: m.nome || '' });
+    };
+    const acharContatoDoAluno = async (aluno, operador) => {
+        if (aluno.leadParaPuxar) return { existente: aluno.leadParaPuxar };
+        const cpf = apenasDigitos(aluno.cpf);
+        if (cpf.length !== 11) return { existente: null };
+        try {
+            const decisao = (await consultarCpfs(supabase, [cpf], { unidade: unidadeOperacao, operador })).get(cpf);
+            if (!PODE_PUXAR.includes(decisao.acao)) return { existente: null, impedimento: textoImpedimento(decisao) };
+            return { existente: decisao.lead };
+        } catch (err) {
+            avisar(tx("Não foi possível conferir o CPF no CRM.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+            return { existente: null, erro: true };
+        }
+    };
+    // Contato que veio do banco pode não estar na lista da tela (ex.: Arquivado): entra já com os campos novos
+    const mesclarLead = (lead, campos) => {
+        if (visitantes.some(v => v.id === lead.id)) setVisitantes(prev => prev.map(v => v.id === lead.id ? { ...v, ...campos } : v));
+        else adicionarLeads([{ ...lead, ...campos }]);
+    };
+
+    // DESTINOS DO FUNIL escolhidos nas abas Migração/Resgate (27/11/2026, decisão do dono: mesma janela do funil):
+    // Comprou/fechou, Wellhub, Telefone com problema, Já é aluno e Personal. O contato do aluno é criado ou reaproveitado
+    // já no destino, numa gravação só (não ocupa vaga da carteira). Devolve true se gravou.
+    const destinarAlunoDaAba = async (aluno, tipo, origemAba = 'MIGRACAO') => {
+        const operador = consultorAtivo?.nome;
+        if (!operador || !unidadeOperacao || !aluno) return false;
+        const motivoFora = DESTINOS_FORA_DA_FILA[tipo];
+        if (!motivoFora && !['FECHOU', 'WELLHUB'].includes(tipo)) return false;
+        const { existente, impedimento, erro } = await acharContatoDoAluno(aluno, operador);
+        if (erro) return false;
+        if (impedimento) { avisar(tx("{nome} não foi para o funil: {motivo}.", { nome: aluno.nome, motivo: impedimento }), 'erro'); return false; }
+        const agora = new Date().toISOString();
+        const limpos = { perdido_em: null, motivo_perda: null, proximo_contato: null };
+        const campos = tipo === 'FECHOU'
+            ? { ...limpos, status: 'Fechado', puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origemAba }
+            : tipo === 'WELLHUB'
+                ? { ...limpos, status: 'Novo', puxado_por: null, puxado_em: null, tipo_lead: 'WELLHUB' }
+                : { ...limpos, status: 'Arquivado', motivo_perda: motivoFora, puxado_por: null, puxado_em: null };
+        let id = existente?.id;
+        let falha = null;
+        if (existente) {
+            const r = await atualizarLeads([existente.id], campos);
+            falha = r.error;
+            if (!falha) mesclarLead(existente, campos);
+        } else {
+            const novo = {
+                unidade: unidadeOperacao, nome: aluno.nome, telefone: apenasDigitos(aluno.telefone) || aluno.telefone || null,
+                cpf: apenasDigitos(aluno.cpf) || null, tipo_lead: origemAba, origem: 'CRM', vendedor: operador,
+                data: new Date().toLocaleDateString('pt-BR'), criado_em: agora, ...campos
+            };
+            const r = await supabase.from('leads').insert([novo]).select();
+            falha = r.error || (r.data?.[0] ? null : { message: '' });
+            if (!falha) { id = r.data[0].id; adicionarLeads(r.data); }
+        }
+        if (falha) {
+            avisar(falha.code === '23514'
+                ? tx("O banco ainda não aceita o tipo Wellhub. Peça para rodar o SQL 2026-11-16-crm-wellhub no Supabase.")
+                : tx("Não foi possível salvar.\n\n{v1}", { v1: falha.message || '' }), 'erro');
+            return false;
+        }
+        const veio = origemAba === 'RESGATE' ? 'Resgate' : 'Migração';
+        if (tipo === 'FECHOU') {
+            await registrarHistorico(id, 'Agendamento', `Resultado: comprou / fechou. Veio da aba ${veio}.`, true);
+            await registrarHistorico(id, 'Mudança de Fase', `Movido de "${existente?.status || 'Novo'}" para "Fechado"`);
+            avisar(tx("{nome} foi para Fechado.", { nome: aluno.nome }), 'sucesso');
+        } else if (tipo === 'WELLHUB') {
+            await registrarHistorico(id, 'Agendamento', `Resultado: cliente Wellhub/Gympass. Foi para o grupo WELLHUB / GYMPASS da aba Migração (oferecer Nutri). Veio da aba ${veio}.`, true);
+            avisar(tx("{nome} foi para a aba Migração, no grupo WELLHUB / GYMPASS.", { nome: aluno.nome }), 'sucesso');
+        } else {
+            await registrarHistorico(id, 'Agendamento', `Resultado: ${motivoFora.toLowerCase()}. Saiu da fila (aba Fora da fila), sem bloqueio. Veio da aba ${veio}.`, true);
+            avisar(tx('{qtd} contato(s) foram para "Fora da fila": {motivo}.', { qtd: 1, motivo: tx(motivoFora) }), 'sucesso');
+        }
+        return true;
+    };
+
     // Migração: aluno marcado como "Interessado" vai para o funil da recepcionista em "Em Contato" (decisão do dono, 06/11/2026).
     // Se o CPF já tem um contato no CRM da unidade, reaproveita (passa para a carteira dela e para "Em Contato");
     // senão cria o contato (tipo MIGRACAO). Grava "Fila de Trabalho" no histórico: não soma de novo na meta
@@ -1274,7 +1384,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         const obs = doResgate
             ? `Interessado em voltar a treinar (situação no cadastro: ${aluno.status_aluno || '—'}). Veio da aba Resgate.`
             : `Interessado na migração para plano com nutricionista (último plano: ${aluno.ultimo_plano || '—'}). Veio da aba Migração.`;
-        const existente = cpf ? visitantes.find(v => apenasDigitos(v.cpf) === cpf && v.status !== 'Arquivado') : null;
+        // O contato que já existe com este CPF vem do banco (a tela não tem Arquivados nem Fechados antigos: 27/11/2026)
+        const { existente, impedimento, erro } = await acharContatoDoAluno(aluno, operador);
+        if (erro) return;
+        if (impedimento) return avisar(tx("{nome} não foi para o funil: {motivo}.", { nome: aluno.nome, motivo: impedimento }), 'erro');
         // Interessado = Em Espera, volta amanhã (09/11/2026): assim já entra com caminho e não volta para o Banco Bruto
         const amanha = somarDiasISO(diaISO(0), 1);
         if (existente) {
@@ -1282,10 +1395,12 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 ...(existente.status === 'Em Contato' ? {} : camposDaFase('Em Contato')),
                 puxado_por: operador,
                 puxado_em: existente.puxado_em && mesmoNome(existente.puxado_por, operador) ? existente.puxado_em : agora,
+                // Antigo já encerrado, reaberto pelo Resgate: etiqueta RESGATE (a compra velha não o fecha de novo)
+                ...(doResgate && ['Fechado', 'Arquivado'].includes(existente.status) ? { tipo_lead: 'RESGATE' } : {}),
                 proximo_contato: amanha,
             };
             const anteriores = Object.fromEntries(Object.keys(campos).map(k => [k, existente[k] ?? null]));
-            setVisitantes(prev => prev.map(v => v.id === existente.id ? { ...v, ...campos } : v));
+            mesclarLead(existente, campos);
             const { error } = await atualizarLeads([existente.id], campos);
             if (error) {
                 setVisitantes(prev => prev.map(v => v.id === existente.id ? { ...v, ...anteriores } : v));
@@ -1293,6 +1408,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 return;
             }
             await registrarHistoricoLote([existente.id], 'Fila de Trabalho', existente.status === 'Em Contato' ? obs : `${obs} Movido de "${existente.status}" para "Em Contato" (automático).`);
+            await registrarHistorico(existente.id, 'Agendamento', 'Resultado: interessado.', true);
             avisar(tx("{nome} foi para o seu funil (Em Espera, volta amanhã).", { nome: aluno.nome }), 'sucesso');
             return;
         }
@@ -1323,6 +1439,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         }
         adicionarLeads(data);
         await registrarHistoricoLote([data[0].id], 'Fila de Trabalho', obs);
+        await registrarHistorico(data[0].id, 'Agendamento', 'Resultado: interessado.', true);
         avisar(tx("{nome} foi para o seu funil (Em Espera, volta amanhã).", { nome: aluno.nome }), 'sucesso');
     };
 
@@ -1336,30 +1453,40 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // Cada linha pode trazer lead_id (contato já existente do grupo Wellhub). Se o banco não aceitar o tipo novo (trava 23514),
     // grava sem o tipo e avisa (resultado.semTipo).
     const levarPuxadosParaFunil = async (linhas, origem = 'MIGRACAO') => {
-        const resultado = { feitos: 0, jaComOutra: 0, jaNoFunil: 0, falhas: [], semTipo: false };
+        // alunosFalhos: quem não entrou no funil (a aba devolve da fila, para não ficar preso)
+        const resultado = { feitos: 0, jaComOutra: 0, jaNoFunil: 0, falhas: [], alunosFalhos: [], semTipo: false };
         const operador = consultorAtivo?.nome;
         if (!operador || !unidadeOperacao || !linhas?.length) return resultado;
         const agora = new Date().toISOString();
         const rotulo = origem === 'RESGATE' ? 'Resgate' : origem === 'WELLHUB' ? 'Wellhub / Gympass' : 'Migração';
         const reabrir = [];
         const novos = [];
+        const alunoPorCpf = new Map();
+        const falhou = (a) => { resultado.falhas.push(a.nome); if (a.aluno_id) resultado.alunosFalhos.push(a.aluno_id); };
+        // O contato que já existe pode não estar na tela (Arquivado, Fechado antigo, outra unidade): o banco decide (27/11/2026)
+        const decisoes = await consultarCpfs(supabase, linhas.filter(a => !a.lead_id).map(a => a.cpf), { unidade: unidadeOperacao, operador });
         linhas.forEach(a => {
             const cpf = apenasDigitos(a.cpf);
-            const existente = a.lead_id
-                ? visitantes.find(v => String(v.id) === String(a.lead_id))
-                : (cpf.length === 11 ? visitantes.find(v => apenasDigitos(v.cpf) === cpf && normalizarStatus(v.status) !== 'Arquivado' && daUnidadeOperacao(v)) : null);
+            const decisao = a.lead_id ? null : decisoes.get(cpf);
+            if (decisao && !PODE_PUXAR.includes(decisao.acao)) {
+                if (decisao.acao === 'COM_OUTRA') { resultado.jaComOutra++; if (a.aluno_id) resultado.alunosFalhos.push(a.aluno_id); }
+                else falhou(a);
+                return;
+            }
+            const existente = a.lead_id ? visitantes.find(v => String(v.id) === String(a.lead_id)) : decisao?.lead;
             if (existente) {
                 if (FASES_EM_ATENDIMENTO.includes(normalizarStatus(existente.status))) {
                     if (existente.puxado_por) {
                         if (mesmoNome(existente.puxado_por, operador)) resultado.jaNoFunil++; else resultado.jaComOutra++;
                         return;
                     }
-                    reabrir.push({ id: existente.id, campos: { puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origem } });
+                    reabrir.push({ id: existente.id, aluno: a, lead: existente, campos: { puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origem } });
                 } else {
-                    reabrir.push({ id: existente.id, campos: { ...camposDaFase('Novo'), puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origem, proximo_contato: null } });
+                    reabrir.push({ id: existente.id, aluno: a, lead: existente, campos: { ...camposDaFase('Novo'), puxado_por: operador, puxado_em: agora, vendedor: operador, tipo_lead: origem, proximo_contato: null } });
                 }
                 return;
             }
+            if (cpf) alunoPorCpf.set(cpf, a);
             novos.push({
                 unidade: unidadeOperacao,
                 nome: a.nome,
@@ -1379,8 +1506,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
 
         const aplicados = [];
         const grupos = new Map();
-        reabrir.forEach(r => { const k = JSON.stringify(r.campos); grupos.set(k, [...(grupos.get(k) || []), r.id]); });
-        for (const [k, ids] of grupos) {
+        reabrir.forEach(r => { const k = JSON.stringify(r.campos); grupos.set(k, [...(grupos.get(k) || []), r]); });
+        for (const [k, itens] of grupos) {
+            const ids = itens.map(r => r.id);
             let campos = JSON.parse(k);
             let { error } = await atualizarLeads(ids, campos);
             if (error && error.code === '23514') {
@@ -1389,8 +1517,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 campos = resto;
                 ({ error } = await atualizarLeads(ids, campos));
             }
-            if (error) { ids.forEach(id => resultado.falhas.push(String(id))); continue; }
+            if (error) { itens.forEach(r => falhou(r.aluno)); continue; }
             setVisitantes(prev => prev.map(v => ids.includes(v.id) ? { ...v, ...campos } : v));
+            const foraDaTela = itens.filter(r => !visitantes.some(v => v.id === r.id)).map(r => ({ ...r.lead, ...campos }));
+            if (foraDaTela.length) adicionarLeads(foraDaTela);
             aplicados.push(...ids);
         }
         for (let i = 0; i < novos.length; i += 100) {
@@ -1405,7 +1535,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 for (const n of lote) {
                     let r = await supabase.from('leads').insert([n]).select();
                     if (r.error && r.error.code === '23514') { resultado.semTipo = true; r = await supabase.from('leads').insert([{ ...n, tipo_lead: null }]).select(); }
-                    if (r.error || !r.data?.[0]) { resultado.falhas.push(n.nome); continue; }
+                    if (r.error || !r.data?.[0]) { falhou(alunoPorCpf.get(n.cpf) || n); continue; }
                     adicionarLeads(r.data);
                     aplicados.push(r.data[0].id);
                 }
@@ -1486,7 +1616,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // Nome comparado sem ligar para maiúsculas/acentos (o Novo Visitante grava o consultor em MAIÚSCULAS)
     const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por, consultorLogado) && v.status !== 'Arquivado' && podeContatar(v));
     // ultima_acao_em: data da última ação (só existe depois de ler o histórico; antes disso a etiqueta "parado" não aparece)
-    const comUltimaAcao = (v) => (ultimasAcoes.carregado ? { ...v, ultima_acao_em: ultimasAcoes.mapa[String(v.id)] || null } : v);
+    const comUltimaAcao = (v) => (ultimasAcoes.carregado
+        ? { ...v, ultima_acao_em: ultimasAcoes.mapa[String(v.id)] || null, resultado_contato: etiquetaDoResultado(resultadosLidos[String(v.id)], v.puxado_em) }
+        : v);
     const meusLeadsAtivos = meusLeads.filter(v => v.puxado_em && v.status !== 'Perdido').map(comUltimaAcao);
     // Aba "Hoje": próximo contato marcado para hoje ou atrasado
     const pendentesProximo = meusLeadsAtivos.filter(v => ['hoje', 'atrasado'].includes(situacaoProximoContato(v))).length;
@@ -2042,7 +2174,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
 
     // Carga dos contatos: na entrada só na primeira vez (depois fica guardado); no CRM de uma recepcionista, enquanto
     // a lista completa da unidade dela não chega (10/11/2026)
-    if (!contatosCarregados || (carregandoLista && consultorAtivo)) {
+    // Numa RECARGA da mesma lista (ex.: o "ao vivo" caiu e voltou) a tela continua aberta, com abas, filtros e busca
+    // (27/11/2026): a barra só entra enquanto a lista da unidade desta recepcionista ainda não chegou
+    const listaDaPessoaNaTela = listaPronta.tipo === 'completa' && Boolean(unidadeCompleta) && listaPronta.unidade === unidadeCompleta;
+    if (!contatosCarregados || (carregandoLista && consultorAtivo && !listaDaPessoaNaTela)) {
         const { feitos, total } = progressoCarga;
         const pct = total ? Math.min(100, Math.round((feitos / total) * 100)) : null;
         return (
@@ -2362,6 +2497,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     onNaoContatar={aoColocarNaoContatar}
                     onContatoFeito={somarNaMeta}
                     onInteressado={levarAlunoParaFunil}
+                    onDestinar={destinarAlunoDaAba}
                     leads={visitantes}
                     vagaCarteira={vagaDe(consultorLogado)}
                     onPuxados={levarPuxadosParaFunil}
@@ -2380,6 +2516,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     onNaoContatar={aoColocarNaoContatar}
                     onContatoFeito={somarNaMeta}
                     onInteressado={(aluno) => levarAlunoParaFunil(aluno, 'RESGATE')}
+                    onDestinar={(aluno, tipo) => destinarAlunoDaAba(aluno, tipo, 'RESGATE')}
                     vagaCarteira={vagaDe(consultorLogado)}
                     onPuxados={(linhas) => levarPuxadosParaFunil(linhas, 'RESGATE')}
                     onAbrirNoCrm={abrirNoCrm}

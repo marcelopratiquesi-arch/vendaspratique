@@ -17,6 +17,19 @@ export const inicioDoCiclo = (puxadoEm, respostas = []) => Math.max(
     0
 );
 
+// ETIQUETA do contato no funil (27/11/2026, decisão do dono): "Vai pensar" ou "Interessado" pela ÚLTIMA resposta do ciclo
+// da carteira (desde puxado_em). Um "não respondeu" depois NÃO tira a etiqueta: só soma "sem resposta Nx" (dias diferentes).
+// linhas = histórico "Agendamento" do contato: { observacao, data_registro }. Devolve { tipo, semResposta } ou null.
+export const etiquetaDoResultado = (linhas, puxadoEm) => {
+    const desde = puxadoEm ? momento(puxadoEm) - 60000 : 0;
+    const respostas = (linhas || []).filter(l => ehRespostaDoContato(l.observacao) && momento(l.data_registro) >= desde)
+        .sort((a, b) => momento(b.data_registro) - momento(a.data_registro));
+    if (!respostas.length) return null;
+    const ultima = respostas[0];
+    const semResposta = contarDiasDeContato((linhas || []).filter(l => String(l.observacao || '').startsWith(TEXTO_SEM_RESPOSTA)).map(l => l.data_registro), momento(ultima.data_registro));
+    return { tipo: String(ultima.observacao).startsWith('Resultado: interessado') ? 'INTERESSADO' : 'PENSANDO', semResposta };
+};
+
 // Quantos DIAS diferentes tiveram contato desde o começo do ciclo. ignorarDia: não conta esse dia (AAAA-MM-DD).
 export const contarDiasDeContato = (datas, desde = 0, ignorarDia = '') => new Set(
     (datas || []).filter(d => momento(d) >= desde).map(d => dataLocalISO(d)).filter(d => d && d !== ignorarDia)

@@ -6,8 +6,10 @@ import { indexarLeadsDeFila, situacaoNoFunil, leadsWellhubDisponiveis } from './
 import { montarMensagem } from './embaralhador.js';
 import {
     carregarUltimoPlanoAlunos, carregarAndamentoMigracao, salvarAndamentoMigracao, puxarParaFilaMigracao,
-    devolverDaFilaMigracao, carregarMensagensProntas, registrarContatoFeito, carregarMigracaoContatadosHoje, estaNaoContatar, ligarPeloSip
+    devolverDaFilaMigracao, carregarMensagensProntas, registrarContatoFeito, carregarMigracaoContatadosHoje, estaNaoContatar, ligarPeloSip, colocarNaoContatar
 } from './contatosFeitos';
+import useImpedidos, { textoDoImpedimento, avisarPulados } from './useImpedidos.js';
+import { MOTIVO_TELEFONE, MOTIVO_JA_ALUNO, MOTIVO_PERSONAL } from './foraDaFila.js';
 import { JanelaNaoContatar } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import JanelaResultadoContato from './JanelaResultadoContato';
@@ -15,7 +17,8 @@ import BotoesResultadoLinha from './BotoesResultadoLinha';
 import CartaoAlunoFila, { BotaoCartaoFila } from './CartaoAlunoFila';
 import {
     ANDAMENTOS_BASE, VISOES_FILA as VISOES, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
-    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR
+    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR,
+    DESTINOS_DA_ABA, MOTIVO_BLOQUEIO_ABA, textosExtrasDaJanela
 } from './resultadoContato.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -64,6 +67,7 @@ import { tx } from '../../i18n/traduzir.js';
 // Etapa mostrada na linha (regras em resultadoContato.js, as mesmas do Resgate)
 const ANDAMENTOS = {
     ...ANDAMENTOS_BASE,
+    IMPEDIDO: { rotulo: 'Não dá para puxar', classe: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30' },
     NO_FUNIL: { rotulo: 'No funil', classe: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
     MIGROU: { rotulo: 'Migrou', classe: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30' }
 };
@@ -87,7 +91,7 @@ const CONTADORES = [
 ];
 const POR_PAGINA = 50;
 
-const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), onNaoContatar, onContatoFeito, onInteressado, leads = [], vagaCarteira = LIMITE_CARTEIRA, onPuxados, onAbrirNoCrm }) => {
+const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), onNaoContatar, onContatoFeito, onInteressado, leads = [], vagaCarteira = LIMITE_CARTEIRA, onPuxados, onAbrirNoCrm, onDestinar }) => {
     const [alunos, setAlunos] = useState(null);
     const [andamento, setAndamento] = useState(new Map());
     const [mensagem, setMensagem] = useState(MENSAGENS_PADRAO.MIGRACAO);
@@ -113,6 +117,8 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     // Nomes de quem foi desligado (ativo = false): a fila não contatada dessas pessoas volta para os Disponíveis
     const desligadas = useMemo(() => new Set(colaboradores.filter(c => c.ativo === false).map(c => normalizarNome(c.nome))), [colaboradores]);
 
+    const { impedimentoDe, conferirAoAbrir, separar, marcarForaDaFila, marcar } = useImpedidos({ unidade: unidadeChave, operador, leads });
+
     const carregar = useCallback(async () => {
         if (!unidadeChave) return;
         setCarregando(true);
@@ -124,8 +130,10 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         const algum = mapa && mapa.size ? mapa.values().next().value : null;
         setSemCamposNovos(!!algum && !('volta_em' in algum));
         setMensagem(msgs.MIGRACAO);
+        await conferirAoAbrir((lista || []).map(a => ({ aluno_id: a.aluno_id, cpf: a.cpf, registro: mapa?.get(a.aluno_id) }))
+            .filter(a => a.registro?.status === 'NA_FILA' && a.registro.puxado_por));
         setCarregando(false);
-    }, [unidadeChave]);
+    }, [unidadeChave, conferirAoAbrir]);
 
     useEffect(() => { carregar(); }, [carregar]);
     useEffect(() => { setLimite(POR_PAGINA); }, [visao, filtroAndamento, filtroPlano, busca]);
@@ -198,10 +206,13 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 // Já é contato de OUTRA recepcionista no funil: não fica disponível (evita chamar duas vezes)
                 const outra = !noFunil && !leadParaPuxar ? leadsComOutraDona.get(cpfAluno) : null;
                 if (outra) { disponivel = false; dono = dono || outra.puxado_por; }
-                return { ...a, chave: a.aluno_id, situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, noFunil, leadParaPuxar, disponivel: disponivel && !semTel, minhaFila: !semTel && !disponivel && mesmoNome(dono, operador) };
+                // CPF que não pode ser puxado (27/11/2026): sai da fila e dos Disponíveis, e a linha mostra o motivo
+                const impedido = situacao !== 'MIGROU' && !noFunil ? impedimentoDe(a.aluno_id, cpfAluno) : null;
+                if (impedido) { etapa = 'IMPEDIDO'; disponivel = false; paraHoje = false; voltaEm = null; dono = ''; leadParaPuxar = null; }
+                return { ...a, chave: a.aluno_id, situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, noFunil, leadParaPuxar, impedido, disponivel: disponivel && !semTel, minhaFila: !impedido && !semTel && !disponivel && mesmoNome(dono, operador) };
             })
             .filter(Boolean);
-    }, [alunos, andamento, naoContatar, desligadas, operador, hoje, leadsDeFila, leadsComOutraDona]);
+    }, [alunos, andamento, naoContatar, desligadas, operador, hoje, leadsDeFila, leadsComOutraDona, impedimentoDe]);
     const linhas = useMemo(() => [...linhasAlunos, ...linhasWellhub], [linhasAlunos, linhasWellhub]);
 
     const daVisao = useMemo(() => linhas.filter(l => (
@@ -272,22 +283,31 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     };
     const juntarResultados = (a, b) => ({
         feitos: a.feitos + b.feitos, jaNoFunil: a.jaNoFunil + b.jaNoFunil, jaComOutra: a.jaComOutra + b.jaComOutra,
-        falhas: [...a.falhas, ...b.falhas], semTipo: a.semTipo || b.semTipo
+        falhas: [...a.falhas, ...b.falhas], alunosFalhos: [...(a.alunosFalhos || []), ...(b.alunosFalhos || [])], semTipo: a.semTipo || b.semTipo
     });
+    const devolverSemFunil = async (confirmados, falhos = []) => {
+        const ids = new Set(falhos.map(String));
+        for (const c of confirmados.filter(x => ids.has(String(x.aluno_id)))) {
+            try { await devolverDaFilaMigracao({ aluno_id: c.aluno_id, unidade: unidadeChave, quem: operador }); }
+            catch (err) { console.error('Não foi possível devolver o aluno para os Disponíveis:', err); }
+        }
+    };
     const puxar = async (umAluno) => {
-        let candidatos = umAluno ? [umAluno] : linhas
+        const ordenados = umAluno ? [umAluno] : linhas
             .filter(l => l.disponivel && (!planoPuxar || l.ultimo_plano === planoPuxar))
-            .sort((a, b) => String(b.data_compra || '').localeCompare(String(a.data_compra || '')))
-            .slice(0, qtdPuxar);
-        if (candidatos.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
+            .sort((a, b) => String(b.data_compra || '').localeCompare(String(a.data_compra || '')));
+        if (ordenados.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
         if (!onPuxados) return avisar(tx("Não foi possível puxar."), 'erro');
         if (vagaCarteira <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
-        if (candidatos.length > vagaCarteira) {
-            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
-            candidatos = candidatos.slice(0, vagaCarteira);
-        }
+        const pedidos = umAluno ? 1 : qtdPuxar;
+        const quantidade = Math.min(pedidos, vagaCarteira);
+        if (quantidade < Math.min(pedidos, ordenados.length)) avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
         setPuxando(true);
         try {
+            // Antes de marcar como puxado, o banco é consultado pelo CPF (27/11/2026): quem não pode é pulado e o próximo entra
+            const { aceitos: candidatos, impedidos: pulados } = await separar(ordenados, quantidade);
+            avisarPulados(pulados);
+            if (!candidatos.length) return;
             const wellhub = candidatos.filter(c => c.wellhub);
             const normais = candidatos.filter(c => !c.wellhub);
             const devolvidos = normais.filter(c => c.leadParaPuxar); // contato que voltou para esta aba: não passa pelo banco da fila
@@ -303,8 +323,16 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                 await salvarAndamentoMigracao({ aluno_id: d.aluno_id, unidade: unidadeChave, status: 'NA_FILA', quem: operador, puxado_por: operador, puxado_em: agora });
             }
             const doBanco = [...confirmados, ...devolvidos].map(c => ({ ...c, lead_id: c.leadParaPuxar?.id }));
-            const vazio = { feitos: 0, jaNoFunil: 0, jaComOutra: 0, falhas: [], semTipo: false };
-            let r = doBanco.length ? await onPuxados(doBanco, 'MIGRACAO') : vazio;
+            const vazio = { feitos: 0, jaNoFunil: 0, jaComOutra: 0, falhas: [], alunosFalhos: [], semTipo: false };
+            let r;
+            try {
+                r = doBanco.length ? await onPuxados(doBanco, 'MIGRACAO') : vazio;
+            } catch (err) {
+                await devolverSemFunil(confirmados, confirmados.map(c => c.aluno_id));
+                throw err;
+            }
+            // Quem foi marcado como puxado e não entrou no funil volta para os Disponíveis (não fica preso)
+            await devolverSemFunil(confirmados, r.alunosFalhos);
             if (wellhub.length) r = juntarResultados(r, await onPuxados(wellhub, 'WELLHUB'));
             // Recarrega o andamento do banco: a tela mostra exatamente quem ficou com cada aluno
             const mapa = await carregarAndamentoMigracao();
@@ -328,13 +356,12 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     const enviarTodosParaCrm = async () => {
         if (!onPuxados || !paraEnviar.length) return;
         if (vagaCarteira <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
-        let lote = paraEnviar;
-        if (lote.length > vagaCarteira) {
-            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
-            lote = lote.slice(0, vagaCarteira);
-        }
+        if (paraEnviar.length > vagaCarteira) avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
         setPuxando(true);
         try {
+            const { aceitos: lote, impedidos: pulados } = await separar(paraEnviar, vagaCarteira);
+            avisarPulados(pulados);
+            if (!lote.length) return;
             const r = await onPuxados(lote.map(l => ({ ...l, lead_id: l.leadParaPuxar?.id })), 'MIGRACAO');
             const resumo = textoResultadoPuxada(r, lote.length, null);
             if (resumo) avisar(resumo.texto, resumo.tipo);
@@ -352,6 +379,9 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         if (vagaCarteira <= 0) return avisar(tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA }), 'erro');
         setSalvando(linha.chave);
         try {
+            const { aceitos, impedidos: pulados } = await separar([linha], 1);
+            avisarPulados(pulados);
+            if (!aceitos.length) return;
             const r = await onPuxados([{ ...linha, lead_id: linha.leadParaPuxar?.id }], 'MIGRACAO');
             const resumo = textoResultadoPuxada(r, 1, linha.nome);
             if (resumo) avisar(resumo.texto, resumo.tipo);
@@ -406,8 +436,33 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
     };
 
     // Resultado do contato (1 clique). "Não respondeu" marcado de novo no mesmo dia não soma outra tentativa.
+    // Opções que existem no funil (27/11/2026): "Não contatar" bloqueia; as outras levam o contato do aluno ao destino
+    const aplicarDestinoDoFunil = async (linha, tipo) => {
+        setSalvando(linha.aluno_id);
+        try {
+            if (tipo === 'NAO_CONTATAR') {
+                await colocarNaoContatar({ unidade: unidadeChave, cpf: linha.cpf, aluno_id: linha.aluno_id, nome: linha.nome, motivo: MOTIVO_BLOQUEIO_ABA, colocado_por: operador });
+                if (onNaoContatar) onNaoContatar(linha);
+                avisar(tx("{nome} foi para o \"Não contatar\".", { nome: linha.nome }), 'sucesso');
+                return;
+            }
+            const ok = await onDestinar?.(linha, tipo);
+            if (!ok || tipo === 'FECHOU') return;
+            // Saiu da aba: deixa de estar na fila de alguém
+            await devolverDaFilaMigracao({ aluno_id: linha.aluno_id, unidade: unidadeChave, quem: operador });
+            atualizarLocal(linha.aluno_id, { status: 'NA_FILA', puxado_por: null, puxado_em: null });
+            if (tipo === 'WELLHUB') marcar([[linha.aluno_id, { acao: 'WELLHUB' }]]);
+            else marcarForaDaFila(linha.cpf, { NAO_FUNCIONA: MOTIVO_TELEFONE, JA_ALUNO: MOTIVO_JA_ALUNO, PERSONAL: MOTIVO_PERSONAL }[tipo]);
+        } catch (err) {
+            avisar(tx("Não foi possível salvar.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setSalvando('');
+        }
+    };
+
     const aplicarResultado = async (linha, tipo) => {
         setResultadoPara(null);
+        if (tipo === 'NAO_CONTATAR' || DESTINOS_DA_ABA.includes(tipo)) return aplicarDestinoDoFunil(linha, tipo);
         const reg = linha.registro || {};
         const { status, extras } = camposDoResultado(tipo, reg, hoje);
         const dono = reg.puxado_por ? undefined : (linha.dono || operador);
@@ -555,7 +610,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                             const ocupado = salvando === (l.chave || l.aluno_id);
                             const podeTrabalhar = l.minhaFila && !l.noFunil && !l.wellhub && l.situacao !== 'MIGROU' && l.etapa !== 'GELADEIRA';
                             const jaHoje = contatadosHoje.has(l.aluno_id);
-                            const detalhe = l.noFunil ? `${tx(l.noFunil.fase)}${l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}` : detalheEtapa(l);
+                            const detalhe = l.impedido ? textoDoImpedimento(l.impedido) : l.noFunil ? `${tx(l.noFunil.fase)}${l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}` : detalheEtapa(l);
                             const botoes = (
                                 <>
                                     {l.semTel && <BotaoCartaoFila icone={PencilLine} cor="azulCheio" rotulo={tx("Atualizar telefone")} onClick={() => setContatoFicha(l)} />}
@@ -635,7 +690,9 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
                                     </td>
                                     <td className="px-4 py-3">
                                         <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border ${a.classe}`}>{tx(a.rotulo)}</span>
-                                        {l.noFunil
+                                        {l.impedido
+                                            ? <p className="text-[10px] font-bold mt-1 text-rose-600 dark:text-rose-400">{textoDoImpedimento(l.impedido)}</p>
+                                            : l.noFunil
                                             ? <p className="text-[10px] font-bold mt-1 text-slate-400">{tx(l.noFunil.fase)}{l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}</p>
                                             : detalheEtapa(l) && <p className={`text-[10px] font-bold mt-1 ${l.paraHoje && l.voltaEm && l.voltaEm < hoje ? 'text-rose-600 dark:text-rose-400' : 'text-slate-400'}`}>{detalheEtapa(l)}</p>}
                                     </td>
@@ -715,6 +772,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
 
             {resultadoPara && (
                 <JanelaResultadoContato
+                    {...(onDestinar ? textosExtrasDaJanela() : {})}
                     aluno={resultadoPara}
                     hoje={hoje}
                     textoInteressado={tx('Vai para o seu funil (Em Espera, volta amanhã).')}

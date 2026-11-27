@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { formatarDataHora, STATUS_TOKENS, COLUNAS_TELA, faseNaTela, dataDoLead, contatoCombinaComBusca, classeTipoLead, diasParado, DIAS_PARADO_AMARELO } from './utils';
 import { PhoneCall, MessageCircle, Info, ArrowDownUp, Trash2, Snowflake, ListPlus, Search, X, Ban, CalendarPlus, Hourglass } from 'lucide-react';
-import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
+import { EtiquetaParado, EtiquetaProximo, EtiquetaResultado } from './EtiquetasCrm';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import { tx } from '../../i18n/traduzir.js';
 import { ligarPara } from '../../components/celular/telefone.js';
@@ -210,6 +210,7 @@ const Lista = ({
                                             <p className="text-[10px] font-bold text-slate-400 uppercase">{tx("Entrada (Puxado)")}: {formatarDataHora(v.puxado_em || dataDoLead(v))}</p>
                                             <div className="flex flex-wrap gap-1.5 mt-1">
                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>{tx(v.tipo_lead || 'LEAD')}</span>
+                                                <EtiquetaResultado lead={v} />
                                                 <EtiquetaProximo lead={v} />
                                                 <EtiquetaParado lead={v} />
                                             </div>
@@ -293,6 +294,7 @@ const Lista = ({
                                                 {tx(v.tipo_lead || 'LEAD')}
                                             </span>
                                             <div className="flex flex-wrap gap-1.5 mt-1">
+                                                <EtiquetaResultado lead={v} />
                                                 <EtiquetaProximo lead={v} />
                                                 <EtiquetaParado lead={v} />
                                             </div>

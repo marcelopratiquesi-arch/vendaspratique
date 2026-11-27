@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, memo, useRef } from 'react';
 import { formatarDataHora, STATUS_TOKENS, COLUNAS_TELA, FASE_ESPERA, faseNaTela, dataDoLead, classeTipoLead, ordenarContatos } from './utils';
 import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, Trash2, Info, Send, Check, Loader2 } from 'lucide-react';
-import { EtiquetaParado, EtiquetaProximo } from './EtiquetasCrm';
+import { EtiquetaParado, EtiquetaProximo, EtiquetaResultado } from './EtiquetasCrm';
 import { tx } from '../../i18n/traduzir.js';
 import { ligarPara } from '../../components/celular/telefone.js';
 import Dica from '../../components/celular/Dica.jsx';
@@ -48,6 +48,7 @@ const LeadCard = memo(({
                     <span className={`inline-block px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(lead.tipo_lead)}`}>
                         {lead.tipo_lead ? tx(lead.tipo_lead) : tx("Não Informado")}
                     </span>
+                    <EtiquetaResultado lead={lead} />
                     <EtiquetaProximo lead={lead} />
                     <EtiquetaParado lead={lead} />
                 </div>

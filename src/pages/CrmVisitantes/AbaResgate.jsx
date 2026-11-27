@@ -5,10 +5,12 @@ import { indexarLeadsDeFila, situacaoNoFunil } from './filaNoFunil.js';
 import { montarMensagem } from './embaralhador.js';
 import {
     carregarAndamentoResgate, salvarAndamentoResgate, puxarParaFilaResgate, devolverDaFilaResgate,
-    carregarMensagensProntas, registrarContatoFeito, carregarMigracaoContatadosHoje, estaNaoContatar, ligarPeloSip
+    carregarMensagensProntas, registrarContatoFeito, carregarMigracaoContatadosHoje, estaNaoContatar, ligarPeloSip, colocarNaoContatar
 } from './contatosFeitos';
+import useImpedidos, { textoDoImpedimento, avisarPulados } from './useImpedidos.js';
 import { carregarAlunosDoCadastro, tipoDoStatus } from './regrasPuxarCadastro.js';
 import { buscarComprasDePlano } from './compraDePlano.js';
+import { MOTIVO_TELEFONE, MOTIVO_JA_ALUNO, MOTIVO_PERSONAL } from './foraDaFila.js';
 import { JanelaNaoContatar } from './JanelasContato';
 import FichaAlunoPopup from './FichaAlunoPopup';
 import JanelaResultadoContato from './JanelaResultadoContato';
@@ -16,7 +18,8 @@ import BotoesResultadoLinha from './BotoesResultadoLinha';
 import CartaoAlunoFila, { BotaoCartaoFila } from './CartaoAlunoFila';
 import {
     ANDAMENTOS_BASE, VISOES_FILA, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
-    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR
+    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR,
+    DESTINOS_DA_ABA, MOTIVO_BLOQUEIO_ABA, textosExtrasDaJanela
 } from './resultadoContato.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -44,6 +47,7 @@ import { tx } from '../../i18n/traduzir.js';
 
 const ANDAMENTOS = {
     ...ANDAMENTOS_BASE,
+    IMPEDIDO: { rotulo: 'Não dá para puxar', classe: 'bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-500/30' },
     NO_FUNIL: { rotulo: 'No funil', classe: 'bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-500/30' },
     VOLTOU: { rotulo: 'Voltou', classe: 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-500/30' }
 };
@@ -76,7 +80,7 @@ const ETIQUETA_TIPO = {
 const DIAS_SEM_COMPRA = 30;
 const POR_PAGINA = 50;
 
-const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), leads = [], onNaoContatar, onContatoFeito, onInteressado, vagaCarteira = LIMITE_CARTEIRA, onPuxados, onAbrirNoCrm }) => {
+const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoContatar = new Set(), leads = [], onNaoContatar, onContatoFeito, onInteressado, vagaCarteira = LIMITE_CARTEIRA, onPuxados, onAbrirNoCrm, onDestinar }) => {
     const [alunos, setAlunos] = useState(null);
     const [andamento, setAndamento] = useState(new Map());
     const [compras, setCompras] = useState(new Map()); // cpf -> compra de plano mais recente
@@ -115,6 +119,8 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         return mapa;
     }, [leads, operador]);
 
+    const { impedimentoDe, conferirAoAbrir, separar, marcarForaDaFila, marcar } = useImpedidos({ unidade: unidadeChave, operador, leads });
+
     const carregar = useCallback(async () => {
         if (!unidadeChave) return;
         setCarregando(true);
@@ -141,8 +147,10 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         setCompras(porCpf);
         setAlunos(lista);
         setAndamento(andamentoMapa);
+        await conferirAoAbrir(lista.map(a => ({ aluno_id: a.id, cpf: a.cpf, registro: andamentoMapa.get(a.id) }))
+            .filter(a => a.registro?.status === 'NA_FILA' && a.registro.puxado_por));
         setCarregando(false);
-    }, [unidadeChave, hoje]);
+    }, [unidadeChave, hoje, conferirAoAbrir]);
 
     useEffect(() => { carregar(); }, [carregar]);
     useEffect(() => { setLimite(POR_PAGINA); }, [visao, filtroAndamento, filtroTipo, busca]);
@@ -189,14 +197,17 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 // Já é contato de OUTRA recepcionista no funil: não fica disponível (evita chamar duas vezes)
                 const outra = !noFunil && !leadParaPuxar ? leadsComOutraDona.get(cpf) : null;
                 if (outra) { disponivel = false; dono = dono || outra.puxado_por; }
+                // CPF que não pode ser puxado (27/11/2026): sai da fila e dos Disponíveis, e a linha mostra o motivo
+                const impedido = situacao !== 'VOLTOU' && !noFunil ? impedimentoDe(aluno_id, cpf) : null;
+                if (impedido) { etapa = 'IMPEDIDO'; disponivel = false; paraHoje = false; voltaEm = null; dono = ''; leadParaPuxar = null; }
                 return {
                     ...a, aluno_id, tipo: tipoDoStatus(a.status_aluno), matricula: a.alunos_unidades?.[0]?.matricula || '',
-                    situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, compra, noFunil, leadParaPuxar,
-                    disponivel: disponivel && !semTel, minhaFila: !semTel && !disponivel && mesmoNome(dono, operador)
+                    situacao, etapa, voltaEm, paraHoje, registro, dono, semTel, compra, noFunil, leadParaPuxar, impedido,
+                    disponivel: disponivel && !semTel, minhaFila: !impedido && !semTel && !disponivel && mesmoNome(dono, operador)
                 };
             })
             .filter(Boolean);
-    }, [alunos, andamento, compras, naoContatar, cpfsNoFunil, desligadas, operador, hoje, leadsDeFila, leadsComOutraDona]);
+    }, [alunos, andamento, compras, naoContatar, cpfsNoFunil, desligadas, operador, hoje, leadsDeFila, leadsComOutraDona, impedimentoDe]);
 
     const daVisao = useMemo(() => linhas.filter(l => (
         visao === 'SEM_TELEFONE' ? l.semTel && l.situacao !== 'VOLTOU'
@@ -248,20 +259,29 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         return { texto: partes.join(' '), tipo: r.feitos && !r.falhas.length && !r.jaComOutra ? 'sucesso' : 'aviso' };
     };
     const mensagemSemVaga = () => tx("Sua carteira já está com {limite} contatos em trabalho (o limite). Responda \"Como foi o contato?\" ou coloque em Em Espera quem já foi contatado para liberar vagas.", { limite: LIMITE_CARTEIRA });
+    const devolverSemFunil = async (confirmados, falhos = []) => {
+        const ids = new Set(falhos.map(String));
+        for (const c of confirmados.filter(x => ids.has(String(x.aluno_id)))) {
+            try { await devolverDaFilaResgate({ aluno_id: c.aluno_id, unidade: unidadeChave, quem: operador }); }
+            catch (err) { console.error('Não foi possível devolver o aluno para os Disponíveis:', err); }
+        }
+    };
     const puxar = async (umAluno) => {
-        let candidatos = umAluno ? [umAluno] : linhas
+        const ordenados = umAluno ? [umAluno] : linhas
             .filter(l => l.disponivel && (!tipoPuxar || l.tipo === tipoPuxar))
-            .sort((a, b) => String(b.data_cadastro || '').localeCompare(String(a.data_cadastro || '')))
-            .slice(0, qtdPuxar);
-        if (candidatos.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
+            .sort((a, b) => String(b.data_cadastro || '').localeCompare(String(a.data_cadastro || '')));
+        if (ordenados.length === 0) return avisar(tx("Não há alunos disponíveis para puxar com esse filtro."));
         if (!onPuxados) return avisar(tx("Não foi possível puxar."), 'erro');
         if (vagaCarteira <= 0) return avisar(mensagemSemVaga(), 'erro');
-        if (candidatos.length > vagaCarteira) {
-            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
-            candidatos = candidatos.slice(0, vagaCarteira);
-        }
+        const pedidos = umAluno ? 1 : qtdPuxar;
+        const quantidade = Math.min(pedidos, vagaCarteira);
+        if (quantidade < Math.min(pedidos, ordenados.length)) avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
         setPuxando(true);
         try {
+            // Antes de marcar como puxado, o banco é consultado pelo CPF (27/11/2026): quem não pode é pulado e o próximo entra
+            const { aceitos: candidatos, impedidos: pulados } = await separar(ordenados, quantidade);
+            avisarPulados(pulados);
+            if (!candidatos.length) return;
             const devolvidos = candidatos.filter(c => c.leadParaPuxar); // contato que voltou para esta aba: não passa pelo banco da fila
             const livres = candidatos.filter(c => !c.leadParaPuxar);
             let confirmados = [];
@@ -275,7 +295,15 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 await salvarAndamentoResgate({ aluno_id: d.aluno_id, unidade: unidadeChave, status: 'NA_FILA', quem: operador, puxado_por: operador, puxado_em: agora });
             }
             const doBanco = [...confirmados, ...devolvidos].map(c => ({ ...c, lead_id: c.leadParaPuxar?.id }));
-            const r = doBanco.length ? await onPuxados(doBanco) : { feitos: 0, jaNoFunil: 0, jaComOutra: 0, falhas: [], semTipo: false };
+            let r;
+            try {
+                r = doBanco.length ? await onPuxados(doBanco) : { feitos: 0, jaNoFunil: 0, jaComOutra: 0, falhas: [], alunosFalhos: [], semTipo: false };
+            } catch (err) {
+                await devolverSemFunil(confirmados, confirmados.map(c => c.aluno_id));
+                throw err;
+            }
+            // Quem foi marcado como puxado e não entrou no funil volta para os Disponíveis (não fica preso)
+            await devolverSemFunil(confirmados, r.alunosFalhos);
             const mapa = await carregarAndamentoResgate();
             if (mapa) setAndamento(mapa);
             setVisao('FILA');
@@ -297,13 +325,12 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
     const enviarTodosParaCrm = async () => {
         if (!onPuxados || !paraEnviar.length) return;
         if (vagaCarteira <= 0) return avisar(mensagemSemVaga(), 'erro');
-        let lote = paraEnviar;
-        if (lote.length > vagaCarteira) {
-            avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
-            lote = lote.slice(0, vagaCarteira);
-        }
+        if (paraEnviar.length > vagaCarteira) avisar(tx("Só tinha vaga para {qtd} (limite de {limite} contatos em trabalho).", { qtd: vagaCarteira, limite: LIMITE_CARTEIRA }));
         setPuxando(true);
         try {
+            const { aceitos: lote, impedidos: pulados } = await separar(paraEnviar, vagaCarteira);
+            avisarPulados(pulados);
+            if (!lote.length) return;
             const r = await onPuxados(lote.map(l => ({ ...l, lead_id: l.leadParaPuxar?.id })));
             const resumo = textoResultadoPuxada(r, null);
             if (resumo) avisar(resumo.texto, resumo.tipo);
@@ -321,6 +348,9 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         if (vagaCarteira <= 0) return avisar(mensagemSemVaga(), 'erro');
         setSalvando(linha.aluno_id);
         try {
+            const { aceitos, impedidos: pulados } = await separar([linha], 1);
+            avisarPulados(pulados);
+            if (!aceitos.length) return;
             const r = await onPuxados([{ ...linha, lead_id: linha.leadParaPuxar?.id }]);
             const resumo = textoResultadoPuxada(r, linha.nome);
             if (resumo) avisar(resumo.texto, resumo.tipo);
@@ -379,8 +409,33 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
         setResultadoPara({ ...linha, _obrigatorio: true });
     };
 
+    // Opções que existem no funil (27/11/2026): "Não contatar" bloqueia; as outras levam o contato do aluno ao destino
+    const aplicarDestinoDoFunil = async (linha, tipo) => {
+        setSalvando(linha.aluno_id);
+        try {
+            if (tipo === 'NAO_CONTATAR') {
+                await colocarNaoContatar({ unidade: unidadeChave, cpf: linha.cpf, aluno_id: linha.aluno_id, nome: linha.nome, motivo: MOTIVO_BLOQUEIO_ABA, colocado_por: operador });
+                if (onNaoContatar) onNaoContatar(linha);
+                avisar(tx("{nome} foi para o \"Não contatar\".", { nome: linha.nome }), 'sucesso');
+                return;
+            }
+            const ok = await onDestinar?.(linha, tipo);
+            if (!ok || tipo === 'FECHOU') return;
+            // Saiu da aba: deixa de estar na fila de alguém
+            await devolverDaFilaResgate({ aluno_id: linha.aluno_id, unidade: unidadeChave, quem: operador });
+            atualizarLocal(linha.aluno_id, { status: 'NA_FILA', puxado_por: null, puxado_em: null });
+            if (tipo === 'WELLHUB') marcar([[linha.aluno_id, { acao: 'WELLHUB' }]]);
+            else marcarForaDaFila(linha.cpf, { NAO_FUNCIONA: MOTIVO_TELEFONE, JA_ALUNO: MOTIVO_JA_ALUNO, PERSONAL: MOTIVO_PERSONAL }[tipo]);
+        } catch (err) {
+            avisar(tx("Não foi possível salvar.\n\n{v1}", { v1: err?.message || '' }), 'erro');
+        } finally {
+            setSalvando('');
+        }
+    };
+
     const aplicarResultado = async (linha, tipo) => {
         setResultadoPara(null);
+        if (tipo === 'NAO_CONTATAR' || DESTINOS_DA_ABA.includes(tipo)) return aplicarDestinoDoFunil(linha, tipo);
         const reg = andamento.get(linha.aluno_id) || linha.registro || {};
         // Interessado vai para o funil (sem data de volta aqui), igual à Migração (09/11/2026)
         const { status, extras, foiParaGeladeira } = camposDoResultado(tipo, reg, hoje);
@@ -531,7 +586,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                             const ocupado = salvando === l.aluno_id;
                             const podeTrabalhar = l.minhaFila && !l.noFunil && l.etapa !== 'VOLTOU' && l.etapa !== 'GELADEIRA';
                             const jaHoje = contatadosHoje.has(l.aluno_id);
-                            const detalhe = l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) })
+                            const detalhe = l.impedido ? textoDoImpedimento(l.impedido) : l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) })
                                 : l.noFunil ? `${tx(l.noFunil.fase)}${l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}` : detalheEtapa(l);
                             const botoes = (
                                 <>
@@ -595,7 +650,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                             // Só trabalha aqui o aluno ANTIGO da fila que ainda não está no funil (16/11/2026: quem está no funil é trabalhado lá)
                             const podeTrabalhar = l.minhaFila && !l.noFunil && l.etapa !== 'VOLTOU' && l.etapa !== 'GELADEIRA';
                             const jaHoje = contatadosHoje.has(l.aluno_id);
-                            const detalhe = l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) })
+                            const detalhe = l.impedido ? textoDoImpedimento(l.impedido) : l.etapa === 'VOLTOU' ? tx('comprou {plano} em {dia}', { plano: l.compra?.produto || '', dia: dataBR(l.compra?.dia) })
                                 : l.noFunil ? `${tx(l.noFunil.fase)}${l.noFunil.voltaEm ? ` · ${tx('volta {dia}', { dia: dataBR(l.noFunil.voltaEm) })}` : ''}` : detalheEtapa(l);
                             return (
                                 <tr key={l.aluno_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
@@ -690,6 +745,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
 
             {resultadoPara && (
                 <JanelaResultadoContato
+                    {...(onDestinar ? textosExtrasDaJanela() : {})}
                     aluno={{ ...resultadoPara, registro: andamento.get(resultadoPara.aluno_id) || resultadoPara.registro }}
                     hoje={hoje}
                     textoInteressado={tx('Vai para o seu funil (Em Espera, volta amanhã).')}

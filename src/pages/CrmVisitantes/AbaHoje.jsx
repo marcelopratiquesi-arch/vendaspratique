@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { CalendarCheck, AlarmClock, MessageCircle, Info, Ban, CalendarClock, Loader2, PhoneCall } from 'lucide-react';
 import { ligarPeloSip } from './contatosFeitos';
 import { JanelaJustificativa } from './JanelasContato';
-import { EtiquetaParado } from './EtiquetasCrm';
+import { EtiquetaParado, EtiquetaResultado } from './EtiquetasCrm';
 import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, abrirNoWhatsApp, classeTipoLead, textoMensagemEnviada, rotuloMensagemDoLead } from './utils';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
@@ -97,6 +97,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <button type="button" onClick={() => abrirFicha(v)} className="text-sm font-black text-slate-800 dark:text-white uppercase truncate max-md:whitespace-normal max-md:break-words max-md:min-h-8 hover:text-blue-600 dark:hover:text-blue-400 text-left" title={tx("Ver ficha e histórico")}>{v.nome}</button>
                                                 <span className={`px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border ${classeTipoLead(v.tipo_lead)}`}>{tx(v.tipo_lead || 'LEAD')}</span>
+                                                <EtiquetaResultado lead={v} />
                                                 <EtiquetaParado lead={v} />
                                             </div>
                                             <p className="text-[10px] font-bold text-slate-400 truncate max-md:whitespace-normal max-md:text-[11px] mt-0.5">
