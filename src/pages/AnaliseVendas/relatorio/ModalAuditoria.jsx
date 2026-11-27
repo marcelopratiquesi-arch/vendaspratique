@@ -12,6 +12,8 @@ import {
     Search,
     Download
 } from 'lucide-react';
+import { ehCelularAgora } from '../../../components/celular/ehCelular.js';
+import { CartaoCelular } from '../../../components/celular/Cartao.jsx';
 import { tx } from '../../../i18n/traduzir.js';
 
 // ==========================================
@@ -34,7 +36,7 @@ export const CopyMiniButton = ({ textToCopy }) => {
         <button
             type="button"
             onClick={handleCopy}
-            className="opacity-0 group-hover/row:opacity-100 p-1 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded transition-all shrink-0 dark:bg-slate-800 dark:hover:bg-blue-500/20 dark:hover:text-blue-400"
+            className="opacity-100 md:opacity-0 md:group-hover/row:opacity-100 w-8 h-8 md:w-auto md:h-auto inline-flex items-center justify-center md:block p-1 bg-slate-100 hover:bg-blue-100 text-slate-400 hover:text-blue-600 rounded transition-all shrink-0 dark:bg-slate-800 dark:hover:bg-blue-500/20 dark:hover:text-blue-400"
             title={tx("Copiar informação")}
         >
             {copied ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
@@ -103,7 +105,7 @@ const ModalAuditoria = ({
     if (!isOpen) return null;
 
     const handlePointerDown = (e) => {
-        if (e.target.closest('.no-drag')) return;
+        if (e.target.closest('.no-drag') || ehCelularAgora()) return; // celular: janela em tela cheia, sem arrastar
         setIsDragging(true);
         dragStart.current = { x: e.clientX - offset.x, y: e.clientY - offset.y };
         e.target.setPointerCapture(e.pointerId);
@@ -146,7 +148,7 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'VENDA') {
             return (
-                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="hidden md:block w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
@@ -190,7 +192,7 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'VISITANTE') {
             return (
-                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="hidden md:block w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
@@ -234,7 +236,7 @@ const ModalAuditoria = ({
 
         if (modalConfig.tipoTabela === 'AVALIACAO') {
             return (
-                <div className="w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
+                <div className="hidden md:block w-full overflow-x-auto custom-scrollbar bg-white dark:bg-slate-900">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-slate-100/50 border-b border-slate-200 dark:border-slate-800">
@@ -288,27 +290,82 @@ const ModalAuditoria = ({
         return null;
     };
 
+    // Celular (26/11/2026): um cartão por registro, com os mesmos dados e botões de copiar da tabela
+    const renderCartoes = () => {
+        if (registrosFiltradosModal.length === 0) return null;
+        const linhaCopiar = (rotulo, valor, copiar) => (
+            <div className="flex items-center justify-between gap-2 py-0.5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{rotulo}</span>
+                <span className="flex items-center gap-1 min-w-0 font-mono text-[12px] font-bold text-slate-700 dark:text-slate-200"><span className="truncate">{valor}</span>{copiar && <CopyMiniButton textToCopy={copiar} />}</span>
+            </div>
+        );
+        const tipo = modalConfig.tipoTabela;
+        if (!['VENDA', 'VISITANTE', 'AVALIACAO'].includes(tipo)) return null;
+        return (
+            <div className="md:hidden p-3 space-y-2">
+                {registrosFiltradosModal.map((r, i) => {
+                    const pessoa = extrairDadosPessoa(r, dicionarioPessoas, cacheAlunosBanco);
+                    const titulo = (
+                        <span className="flex items-start gap-1 uppercase">
+                            <span className="min-w-0 break-words">{pessoa.nome}</span>
+                            <CopyMiniButton textToCopy={pessoa.nome} />
+                        </span>
+                    );
+                    if (tipo === 'VENDA') return (
+                        <CartaoCelular key={i} titulo={titulo} subtitulo={formatDataBR(r.data || r.created_at)}
+                            direita={<span className="text-sm font-black text-slate-800 tabular-nums dark:text-white">×{r.qtdConsolidada || r.quantidade || 1}</span>}>
+                            <p className="text-[12px] font-bold text-blue-700 uppercase break-words dark:text-blue-400">{r.produto}</p>
+                            {linhaCopiar('CPF', pessoa.cpf, pessoa.cpfPuro || pessoa.cpf)}
+                            {linhaCopiar(tx("Vendedor"), r.vendedor || tx("Sistema"))}
+                        </CartaoCelular>
+                    );
+                    if (tipo === 'VISITANTE') {
+                        const tel = r.telefone || r.celular || r.contato || r.whatsapp || 'Não informado';
+                        const responsavel = r.consultor || r.vendedor || r.responsavel || r.atendente || r.criado_por || 'Recepção';
+                        return (
+                            <CartaoCelular key={i} titulo={titulo} subtitulo={formatDataBR(r.data || r.criado_em || r.created_at)}>
+                                {linhaCopiar('CPF', pessoa.cpf, pessoa.cpfPuro || pessoa.cpf)}
+                                {linhaCopiar(tx("Telefone"), tel)}
+                                {linhaCopiar(tx("Consultor Resp."), responsavel)}
+                            </CartaoCelular>
+                        );
+                    }
+                    const prof = r.professor || r.avaliador || r.instrutor || r.profissional || r.responsavel || r.criado_por || 'Não informado';
+                    const statusAval = r.status || r.situacao || 'Concluída';
+                    return (
+                        <CartaoCelular key={i} titulo={titulo} subtitulo={formatDataBR(r.data || r.data_avaliacao || r.created_at)}
+                            direita={<span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-black uppercase bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30">{statusAval}</span>}>
+                            {pessoa.matricula && linhaCopiar(tx("MAT:"), pessoa.matricula)}
+                            {linhaCopiar('CPF', pessoa.cpf, pessoa.cpfPuro || pessoa.cpf)}
+                            {linhaCopiar(tx("Professor / Avaliador"), prof)}
+                        </CartaoCelular>
+                    );
+                })}
+            </div>
+        );
+    };
+
     return (
-        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-[fadeIn_0.2s_ease-out]">
+        <div className="fixed inset-0 z-[9999] bg-slate-900/60 backdrop-blur-sm flex items-stretch md:items-center justify-center p-0 md:p-6 animate-[fadeIn_0.2s_ease-out]">
             <div
-                className="bg-white rounded-[20px] shadow-2xl flex flex-col w-full max-w-5xl max-h-[90vh] overflow-hidden border border-slate-200 resize dark:bg-slate-900 dark:border-slate-800"
+                className="bg-white rounded-none md:rounded-[20px] shadow-2xl flex flex-col w-full max-w-5xl h-[100dvh] md:h-auto md:max-h-[90vh] overflow-hidden border border-slate-200 md:resize dark:bg-slate-900 dark:border-slate-800"
                 style={{ transform: `translate(${offset.x}px, ${offset.y}px)`, transition: isDragging ? 'none' : 'transform 0.1s ease-out' }}
             >
                 {/* Cabeçalho Arrastável */}
                 <div
-                    className="bg-slate-900 px-6 py-5 flex justify-between items-center cursor-move select-none touch-none border-b border-slate-800 group"
+                    className="shrink-0 bg-slate-900 px-4 py-3 md:px-6 md:py-5 flex justify-between items-center gap-3 md:cursor-move select-none md:touch-none border-b border-slate-800 group"
                     onPointerDown={handlePointerDown}
                     onPointerMove={handlePointerMove}
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     title={tx("Clique e segure para arrastar")}
                 >
-                    <div className="flex items-center gap-4 no-drag">
-                        <div className="w-10 h-10 bg-slate-800 rounded-lg flex items-center justify-center group-hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center gap-4 no-drag min-w-0">
+                        <div className="hidden md:flex w-10 h-10 bg-slate-800 rounded-lg items-center justify-center group-hover:bg-slate-700 transition-colors">
                             <Move className="w-5 h-5 text-slate-400" />
                         </div>
                         <div className="flex flex-col">
-                            <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-tight line-clamp-1">
+                            <h3 className="text-base sm:text-lg font-black text-white uppercase tracking-tight break-words md:line-clamp-1">
                                 {tx(modalConfig.titulo)}
                             </h3>
                             {modalConfig.subtitulo && (
@@ -321,14 +378,15 @@ const ModalAuditoria = ({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="no-drag text-slate-400 hover:text-white transition-colors p-2 bg-white/5 hover:bg-rose-500 hover:text-white rounded-full"
+                        aria-label={tx("Fechar")}
+                        className="no-drag shrink-0 w-10 h-10 md:w-auto md:h-auto flex items-center justify-center md:block text-slate-400 hover:text-white transition-colors p-2 bg-white/5 hover:bg-rose-500 hover:text-white rounded-full"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
                 {/* Barra de Ferramentas Interna (Contador + Pesquisa + Exportar Lista) */}
-                <div className="bg-white border-b border-slate-200 px-6 py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 no-drag dark:bg-slate-900 dark:border-slate-800">
+                <div className="shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-3.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 no-drag dark:bg-slate-900 dark:border-slate-800">
                     <div className="flex items-center gap-3 flex-wrap">
                         <span className="text-[11px] font-black text-slate-500 uppercase tracking-widest dark:text-slate-400">
                             {tx("Total Encontrado:")}
@@ -351,13 +409,14 @@ const ModalAuditoria = ({
                                 value={buscaInterna}
                                 onChange={(e) => setBuscaInterna(e.target.value)}
                                 placeholder={tx("Buscar aluno, CPF ou vendedor...")}
-                                className="w-full pl-8 pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200 dark:focus:bg-slate-900"
+                                className="w-full h-10 md:h-auto pl-8 pr-9 md:pr-7 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all dark:bg-slate-800/60 dark:border-slate-800 dark:text-slate-200 dark:focus:bg-slate-900"
                             />
                             {buscaInterna && (
                                 <button
                                     type="button"
                                     onClick={() => setBuscaInterna('')}
-                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                                    aria-label={tx("Limpar busca")}
+                                    className="absolute right-1 md:right-2.5 w-8 h-8 md:w-auto md:h-auto flex items-center justify-center top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                 </button>
@@ -368,7 +427,7 @@ const ModalAuditoria = ({
                             type="button"
                             onClick={handleExportarListaAtual}
                             disabled={registrosFiltradosModal.length === 0}
-                            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shrink-0 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
+                            className="flex items-center gap-1.5 h-10 md:h-auto px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 disabled:opacity-40 text-emerald-700 border border-emerald-200 rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors shrink-0 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30"
                             title={tx("Baixar planilha apenas desta lista")}
                         >
                             <Download className="w-3.5 h-3.5" />{' '}{tx("Baixar Lista")}
@@ -379,6 +438,7 @@ const ModalAuditoria = ({
                 {/* Corpo da Tabela */}
                 <div className="flex-1 overflow-y-auto bg-slate-50 no-drag custom-scrollbar dark:bg-slate-800/60">
                     {renderTabela()}
+                    {renderCartoes()}
                 </div>
             </div>
         </div>
