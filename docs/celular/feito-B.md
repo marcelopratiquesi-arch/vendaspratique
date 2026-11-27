@@ -4,6 +4,7 @@
 > **Aprovado como está:** card Planos vendidos, Produtividade, Ritmo do mês, Assinaturas, Produtos, Ranking de produtos, Gestão à Vista, Metas da unidade, Relatórios na visão de Líder, resumo e gráficos da Saúde.
 > **Decisões:** tabela com o nome parado e arrastar para o lado em tudo (inclusive lista de alunos); linhas de 40px; mesma ordem de colunas do computador.
 > **Proposta 3 APROVADA e publicada em 27/11/2026:** nome e título parados (`pages/AnaliseVendas/tabelaCelular.css`, classes `tc-rolar`/`tc-tabela`), ordenar pelo título (Movimentação e Monitoramento passaram a ordenar, também no computador) e Relatórios de Admin/Mentor no celular com total colorido + tabela de unidades (`relatorio/ComparativoUnidadesCelular.jsx`) + cartões fechados. O dono vai testar no celular e pedir os ajustes.
+> **Ajustes de 27/11 (tarde), publicados:** no celular o botão da Central vira a ÚLTIMA coluna (Planos por unidade, Monitoramento e Ranking; no computador continua ao lado do nome); Planos por unidade com linha de 40px, sem a mini barra, selos curtos (11 unidades cabem em 390×844); Relatórios enviados com várias unidades = tabela com a unidade parada e ordenar (uma unidade continua em cartões por dia). Saúde aprovada.
 
 
 Regra seguida: no celular (até 767px) o desenho muda; no computador nada muda (classes `md:` devolvem o de antes).
