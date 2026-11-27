@@ -1,5 +1,11 @@
 # Grupo B — Dashboard (todas as abas) — feito em 26/11/2026
 
+> **ATENÇÃO (27/11/2026): o dono reprovou parte dos cartões.** Voltaram para TABELA: planos por unidade, movimentação por dia, monitoramento, metas anteriores, ranking global, item por item (Saúde), lista de planos e janela de auditoria. Onde a tabela abaixo falar em cartão nessas partes, não vale mais.
+> **Aprovado como está:** card Planos vendidos, Produtividade, Ritmo do mês, Assinaturas, Produtos, Ranking de produtos, Gestão à Vista, Metas da unidade, Relatórios na visão de Líder, resumo e gráficos da Saúde.
+> **Decisões:** tabela com o nome parado e arrastar para o lado em tudo (inclusive lista de alunos); linhas de 40px; mesma ordem de colunas do computador.
+> **Falta (esperando o dono aprovar a proposta 3):** nome parado nessas tabelas, ordenar pelo título e Relatórios de Admin/Mentor (total colorido + tabela de unidades + cartões por unidade). Link: https://claude.ai/artifact/S9R9tey9BkGFS7gLTHBT8S
+
+
 Regra seguida: no celular (até 767px) o desenho muda; no computador nada muda (classes `md:` devolvem o de antes).
 Build ("built") e lint (só avisos antigos) conferidos a cada tela. Commits `feat(celular): B — …` no main.
 
