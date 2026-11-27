@@ -15,7 +15,7 @@ import BotoesResultadoLinha from './BotoesResultadoLinha';
 import CartaoAlunoFila, { BotaoCartaoFila } from './CartaoAlunoFila';
 import {
     ANDAMENTOS_BASE, VISOES_FILA as VISOES, QUANTIDADES_PUXAR, DIAS_PARA_DEVOLVER, DIAS_GELADEIRA, MAX_TENTATIVAS,
-    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato
+    semTelefoneValido, calcularEtapa, camposDoResultado, detalheEtapa, ordenarFila, registrarResultadoContato, dataBR
 } from './resultadoContato.js';
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
