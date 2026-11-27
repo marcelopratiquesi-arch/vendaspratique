@@ -156,7 +156,7 @@ const AbaResgate = ({ unidade, operador, usuarioLogado, colaboradores = [], naoC
                 const cpf = apenasDigitos(a.cpf);
                 const aluno_id = a.id;
                 const registro = andamento.get(aluno_id);
-                if (estaNaoContatar(naoContatar, { cpf, alunoId: aluno_id })) return null;
+                if (estaNaoContatar(naoContatar, { cpf, alunoId: aluno_id, telefone: a.telefone })) return null;
                 const compra = compras.get(cpf);
                 const entrouEm = registro ? dataLocalISO(registro.criado_em) : null;
                 let situacao;

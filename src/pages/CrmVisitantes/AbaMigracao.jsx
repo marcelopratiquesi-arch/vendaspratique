@@ -144,7 +144,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         return mapa;
     }, [leads, operador]);
     const linhasWellhub = useMemo(() => leadsWellhubDisponiveis(leads, unidadeChave)
-        .filter(l => !estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id) }))
+        .filter(l => !estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id), telefone: l.telefone }))
         .map(l => {
             const semTel = semTelefoneValido(l.telefone);
             return {
@@ -159,7 +159,7 @@ const AbaMigracao = ({ unidade, operador, usuarioLogado, colaboradores = [], nao
         const limiteFila = new Date();
         limiteFila.setDate(limiteFila.getDate() - DIAS_PARA_DEVOLVER);
         return (alunos || [])
-            .filter(a => !estaNaoContatar(naoContatar, { cpf: a.cpf, alunoId: a.aluno_id }))
+            .filter(a => !estaNaoContatar(naoContatar, { cpf: a.cpf, alunoId: a.aluno_id, telefone: a.telefone }))
             .map(a => {
                 const registro = andamento.get(a.aluno_id);
                 let situacao;

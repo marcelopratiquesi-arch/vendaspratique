@@ -36,7 +36,7 @@ const AbaNaoContatar = ({ unidade, operador, usuarioLogado, versao = 0, onMudou 
     ), [lista, soDaUnidade, unidadeChave, busca]);
 
     const tirar = async (registro) => {
-        if (!window.confirm(tx("Tirar {nome} da lista \"Não contatar\"?\n\nA pessoa volta a aparecer nas listas de contato do CRM.", { nome: registro.nome }))) return;
+        if (!window.confirm(tx("Tirar {nome} da lista \"Não contatar\"?\n\nO contato volta para o Banco Bruto (nunca para a Geladeira).", { nome: registro.nome }))) return;
         setTirando(registro.id);
         try {
             await tirarNaoContatar(registro.id, operador || usuarioLogado?.nome || 'SISTEMA');

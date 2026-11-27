@@ -94,7 +94,7 @@ export const conferirAlunos = async (alunos, statusEscolhidos) => {
     lista.forEach(a => {
         const cpf = apenasDigitos(a.cpf);
         if (noCrm.has(cpf) || resgate.has(a.id)) contagem.noCrm++;
-        else if (estaNaoContatar(naoContatar, { cpf, alunoId: a.id })) contagem.naoContatar++;
+        else if (estaNaoContatar(naoContatar, { cpf, alunoId: a.id, telefone: a.telefone })) contagem.naoContatar++;
         else if (!telefoneValido(a.telefone)) contagem.semTelefone++;
         else if (compraram.has(cpf)) contagem.comprou++;
         else prontos.push(a);

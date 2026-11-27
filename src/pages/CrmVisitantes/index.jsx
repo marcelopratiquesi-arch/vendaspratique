@@ -414,10 +414,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         return () => { cancelado = true; };
     }, [versaoListasLentas, versaoNaoContatar]);
     const aoColocarNaoContatar = useCallback((pessoa) => {
-        setNaoContatar(prev => incluirNaoContatar(prev, { cpf: pessoa?.cpf, leadId: pessoa?.lead_id || (pessoa?.id ? String(pessoa.id) : null), alunoId: pessoa?.aluno_id }));
+        setNaoContatar(prev => incluirNaoContatar(prev, { cpf: pessoa?.cpf, leadId: pessoa?.lead_id || (pessoa?.id ? String(pessoa.id) : null), alunoId: pessoa?.aluno_id, telefone: pessoa?.telefone }));
         setVersaoNaoContatar(v => v + 1);
     }, []);
-    const podeContatar = (v) => !estaNaoContatar(naoContatar, { cpf: v.cpf, leadId: String(v.id) });
+    const podeContatar = (v) => !estaNaoContatar(naoContatar, { cpf: v.cpf, leadId: String(v.id), telefone: v.telefone });
 
     // "Contatos de hoje" (visitantes 24h/48h, atrasados e aniversariantes). Desde 06/11/2026 fica DENTRO da aba Hoje
     // (decisão do dono). A janela antiga só é usada por quem não tem a aba Hoje (permissão 508).
@@ -679,8 +679,12 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             (achados || []).forEach(a => cpfsNoBanco.add(apenasDigitos(a.cpf)));
         }
 
+        // "Não contatar" (CPF ou telefone) não volta por lista nova (27/11/2026). O banco também confere.
+        const bloqueados = await carregarNaoContatar();
+
         const paraSalvar = leadsValidos.filter(lead => {
             const cpf = apenasDigitos(lead.cpf);
+            if (estaNaoContatar(bloqueados, { cpf, telefone: lead.telefone })) { recusados.push(`${lead.nome} — ${tx('está no "Não contatar"')}`); return false; }
             if (cpf && cpfsNoBanco.has(cpf)) { recusados.push(`${lead.nome} — ${tx('CPF já está no CRM')}`); return false; }
             return true;
         });
@@ -1484,7 +1488,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             const motivo = tipo === 'NAO_FUNCIONA' ? 'Telefone / WhatsApp não funciona' : 'Cliente pediu para não entrar mais em contato';
             await registrarHistorico(lead.id, 'Agendamento', `Resultado: ${motivo.toLowerCase()}.`, true);
             await alterarStatus(lead.id, 'Perdido', motivo);
-            const pessoa = { cpf: lead.cpf, lead_id: String(lead.id), nome: lead.nome };
+            const pessoa = { cpf: lead.cpf, lead_id: String(lead.id), nome: lead.nome, telefone: lead.telefone };
             try {
                 await colocarNaoContatar({ unidade: lead.unidade || unidadeOperacao, ...pessoa, motivo, colocado_por: consultorLogado });
                 aoColocarNaoContatar(pessoa);

@@ -78,7 +78,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
             ehVisitanteRecepcao(l)
             && String(l.unidade || '').toUpperCase().trim() === unidadeChave
             && !['Fechado', 'Arquivado'].includes(l.status)
-            && !estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id) })
+            && !estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id), telefone: l.telefone })
         );
         const pessoaDoLead = (l, tipo, dia, atrasado = false) => ({
             chave: chaveContatoFeito(tipo, String(l.id), dia),
@@ -94,7 +94,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
             .map(l => pessoaDoLead(l, 'VISITANTE_48H', dataDaVisita(l), true))
             .sort((a, b) => b.referencia.localeCompare(a.referencia));
         const aniv = aniversariantes
-            .filter(a => !estaNaoContatar(naoContatar, { cpf: a.cpf, alunoId: a.aluno_id }))
+            .filter(a => !estaNaoContatar(naoContatar, { cpf: a.cpf, alunoId: a.aluno_id, telefone: a.telefone }))
             .map(a => ({
                 chave: chaveContatoFeito('ANIVERSARIO', String(a.aluno_id), hoje),
                 tipo: 'ANIVERSARIO', referencia: hoje, lead: null, lead_id: null, aluno_id: a.aluno_id,
@@ -258,7 +258,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                     quem={operador}
                     onFechar={() => setBloqueando(null)}
                     onFeito={(p) => {
-                        setNaoContatar(prev => incluirNaoContatar(prev, { cpf: p.cpf, leadId: p.lead_id, alunoId: p.aluno_id }));
+                        setNaoContatar(prev => incluirNaoContatar(prev, { cpf: p.cpf, leadId: p.lead_id, alunoId: p.aluno_id, telefone: p.telefone }));
                         if (onNaoContatar) onNaoContatar(p);
                     }}
                 />

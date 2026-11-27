@@ -2,6 +2,7 @@ import { supabase } from '../../supabaseClient.js';
 import { ligarPara } from '../../components/celular/telefone.js';
 import { MENSAGENS_PADRAO, apenasDigitos, diaISO } from './utils';
 import { textoDoBanco, definirMensagensEmUso } from './embaralhador.js';
+import { chaveTelefoneBloqueio } from './telefoneBloqueio.js';
 
 // ==========================================
 // TABELAS DO CRM CRIADAS NA ETAPA B (rodadas pelo dono no Supabase)
@@ -246,11 +247,13 @@ export const carregarContatosDoAluno = async (alunoId, leadIds = []) => {
 };
 
 // Quem pediu para não receber contato. Reconhece pelo CPF, pelo contato do CRM e pelo aluno
-// (contato vindo de lista do TECACE pode não ter CPF).
-const chavesDaPessoa = ({ cpf, leadId, alunoId }) => [
+// (contato vindo de lista do TECACE pode não ter CPF) e, desde 27/11/2026, também pelo TELEFONE.
+const chavesDaPessoa = ({ cpf, leadId, alunoId, telefone, telefones }) => [
     apenasDigitos(cpf) && `cpf:${apenasDigitos(cpf)}`,
     leadId && `lead:${leadId}`,
-    alunoId && `aluno:${alunoId}`
+    alunoId && `aluno:${alunoId}`,
+    chaveTelefoneBloqueio(telefone) && `tel:${chaveTelefoneBloqueio(telefone)}`,
+    ...(telefones || []).map(chave => `tel:${chave}`) // chaves já prontas, guardadas no banco
 ].filter(Boolean);
 
 export const estaNaoContatar = (conjunto, pessoa) => chavesDaPessoa(pessoa).some(c => conjunto.has(c));
@@ -263,9 +266,10 @@ export const incluirNaoContatar = (conjunto, pessoa) => {
 };
 
 export const carregarNaoContatar = async () => {
-    const { data, error } = await supabase.from('crm_nao_contatar').select('cpf, lead_id, aluno_id').eq('ativo', true);
+    // select('*'): a coluna telefones_chave só existe depois do SQL de 27/11; sem ele, vale CPF/contato/aluno como antes
+    const { data, error } = await supabase.from('crm_nao_contatar').select('*').eq('ativo', true);
     if (error) { console.warn('Tabela crm_nao_contatar indisponível:', error.message || error); return new Set(); }
-    return (data || []).reduce((conjunto, r) => incluirNaoContatar(conjunto, { cpf: r.cpf, leadId: r.lead_id, alunoId: r.aluno_id }), new Set());
+    return (data || []).reduce((conjunto, r) => incluirNaoContatar(conjunto, { cpf: r.cpf, leadId: r.lead_id, alunoId: r.aluno_id, telefones: r.telefones_chave }), new Set());
 };
 
 // Alunos da unidade que fazem aniversário hoje (consulta segura no Supabase)

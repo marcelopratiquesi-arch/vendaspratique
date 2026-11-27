@@ -7,7 +7,7 @@ import ModalAluno from '../../components/Modals/ModalAluno.jsx';
 import EtiquetasUnidade from '../../components/EtiquetasUnidade.jsx';
 import { UserPlus, Target, Send, Loader2, CheckCircle2, Briefcase, AlertTriangle, UserRoundPen, Search, RefreshCw, PhoneOff, User, Phone, ChevronDown, MessageCircle } from 'lucide-react';
 import { montarMensagem, MENSAGENS_PADRAO } from '../CrmVisitantes/embaralhador.js';
-import { carregarMensagensProntas } from '../CrmVisitantes/contatosFeitos.js';
+import { carregarMensagensProntas, carregarNaoContatar, estaNaoContatar } from '../CrmVisitantes/contatosFeitos.js';
 import { textoMensagemEnviada } from '../CrmVisitantes/utils.js';
 import { tentarAbrirNoWhatsApp, abrirNoWhatsApp } from '../../components/whatsapp.js';
 import { avisar } from '../../components/avisar.js';
@@ -362,7 +362,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 vendedor: vendedorSelecionado, 
                 observacao: leadForm.observacao,
                 origem: 'RECEPCAO', 
-                status: 'Novo', 
+                status: visitanteBloqueado ? 'Arquivado' : 'Novo', 
                 data_criacao: agora,
                 criado_por: usuarioLogado?.nome || 'SISTEMA',
                 puxado_em: agora,
@@ -380,6 +380,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 throw error; 
             }
             
+            if (visitanteBloqueado) avisar(tx('Visita registrada. Esta pessoa está no "Não contatar": o WhatsApp não foi aberto.'), 'atencao');
             setSucesso(true);
             setTimeout(() => {
                 setSucesso(false);
@@ -410,6 +411,17 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         return () => { ativo = false; clearTimeout(t); };
     }, [modo, telRapido]);
 
+    // "Não contatar" (27/11/2026): a visita é registrada, mas sem WhatsApp e fora das listas de contato
+    const [bloqueados, setBloqueados] = useState(() => new Set());
+    useEffect(() => {
+        let ativo = true;
+        carregarNaoContatar().then(lista => { if (ativo) setBloqueados(lista); });
+        return () => { ativo = false; };
+    }, []);
+    const visitanteBloqueado = modo === 'rapido'
+        ? estaNaoContatar(bloqueados, { cpf: cpfRapido.length === 11 ? cpfRapido : '', telefone: telRapido })
+        : Boolean(alunoEncontrado) && estaNaoContatar(bloqueados, { cpf: alunoEncontrado.cpf, alunoId: alunoEncontrado.id, telefone: alunoEncontrado.telefone });
+
     // Caminho único (decisão do dono, 07/11/2026): "Salvar e enviar no WhatsApp". O WhatsApp abre NO CLIQUE
     // (igual ao CRM, sem bloqueio do navegador) e o visitante é salvo em seguida, já em "Em Contato", com a
     // boas-vindas no histórico em nome de quem atendeu (conta na meta dela).
@@ -423,7 +435,8 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
         envioTravadoRef.current = true;
         const textoEnviado = textoBoasVindas;
         const telefone = telRapido;
-        const abriu = tentarAbrirNoWhatsApp(telefone, textoEnviado);
+        const bloqueado = visitanteBloqueado;
+        const abriu = bloqueado || tentarAbrirNoWhatsApp(telefone, textoEnviado);
         setIsSubmitting(true);
         try {
             const agora = new Date().toISOString();
@@ -439,7 +452,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 observacao: leadForm.observacao,
                 origem: 'RECEPCAO',
                 // Já mandou a boas-vindas: entra em "Em Contato" (WhatsApp em "Novo" move sozinho, regra de 06/11)
-                status: 'Em Contato',
+                status: bloqueado ? 'Arquivado' : 'Em Contato',
                 data_criacao: agora,
                 criado_por: usuarioLogado?.nome || 'SISTEMA',
                 puxado_em: agora,
@@ -451,7 +464,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 throw error;
             }
             const leadId = salvos?.[0]?.id;
-            if (leadId) {
+            if (leadId && !bloqueado) {
                 const { error: erroHist } = await supabase.from('historico_leads').insert([
                     { lead_id: String(leadId), tipo_acao: 'WhatsApp', consultor: leadForm.vendedor, observacao: textoMensagemEnviada(textoEnviado, 'Boas-vindas') },
                     { lead_id: String(leadId), tipo_acao: 'Mudança de Fase', consultor: leadForm.vendedor, observacao: 'Movido de "Novo" para "Em Contato" (automático: WhatsApp)' }
@@ -459,6 +472,7 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                 if (erroHist) console.warn('Boas-vindas: visitante salvo, mas o histórico não foi gravado:', erroHist.message);
             }
             setModeloBV(modeloBoasVindas(mensagensProntas));
+            if (bloqueado) avisar(tx('Visita registrada. Esta pessoa está no "Não contatar": o WhatsApp não foi aberto.'), 'atencao');
             setSucesso(true);
             // Navegador bloqueou a aba: o aviso de sucesso mostra o botão "Abrir o WhatsApp"
             if (!abriu) { setWhatsPendente({ telefone, texto: textoEnviado }); return; }
@@ -514,6 +528,13 @@ const FormVisitante = ({ usuarioLogado, unidades, colaboradores, voltarHub }) =>
                                 </div>
                             )}
                         </div>
+                    </div>
+                )}
+
+                {visitanteBloqueado && (
+                    <div role="alert" className="bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300 rounded-2xl px-4 py-3 text-xs font-bold flex items-start gap-2">
+                        <PhoneOff className="w-4 h-4 shrink-0 mt-0.5" />
+                        <span>{tx('Esta pessoa (CPF ou telefone) está no "Não contatar". A visita é registrada, mas não envie mensagem nem ligue.')}</span>
                     </div>
                 )}
 

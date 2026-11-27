@@ -193,7 +193,7 @@ const PainelInicialCrm = ({ usuarioLogado, recepcionistas: recepcionistasTodas =
             .forEach(l => {
                 const visita = dataDaVisita(l);
                 if (!visita) return;
-                const semPendencia = ['Fechado', 'Arquivado'].includes(l.status) || estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id) });
+                const semPendencia = ['Fechado', 'Arquivado'].includes(l.status) || estaNaoContatar(naoContatar, { cpf: l.cpf, leadId: String(l.id), telefone: l.telefone });
                 [['VISITANTE_24H', 1, '24'], ['VISITANTE_48H', 2, '48']].forEach(([tipo, dias, sufixo]) => {
                     const prazo = somarDiasISO(visita, dias);
                     if (prazo > hoje || (inicioISO && prazo < inicioISO) || (fimISO && prazo >= fimISO)) return;
