@@ -10,6 +10,8 @@ import {
     carregarNaoContatar, carregarAniversariantes, chaveContatoFeito, estaNaoContatar, incluirNaoContatar, ligarPeloSip
 } from './contatosFeitos';
 import MensagensProntas from './MensagensProntas';
+import NumeroErrado from './TelefoneErrado.jsx';
+import { numeroErrado } from './telefoneValido.js';
 import { montarMensagem, previaMensagem, ROTULOS_MENSAGENS } from './embaralhador.js';
 import { avisar } from '../../components/avisar.js';
 import { tx, localeAtual } from '../../i18n/traduzir.js';
@@ -119,7 +121,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
 
     // Ligar (MicroSIP): conta como feito com o meio LIGACAO e registra a ligação no funil (visitante)
     const ligar = async (pessoa) => {
-        if (!pessoa.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
+        if (numeroErrado(pessoa)) return;
         ligarPeloSip(pessoa.telefone);
         if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${pessoa.telefone}`);
         await marcarFeito(pessoa, { canal: 'LIGACAO' });
@@ -127,7 +129,7 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
 
     // Anti-golpe: abrir o WhatsApp JÁ conta como feito (canal WHATSAPP) e tira a pessoa da lista
     const abrirWhatsApp = async (pessoa) => {
-        if (!pessoa.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
+        if (numeroErrado(pessoa)) return;
         const texto = textoDe(pessoa);
         abrirNoWhatsApp(pessoa.telefone, texto);
         if (pessoa.lead && registrarHistorico) await registrarHistorico(pessoa.lead.id, 'WhatsApp', textoMensagemEnviada(texto, rotuloDe(pessoa)));
@@ -221,12 +223,13 @@ const ContatosDeHoje = ({ unidade, operador, leads = [], usuarioLogado, aberto, 
                                                 <div className="min-w-0">
                                                     <p className="text-sm font-black text-slate-800 dark:text-white uppercase truncate max-md:whitespace-normal max-md:break-words">{p.nome}</p>
                                                     <p className="text-[10px] font-bold text-slate-400 truncate max-md:whitespace-normal max-md:text-[11px]">{p.telefone || tx("Sem telefone")} · {p.detalhe}</p>
+                                                    {numeroErrado(p) && <NumeroErrado lead={p.lead} className="mt-1" />}
                                                 </div>
                                                 <div className="flex items-center gap-2 shrink-0">
-                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave} className="max-md:h-11 max-md:flex-1 max-md:justify-center px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: previaDe(p) })}>
+                                                    <button type="button" onClick={() => abrirWhatsApp(p)} disabled={marcando === p.chave || numeroErrado(p)} className="max-md:h-11 max-md:flex-1 max-md:justify-center px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato:\n\n{v1}", { v1: previaDe(p) })}>
                                                         {marcando === p.chave ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                                     </button>
-                                                    <button type="button" onClick={() => ligar(p)} disabled={marcando === p.chave || !p.telefone} className="max-md:h-11 max-md:flex-1 max-md:justify-center px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
+                                                    <button type="button" onClick={() => ligar(p)} disabled={marcando === p.chave || numeroErrado(p)} className="max-md:h-11 max-md:flex-1 max-md:justify-center px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
                                                         <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
                                                     </button>
                                                     {/* "Feito sem WhatsApp" saiu da aba Hoje (decisão do dono, 10/11/2026: "senão o pessoal vai tudo usar ele") */}

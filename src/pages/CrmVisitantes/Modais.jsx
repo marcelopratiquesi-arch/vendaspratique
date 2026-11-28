@@ -10,6 +10,8 @@ import {
 import { avisar } from '../../components/avisar.js';
 import { tx } from '../../i18n/traduzir.js';
 import { ligarPara } from '../../components/celular/telefone.js';
+import NumeroErrado from './TelefoneErrado.jsx';
+import { numeroErrado } from './telefoneValido.js';
 
 const Modais = ({
     modalWpp, setModalWpp,
@@ -85,13 +87,13 @@ const Modais = ({
     // AÇÕES DE VENDAS E HISTÓRICO
     // ==========================================
     const handleLigarMicroSip = async (lead) => {
-        if(!lead || !lead.telefone) return;
+        if(!lead || numeroErrado(lead)) return;
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico direto da Ficha (MicroSIP) para o número ${lead.telefone}`);
         ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     };
 
     const enviarWppDireto = async () => {
-        if (!modalWpp.lead) return;
+        if (!modalWpp.lead || numeroErrado(modalWpp.lead)) return;
         await registrarHistorico(modalWpp.lead.id, 'WhatsApp', textoMensagemEnviada(modalWpp.texto, rotuloMensagemDoLead(modalWpp.lead)));
         abrirNoWhatsApp(modalWpp.lead.telefone, modalWpp.texto);
         const leadContatado = modalWpp.lead;
@@ -303,6 +305,7 @@ const Modais = ({
                             </div>
                             <textarea value={modalWpp.texto} onChange={(e) => setModalWpp({ ...modalWpp, texto: e.target.value })} className="flex-1 w-full max-md:min-h-[200px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 md:p-5 text-sm font-medium text-slate-700 dark:text-slate-200 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none resize-none transition-all custom-scrollbar leading-relaxed shadow-inner dark:focus:bg-slate-900"></textarea>
                         </div>
+                        {numeroErrado(modalWpp.lead) && <div className="px-3 md:px-5 pb-2 shrink-0"><NumeroErrado lead={modalWpp.lead} /></div>}
                         <div className="p-3 md:p-5 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/60 flex gap-2 md:gap-4 shrink-0">
                             <button onClick={() => {
                                 navigator.clipboard.writeText(modalWpp.texto);
@@ -315,7 +318,7 @@ const Modais = ({
                             }} className="flex-1 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
                                 <Copy className="w-4 h-4" />{' '}{tx("Copiar")}
                             </button>
-                            <button onClick={enviarWppDireto} className="flex-[2] py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
+                            <button onClick={enviarWppDireto} disabled={numeroErrado(modalWpp.lead)} className="disabled:opacity-40 disabled:pointer-events-none flex-[2] py-3.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black uppercase tracking-widest text-[11px] rounded-xl transition-all shadow-[0_4px_15px_rgba(16,185,129,0.3)] flex items-center justify-center gap-2">
                                 <Send className="w-4 h-4" />{' '}{tx("Enviar Mensagem")}
                             </button>
                         </div>
@@ -339,6 +342,7 @@ const Modais = ({
                                 </div>
                                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm font-bold text-slate-400">
                                     <span className="flex items-center gap-2 text-blue-300"><Phone className="w-4 h-4" /> {modalDetalhe.lead.telefone}</span>
+                                    {numeroErrado(modalDetalhe.lead) && <span className="pointer-events-auto" onMouseDown={(e) => e.stopPropagation()}><NumeroErrado lead={modalDetalhe.lead} /></span>}
                                     {modalDetalhe.lead.cpf && <span className="flex items-center gap-2"><IdCard className="w-4 h-4" /> {modalDetalhe.lead.cpf}</span>}
                                 </div>
                             </div>
@@ -355,15 +359,17 @@ const Modais = ({
                                 {/* BOTÕES GIGANTES DE AÇÃO DIRETA */}
                                 <div className="p-4 lg:p-6 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/60 flex gap-3 lg:gap-4 shrink-0">
                                     <button 
-                                        onClick={() => handleLigarMicroSip(modalDetalhe.lead)} 
-                                        className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-200 dark:border-blue-500/30 py-4 rounded-2xl transition-all shadow-sm group"
+                                        onClick={() => handleLigarMicroSip(modalDetalhe.lead)}
+                                        disabled={numeroErrado(modalDetalhe.lead)}
+                                        className="disabled:opacity-40 disabled:pointer-events-none flex-1 flex flex-col items-center justify-center gap-2.5 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-200 dark:border-blue-500/30 py-4 rounded-2xl transition-all shadow-sm group"
                                     >
                                         <PhoneCall className="w-6 h-6" />
                                         <span className="text-[10px] font-black uppercase tracking-widest">{tx("Ligar")}</span>
                                     </button>
                                     <button 
-                                        onClick={() => abrirWhatsAppPelaFicha(modalDetalhe.lead)} 
-                                        className="flex-1 flex flex-col items-center justify-center gap-2.5 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-200 dark:border-emerald-500/30 py-4 rounded-2xl transition-all shadow-sm group"
+                                        onClick={() => abrirWhatsAppPelaFicha(modalDetalhe.lead)}
+                                        disabled={numeroErrado(modalDetalhe.lead)}
+                                        className="disabled:opacity-40 disabled:pointer-events-none flex-1 flex flex-col items-center justify-center gap-2.5 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-200 dark:border-emerald-500/30 py-4 rounded-2xl transition-all shadow-sm group"
                                     >
                                         <MessageCircle className="w-6 h-6" />
                                         <span className="text-[10px] font-black uppercase tracking-widest">{tx("WhatsApp")}</span>

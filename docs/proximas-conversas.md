@@ -36,6 +36,10 @@ Falta conferir depois de publicar: puxar 10 no Resgate e na Migração (sem 409 
 - Depois: `3_wellhub_previa.sql` e `4_wellhub_aplicar.sql`.
 - Conferir antes: a Geladeira de 90 dias devolve ao Banco Bruto contatos que podem estar com telefone estragado.
 
+**Estado (27/11, noite):** tela com "Número errado" + "Corrigir número" e não distribuição FEITAS no computador. 1b rodado: 4.565 estragados, 919 com celular no campo CPF, 41 em dúvida. Passo 2 REESCRITO (já trata celular no CPF e dois telefones) e testado em banco de mentira. Falta: publicar, rodar 1c (prévia), conferir, e só então o passo 2 FORA do horário de movimento. Os itens acima sobre "ajustar antes do passo 2" já estão no novo passo 2; falta ainda investigar os CPFs do Prado e os de Wellhub.
+
+**Atualização (27/11, ~21h):** 1c e passo 2 RODADOS e conferidos (1.366 consertados, 3.189 separados, 0 estragados na fila, total 45.534 igual). Telas publicadas em seguida. **Não rodar o passo 2 de novo.** Falta: Wellhub (passos 3 e 4) e investigar os telefones do Prado.
+
 ## Conversa 3: Banco Bruto com 300
 **Frase:** "Leia docs/proximas-conversas.md e vamos fazer a Conversa 3: Banco Bruto de 300."
 Decisões fechadas: baixar no máximo **300 por unidade**, os **mais antigos** (ordem do Distribuir); mostrar "300 disponíveis · X no banco"; repor quando a recepção puxa; **busca no banco inteiro da unidade**; "Dividir igualmente" reparte os 300.

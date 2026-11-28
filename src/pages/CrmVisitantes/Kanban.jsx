@@ -4,6 +4,8 @@ import { PhoneCall, MessageCircle, CalendarClock, CalendarPlus, IdCard, Inbox, T
 import { EtiquetaParado, EtiquetaProximo, EtiquetaResultado } from './EtiquetasCrm';
 import { tx } from '../../i18n/traduzir.js';
 import { ligarPara } from '../../components/celular/telefone.js';
+import NumeroErrado from './TelefoneErrado.jsx';
+import { numeroErrado } from './telefoneValido.js';
 import Dica from '../../components/celular/Dica.jsx';
 
 // ==========================================
@@ -74,6 +76,7 @@ const LeadCard = memo(({
                     {lead.nome}
                 </h4>
                 <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{lead.telefone}</p>
+                {numeroErrado(lead) && <NumeroErrado lead={lead} />}
             </div>
 
             <div className="space-y-2 mb-4 relative z-10">
@@ -98,7 +101,7 @@ const LeadCard = memo(({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => onLigar(lead)}
-                        disabled={!lead.telefone}
+                        disabled={numeroErrado(lead)}
                         className="flex-1 bg-blue-50 dark:bg-blue-500/10 hover:bg-blue-600 text-blue-600 dark:text-blue-400 hover:text-white border border-blue-100 dark:border-blue-500/20 h-9 max-md:h-11 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                         title={tx("Ligar (MicroSIP)")}
                         aria-label={tx("Ligar")}
@@ -107,7 +110,7 @@ const LeadCard = memo(({
                     </button>
                     <button
                         onClick={() => onWpp(lead)}
-                        disabled={!lead.telefone}
+                        disabled={numeroErrado(lead)}
                         className="flex-1 bg-emerald-50 dark:bg-emerald-500/10 hover:bg-emerald-600 text-emerald-600 dark:text-emerald-400 hover:text-white border border-emerald-100 dark:border-emerald-500/20 h-9 max-md:h-11 rounded-lg flex items-center justify-center transition-colors shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                         title={tx("Chamar no WhatsApp")}
                     >
@@ -234,13 +237,13 @@ const Kanban = ({
     }, [visitantes, ordem]);
 
     const handleLigarMicroSip = useCallback(async (lead) => {
-        if (!lead.telefone) return;
+        if (numeroErrado(lead)) return;
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
         ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     }, [registrarHistorico]);
 
     const abrirModalWpp = useCallback((lead) => {
-        if (!lead.telefone) return;
+        if (numeroErrado(lead)) return;
         import('./utils').then(module => {
             const textoPadrao = module.gerarTextoWhatsApp(lead);
             setModalWpp({ show: true, lead, texto: textoPadrao });

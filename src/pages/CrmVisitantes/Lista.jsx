@@ -5,6 +5,8 @@ import { EtiquetaParado, EtiquetaProximo, EtiquetaResultado } from './EtiquetasC
 import FichaAlunoPopup from './FichaAlunoPopup';
 import { tx } from '../../i18n/traduzir.js';
 import { ligarPara } from '../../components/celular/telefone.js';
+import NumeroErrado from './TelefoneErrado.jsx';
+import { numeroErrado } from './telefoneValido.js';
 import { OrdenarCelular } from '../../components/celular/Cartao.jsx';
 
 const Lista = ({ 
@@ -33,12 +35,13 @@ const Lista = ({
 
     // Igual ao Kanban: a ligação fica registrada no histórico do contato
     const handleLigarMicroSip = async (lead) => {
-        if (!lead?.telefone) return;
+        if (numeroErrado(lead)) return;
         if (registrarHistorico) await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
         ligarPara(lead.telefone); // computador: MicroSIP · celular: discador
     };
 
     const abrirModalWpp = (lead) => {
+        if (numeroErrado(lead)) return;
         import('./utils').then(module => {
             const textoPadrao = module.gerarTextoWhatsApp(lead);
             setModalWpp({ show: true, lead: lead, texto: textoPadrao });
@@ -102,8 +105,8 @@ const Lista = ({
     };
 
     // CELULAR (26/11/2026): as mesmas ações da tabela, com nome embaixo do ícone
-    const botaoCartao = (chave, Icone, rotulo, onClick, cor) => (
-        <button key={chave} type="button" onClick={onClick} className={`min-h-12 px-1 py-1 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-black uppercase tracking-wide text-center leading-tight ${cor}`}>
+    const botaoCartao = (chave, Icone, rotulo, onClick, cor, desligado = false) => (
+        <button key={chave} type="button" onClick={onClick} disabled={desligado} className={`disabled:opacity-40 min-h-12 px-1 py-1 rounded-xl border flex flex-col items-center justify-center gap-0.5 text-[10px] font-black uppercase tracking-wide text-center leading-tight ${cor}`}>
             <Icone className="w-4 h-4 shrink-0" />{rotulo}
         </button>
     );
@@ -207,6 +210,7 @@ const Lista = ({
                                         <div className="min-w-0 flex-1">
                                             <button type="button" onClick={() => setContatoFicha(v)} className="text-left text-[13px] font-black uppercase break-words text-blue-700 dark:text-blue-400 underline underline-offset-2">{v.nome}</button>
                                             <p className="text-[13px] font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
+                                            {numeroErrado(v) && <NumeroErrado lead={v} className="mt-1" />}
                                             <p className="text-[10px] font-bold text-slate-400 uppercase">{tx("Entrada (Puxado)")}: {formatarDataHora(v.puxado_em || dataDoLead(v))}</p>
                                             <div className="flex flex-wrap gap-1.5 mt-1">
                                                 <span className={`text-[10px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded inline-block border shadow-sm ${classeTipoLead(v.tipo_lead)}`}>{tx(v.tipo_lead || 'LEAD')}</span>
@@ -221,8 +225,8 @@ const Lista = ({
                                         {COLUNAS_TELA.map(c => <option key={c} value={c}>{tx(c)}</option>)}
                                     </select>
                                     <div className="grid grid-cols-3 gap-2">
-                                        {botaoCartao('wpp', MessageCircle, tx("WhatsApp"), () => abrirModalWpp(v), 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-500/20')}
-                                        {botaoCartao('ligar', PhoneCall, tx("Ligar"), () => handleLigarMicroSip(v), azul)}
+                                        {botaoCartao('wpp', MessageCircle, tx("WhatsApp"), () => abrirModalWpp(v), 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-100 dark:border-emerald-500/20', numeroErrado(v))}
+                                        {botaoCartao('ligar', PhoneCall, tx("Ligar"), () => handleLigarMicroSip(v), azul, numeroErrado(v))}
                                         {botaoCartao('ficha', Info, tx("Ficha Completa"), () => abrirFichaLead(v), neutro)}
                                         {onProximoContato && botaoCartao('prox', CalendarPlus, tx("Próximo contato"), () => onProximoContato(v), azul)}
                                         {onNaoContatar && botaoCartao('nao', Ban, tx("Não contatar"), () => onNaoContatar(v), neutro)}
@@ -301,6 +305,7 @@ const Lista = ({
                                         </td>
                                         <td className="px-6 py-3">
                                             <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
+                                            {numeroErrado(v) && <NumeroErrado lead={v} className="mt-1" />}
                                         </td>
                                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                                             <select 
@@ -316,10 +321,10 @@ const Lista = ({
                                         </td>
                                         <td className="px-6 py-3" onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center justify-end gap-2">
-                                                <button onClick={() => handleLigarMicroSip(v)} className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title={tx("Ligar")}>
+                                                <button onClick={() => handleLigarMicroSip(v)} disabled={numeroErrado(v)} className="disabled:opacity-40 disabled:pointer-events-none w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-blue-100 dark:border-blue-500/20" title={tx("Ligar")}>
                                                     <PhoneCall className="w-4 h-4" />
                                                 </button>
-                                                <button onClick={() => abrirModalWpp(v)} className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 dark:border-emerald-500/20" title={tx("WhatsApp")}>
+                                                <button onClick={() => abrirModalWpp(v)} disabled={numeroErrado(v)} className="disabled:opacity-40 disabled:pointer-events-none w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-emerald-100 dark:border-emerald-500/20" title={tx("WhatsApp")}>
                                                     <MessageCircle className="w-4 h-4" />
                                                 </button>
                                                 <button onClick={() => abrirFichaLead(v)} className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-center transition-colors shadow-sm border border-slate-200 dark:border-slate-800" title={tx("Ficha Completa")}>

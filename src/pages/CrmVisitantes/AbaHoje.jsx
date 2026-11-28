@@ -4,7 +4,8 @@ import { ligarPeloSip } from './contatosFeitos';
 import { JanelaJustificativa } from './JanelasContato';
 import { EtiquetaParado, EtiquetaResultado } from './EtiquetasCrm';
 import { situacaoProximoContato, formatarDiaCurto, gerarTextoWhatsApp, abrirNoWhatsApp, classeTipoLead, textoMensagemEnviada, rotuloMensagemDoLead } from './utils';
-import { avisar } from '../../components/avisar.js';
+import NumeroErrado from './TelefoneErrado.jsx';
+import { numeroErrado } from './telefoneValido.js';
 import { tx } from '../../i18n/traduzir.js';
 
 // ==========================================
@@ -36,7 +37,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
     }, [visitantes]);
 
     const abrirWhatsApp = async (lead) => {
-        if (!lead.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
+        if (numeroErrado(lead)) return;
         const texto = gerarTextoWhatsApp(lead);
         abrirNoWhatsApp(lead.telefone, texto);
         setRegistrando(lead.id);
@@ -47,7 +48,7 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
 
     // Ligar (MicroSIP): registra a ligação (conta na meta) e pergunta o próximo contato
     const ligar = async (lead) => {
-        if (!lead.telefone) return avisar(tx("Este contato está sem telefone cadastrado."));
+        if (numeroErrado(lead)) return;
         ligarPeloSip(lead.telefone);
         setRegistrando(lead.id);
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
@@ -104,12 +105,13 @@ const AbaHoje = ({ visitantes = [], registrarHistorico, abrirFicha, onPedirProxi
                                                 {v.telefone || tx("Sem telefone")} · {tx(v.status)}
                                                 {g.chave === 'atrasado' && <span className="text-rose-600 dark:text-rose-400">{' '}{tx("· marcado para")}{' '}{formatarDiaCurto(v.proximo_contato)}</span>}
                                             </p>
+                                            {numeroErrado(v) && <NumeroErrado lead={v} className="mt-1" />}
                                         </div>
                                         <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                            <button type="button" onClick={() => abrirWhatsApp(v)} disabled={registrando === v.id} className="max-md:h-11 max-md:basis-[calc(50%-0.25rem)] max-md:justify-center px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato")}>
+                                            <button type="button" onClick={() => abrirWhatsApp(v)} disabled={registrando === v.id || numeroErrado(v)} className="max-md:h-11 max-md:basis-[calc(50%-0.25rem)] max-md:justify-center px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Abre o WhatsApp e já registra o contato")}>
                                                 {registrando === v.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5" />}{' '}{tx("WhatsApp")}
                                             </button>
-                                            <button type="button" onClick={() => ligar(v)} disabled={registrando === v.id || !v.telefone} className="max-md:h-11 max-md:basis-[calc(50%-0.25rem)] max-md:justify-center px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
+                                            <button type="button" onClick={() => ligar(v)} disabled={registrando === v.id || numeroErrado(v)} className="max-md:h-11 max-md:basis-[calc(50%-0.25rem)] max-md:justify-center px-3 py-2 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white disabled:opacity-60 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-colors" title={tx("Ligar (MicroSIP) e já registrar o contato")}>
                                                 <PhoneCall className="w-3.5 h-3.5" />{' '}{tx("Ligar")}
                                             </button>
                                             {/* "Feito sem WhatsApp" saiu da aba Hoje (decisão do dono, 10/11/2026: "senão o pessoal vai tudo usar ele") */}

@@ -18,6 +18,8 @@ import {
 import { tx, localeAtual } from '../../i18n/traduzir.js';
 import { useEhCelular } from '../../components/celular/ehCelular.js';
 import { ligarPara } from '../../components/celular/telefone.js';
+import NumeroErrado from './TelefoneErrado.jsx';
+import { numeroErrado } from './telefoneValido.js';
 
 // ==========================================
 // MODO CONVERSA DO CRM (decisão do dono, 06/11/2026)
@@ -385,7 +387,7 @@ const Conversa = ({
     }, []);
 
     const enviarWhatsApp = async () => {
-        if (!lead || !lead.telefone || !texto.trim() || enviando) return;
+        if (!lead || numeroErrado(lead) || !texto.trim() || enviando) return;
         setEnviando(true);
         const enviado = texto;
         const doDia = pessoaPendente;
@@ -410,7 +412,7 @@ const Conversa = ({
     };
 
     const ligar = async () => {
-        if (!lead?.telefone) return;
+        if (!lead || numeroErrado(lead)) return;
         const doDia = pessoaPendente;
         await registrarHistorico(lead.id, 'Ligação', `Tentativa de contato telefônico (MicroSIP) para o número ${lead.telefone}`);
         if (doDia) await contatosDoDia.acoes.marcarFeito(doDia, { canal: 'LIGACAO' });
@@ -631,6 +633,7 @@ const Conversa = ({
                         <div className="min-w-0 flex-1">
                             <p className="text-sm font-black uppercase text-slate-800 dark:text-white truncate">{pessoaDiaAtual.nome}</p>
                             <p className="text-[10px] font-bold text-slate-400 truncate">{pessoaDiaAtual.telefone || tx('sem telefone')} · {pessoaDiaAtual.detalhe}</p>
+                            {numeroErrado(pessoaDiaAtual) && <NumeroErrado lead={pessoaDiaAtual.lead} className="mt-1" />}
                         </div>
                     </div>
                     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain custom-scrollbar px-3 md:px-6 py-4 space-y-3 bg-slate-100/70 dark:bg-slate-950/40">
@@ -658,11 +661,11 @@ const Conversa = ({
                         ))}
                     </div>
                     <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3 max-md:pb-[max(0.75rem,env(safe-area-inset-bottom))] flex flex-wrap gap-2 justify-end">
-                        <button type="button" onClick={() => contatosDoDia?.acoes?.ligar(pessoaDiaAtual)} disabled={!pessoaDiaAtual.telefone}
+                        <button type="button" onClick={() => contatosDoDia?.acoes?.ligar(pessoaDiaAtual)} disabled={numeroErrado(pessoaDiaAtual)}
                             className="h-11 max-md:flex-1 max-md:justify-center px-4 rounded-xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
                             <PhoneCall className="w-4 h-4" />{tx('Ligar')}
                         </button>
-                        <button type="button" onClick={() => contatosDoDia?.acoes?.abrirWhatsApp(pessoaDiaAtual)} disabled={!pessoaDiaAtual.telefone}
+                        <button type="button" onClick={() => contatosDoDia?.acoes?.abrirWhatsApp(pessoaDiaAtual)} disabled={numeroErrado(pessoaDiaAtual)}
                             className="h-11 max-md:flex-1 max-md:justify-center max-md:min-w-[200px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm disabled:opacity-50" title={tx('Abre o WhatsApp com a mensagem e registra o contato')}>
                             <Send className="w-4 h-4" />{tx('Enviar parabéns no WhatsApp')}
                         </button>
@@ -696,7 +699,7 @@ const Conversa = ({
                                 )}
                             </div>
                         </div>
-                        <button type="button" onClick={ligar} disabled={!lead.telefone} className="h-9 w-9 max-md:h-10 max-md:w-10 shrink-0 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center disabled:opacity-40" title={tx('Ligar (MicroSIP)')} aria-label={tx('Ligar')}>
+                        <button type="button" onClick={ligar} disabled={numeroErrado(lead)} className="h-9 w-9 max-md:h-10 max-md:w-10 shrink-0 rounded-lg border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-600 hover:text-white flex items-center justify-center disabled:opacity-40" title={tx('Ligar (MicroSIP)')} aria-label={tx('Ligar')}>
                             <PhoneCall className="w-4 h-4" />
                         </button>
                         <div className="hidden sm:flex items-center">
@@ -707,6 +710,12 @@ const Conversa = ({
                             {detalhesAbertos ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
                         </button>
                     </div>
+
+                    {numeroErrado(lead) && (
+                        <div className="px-3 md:px-4 py-2 border-b border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/10">
+                            <NumeroErrado lead={lead} />
+                        </div>
+                    )}
 
                     {/* Detalhes por cima da conversa (telas menores) */}
                     {detalhesAbertos && (
@@ -793,8 +802,8 @@ const Conversa = ({
                                     className="flex-1 min-w-0 resize-none rounded-xl border border-amber-200 dark:border-amber-500/30 bg-amber-50/60 dark:bg-amber-500/10 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 outline-none focus:ring-2 focus:ring-amber-500 custom-scrollbar" />
                             )}
                             {modo === 'whatsapp' ? (
-                                <button type="button" onClick={enviarWhatsApp} disabled={enviando || !lead.telefone || !texto.trim()}
-                                    className="h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm disabled:opacity-50" title={lead.telefone ? tx('Abre o WhatsApp com a mensagem e registra o contato') : tx('Contato sem telefone')}>
+                                <button type="button" onClick={enviarWhatsApp} disabled={enviando || numeroErrado(lead) || !texto.trim()}
+                                    className="h-12 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-sm disabled:opacity-50" title={!numeroErrado(lead) ? tx('Abre o WhatsApp com a mensagem e registra o contato') : tx('Número errado')}>
                                     {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}{tx('Enviar')}
                                 </button>
                             ) : (

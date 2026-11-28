@@ -15,7 +15,8 @@ import AbaResgate from './AbaResgate';
 import AbaNaoContatar from './AbaNaoContatar';
 import AbaForaDaFila from './AbaForaDaFila';
 import { MOTIVO_TELEFONE, MOTIVO_JA_ALUNO, MOTIVO_PERSONAL, camposVoltaBanco } from './foraDaFila.js';
-import { telefoneUtilizavel } from './telefoneValido.js';
+import { telefoneUtilizavel, numeroErrado } from './telefoneValido.js';
+import NumeroErrado, { JanelaCorrigirTelefone } from './TelefoneErrado.jsx';
 import { TEXTO_SEM_RESPOSTA, tentativasAnteriores, inicioDoCiclo, contarDiasDeContato, etiquetaDoResultado } from './tentativas.js';
 import { consultarCpfs, motivoImpedimento, PODE_PUXAR } from './contatosPorCpf.js';
 import AbaHoje from './AbaHoje';
@@ -214,6 +215,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const [moverPara, setMoverPara] = useState('');
     const [moverQtd, setMoverQtd] = useState(10);
     const [buscaBase, setBuscaBase] = useState('');
+    const [soNumeroErrado, setSoNumeroErrado] = useState(false);
     const [paginaBase, setPaginaBase] = useState(1);
 
     // Bloco 4: janela do motivo da perda ({ ids, nome, lote }) e do próximo contato ({ lead, posContato })
@@ -923,8 +925,14 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     };
 
     // Envia contatos da Base para uma recepcionista (vira fila dela, como se ela tivesse puxado), sem passar do limite
-    const enviarPara = async (idsPedidos, nomeRecep) => {
-        if (!idsPedidos.length || !nomeRecep) return;
+    const enviarPara = async (idsMarcados, nomeRecep) => {
+        if (!idsMarcados.length || !nomeRecep) return;
+        // Número errado não é distribuído (27/11/2026, decisão do dono 1-A)
+        const comNumeroErrado = new Set(visitantes.filter(numeroErrado).map(v => v.id));
+        const idsPedidos = idsMarcados.filter(id => !comNumeroErrado.has(id));
+        const ficaram = idsMarcados.length - idsPedidos.length;
+        if (ficaram) avisar(tx('{qtd} contato(s) com número errado não foram enviados. Corrija o número primeiro.', { qtd: ficaram }), 'atencao');
+        if (!idsPedidos.length) return;
         const vaga = vagaDe(nomeRecep);
         if (vaga <= 0) return avisar(tx("{nome} já está com {limite} contatos na carteira (o limite). Os contatos ficam no Banco Bruto.", { nome: nomeRecep.split(' ')[0], limite: LIMITE_CARTEIRA }));
         const ids = idsPedidos.slice(0, vaga);
@@ -938,7 +946,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         setSelecionadosBase([]);
     };
     const distribuirLote = () => {
-        const ids = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v))
+        const ids = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v) && !numeroErrado(v))
             .sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, qtdEnvio).map(l => l.id);
         if (!ids.length) return avisar(tx("A Base de Leads está vazia!"));
         enviarPara(ids, recepEnvio);
@@ -946,7 +954,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     // Dividir igualmente (rodízio): reparte TODA a Base da unidade entre as recepcionistas ativas, os mais antigos primeiro
     const dividirIgualmente = async () => {
         const ativas = recepcionistasAtivas;
-        const livres = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v))
+        const livres = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v) && !numeroErrado(v))
             .sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime());
         if (!livres.length) return avisar(tx("A Base de Leads está vazia!"));
         if (ativas.length < 2) return avisar(tx("É preciso ter pelo menos 2 recepcionistas ativas para dividir."));
@@ -1613,6 +1621,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const lideraOuAcompanha = !mesmoNome(usuarioLogado?.nome, consultorLogado);
     // Contatos das abas Migração/Resgate/Wellhub sem dona NÃO são Banco Bruto: ficam esperando na aba deles (16/11/2026)
     const leadsNaBase = visitantes.filter(v => !v.puxado_em && v.status !== 'Arquivado' && !ehContatoDeFila(v) && daUnidadeOperacao(v) && podeContatar(v)).sort((a,b) => new Date(dataDoLead(b)) - new Date(dataDoLead(a)));
+    // Número errado continua à vista no Banco Bruto (para corrigir), mas não é distribuído (27/11/2026)
+    const leadsDistribuiveis = leadsNaBase.filter(v => !numeroErrado(v));
+    const qtdNumeroErrado = leadsNaBase.length - leadsDistribuiveis.length;
     // Nome comparado sem ligar para maiúsculas/acentos (o Novo Visitante grava o consultor em MAIÚSCULAS)
     const meusLeads = visitantes.filter(v => mesmoNome(v.puxado_por, consultorLogado) && v.status !== 'Arquivado' && podeContatar(v));
     // ultima_acao_em: data da última ação (só existe depois de ler o histórico; antes disso a etiqueta "parado" não aparece)
@@ -1662,7 +1673,9 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
     const abaMaisAtiva = abasMais.find(a => a[0] === visaoMostrada) || null;
 
     // Base (piscina): busca por nome, CPF ou telefone e páginas de 50
-    const leadsNaBaseFiltrados = buscaBase.trim() ? leadsNaBase.filter(v => contatoCombinaComBusca(v, buscaBase)) : leadsNaBase;
+    const verSoErrados = soNumeroErrado && qtdNumeroErrado > 0;
+    const leadsNaBaseDaVisao = verSoErrados ? leadsNaBase.filter(numeroErrado) : leadsNaBase;
+    const leadsNaBaseFiltrados = buscaBase.trim() ? leadsNaBaseDaVisao.filter(v => contatoCombinaComBusca(v, buscaBase)) : leadsNaBaseDaVisao;
     const totalPaginasBase = Math.max(1, Math.ceil(leadsNaBaseFiltrados.length / POR_PAGINA_BASE));
     const paginaBaseAtual = Math.min(paginaBase, totalPaginasBase);
     const leadsDaPaginaBase = leadsNaBaseFiltrados.slice((paginaBaseAtual - 1) * POR_PAGINA_BASE, paginaBaseAtual * POR_PAGINA_BASE);
@@ -1804,7 +1817,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         const excedentes = excedentesCarteira();
         const qtdExcedente = excedentes.reduce((t, x) => t + x.ids.length, 0);
         // Antes da lista completa (entrada do CRM), o Banco Bruto vem contado no banco (10/11/2026)
-        const qtdNaBase = listaCompleta ? leadsNaBase.length : (contagemBase ?? 0);
+        const qtdNaBase = listaCompleta ? leadsDistribuiveis.length : (contagemBase ?? 0);
         const passos = [
             { id: 'importar', n: 1, titulo: 'Importar', texto: tx('Smart Paste ou Puxar do cadastro'), destaque: qtdNaBase === 0 },
             { id: 'banco', n: 2, titulo: 'Banco Bruto', texto: tx('{qtd} contatos esperando', { qtd: qtdNaBase }), destaque: false },
@@ -1963,7 +1976,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
 <div className="bg-white dark:bg-slate-900 rounded-[24px] border border-slate-200 dark:border-slate-800 shadow-sm p-4 md:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-2 gap-x-8 gap-y-5">
                             <div>
                                 <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1 flex items-center gap-2"><Send className="w-4 h-4" />{' '}{tx("Distribuir contatos")}</h3>
-                                <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"><strong className="text-blue-600 dark:text-blue-400">{leadsNaBase.length}{' '}{tx("leads")}</strong>{' '}{tx("na Base da unidade. Envie um lote para uma recepcionista (os mais antigos primeiro) ou marque na lista abaixo.")}</p>
+                                <p className="text-[12px] font-semibold text-slate-500 dark:text-slate-400"><strong className="text-blue-600 dark:text-blue-400">{leadsDistribuiveis.length}{' '}{tx("leads")}</strong>{' '}{tx("na Base da unidade. Envie um lote para uma recepcionista (os mais antigos primeiro) ou marque na lista abaixo.")}</p>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <select value={qtdEnvio} onChange={(e) => setQtdEnvio(Number(e.target.value))} className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-3 text-[11px] font-black uppercase tracking-widest max-md:tracking-normal text-slate-700 dark:text-slate-200 outline-none">
@@ -1973,10 +1986,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                     <option value="">{tx("Para quem?")}</option>
                                     {recepcionistasAtivas.map(c => <option key={c.id} value={c.nome}>{c.nome}</option>)}
                                 </select>
-                                <button type="button" onClick={distribuirLote} disabled={!recepEnvio || leadsNaBase.length === 0} className="max-md:flex-1 max-md:justify-center max-md:min-h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
+                                <button type="button" onClick={distribuirLote} disabled={!recepEnvio || leadsDistribuiveis.length === 0} className="max-md:flex-1 max-md:justify-center max-md:min-h-11 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">
                                     <Send className="w-4 h-4" />{' '}{tx("Enviar")}
                                 </button>
-                                <button type="button" onClick={dividirIgualmente} disabled={leadsNaBase.length === 0 || recepcionistasAtivas.length < 2} title={tx("Reparte toda a Base entre as recepcionistas ativas, em rodízio")} className="max-md:flex-1 max-md:justify-center max-md:min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">{tx("Dividir igualmente")}</button>
+                                <button type="button" onClick={dividirIgualmente} disabled={leadsDistribuiveis.length === 0 || recepcionistasAtivas.length < 2} title={tx("Reparte toda a Base entre as recepcionistas ativas, em rodízio")} className="max-md:flex-1 max-md:justify-center max-md:min-h-11 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all flex items-center gap-2 uppercase text-[10px] tracking-widest">{tx("Dividir igualmente")}</button>
                             </div>
                             <div className="pt-4 border-t border-slate-100 dark:border-slate-800 lg:pt-0 lg:border-t-0 lg:border-l lg:pl-8 lg:row-span-2 lg:col-start-2 lg:row-start-1">
                                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{tx("Mover de uma recepcionista para outra")}</h4>
@@ -2006,6 +2019,12 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                     <Database className="w-5 h-5 text-blue-500"/>{' '}{tx("Banco Bruto")} 
                                     <span className="text-[10px] bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded-md text-slate-500 dark:text-slate-400 uppercase tracking-widest ml-2 border border-slate-200 dark:border-slate-800">{buscaBase.trim() ? tx("{length} de {length2}", { length: leadsNaBaseFiltrados.length, length2: leadsNaBase.length }) : leadsNaBase.length}{' '}{tx("Registros")}</span>
                                 </h3>
+                                {qtdNumeroErrado > 0 && (
+                                    <button type="button" aria-pressed={verSoErrados} onClick={() => { setSoNumeroErrado(!verSoErrados); setPaginaBase(1); setSelecionadosBase([]); }}
+                                        className={`mt-2 mr-2 max-md:min-h-10 px-3 py-2 rounded-xl border text-[10px] font-black uppercase tracking-widest ${verSoErrados ? 'bg-rose-600 border-rose-600 text-white' : 'bg-rose-50 dark:bg-rose-500/10 border-rose-200 dark:border-rose-500/30 text-rose-700 dark:text-rose-300'}`}>
+                                        {verSoErrados ? tx('Mostrar todos') : tx('Ver {qtd} com número errado (não são distribuídos)', { qtd: qtdNumeroErrado })}
+                                    </button>
+                                )}
                                 <div className="relative mt-3">
                                     <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                                     <input
@@ -2054,7 +2073,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                     {leadsDaPaginaBase.map(v => {
                                         const marcado = selecionadosBase.includes(v.id);
                                         return (
-                                            <button key={v.id} type="button" aria-pressed={marcado} onClick={() => setSelecionadosBase(prev => (marcado ? prev.filter(id => id !== v.id) : [...prev, v.id]))}
+                                            <div key={v.id}>
+                                            <button type="button" aria-pressed={marcado} onClick={() => setSelecionadosBase(prev => (marcado ? prev.filter(id => id !== v.id) : [...prev, v.id]))}
                                                 className={`w-full text-left flex items-start gap-3 rounded-2xl border p-3 ${marcado ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10' : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900'}`}>
                                                 <input type="checkbox" readOnly tabIndex={-1} checked={marcado} className="w-5 h-5 mt-0.5 shrink-0 pointer-events-none rounded border-slate-300 dark:border-slate-700 text-blue-600" />
                                                 <span className="min-w-0 flex-1">
@@ -2067,6 +2087,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                                     </span>
                                                 </span>
                                             </button>
+                                            {numeroErrado(v) && <NumeroErrado lead={v} className="px-3 pt-1" />}
+                                            </div>
                                         );
                                     })}
                                 </>
@@ -2117,6 +2139,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
                                                 <p className="text-xs font-bold text-slate-600 dark:text-slate-300">{v.telefone}</p>
+                                                {numeroErrado(v) && <NumeroErrado lead={v} className="mt-1" />}
                                             </td>
                                             <td className="px-6 py-3 border-b border-slate-100 dark:border-slate-800">
                                                 <span className={`px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase border ${classeTipoLead(v.tipo_lead)}`}>
@@ -2199,8 +2222,22 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
         );
     }
 
+    const janelaTelefone = (
+        <JanelaCorrigirTelefone
+            operador={consultorLogado || usuarioLogado?.nome}
+            onCorrigido={(id, campos) => {
+                setVisitantes(prev => prev.map(v => (v.id === id ? { ...v, ...campos } : v)));
+                const atualizar = (atual) => (atual.lead?.id === id ? { ...atual, lead: { ...atual.lead, ...campos } } : atual);
+                setModalDetalhe(atualizar);
+                setModalWpp(atualizar);
+            }}
+        />
+    );
+
     if (!consultorAtivo) {
         return (
+            <>
+            {janelaTelefone}
             <PainelInicialCrm
                 usuarioLogado={usuarioLogado}
                 recepcionistas={recepcionistas}
@@ -2212,6 +2249,7 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                 conteudoBase={unidadeOperacao && podeFazer(usuarioLogado, '517') ? blocoBase() : null}
                 onAbrirDistribuir={unidadeOperacao && podeFazer(usuarioLogado, '517') ? () => { setPassoBase('distribuir'); setTimeout(() => document.getElementById('crm-abastecer-carteiras')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50); } : null}
             />
+            </>
         );
     }
     return (
@@ -2418,10 +2456,10 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
             {/* PUXAR CONTATOS (07/11/2026): carteira acabando (menos de 30 para trabalhar) e Banco Bruto com contatos */}
             {consultorAtivo && (() => {
                 const paraTrabalhar = meusLeadsAtivos.filter(v => prioridadeContato(v).nivel <= 4).length;
-                const naBase = leadsNaBase.length;
+                const naBase = leadsDistribuiveis.length;
                 if (paraTrabalhar >= 30 || naBase === 0) return null;
                 const vaga = vagaDe(consultorAtivo.nome);
-                const puxar = (qtd) => enviarPara(leadsNaBase.slice().sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, qtd).map(l => l.id), consultorAtivo.nome);
+                const puxar = (qtd) => enviarPara(leadsDistribuiveis.slice().sort((a, b) => new Date(dataDoLead(a)).getTime() - new Date(dataDoLead(b)).getTime()).slice(0, qtd).map(l => l.id), consultorAtivo.nome);
                 return (
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-blue-200 dark:border-blue-500/30 bg-blue-50 dark:bg-blue-500/10 px-4 py-3">
                         <span className="text-[12px] font-bold text-blue-800 dark:text-blue-300">
@@ -2536,6 +2574,8 @@ const CrmVisitantes = ({ usuarioLogado, setVisitantes: setVisitantesRecentes, co
                     onMudou={() => setVersaoNaoContatar(v => v + 1)}
                 />
             )}
+
+            {janelaTelefone}
 
             <Modais
                 modalWpp={modalWpp} setModalWpp={setModalWpp} modalDetalhe={modalDetalhe} setModalDetalhe={setModalDetalhe}
